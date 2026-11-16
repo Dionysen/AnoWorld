@@ -83,7 +83,7 @@ MVP 优先固定动作（输入输出可进编辑器、可撤销、可再生成�
 - 为某 Beat 生成选项与后果摘要
 - 润色对白 / 统一文风
 
-设置项：文本 / 生图各自选择一个供应商（预设如 OpenAI、DeepSeek、OpenRouter 等，或自定义；参考 NativeTavern），含可改 Base URL、Key、Model；可移植、可更换。文案生成与续写注入项目当前 **Preset**（文风、禁用、偏好），与 Background 分离。
+设置项：文本 / 生图各自选择一个供应商（预设如 OpenAI、DeepSeek、OpenRouter 等，或自定义；参考 NativeTavern），含可改 Base URL、Key、Model；输入密钥后可自动探测 `/models` 列表。文案生成与续写注入项目当前 **Preset**（文风、禁用、偏好），与 Background 分离。
 
 ## 图片资源
 

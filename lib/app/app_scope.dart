@@ -1,4 +1,6 @@
 import 'package:anoworld/app/settings_controller.dart';
+import 'package:anoworld/data/ai/http_openai_model_catalog.dart';
+import 'package:anoworld/domain/ai/ai_model_catalog.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:flutter/widgets.dart';
@@ -10,12 +12,14 @@ class AppScope extends InheritedWidget {
     required this.projects,
     required this.saves,
     required this.settings,
+    this.modelCatalog,
     required super.child,
   });
 
   final ProjectRepository projects;
   final SaveRepository saves;
   final SettingsController settings;
+  final AiModelCatalog? modelCatalog;
 
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
@@ -31,9 +35,13 @@ class AppScope extends InheritedWidget {
   static SettingsController settingsOf(BuildContext context) =>
       of(context).settings;
 
+  static AiModelCatalog modelCatalogOf(BuildContext context) =>
+      of(context).modelCatalog ?? HttpOpenAiModelCatalog();
+
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
       projects != oldWidget.projects ||
       saves != oldWidget.saves ||
-      settings != oldWidget.settings;
+      settings != oldWidget.settings ||
+      modelCatalog != oldWidget.modelCatalog;
 }
