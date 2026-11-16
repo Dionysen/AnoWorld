@@ -33,7 +33,7 @@
 | --- | --- | --- |
 | 设置 | 宽度 `< 600` | **悬浮胶囊底栏**（通用 / 外观 / AI / 关于） |
 | 设置 | 宽度 `≥ 600` | **左侧导航栏**（同上分区） |
-| 情节走向 | 任意宽度（`forceCompact: true`） | **悬浮胶囊底栏**（画布 / 卡片），与设置窄屏同款 |
+| 情节走向 | 任意宽度（`forceCompact: true`） | **主胶囊**画布 / 卡片 + **右侧独立胶囊**全图（`AppBottomNavExtraCapsule`，仅画布可用） |
 
 窄屏底栏尺寸见 `AppLayout.bottomNavHeight` / `bottomNavHorizontalInset` / `bottomNavBottomInset` / `bottomNavBlurSigma`；胶囊圆角固定为高度一半，不跟控件圆角滑块走。胶囊以 `Stack` 叠在内容之上，四周留白透明；本体为半透明表面 + `BackdropFilter` 毛玻璃模糊（对齐新版 iOS 胶囊质感）。`AppPage` 不预扣底边，`AppPageBody` 与情节图画布读 `MediaQuery.padding.bottom`（壳层会加上胶囊高度）以免内容被挡。
 

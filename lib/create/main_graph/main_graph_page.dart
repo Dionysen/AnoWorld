@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/data/project/graph_node_thumbnail_files.dart';
 import 'package:anoworld/create/main_graph/main_graph_view_nav.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
@@ -9,6 +12,8 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/story_node_kind.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
+import 'package:anoworld/foundation/graph/graph_node_thumbnail.dart';
+import 'package:anoworld/foundation/graph/graph_overview_map.dart';
 import 'package:anoworld/foundation/graph/graph_viewport.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -43,6 +48,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   bool _cardMode = false;
   String? _selectedId;
   String? _selectedEdgeId;
+  final Map<String, Uint8List> _nodeThumbnails = {};
 
   @override
   void didChangeDependencies() {
@@ -66,6 +72,11 @@ class _MainGraphPageState extends State<MainGraphPage> {
         _selectedId = project.main.startNodeId;
         _loading = false;
       });
+      await _loadThumbnailsFromDisk();
+      if (mounted) {
+        // ignore: unawaited_futures
+        _refreshNodeThumbnails(project.main);
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -85,6 +96,56 @@ class _MainGraphPageState extends State<MainGraphPage> {
     await AppScope.projectsOf(context).save(next);
     if (!mounted) return;
     setState(() => _project = next);
+    // ignore: unawaited_futures
+    _refreshNodeThumbnails(next.main);
+  }
+
+  Future<void> _loadThumbnailsFromDisk() async {
+    final dir =
+        await AppScope.projectsOf(context).directoryFor(widget.projectId);
+    if (dir == null || !mounted) return;
+    final disk = await GraphNodeThumbnailFiles.readAll(dir);
+    if (!mounted) return;
+    setState(() {
+      _nodeThumbnails
+        ..clear()
+        ..addAll(disk);
+    });
+  }
+
+  Future<void> _refreshNodeThumbnails(
+    MainStory main, {
+    Iterable<String>? onlyIds,
+  }) async {
+    if (!mounted) return;
+    final graph = _graphNodes(main);
+    final targets = onlyIds?.toSet() ?? graph.map((n) => n.id).toSet();
+    final dir =
+        await AppScope.projectsOf(context).directoryFor(widget.projectId);
+    if (!mounted) return;
+
+    for (final data in graph) {
+      if (!targets.contains(data.id)) continue;
+      if (!mounted) return;
+      final png = await GraphNodeThumbnail.capture(context, data: data);
+      if (png == null || !mounted) continue;
+      if (dir != null) {
+        await GraphNodeThumbnailFiles.write(dir, data.id, png);
+      }
+      _nodeThumbnails[data.id] = png;
+    }
+
+    final alive = graph.map((n) => n.id).toSet();
+    final removed = _nodeThumbnails.keys
+        .where((id) => !alive.contains(id))
+        .toList(growable: false);
+    for (final id in removed) {
+      _nodeThumbnails.remove(id);
+      if (dir != null) {
+        await GraphNodeThumbnailFiles.delete(dir, id);
+      }
+    }
+    if (mounted) setState(() {});
   }
 
   List<GraphNodeData> _graphNodes(MainStory main) {
@@ -452,6 +513,49 @@ class _MainGraphPageState extends State<MainGraphPage> {
     });
   }
 
+  Future<void> _openGraphMap(BuildContext context, MainStory main) async {
+    if (_cardMode) return;
+    await showAppSheet<void>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            0,
+            AppTheme.pagePadding,
+            AppTheme.pagePadding,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppSectionHeader(
+                '走向全览',
+                subtitle: '点一站，回到画布上选中它',
+              ),
+              Expanded(
+                child: GraphOverviewMap(
+                  nodes: _graphNodes(main),
+                  edges: _graphEdges(main),
+                  thumbnails: _nodeThumbnails,
+                  selectedId: _selectedId,
+                  onNodeTap: (id) {
+                    Navigator.of(sheetContext).pop();
+                    if (!mounted) return;
+                    setState(() {
+                      _selectedId = id;
+                      _selectedEdgeId = null;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildEditor(Project project) {
     return AppNavShell(
       destinations: mainGraphViewNavItems,
@@ -459,6 +563,13 @@ class _MainGraphPageState extends State<MainGraphPage> {
       onDestinationSelected: (index) => _setViewMode(index, project),
       forceCompact: true,
       railTopInset: 0,
+      bottomNavExtra: AppBottomNavExtraCapsule(
+        icon: Icons.map_outlined,
+        selectedIcon: Icons.map,
+        label: '全图',
+        enabled: !_cardMode,
+        onPressed: () => _openGraphMap(context, project.main),
+      ),
       body: Builder(
         builder: (context) {
           final bottom = MediaQuery.paddingOf(context).bottom;

@@ -262,6 +262,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('画布'), findsOneWidget);
     expect(find.text('卡片'), findsOneWidget);
+    expect(find.text('全图'), findsOneWidget);
     expect(find.byType(GraphViewport), findsOneWidget);
     expect(find.text('城门'), findsWidgets);
     final focused = tester.widget<InteractiveViewer>(
@@ -269,6 +270,10 @@ void main() {
     );
     expect(focused.panEnabled, isFalse);
     expect(focused.scaleEnabled, isFalse);
+
+    await tester.tap(find.text('全图'));
+    await tester.pumpAndSettle();
+    expect(find.text('走向全览'), findsNothing);
 
     await tester.tap(find.text('画布'));
     await tester.pumpAndSettle();
@@ -278,6 +283,10 @@ void main() {
     );
     expect(free.panEnabled, isTrue);
     expect(free.scaleEnabled, isTrue);
+
+    await tester.tap(find.text('全图'));
+    await tester.pumpAndSettle();
+    expect(find.text('走向全览'), findsOneWidget);
 
     final after = (await repo.open(sample.meta.id)).main;
     expect(after.nodes.map((n) => n.id), before.nodes.map((n) => n.id));

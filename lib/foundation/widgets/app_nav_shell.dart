@@ -22,6 +22,25 @@ class AppNavItem {
   final IconData? selectedIcon;
 }
 
+/// Extra capsule beside the main bottom nav (not a destination tab).
+class AppBottomNavExtraCapsule {
+  const AppBottomNavExtraCapsule({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.selectedIcon,
+    this.enabled = true,
+  });
+
+  final IconData icon;
+  final IconData? selectedIcon;
+  final String label;
+
+  /// When null or [enabled] is false, the control is greyed out.
+  final VoidCallback? onPressed;
+  final bool enabled;
+}
+
 /// Adaptive app chrome: bottom bar (compact) or left rail + optional secondary
 /// list pane (expanded / three-pane).
 class AppNavShell extends StatelessWidget {
@@ -35,6 +54,7 @@ class AppNavShell extends StatelessWidget {
     this.secondaryWidth = AppLayout.secondaryPaneWidth,
     this.railTopInset,
     this.forceCompact = false,
+    this.bottomNavExtra,
   });
 
   final List<AppNavItem> destinations;
@@ -54,6 +74,9 @@ class AppNavShell extends StatelessWidget {
   /// When true, always use the floating capsule bottom nav (e.g. graph
   /// 画布/卡片 switch). Ignores width breakpoint / side rail.
   final bool forceCompact;
+
+  /// Optional second capsule to the right of the main bar (compact mode only).
+  final AppBottomNavExtraCapsule? bottomNavExtra;
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +115,7 @@ class AppNavShell extends StatelessWidget {
                   destinations: destinations,
                   selectedIndex: selectedIndex,
                   onDestinationSelected: onDestinationSelected,
+                  extra: bottomNavExtra,
                 ),
               ),
             ],
@@ -355,21 +379,80 @@ class _BottomNav extends StatelessWidget {
     required this.destinations,
     required this.selectedIndex,
     required this.onDestinationSelected,
+    this.extra,
   });
 
   final List<AppNavItem> destinations;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
+  final AppBottomNavExtraCapsule? extra;
+
+  @override
+  Widget build(BuildContext context) {
+    // viewPadding: ignore body MediaQuery padding inflation from the shell.
+    final bottom = MediaQuery.viewPaddingOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppLayout.bottomNavHorizontalInset,
+        AppTheme.spaceSm,
+        AppLayout.bottomNavHorizontalInset,
+        bottom + AppLayout.bottomNavBottomInset,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: _BottomNavCapsule(
+              child: Row(
+                children: [
+                  for (var i = 0; i < destinations.length; i++)
+                    Expanded(
+                      child: _BottomNavButton(
+                        item: destinations[i],
+                        selected: i == selectedIndex,
+                        onTap: () => onDestinationSelected(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (extra != null) ...[
+            const SizedBox(width: AppTheme.spaceSm),
+            _BottomNavCapsule(
+              width: 80,
+              child: _BottomNavButton(
+                item: AppNavItem(
+                  id: 'extra',
+                  label: extra!.label,
+                  icon: extra!.icon,
+                  selectedIcon: extra!.selectedIcon,
+                ),
+                selected: false,
+                enabled: extra!.enabled,
+                onTap: extra!.enabled ? extra!.onPressed : null,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomNavCapsule extends StatelessWidget {
+  const _BottomNavCapsule({required this.child, this.width});
+
+  final Widget child;
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // viewPadding: ignore body MediaQuery padding inflation from the shell.
-    final bottom = MediaQuery.viewPaddingOf(context).bottom;
     const height = AppLayout.bottomNavHeight;
     final radius = height / 2;
     final isDark = theme.brightness == Brightness.dark;
-    // Capsule ends: radius = half height (independent of control corner slider).
     final capsule = AppShapes.continuous(
       radius: radius,
       side: BorderSide(
@@ -380,55 +463,36 @@ class _BottomNav extends StatelessWidget {
       alpha: isDark ? 0.32 : 0.48,
     );
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppLayout.bottomNavHorizontalInset,
-        AppTheme.spaceSm,
-        AppLayout.bottomNavHorizontalInset,
-        bottom + AppLayout.bottomNavBottomInset,
+    final inner = SizedBox(
+      height: height,
+      width: width,
+      child: child,
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.18),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+      child: ClipPath(
+        clipper: ShapeBorderClipper(shape: capsule),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: AppLayout.bottomNavBlurSigma,
+            sigmaY: AppLayout.bottomNavBlurSigma,
+          ),
+          child: DecoratedBox(
+            decoration: ShapeDecoration(
+              color: glassFill,
+              shape: capsule,
             ),
-          ],
-        ),
-        child: ClipPath(
-          clipper: ShapeBorderClipper(shape: capsule),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: AppLayout.bottomNavBlurSigma,
-              sigmaY: AppLayout.bottomNavBlurSigma,
-            ),
-            child: DecoratedBox(
-              decoration: ShapeDecoration(
-                color: glassFill,
-                shape: capsule,
-              ),
-              child: Material(
-                type: MaterialType.transparency,
-                child: SizedBox(
-                  height: height,
-                  child: Row(
-                    children: [
-                      for (var i = 0; i < destinations.length; i++)
-                        Expanded(
-                          child: _BottomNavButton(
-                            item: destinations[i],
-                            selected: i == selectedIndex,
-                            onTap: () => onDestinationSelected(i),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            child: Material(type: MaterialType.transparency, child: inner),
           ),
         ),
       ),
@@ -441,18 +505,23 @@ class _BottomNavButton extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    this.enabled = true,
   });
 
   final AppNavItem item;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = selected
-        ? theme.colorScheme.primary
-        : theme.colorScheme.onSurfaceVariant;
+    final active = enabled && onTap != null;
+    final color = !active
+        ? theme.colorScheme.onSurface.withValues(alpha: 0.35)
+        : selected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurfaceVariant;
     final pill = AppShapes.continuous(radius: AppLayout.bottomNavHeight / 2);
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -466,13 +535,15 @@ class _BottomNavButton extends StatelessWidget {
         shape: pill,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap,
+          onTap: active ? onTap : null,
           customBorder: pill,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                selected ? (item.selectedIcon ?? item.icon) : item.icon,
+                active && selected
+                    ? (item.selectedIcon ?? item.icon)
+                    : item.icon,
                 size: 22,
                 color: color,
               ),

@@ -1,16 +1,12 @@
 import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
-import 'package:anoworld/foundation/graph/graph_node_card.dart';
+import 'package:anoworld/foundation/graph/graph_node_visual.dart';
 import 'package:anoworld/foundation/graph/graph_port.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-/// Selectable / draggable chip wrapping [GraphNodeCard] for the canvas.
-///
-/// UE-style: colored header with title; ports live in the body with labels
-/// horizontally aligned to each pin. Output titles are tappable buttons.
+/// Selectable / draggable chip wrapping [GraphNodeVisual] for the canvas.
 class GraphNodeChip extends StatelessWidget {
   const GraphNodeChip({
     super.key,
@@ -32,11 +28,7 @@ class GraphNodeChip extends StatelessWidget {
   final GraphNodeData data;
   final bool selected;
   final bool highlightPorts;
-
-  /// Emphasize the left input pin (e.g. selected edge arrives here).
   final bool highlightInput;
-
-  /// Emphasize one right output pin by port / edge id.
   final String? highlightOutputPortId;
   final VoidCallback onTap;
   final GestureDragUpdateCallback onPanUpdate;
@@ -44,12 +36,10 @@ class GraphNodeChip extends StatelessWidget {
   final void Function(String portId)? onOutputDragStart;
   final GestureDragUpdateCallback? onOutputDragUpdate;
   final GestureDragEndCallback? onOutputDragEnd;
-
-  /// Wired output title button (not pending).
   final void Function(String portId)? onOutputTap;
   final VoidCallback? onAddOutput;
 
-  static double get horizontalPad => GraphPort.hitSize / 2;
+  static double get horizontalPad => GraphNodeVisual.horizontalPad;
 
   @override
   Widget build(BuildContext context) {
@@ -58,11 +48,6 @@ class GraphNodeChip extends StatelessWidget {
     final outputs = data.outputs.isEmpty
         ? const [GraphOutputPort.pendingPort]
         : data.outputs;
-    final theme = Theme.of(context);
-    final labelStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurface.withValues(alpha: 0.82),
-      height: 1.1,
-    );
 
     final cardGestures = <Type, GestureRecognizerFactory>{
       TapGestureRecognizer:
@@ -87,7 +72,15 @@ class GraphNodeChip extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Select / drag hit target under the card art.
+          GraphNodeVisual(
+            data: data,
+            selected: selected,
+            highlightPorts: highlightPorts,
+            highlightInput: highlightInput,
+            highlightOutputPortId: highlightOutputPortId,
+            showPortTitles: false,
+            showPortSockets: false,
+          ),
           Positioned(
             left: horizontalPad,
             top: 0,
@@ -99,53 +92,6 @@ class GraphNodeChip extends StatelessWidget {
               child: const ColoredBox(color: Color(0x00000000)),
             ),
           ),
-          // Visual only — title / subtitle / badge must not eat taps.
-          Positioned(
-            left: horizontalPad,
-            top: 0,
-            width: width,
-            height: height,
-            child: IgnorePointer(
-              child: GraphNodeCard(
-                title: data.label,
-                subtitle: data.subtitle,
-                badgeLabel: data.badgeLabel,
-                badgeColor: data.badgeColor,
-                selected: selected,
-                elevated: true,
-                width: width,
-                minHeight: height,
-                body: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: GraphEdgeGeometry.bodyPadV,
-                    horizontal: AppTheme.spaceSm,
-                  ),
-                  child: Column(
-                    children: [
-                      for (var i = 0; i < outputs.length; i++)
-                        SizedBox(
-                          height: GraphEdgeGeometry.portRowHeight,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: i == 0 &&
-                                    data.inputLabel != null &&
-                                    data.inputLabel!.isNotEmpty
-                                ? Text(
-                                    data.inputLabel!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: labelStyle,
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Title buttons only as wide as their label (not a full-row shield).
           for (var i = 0; i < outputs.length; i++)
             Positioned(
               right: GraphPort.hitSize * 0.55,
@@ -220,7 +166,6 @@ class _PortTitleButton extends StatelessWidget {
     this.onPressed,
   });
 
-  /// Already truncated via [GraphPortTitle.display].
   final String label;
   final bool pending;
   final VoidCallback? onPressed;
@@ -243,8 +188,8 @@ class _PortTitleButton extends StatelessWidget {
         onTap: onPressed,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spaceSm,
-            vertical: AppTheme.spaceXs,
+            horizontal: 8,
+            vertical: 4,
           ),
           child: Text(
             label,
