@@ -1,0 +1,68 @@
+import 'package:flutter/material.dart';
+
+enum AppCircleButtonVariant { filled, tonal, ghost }
+
+/// Icon-only circular control. Shape is always a circle — never reads the
+/// corner-radius slider / [AppUiTokens.radius].
+class AppCircleButton extends StatelessWidget {
+  const AppCircleButton({
+    super.key,
+    required this.icon,
+    required this.onPressed,
+    this.tooltip,
+    this.size = diameter,
+    this.iconSize = 22,
+    this.variant = AppCircleButtonVariant.tonal,
+  });
+
+  /// Default hit target diameter (logical px).
+  static const double diameter = 40;
+
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final String? tooltip;
+  final double size;
+  final double iconSize;
+  final AppCircleButtonVariant variant;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final (Color? bg, Color fg) = switch (variant) {
+      AppCircleButtonVariant.filled => (
+          scheme.primary,
+          scheme.onPrimary,
+        ),
+      AppCircleButtonVariant.tonal => (
+          scheme.surfaceContainerHighest,
+          scheme.onSurface,
+        ),
+      AppCircleButtonVariant.ghost => (
+          Colors.transparent,
+          scheme.onSurface,
+        ),
+    };
+
+    final button = IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      icon: Icon(icon, size: iconSize),
+      color: fg,
+      style: IconButton.styleFrom(
+        backgroundColor: bg,
+        foregroundColor: fg,
+        disabledBackgroundColor: bg?.withValues(alpha: 0.4),
+        shape: const CircleBorder(),
+        padding: EdgeInsets.zero,
+        minimumSize: Size.square(size),
+        fixedSize: Size.square(size),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.standard,
+      ),
+    );
+
+    if (size == diameter) return button;
+    return SizedBox(width: size, height: size, child: button);
+  }
+}

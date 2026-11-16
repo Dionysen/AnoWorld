@@ -231,6 +231,8 @@ abstract final class AppTheme {
         titleSpacing: 12,
       ),
       textTheme: TextTheme(
+        headlineSmall:
+            sized(24, weight: FontWeight.w600, color: tokens.onCanvas),
         titleLarge: sized(22, weight: FontWeight.w600, color: tokens.onCanvas),
         titleMedium:
             sized(16, weight: FontWeight.w600, color: tokens.onCanvas),

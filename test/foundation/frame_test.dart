@@ -65,6 +65,50 @@ void main() {
     );
   });
 
+  testWidgets('desktop page title sits below the chrome band', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    const bodyKey = Key('body');
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.data,
+          home: const ImmersiveScope(
+            metrics: ImmersiveMetrics(
+              active: true,
+              titleBarHeight: 36,
+              leadingInset: 78,
+            ),
+            child: AppPage(
+              title: '设置',
+              onBack: _noop,
+              body: SizedBox.expand(key: bodyKey),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final titleTop = tester.getTopLeft(find.text('设置')).dy;
+      final bodyTop = tester.getTopLeft(find.byKey(bodyKey)).dy;
+      expect(titleTop, greaterThanOrEqualTo(36));
+      expect(bodyTop, greaterThan(titleTop));
+      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+      expect(
+        tester.getCenter(find.byIcon(Icons.arrow_back)).dx,
+        lessThan(tester.getCenter(find.text('设置')).dx),
+      );
+      expect(
+        tester.getCenter(find.byIcon(Icons.arrow_back)).dy,
+        closeTo(tester.getCenter(find.text('设置')).dy, 8),
+      );
+
+      final title = tester.widget<Text>(find.text('设置'));
+      expect(title.style?.fontSize, 24);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('page does not overflow in a tiny viewport', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -153,6 +197,8 @@ void main() {
     },
   );
 }
+
+void _noop() {}
 
 final class _MemoryGeometryStore implements WindowGeometryStore {
   WindowGeometry? value;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum AppTextRole { title, subtitle, body, caption, label }
+enum AppTextRole { pageTitle, title, subtitle, body, caption, label }
 
 /// Themed text. Business screens should prefer this over raw [Text] styling.
 class AppText extends StatelessWidget {
@@ -23,6 +23,7 @@ class AppText extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = switch (role) {
+      AppTextRole.pageTitle => theme.textTheme.headlineSmall,
       AppTextRole.title => theme.textTheme.titleLarge,
       AppTextRole.subtitle => theme.textTheme.titleMedium,
       AppTextRole.body => theme.textTheme.bodyLarge,

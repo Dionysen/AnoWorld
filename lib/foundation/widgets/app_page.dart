@@ -1,12 +1,19 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../frame/immersive_frame.dart';
 import '../theme/app_theme.dart';
+import 'app_circle_button.dart';
 import 'app_icon_button.dart';
+import 'app_text.dart';
 
 /// Page shell. Business screens compose this instead of a scaffold or app bar.
+///
+/// On desktop, [title] sits below the chrome band (24 / pageTitle) with [onBack]
+/// on its left; the band keeps actions only. On phone and tablet, title and
+/// back stay in the band.
 class AppPage extends StatelessWidget {
   const AppPage({
     super.key,
@@ -20,6 +27,17 @@ class AppPage extends StatelessWidget {
   final Widget body;
   final List<Widget> actions;
   final VoidCallback? onBack;
+
+  static bool get _desktopLargeTitle {
+    if (kIsWeb) return false;
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.macOS ||
+      TargetPlatform.windows ||
+      TargetPlatform.linux =>
+        true,
+      _ => false,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +53,7 @@ class AppPage extends StatelessWidget {
           color:
               theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface,
         );
+    final largeTitle = _desktopLargeTitle;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -44,7 +63,7 @@ class AppPage extends StatelessWidget {
           // of overflowing when the window is squeezed.
           final barHeight = math.min(metrics.barHeight, constraints.maxHeight);
           final showBar = barHeight > 0;
-          final showTitle =
+          final showChromeRow =
               showBar && barHeight >= metrics.statusInset + 20;
           // Width left for the title row after chrome insets.
           final rowWidth = math.max(
@@ -53,18 +72,62 @@ class AppPage extends StatelessWidget {
                 metrics.leadingInset -
                 metrics.trailingInset,
           );
-          // Back needs ~36; hide it (and then the title) when the band is too
-          // narrow instead of painting yellow/black overflow stripes.
-          final showBack = onBack != null && rowWidth >= 36;
-          final showTitleText = rowWidth >= (showBack ? 52 : 24);
+          final bodyArea = math.max(0.0, constraints.maxHeight - barHeight);
+          final showLargeTitle = largeTitle && bodyArea >= 72;
+          // Back in the chrome band only on phone/tablet; desktop puts it
+          // beside the large title below.
+          final showBarBack =
+              !showLargeTitle && onBack != null && rowWidth >= 36;
+          final showTitleText =
+              !showLargeTitle && rowWidth >= (showBarBack ? 52 : 24);
           final titleReserve = metrics.leadingInset +
               titleSpacing +
               metrics.trailingInset +
-              (showBack ? 36.0 : 0.0) +
+              (showBarBack ? 36.0 : 0.0) +
               48;
           final showActions = actions.isNotEmpty &&
-              showTitleText &&
-              constraints.maxWidth >= titleReserve + 72;
+              rowWidth >= 48 &&
+              constraints.maxWidth >= titleReserve;
+          final showTitleBack = showLargeTitle &&
+              onBack != null &&
+              constraints.maxWidth >= 72;
+
+          Widget pageBody = body;
+          if (showLargeTitle) {
+            pageBody = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    showTitleBack ? AppTheme.spaceSm : AppTheme.pagePadding,
+                    AppTheme.spaceMd,
+                    AppTheme.pagePadding,
+                    AppTheme.spaceSm,
+                  ),
+                  child: Row(
+                    children: [
+                      if (showTitleBack) ...[
+                        AppCircleButton(
+                          icon: Icons.arrow_back,
+                          tooltip: '返回',
+                          onPressed: onBack,
+                        ),
+                        const SizedBox(width: AppTheme.spaceSm),
+                      ],
+                      Expanded(
+                        child: AppText(
+                          title,
+                          role: AppTextRole.pageTitle,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: body),
+              ],
+            );
+          }
 
           return Column(
             children: [
@@ -74,7 +137,7 @@ class AppPage extends StatelessWidget {
                   child: SizedBox(
                     height: barHeight,
                     width: double.infinity,
-                    child: showTitle
+                    child: showChromeRow
                         ? Padding(
                             padding: EdgeInsets.only(
                               top: math.min(
@@ -82,16 +145,18 @@ class AppPage extends StatelessWidget {
                                 math.max(0, barHeight - 20),
                               ),
                               left: metrics.leadingInset +
-                                  (showBack ? 0 : titleSpacing),
+                                  (showBarBack ? 0 : titleSpacing),
                               right: metrics.trailingInset,
                             ),
                             child: Row(
                               children: [
-                                if (showBack)
-                                  AppIconButton(
+                                if (showBarBack)
+                                  AppCircleButton(
                                     icon: Icons.arrow_back,
                                     tooltip: '返回',
                                     onPressed: onBack,
+                                    size: 32,
+                                    iconSize: 18,
                                   ),
                                 if (showTitleText)
                                   Expanded(
@@ -119,7 +184,7 @@ class AppPage extends StatelessWidget {
                     left: media.padding.left,
                     right: media.padding.right,
                   ),
-                  child: body,
+                  child: pageBody,
                 ),
               ),
             ],
