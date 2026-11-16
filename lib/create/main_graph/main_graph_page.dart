@@ -54,6 +54,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   String? _selectedEdgeId;
   final Map<String, Uint8List> _nodeThumbnails = {};
   final _viewportCamera = GraphViewportController();
+  final _overviewPanelKey = GlobalKey<AppDockedPanelState>();
   Timer? _saveDebounce;
 
   @override
@@ -538,6 +539,9 @@ class _MainGraphPageState extends State<MainGraphPage> {
 
   void _setViewMode(int index, Project project) {
     final card = index == 1;
+    if (card && _overviewOpen) {
+      _requestCloseOverview();
+    }
     setState(() {
       _cardMode = card;
       if (card) {
@@ -550,10 +554,25 @@ class _MainGraphPageState extends State<MainGraphPage> {
 
   void _toggleOverview() {
     if (_cardMode) return;
-    setState(() => _overviewOpen = !_overviewOpen);
+    if (_overviewOpen) {
+      _requestCloseOverview();
+      return;
+    }
+    setState(() => _overviewOpen = true);
   }
 
-  void _closeOverview() {
+  void _requestCloseOverview() {
+    if (!_overviewOpen) return;
+    final panel = _overviewPanelKey.currentState;
+    if (panel != null) {
+      // ignore: unawaited_futures
+      panel.dismiss();
+      return;
+    }
+    setState(() => _overviewOpen = false);
+  }
+
+  void _onOverviewDismissed() {
     if (!_overviewOpen) return;
     setState(() => _overviewOpen = false);
   }
@@ -561,7 +580,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
   Widget? _buildOverviewPanel(MainStory main) {
     if (!_overviewOpen || _cardMode) return null;
     return AppDockedPanel(
-      onDismiss: _closeOverview,
+      key: _overviewPanelKey,
+      onDismiss: _onOverviewDismissed,
       header: const Padding(
         padding: EdgeInsets.fromLTRB(
           AppTheme.pagePadding,
@@ -571,7 +591,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
         ),
         child: AppSectionHeader(
           '走向全览',
-          subtitle: '滑动地图移动镜头，拖标题跟手收起',
+          subtitle: '滑动地图移动镜头，点外侧或拖标题收起',
         ),
       ),
       child: Padding(
@@ -607,6 +627,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
         onPressed: _toggleOverview,
       ),
       bottomPanel: _buildOverviewPanel(project.main),
+      onBottomPanelBarrierTap:
+          _overviewOpen ? _requestCloseOverview : null,
       body: Builder(
         builder: (context) {
           final bottom = MediaQuery.paddingOf(context).bottom;

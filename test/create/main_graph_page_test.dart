@@ -288,10 +288,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('走向全览'), findsOneWidget);
     expect(find.byKey(const ValueKey('app_docked_panel')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('app_nav_bottom_panel_barrier')),
+      findsOneWidget,
+    );
+
+    // Tap above the docked panel (barrier absorbs; canvas/tools do not).
+    final panelRect =
+        tester.getRect(find.byKey(const ValueKey('app_docked_panel')));
+    await tester.tapAt(Offset(panelRect.center.dx, panelRect.top - 24));
+    await tester.pumpAndSettle();
+    expect(find.text('走向全览'), findsNothing);
+    expect(find.byKey(const ValueKey('app_docked_panel')), findsNothing);
 
     await tester.tap(find.text('全图'));
     await tester.pumpAndSettle();
-    expect(find.text('走向全览'), findsNothing);
+    expect(find.byKey(const ValueKey('app_docked_panel')), findsOneWidget);
+    await tester.tap(find.text('全图'));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('app_docked_panel')), findsNothing);
 
     final after = (await repo.open(sample.meta.id)).main;

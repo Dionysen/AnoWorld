@@ -60,6 +60,7 @@ class AppNavShell extends StatelessWidget {
     this.forceCompact = false,
     this.bottomNavExtra,
     this.bottomPanel,
+    this.onBottomPanelBarrierTap,
   });
 
   final List<AppNavItem> destinations;
@@ -86,6 +87,11 @@ class AppNavShell extends StatelessWidget {
   /// Optional panel docked above the bottom nav (compact mode only).
   /// Typically an [AppDockedPanel]; sits under the capsules in z-order.
   final Widget? bottomPanel;
+
+  /// When [bottomPanel] is shown, a full-screen transparent barrier sits above
+  /// [body] (under the panel and bottom nav). Taps are absorbed so the body
+  /// does not receive them; [onBottomPanelBarrierTap] runs on tap (e.g. dismiss).
+  final VoidCallback? onBottomPanelBarrierTap;
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +124,14 @@ class AppNavShell extends StatelessWidget {
                 ),
                 child: body,
               ),
-              if (bottomPanel != null)
+              if (bottomPanel != null) ...[
+                Positioned.fill(
+                  child: GestureDetector(
+                    key: const ValueKey('app_nav_bottom_panel_barrier'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onBottomPanelBarrierTap?.call(),
+                  ),
+                ),
                 Positioned(
                   left: AppTheme.sheetInset,
                   right: AppTheme.sheetInset,
@@ -128,6 +141,7 @@ class AppNavShell extends StatelessWidget {
                     child: bottomPanel,
                   ),
                 ),
+              ],
               Align(
                 alignment: Alignment.bottomCenter,
                 child: _BottomNav(

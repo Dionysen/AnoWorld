@@ -8,8 +8,9 @@ import 'package:flutter/material.dart';
 
 /// Floating card docked above the compact bottom nav (not a modal route).
 ///
-/// Drag the handle (and optional [header]) to slide the panel; release past a
-/// threshold or with a fling to dismiss, otherwise it springs back.
+/// Slides up quickly on open (no overshoot). Drag the handle / [header] to
+/// follow the finger; release past a threshold or call [AppDockedPanelState.dismiss]
+/// to slide down and then invoke [onDismiss].
 class AppDockedPanel extends StatefulWidget {
   const AppDockedPanel({
     super.key,
@@ -27,48 +28,97 @@ class AppDockedPanel extends StatefulWidget {
   final double heightFactor;
 
   @override
-  State<AppDockedPanel> createState() => _AppDockedPanelState();
+  State<AppDockedPanel> createState() => AppDockedPanelState();
 }
 
-class _AppDockedPanelState extends State<AppDockedPanel>
-    with SingleTickerProviderStateMixin {
+class AppDockedPanelState extends State<AppDockedPanel>
+    with TickerProviderStateMixin {
+  static const _duration = Duration(milliseconds: 180);
+
+  /// 0 = hidden below, 1 = fully shown.
+  late final AnimationController _reveal;
   double _drag = 0;
   double _panelHeight = 0;
+  bool _closing = false;
+  bool _enterStarted = false;
+
   late final AnimationController _settle;
-  Animation<double>? _tween;
+  Animation<double>? _dragTween;
 
   @override
   void initState() {
     super.initState();
+    _reveal = AnimationController(
+      vsync: this,
+      duration: _duration,
+      value: 0,
+    )..addListener(() {
+        if (mounted) setState(() {});
+      });
     _settle = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 240),
+      duration: _duration,
     )..addListener(() {
-        final tween = _tween;
-        if (tween != null) {
+        final tween = _dragTween;
+        if (tween != null && mounted) {
           setState(() => _drag = tween.value);
         }
       });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startEnter());
   }
 
   @override
   void dispose() {
+    _reveal.dispose();
     _settle.dispose();
     super.dispose();
   }
 
-  void _onDragStart() {
+  void _startEnter() {
+    if (!mounted || _enterStarted || _closing) return;
+    _enterStarted = true;
+    _reveal.animateTo(1, curve: Curves.easeOut);
+  }
+
+  double get _height {
+    if (_panelHeight > 0) return _panelHeight;
+    return MediaQuery.sizeOf(context).height * widget.heightFactor;
+  }
+
+  double get _offset => (1.0 - _reveal.value) * _height + _drag;
+
+  /// Slides down, then calls [AppDockedPanel.onDismiss].
+  Future<void> dismiss() async {
+    if (_closing) return;
+    _closing = true;
     _settle.stop();
-    _tween = null;
+    _dragTween = null;
+
+    final h = _height;
+    final visual = _offset.clamp(0.0, h + 48);
+    _drag = 0;
+    if (h > 0) {
+      _reveal.value = (1.0 - visual / h).clamp(0.0, 1.0);
+    }
+    await _reveal.animateBack(0, curve: Curves.easeOut);
+    if (!mounted) return;
+    widget.onDismiss?.call();
+  }
+
+  void _onDragStart() {
+    if (_closing) return;
+    _settle.stop();
+    _dragTween = null;
   }
 
   void _onDragUpdate(double dy) {
+    if (_closing) return;
     setState(() => _drag = math.max(0, _drag + dy));
   }
 
-  Future<void> _animateTo(double target, {VoidCallback? onDone}) async {
-    _tween = Tween<double>(begin: _drag, end: target).animate(
-      CurvedAnimation(parent: _settle, curve: Curves.easeOutCubic),
+  Future<void> _animateDragTo(double target, {VoidCallback? onDone}) async {
+    _dragTween = Tween<double>(begin: _drag, end: target).animate(
+      CurvedAnimation(parent: _settle, curve: Curves.easeOut),
     );
     await _settle.forward(from: 0);
     if (!mounted) return;
@@ -77,16 +127,17 @@ class _AppDockedPanelState extends State<AppDockedPanel>
   }
 
   void _onDragEnd(double velocity) {
+    if (_closing) return;
     final dismissible = widget.onDismiss != null;
-    final h = _panelHeight > 0 ? _panelHeight : 280.0;
+    final h = _height;
     final shouldDismiss =
-        dismissible && (_drag > h * 0.28 || velocity > 700);
+        dismissible && (_offset > h * 0.28 || velocity > 700);
     if (shouldDismiss) {
       // ignore: unawaited_futures
-      _animateTo(h + 48, onDone: widget.onDismiss);
+      dismiss();
     } else {
       // ignore: unawaited_futures
-      _animateTo(0);
+      _animateDragTo(0);
     }
   }
 
@@ -109,7 +160,7 @@ class _AppDockedPanelState extends State<AppDockedPanel>
             }
             ..onCancel = () {
               // ignore: unawaited_futures
-              _animateTo(0);
+              _animateDragTo(0);
             };
         },
       ),
@@ -128,12 +179,12 @@ class _AppDockedPanelState extends State<AppDockedPanel>
     final height = media.height * widget.heightFactor;
     _panelHeight = height;
 
-    final fade = (1.0 - (_drag / math.max(height, 1)) * 0.35).clamp(0.55, 1.0);
+    final fade = (1.0 - (_offset / math.max(height, 1)) * 0.25).clamp(0.6, 1.0);
 
     return Opacity(
       opacity: fade,
       child: Transform.translate(
-        offset: Offset(0, _drag),
+        offset: Offset(0, _offset),
         child: Material(
           key: const ValueKey('app_docked_panel'),
           color: theme.colorScheme.surfaceContainerHigh,
