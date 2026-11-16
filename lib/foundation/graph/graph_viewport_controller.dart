@@ -48,25 +48,37 @@ class GraphViewportController {
   /// Pans so [topLeft] becomes the visible top-left corner (keeps zoom).
   void setVisibleSceneTopLeft(Offset topLeft) {
     final s = scale.clamp(0.001, 100.0);
-    transform.value = Matrix4.identity()
-      ..translateByDouble(-topLeft.dx * s, -topLeft.dy * s, 0, 1)
-      ..scaleByDouble(s, s, 1, 1);
+    // Keep the current matrix's scale block; only rewrite translation so
+    // InteractiveViewer pinch-zoom is not normalized away.
+    final m = Matrix4.copy(transform.value);
+    m.setTranslationRaw(-topLeft.dx * s, -topLeft.dy * s, 0);
+    transform.value = m;
   }
 
   /// Centers [scenePoint] in the viewport (keeps zoom).
   void centerOnScenePoint(Offset scenePoint) {
     final s = scale.clamp(0.001, 100.0);
-    final tx = viewportSize.width / 2 - scenePoint.dx * s;
-    final ty = viewportSize.height / 2 - scenePoint.dy * s;
-    transform.value = Matrix4.identity()
-      ..translateByDouble(tx, ty, 0, 1)
-      ..scaleByDouble(s, s, 1, 1);
+    final m = Matrix4.copy(transform.value);
+    m.setTranslationRaw(
+      viewportSize.width / 2 - scenePoint.dx * s,
+      viewportSize.height / 2 - scenePoint.dy * s,
+      0,
+    );
+    transform.value = m;
   }
 
+  /// Pans the camera in scene space without changing zoom.
   void panVisibleByScene(Offset sceneDelta) {
-    final rect = visibleSceneRect;
-    if (rect == null) return;
-    setVisibleSceneTopLeft(rect.topLeft + sceneDelta);
+    if (viewportSize == Size.zero) return;
+    final s = scale.clamp(0.001, 100.0);
+    final m = Matrix4.copy(transform.value);
+    final t = m.getTranslation();
+    m.setTranslationRaw(
+      t.x - sceneDelta.dx * s,
+      t.y - sceneDelta.dy * s,
+      t.z,
+    );
+    transform.value = m;
   }
 
   void dispose() {
