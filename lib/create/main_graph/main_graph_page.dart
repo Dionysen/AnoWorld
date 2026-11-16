@@ -288,10 +288,62 @@ class _MainGraphPageState extends State<MainGraphPage> {
     });
   }
 
+  Future<bool> _confirmDeleteNode(String title) async {
+    final confirmed = await showAppSheet<bool>(
+      context: context,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            AppTheme.spaceXs,
+            AppTheme.pagePadding,
+            AppTheme.spaceMd,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppSectionHeader('删除这一站？'),
+              AppText(
+                title.trim().isEmpty
+                    ? '连到它的线也会一起去掉，去掉后不能恢复。'
+                    : '「$title」和连到它的线都会去掉，去掉后不能恢复。',
+                role: AppTextRole.body,
+              ),
+              const SizedBox(height: AppTheme.spaceMd),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      label: '取消',
+                      variant: AppButtonVariant.secondary,
+                      onPressed: () => Navigator.pop(sheetContext, false),
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.spaceSm),
+                  Expanded(
+                    child: AppButton(
+                      label: '删除',
+                      onPressed: () => Navigator.pop(sheetContext, true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    return confirmed == true;
+  }
+
   Future<void> _deleteNode(String nodeId) async {
     final project = _project;
     if (project == null) return;
     if (project.main.nodes.length <= 1) return;
+    final title = project.main.nodeById(nodeId)?.title ?? '';
+    final ok = await _confirmDeleteNode(title);
+    if (!ok || !mounted) return;
     await _persist(_ops.removeNode(project.main, nodeId));
     if (!mounted) return;
     setState(() {
@@ -451,6 +503,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
                     onPressed: project.main.nodes.length <= 1
                         ? null
                         : () async {
+                            final ok = await _confirmDeleteNode(node.title);
+                            if (!ok || !mounted) return;
                             await _persist(
                               _ops.removeNode(project.main, nodeId),
                             );
