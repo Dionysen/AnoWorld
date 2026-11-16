@@ -39,6 +39,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('文本 AI'), findsOneWidget);
     expect(find.text('生图 AI'), findsOneWidget);
+    expect(find.text('供应商'), findsWidgets);
 
     await tester.tap(find.text('关于').last);
     await tester.pumpAndSettle();
@@ -78,6 +79,7 @@ void main() {
     expect(find.text('通用选项稍后接入'), findsOneWidget);
     await tester.tap(find.text('AI').first);
     await tester.pumpAndSettle();
-    expect(find.text('保存'), findsOneWidget);
+    expect(find.text('供应商'), findsWidgets);
+    expect(find.text('保存'), findsWidgets);
   });
 }

@@ -15,7 +15,8 @@ void main() {
     await repo.saveAi(
       const AiSettings(
         text: AiEndpointConfig(
-          baseUrl: 'https://api.example.com/v1',
+          kind: AiProviderKind.deepSeek,
+          baseUrl: 'https://api.deepseek.com/v1',
           apiKey: 'sk-test',
           model: 'gpt-test',
         ),
@@ -34,6 +35,7 @@ void main() {
     final ai = await repo.loadAi();
     expect(ai.text.model, 'gpt-test');
     expect(ai.text.apiKey, 'sk-test');
+    expect(ai.text.kind, AiProviderKind.deepSeek);
 
     final appearance = await repo.loadAppearance();
     expect(appearance.mode, AppThemeModeSetting.light);
