@@ -114,9 +114,10 @@ class ProjectValidator {
     } else {
       final start = main.nodeById(main.startNodeId);
       if (start != null && start.beatIds.isEmpty) {
+        // Bridge AI may fill start; warn when skeleton-only.
         issues.add(
           ProjectIssue(
-            severity: ProjectIssueSeverity.error,
+            severity: ProjectIssueSeverity.warning,
             code: 'start_node_empty',
             message: 'startNodeId "${main.startNodeId}" has empty beatIds',
             path: r'$.main.startNodeId',
@@ -184,10 +185,34 @@ class ProjectValidator {
           ProjectIssue(
             severity: ProjectIssueSeverity.warning,
             code: 'node_without_beats',
-            message: 'Node "${node.id}" has no beats',
+            message: 'Node "${node.id}" has no beats (bridge AI expected)',
             path: '\$.main.nodes.${node.id}',
           ),
         );
+        final hasOut = main.edges.any((e) => e.from == node.id);
+        final isEnding = node.tags.contains('ending');
+        if (!hasOut && !isEnding) {
+          issues.add(
+            ProjectIssue(
+              severity: ProjectIssueSeverity.error,
+              code: 'node_no_exit',
+              message:
+                  'Node "${node.id}" has no beats and no outbound edge or ending tag',
+              path: '\$.main.nodes.${node.id}',
+            ),
+          );
+        }
+        if ((node.synopsis == null || node.synopsis!.trim().isEmpty) &&
+            !isEnding) {
+          issues.add(
+            ProjectIssue(
+              severity: ProjectIssueSeverity.warning,
+              code: 'node_synopsis_empty',
+              message: 'Node "${node.id}" has empty synopsis',
+              path: '\$.main.nodes.${node.id}.synopsis',
+            ),
+          );
+        }
       }
       for (final beatId in node.beatIds) {
         final beat = beatsById[beatId];
@@ -318,9 +343,10 @@ class ProjectValidator {
         if (node != null && node.beatIds.isEmpty) {
           issues.add(
             ProjectIssue(
-              severity: ProjectIssueSeverity.error,
+              severity: ProjectIssueSeverity.warning,
               code: 'transition_node_empty',
-              message: 'Transition targets node "$nodeId" with empty beatIds',
+              message:
+                  'Transition targets node "$nodeId" with empty beatIds (bridge)',
               path: path,
             ),
           );

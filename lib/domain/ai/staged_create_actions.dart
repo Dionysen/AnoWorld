@@ -164,11 +164,11 @@ class StagedCreateActions {
 根据用户提示生成 2～4 个角色；姓名要短、好记。''';
 
   static const String _mainSchema = '''
-输出格式：
-{"summary":"主线概括","scenes":[{"title":"场景标题","synopsis":"本场目标","location":"地点","speakers":["角色名"],"lines":[{"speaker":"角色名或旁白","text":"对白"}],"choices":[{"text":"选项","end":true},{"text":"选项","stay":true}]}]}
+输出格式（只出脉络骨架，不要对白）：
+{"summary":"主线概括","stations":[{"title":"大站标题","synopsis":"本站必须达成的剧情目标","exits":[{"to":"下一站标题或end","kind":"default|branch","label":"可选标注"}]}],"edges":[{"from":"站标题","to":"站标题或end","kind":"default|branch","label":"可选"}]}
 规则：
-- 恰好 2 个 scenes（短开场）
-- 每场若干短对白；speaker 必须是已有角色名或「旁白」
-- 第一场不要 choices（播完进入下一场）
-- 第二场必须有 2～3 个 choices；至少一项 end:true，可用 stay:true 表示留在本场''';
+- 3～5 个 stations（大情节站）；synopsis 必填且短
+- 用 exits 或 edges 表达顺序与分支；至少一处 branch 或两条不同结局（to 可为 end）
+- 不要输出 lines / choices / 对白
+- 结局站可用 ending:true，或 exits.to = "end"''';
 }

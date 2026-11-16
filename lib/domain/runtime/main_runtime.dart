@@ -3,31 +3,57 @@ import 'package:anoworld/domain/runtime/play_pointer.dart';
 
 /// Shared Main advancement for VN and chat (docs/MainBeat.md §3).
 class MainRuntime {
-  MainRuntime(this.main, {MainSavePointer? save})
-      : pointer = _initialPointer(main, save);
+  MainRuntime(MainStory main, {MainSavePointer? save})
+      : main = main,
+        pointer = _initialPointer(main, save);
 
-  final MainStory main;
+  MainStory main;
   PlayPointer pointer;
 
   static PlayPointer _initialPointer(MainStory main, MainSavePointer? save) {
     if (save != null) {
-      final beat = main.beatById(save.beatId);
       final node = main.nodeById(save.nodeId);
-      if (beat != null && node != null && beat.nodeId == node.id) {
-        return _enterBeat(main, nodeId: node.id, beatId: beat.id);
+      if (node != null) {
+        if (save.beatId.isNotEmpty) {
+          final beat = main.beatById(save.beatId);
+          if (beat != null && beat.nodeId == node.id) {
+            return _enterBeat(main, nodeId: node.id, beatId: beat.id);
+          }
+        }
+        return enterNode(main, node.id);
       }
     }
     return enterStart(main);
   }
 
   static PlayPointer enterStart(MainStory main) {
-    final node = main.nodeById(main.startNodeId);
-    if (node == null || node.beatIds.isEmpty) {
+    return enterNode(main, main.startNodeId);
+  }
+
+  static PlayPointer enterNode(MainStory main, String nodeId) {
+    final node = main.nodeById(nodeId);
+    if (node == null) {
       return PlayPointer(
-        nodeId: main.startNodeId,
+        nodeId: nodeId,
         beatId: '',
         lineIndex: -1,
         phase: PlayPhase.ended,
+      );
+    }
+    if (node.tags.contains('ending') && node.beatIds.isEmpty) {
+      return PlayPointer(
+        nodeId: node.id,
+        beatId: '',
+        lineIndex: -1,
+        phase: PlayPhase.ended,
+      );
+    }
+    if (node.beatIds.isEmpty) {
+      return PlayPointer(
+        nodeId: node.id,
+        beatId: '',
+        lineIndex: -1,
+        phase: PlayPhase.needsBridge,
       );
     }
     return _enterBeat(main, nodeId: node.id, beatId: node.beatIds.first);
@@ -44,7 +70,7 @@ class MainRuntime {
         nodeId: nodeId,
         beatId: beatId,
         lineIndex: -1,
-        phase: PlayPhase.ended,
+        phase: PlayPhase.needsBridge,
       );
     }
     if (beat.lines.isEmpty) {
@@ -56,7 +82,6 @@ class MainRuntime {
           phase: PlayPhase.choices,
         );
       }
-      // Empty beat with no choices: resolve immediately via finish rules.
       final runtime = MainRuntime._withPointer(
         main,
         PlayPointer(
@@ -93,7 +118,6 @@ class MainRuntime {
     return beat.lines[pointer.lineIndex];
   }
 
-  /// Lines revealed so far (inclusive), for chat bubbles.
   List<DialogueLine> get revealedLines {
     final beat = currentBeat;
     if (beat == null || pointer.lineIndex < 0) return const [];
@@ -109,7 +133,16 @@ class MainRuntime {
   bool get canAdvance =>
       pointer.phase == PlayPhase.lines && !pointer.isEnded;
 
-  /// Background with in-node inheritance (no cross-node inherit).
+  bool get needsBridge => pointer.phase == PlayPhase.needsBridge;
+
+  List<StoryEdge> outboundFromCurrent() {
+    final node = currentNode;
+    if (node == null) return const [];
+    return main.edges
+        .where((e) => e.from == node.id)
+        .toList(growable: false);
+  }
+
   String? get resolvedBackgroundAssetId {
     final node = currentNode;
     final beat = currentBeat;
@@ -130,7 +163,36 @@ class MainRuntime {
   List<Appearance> get appearances =>
       currentBeat?.appearances ?? const <Appearance>[];
 
-  /// Advance one VN/chat step (next line or finish beat when lines done).
+  /// Adds a generated beat into the working main and enters it.
+  void adoptBridgeBeat(Beat beat) {
+    final node = main.nodeById(beat.nodeId);
+    if (node == null) return;
+    final beats = [...main.beats.where((b) => b.id != beat.id), beat];
+    final beatIds = [...node.beatIds.where((id) => id != beat.id), beat.id];
+    final nodes = main.nodes
+        .map(
+          (n) => n.id == node.id
+              ? StoryNode(
+                  id: n.id,
+                  title: n.title,
+                  synopsis: n.synopsis,
+                  beatIds: beatIds,
+                  layout: n.layout,
+                  tags: n.tags,
+                )
+              : n,
+        )
+        .toList(growable: false);
+    main = MainStory(
+      summary: main.summary,
+      startNodeId: main.startNodeId,
+      nodes: nodes,
+      edges: main.edges,
+      beats: beats,
+    );
+    pointer = _enterBeat(main, nodeId: beat.nodeId, beatId: beat.id);
+  }
+
   void advance() {
     if (!canAdvance) return;
     final beat = currentBeat;
@@ -160,6 +222,23 @@ class MainRuntime {
     _applyTransition(match.target);
   }
 
+  void jumpToNode(String nodeId) {
+    _applyTransition(Transition.toNode(nodeId));
+  }
+
+  void endStory() {
+    pointer = pointer.copyWith(phase: PlayPhase.ended);
+  }
+
+  void requestBridge() {
+    pointer = PlayPointer(
+      nodeId: pointer.nodeId,
+      beatId: pointer.beatId,
+      lineIndex: -1,
+      phase: PlayPhase.needsBridge,
+    );
+  }
+
   void _finishBeat() {
     final beat = currentBeat;
     final node = currentNode;
@@ -185,6 +264,11 @@ class MainRuntime {
       _applyTransition(Transition.toNode(defaults.first.to));
       return;
     }
+    // No default edge: ask for more bridge content or end.
+    if (main.edges.any((e) => e.from == node.id)) {
+      pointer = pointer.copyWith(phase: PlayPhase.needsBridge);
+      return;
+    }
     pointer = pointer.copyWith(phase: PlayPhase.ended);
   }
 
@@ -195,12 +279,13 @@ class MainRuntime {
       case TransitionType.beat:
         final beatId = transition.beatId;
         if (beatId == null) {
-          pointer = pointer.copyWith(phase: PlayPhase.ended);
+          pointer = pointer.copyWith(phase: PlayPhase.needsBridge);
           return;
         }
         final beat = main.beatById(beatId);
         if (beat == null) {
-          pointer = pointer.copyWith(phase: PlayPhase.ended);
+          // Bridge "stay" marker when beat was not persisted as a new id.
+          pointer = pointer.copyWith(phase: PlayPhase.needsBridge);
           return;
         }
         pointer = _enterBeat(main, nodeId: beat.nodeId, beatId: beat.id);
@@ -210,16 +295,7 @@ class MainRuntime {
           pointer = pointer.copyWith(phase: PlayPhase.ended);
           return;
         }
-        final node = main.nodeById(nodeId);
-        if (node == null || node.beatIds.isEmpty) {
-          pointer = pointer.copyWith(phase: PlayPhase.ended);
-          return;
-        }
-        pointer = _enterBeat(
-          main,
-          nodeId: node.id,
-          beatId: node.beatIds.first,
-        );
+        pointer = enterNode(main, nodeId);
     }
   }
 

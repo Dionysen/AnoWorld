@@ -117,38 +117,34 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
         .join('\n\n');
   }
 
-  String? _nameOf(String characterId) {
-    final cast = _cast;
-    if (cast == null) return null;
-    for (final member in cast) {
-      if (member.id == characterId) return member.name;
-    }
-    return null;
-  }
-
   String _formatMain(MainStory main) {
     final buf = StringBuffer(main.summary);
-    for (final node in main.nodes) {
+    buf.writeln();
+    buf.writeln();
+    buf.write('大站：');
+    for (var i = 0; i < main.nodes.length; i++) {
+      final node = main.nodes[i];
       buf.writeln();
-      buf.writeln();
-      buf.write('· ${node.title}');
+      buf.write('${i + 1}. ${node.title}');
       if (node.synopsis != null && node.synopsis!.isNotEmpty) {
         buf.write(' — ${node.synopsis}');
       }
-      for (final beatId in node.beatIds) {
-        final beat = main.beatById(beatId);
-        if (beat == null) continue;
-        for (final line in beat.lines) {
-          buf.writeln();
-          final speaker = line.speakerId == null
-              ? '旁白'
-              : (_nameOf(line.speakerId!) ?? line.speakerId!);
-          buf.write('$speaker：${line.text}');
-        }
-        for (final choice in beat.choices) {
-          buf.writeln();
-          buf.write('选项：${choice.text}');
-        }
+      if (node.tags.contains('ending')) {
+        buf.write('（结局）');
+      }
+    }
+    if (main.edges.isNotEmpty) {
+      buf.writeln();
+      buf.writeln();
+      buf.write('分支：');
+      for (final edge in main.edges) {
+        final from = main.nodeById(edge.from)?.title ?? edge.from;
+        final to = main.nodeById(edge.to)?.title ?? edge.to;
+        buf.writeln();
+        final kind = edge.kind == EdgeKind.branch ? '岔路' : '接着';
+        final label =
+            (edge.label != null && edge.label!.isNotEmpty) ? '「${edge.label}」' : '';
+        buf.write('$kind $from → $to$label');
       }
     }
     return buf.toString();

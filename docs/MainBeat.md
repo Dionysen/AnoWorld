@@ -158,22 +158,17 @@ Transition {
    - 否则 → `end`（或创作器校验要求必须有出口）。
 4. **场景继承（MVP 建议）**：若某 Beat 的 `backgroundAssetId` 为空，沿用本节点内上一 Beat 的背景；跨节点不自动继承（避免错景）。立绘不自动继承，缺省即清场或仅保留 `appearances` 明示者（实现二选一，**建议：不自动继承立绘**）。
 
-### 3.2 区间 AI 推进（目标形态）
+### 3.2 区间 AI 推进（当前实现）
 
-适用于：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥，或聊天式续写。
+适用于：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥，或聊天式续写。落点：[`BridgeSession`](../lib/domain/runtime/bridge_session.dart)、[`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)、[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)（`PlayPhase.needsBridge`）、[`PlaySessionPage`](../lib/play/play_session_page.dart)。
 
-1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + **出边列表**（每条边的 `to` 节点标题/`synopsis`，或 end）+ 近期会话摘要。
-2. **生成一拍**：模型输出符合 Beat JSON（可经候选解码）；`choices` 的 `target` **只能**是：  
-   - `type: beat`（继续本区间，目标为会话内新建的 beat id），或  
-   - `type: node` 且 `nodeId` ∈ 当前节点出边的 `to`，或  
-   - `type: end`（仅当骨架允许在此结束）。  
-   非法目标整拍丢弃并重试 / 换保底拍。
+1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + **出边列表**（每条边的 `to` 节点标题/`synopsis`）+ 区间摘要。
+2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。`type: beat` 在非收敛拍表示继续本区间（映射为当前拍 id；再选时若需新拍则再进 `needsBridge`）。
 3. **收敛压力**：  
-   - 注入「你必须在有限步数内让玩家能选择进入下列下一站之一：…」；  
-   - 建议 `maxBridgeBeats`（每节点上限，产品可配置，默认如 3～6）；触顶后只生成带合法 `node`/`end` 选项的收敛拍；  
-   - UI 始终可提供「前往：{下一站标题}」保底按钮，直接 `Transition` 到对应出边（不依赖模型听话）。
-4. **入下一站**：执行合法 `node` Transition 后清空本区间会话拍（或写入存档附件），进入新节点并重复。
-5. **VN 与聊天**：同一套区间状态机；聊天「续写」调用同一生成器，不得另开无出口的闲聊树。
+   - `maxBridgeBeats` 默认 4（`BridgeSession.defaultMaxBeats`）；触顶后禁止 stay，必须给出合法 `node`/`end`。  
+   - UI 始终可提供「前往：{下一站标题}」保底按钮；文案服务未配或生成失败时，合成保底拍（`fallbackChoices`）。
+4. **入下一站**：合法 `node` Transition 后换新 `BridgeSession`；会话写入存档附件，**不写回**作品包。
+5. **VN 与聊天**：同一套区间状态机；聊天不另开无出口闲聊树。
 
 ### 3.3 双模式
 
@@ -221,7 +216,7 @@ BridgeSession {
 | --- | --- |
 | 画布上的块 | `Node` + `layout` |
 | 块之间的线 | `Edge` |
-| 点进节点后的列表 | 该节点 `beatIds` → `Beat` |
+| 点进节点（本阶段浮层） | 改 `title` / `synopsis` / 出边；预写 `Beat` 表单未做，过程戏靠区间 AI |
 | Beat 内选项 | `Choice`；若选项跳到其他节点，可同时建议创作器维护/提示对应 `Edge`（可自动补 `branch` 边，MVP 可选） |
 | 开场 | `startNodeId` |
 

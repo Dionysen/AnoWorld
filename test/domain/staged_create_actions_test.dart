@@ -3,7 +3,6 @@ import 'package:anoworld/domain/ai/staged_create_actions.dart';
 import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/preset.dart';
-import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,13 +72,13 @@ void main() {
     expect(client.users.last, contains('只输出合法 JSON'));
   });
 
-  test('generateMain validates playable graph', () async {
+  test('generateMain builds skeleton without beats', () async {
     final client = _ScriptedTextClient([
       '''
-{"summary":"短主线","scenes":[
-{"title":"城门","location":"城门","lines":[{"speaker":"少年","text":"走。"}]},
-{"title":"客栈","location":"客栈","lines":[{"speaker":"掌柜","text":"住吗？"}],
- "choices":[{"text":"住","end":true},{"text":"再看看","stay":true}]}
+{"summary":"短主线","stations":[
+{"title":"城门","synopsis":"离开","exits":[{"to":"客栈","kind":"default"},{"to":"荒野","kind":"branch"}]},
+{"title":"客栈","synopsis":"投宿","exits":[{"to":"end","kind":"default"}]},
+{"title":"荒野","synopsis":"独行","exits":[{"to":"end","kind":"default"}]}
 ]}
 ''',
     ]);
@@ -99,8 +98,9 @@ void main() {
       ),
       cast: cast,
     );
-    expect(main.beats, hasLength(2));
-    expect(main.beats.last.choices, isNotEmpty);
+    expect(main.beats, isEmpty);
+    expect(main.nodes.length, greaterThanOrEqualTo(3));
+    expect(main.edges, isNotEmpty);
   });
 
   test('applyCast does not wipe main', () {

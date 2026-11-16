@@ -27,7 +27,7 @@ void main() {
     expect(cast.map((c) => c.name), ['少年', '掌柜']);
   });
 
-  test('maps short main into playable story', () {
+  test('maps skeleton main without dialogue beats', () {
     final cast = const [
       CastMember(id: 'c_0', name: '少年', summary: '旅人'),
       CastMember(id: 'c_1', name: '掌柜', summary: '老板'),
@@ -36,36 +36,20 @@ void main() {
       '''
 {
   "summary": "雨夜投宿",
-  "scenes": [
-    {
-      "title": "城门",
-      "synopsis": "离开",
-      "location": "城门",
-      "speakers": ["少年"],
-      "lines": [{"speaker": "少年", "text": "该走了。"}]
-    },
-    {
-      "title": "客栈",
-      "synopsis": "投宿",
-      "location": "客栈",
-      "speakers": ["少年", "掌柜"],
-      "lines": [{"speaker": "掌柜", "text": "留宿？"}],
-      "choices": [
-        {"text": "住下", "end": true},
-        {"text": "再看看", "stay": true}
-      ]
-    }
+  "stations": [
+    {"title": "城门", "synopsis": "决心离开", "exits": [{"to": "客栈", "kind": "default"}, {"to": "荒野", "kind": "branch", "label": "不投宿"}]},
+    {"title": "客栈", "synopsis": "与掌柜周旋", "exits": [{"to": "end", "kind": "default", "label": "住下"}]},
+    {"title": "荒野", "synopsis": "雨中独行", "exits": [{"to": "end", "kind": "default", "label": "天亮"}]}
   ]
 }
 ''',
       cast: cast,
     );
 
-    expect(main.nodes, hasLength(2));
-    expect(main.edges, hasLength(1));
-    expect(main.beats.last.choices, hasLength(2));
-    expect(main.beats.last.choices.first.target.type, TransitionType.end);
-    expect(main.beats.first.lines.first.speakerId, 'c_0');
+    expect(main.nodes.length, greaterThanOrEqualTo(3));
+    expect(main.beats, isEmpty);
+    expect(main.edges, isNotEmpty);
+    expect(main.edges.any((e) => e.kind == EdgeKind.branch), isTrue);
 
     final preset = Preset.builtinDefault();
     final project = Project(
@@ -88,9 +72,9 @@ void main() {
     expect(const ProjectValidator().validate(project).hasErrors, isFalse);
   });
 
-  test('throws on missing scenes', () {
+  test('throws on missing stations', () {
     expect(
-      () => mapper.mainFromRaw('{"summary":"x","scenes":[]}', cast: const []),
+      () => mapper.mainFromRaw('{"summary":"x","stations":[]}', cast: const []),
       throwsA(isA<StageMapException>()),
     );
   });

@@ -8,6 +8,9 @@ enum PlayPhase {
   /// All lines shown; waiting for a choice.
   choices,
 
+  /// Current node needs a bridge AI beat (empty or continue interval).
+  needsBridge,
+
   /// Main reached an end transition.
   ended,
 }

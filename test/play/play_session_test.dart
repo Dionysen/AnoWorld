@@ -1,4 +1,5 @@
 import 'package:anoworld/data/save/memory_save_repository.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,39 @@ void main() {
   final sample = const ProjectFactory().createRainNightSample(
     now: DateTime.utc(2026, 1, 1),
   );
+
+  final skeleton = const ProjectFactory()
+      .createBlank(id: 'p_skel', title: '骨架', now: DateTime.utc(2026, 1, 1))
+      .copyWith(
+        main: const MainStory(
+          summary: '短主线',
+          startNodeId: 'n1',
+          nodes: [
+            StoryNode(
+              id: 'n1',
+              title: '城门',
+              synopsis: '离开',
+              beatIds: [],
+            ),
+            StoryNode(
+              id: 'n2',
+              title: '客栈',
+              synopsis: '投宿',
+              beatIds: [],
+              tags: ['ending'],
+            ),
+          ],
+          edges: [
+            StoryEdge(
+              id: 'e1',
+              from: 'n1',
+              to: 'n2',
+              kind: EdgeKind.defaultEdge,
+            ),
+          ],
+          beats: [],
+        ),
+      );
 
   Future<void> pumpPlay(WidgetTester tester) async {
     await tester.pumpWidget(
@@ -62,5 +96,20 @@ void main() {
     final slot = await saves.load(sample.meta.id);
     expect(slot, isNotNull);
     expect(slot!.pointer.beatId, 'b1');
+  });
+
+  testWidgets('empty skeleton still offers guaranteed next station',
+      (tester) async {
+    await tester.pumpWidget(
+      testScoped(
+        home: PlaySessionPage(project: skeleton, resumeSave: false),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('前往：客栈'), findsWidgets);
+    await tester.tap(find.text('前往：客栈').first);
+    await tester.pumpAndSettle();
+    expect(find.text('本段结束'), findsOneWidget);
   });
 }

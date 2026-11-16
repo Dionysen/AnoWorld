@@ -5,6 +5,7 @@ import 'package:anoworld/data/project/project_paths.dart';
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
+import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:path/path.dart' as p;
 
 class FileSaveRepository implements SaveRepository {
@@ -33,10 +34,12 @@ class FileSaveRepository implements SaveRepository {
       jsonDecode(await file.readAsString()),
       path: file.path,
     );
+    final bridgeMap = map.optionalMap('bridge');
     return SaveSlot(
       projectId: map.requireString('projectId'),
       pointer: MainSavePointer.fromJson(map.requireMap('pointer')),
       savedAt: DateTime.parse(map.requireString('savedAt')),
+      bridge: bridgeMap == null ? null : BridgeSession.fromJson(bridgeMap),
     );
   }
 
@@ -44,12 +47,14 @@ class FileSaveRepository implements SaveRepository {
   Future<void> save({
     required String projectId,
     required MainSavePointer pointer,
+    BridgeSession? bridge,
   }) async {
     final file = await _slotFile(projectId);
     final payload = <String, dynamic>{
       'projectId': projectId,
       'pointer': pointer.toJson(),
       'savedAt': DateTime.now().toUtc().toIso8601String(),
+      if (bridge != null) 'bridge': bridge.toJson(),
     };
     await file.writeAsString(
       '${const JsonEncoder.withIndent('  ').convert(payload)}\n',

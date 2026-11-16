@@ -1,6 +1,9 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/bridge_generate_action.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/main_runtime.dart';
 import 'package:anoworld/domain/runtime/play_pointer.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -14,7 +17,7 @@ import 'package:flutter/material.dart';
 
 enum PlayViewMode { visualNovel, chat }
 
-/// Dual-mode runtime sharing one [MainRuntime] pointer.
+/// Dual-mode runtime sharing one [MainRuntime] pointer + optional bridge AI.
 class PlaySessionPage extends StatefulWidget {
   const PlaySessionPage({
     super.key,
@@ -24,8 +27,6 @@ class PlaySessionPage extends StatefulWidget {
   });
 
   final Project project;
-
-  /// When true, load the auto-save slot if present.
   final bool resumeSave;
   final MainSavePointer? initialSave;
 
@@ -35,9 +36,13 @@ class PlaySessionPage extends StatefulWidget {
 
 class _PlaySessionPageState extends State<PlaySessionPage> {
   late MainRuntime _runtime;
+  BridgeSession? _bridge;
   PlayViewMode _mode = PlayViewMode.visualNovel;
   String? _status;
   bool _bootstrapped = false;
+  bool _bridging = false;
+
+  Project get _project => widget.project;
 
   @override
   void didChangeDependencies() {
@@ -47,36 +52,80 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     _runtime = MainRuntime(widget.project.main, save: widget.initialSave);
     if (widget.resumeSave && widget.initialSave == null) {
       _maybeLoadAutoSave();
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ensureBridge());
     }
   }
 
   Future<void> _maybeLoadAutoSave() async {
-    final slot =
-        await AppScope.savesOf(context).load(widget.project.meta.id);
-    if (!mounted || slot == null) return;
-    setState(() {
-      _runtime.restore(slot.pointer);
-      _status = '已读取进度';
-    });
+    final slot = await AppScope.savesOf(context).load(widget.project.meta.id);
+    if (!mounted) return;
+    if (slot != null) {
+      var main = widget.project.main;
+      final bridge = slot.bridge;
+      if (bridge != null && bridge.generatedBeats.isNotEmpty) {
+        main = _mergeBeats(main, bridge.generatedBeats);
+        _bridge = bridge;
+      }
+      _runtime = MainRuntime(main, save: slot.pointer);
+      setState(() => _status = '已读取进度');
+    }
+    await _ensureBridge();
+  }
+
+  MainStory _mergeBeats(MainStory main, List<Beat> beats) {
+    var working = main;
+    for (final beat in beats) {
+      final node = working.nodeById(beat.nodeId);
+      if (node == null) continue;
+      final allBeats = [
+        ...working.beats.where((b) => b.id != beat.id),
+        beat,
+      ];
+      final ids = node.beatIds.contains(beat.id)
+          ? node.beatIds
+          : [...node.beatIds, beat.id];
+      working = MainStory(
+        summary: working.summary,
+        startNodeId: working.startNodeId,
+        nodes: working.nodes
+            .map(
+              (n) => n.id == node.id
+                  ? StoryNode(
+                      id: n.id,
+                      title: n.title,
+                      synopsis: n.synopsis,
+                      beatIds: ids,
+                      layout: n.layout,
+                      tags: n.tags,
+                    )
+                  : n,
+            )
+            .toList(growable: false),
+        edges: working.edges,
+        beats: allBeats,
+      );
+    }
+    return working;
   }
 
   String _speakerName(DialogueLine line) {
     if (line.kind == DialogueKind.narration || line.speakerId == null) {
       return '旁白';
     }
-    final member = widget.project.castById(line.speakerId!);
+    final member = _project.castById(line.speakerId!);
     return member?.name ?? line.speakerId!;
   }
 
   String _castName(String characterId) {
-    return widget.project.castById(characterId)?.name ?? characterId;
+    return _project.castById(characterId)?.name ?? characterId;
   }
 
   Future<void> _save() async {
-    final saves = AppScope.savesOf(context);
-    await saves.save(
+    await AppScope.savesOf(context).save(
       projectId: widget.project.meta.id,
       pointer: _runtime.toSave(),
+      bridge: _bridge,
     );
     if (!mounted) return;
     setState(() => _status = '进度已保存');
@@ -85,17 +134,167 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   void _advance() {
     if (!_runtime.canAdvance) return;
     setState(_runtime.advance);
+    _ensureBridge();
   }
 
   void _choose(Choice choice) {
     setState(() => _runtime.choose(choice.id));
+    _syncBridgeNode();
+    _ensureBridge();
+  }
+
+  void _syncBridgeNode() {
+    final nodeId = _runtime.pointer.nodeId;
+    if (_bridge == null || _bridge!.nodeId != nodeId) {
+      _bridge = BridgeSession(nodeId: nodeId);
+    }
   }
 
   void _restart() {
     setState(() {
       _runtime = MainRuntime(widget.project.main);
+      _bridge = null;
       _status = '已从头开始';
     });
+    _ensureBridge();
+  }
+
+  Future<void> _ensureBridge() async {
+    if (!mounted || _bridging) return;
+    if (!_runtime.needsBridge) return;
+
+    final node = _runtime.currentNode;
+    if (node == null) return;
+
+    if (node.tags.contains('ending')) {
+      setState(_runtime.endStory);
+      return;
+    }
+
+    _syncBridgeNode();
+    final session = _bridge ?? BridgeSession(nodeId: node.id);
+
+    setState(() {
+      _bridging = true;
+      _status = '正在写这一段…';
+    });
+
+    final endpoint = AppScope.settingsOf(context).ai.text;
+    try {
+      final action = BridgeGenerateAction(
+        textClient: AppScope.textClientOf(context),
+      );
+      final beat = await action.generate(
+        endpoint: endpoint,
+        project: Project(
+          meta: _project.meta,
+          presets: _project.presets,
+          activePresetId: _project.activePresetId,
+          background: _project.background,
+          cast: _project.cast,
+          main: _runtime.main,
+          side: _project.side,
+          assets: _project.assets,
+        ),
+        nodeId: node.id,
+        session: session,
+      );
+      if (!mounted) return;
+      setState(() {
+        _runtime.adoptBridgeBeat(beat);
+        _bridge = session.copyWith(
+          generatedBeats: [...session.generatedBeats, beat],
+          turnCount: session.turnCount + 1,
+          summary: '${session.summary} ${beat.lines.map((l) => l.text).join(' ')}'
+              .trim(),
+        );
+        _bridging = false;
+        _status = null;
+      });
+    } on AiTextException catch (error) {
+      if (!mounted) return;
+      // Fall back to guaranteed exit choices as a synthetic beat.
+      final choices = BridgeGenerateAction.fallbackChoices(
+        _runtime.main,
+        node.id,
+      );
+      final beat = Beat(
+        id: 'bridge_fallback_${session.turnCount + 1}',
+        nodeId: node.id,
+        scene: const Scene(),
+        appearances: const [],
+        lines: [
+          DialogueLine(
+            id: 'bridge_fallback_l0',
+            text: error.message,
+            kind: DialogueKind.narration,
+          ),
+        ],
+        choices: choices,
+      );
+      setState(() {
+        _runtime.adoptBridgeBeat(beat);
+        _bridge = session.copyWith(
+          generatedBeats: [...session.generatedBeats, beat],
+          turnCount: session.turnCount + 1,
+        );
+        _bridging = false;
+        _status = '用稳妥出口继续';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      final choices = BridgeGenerateAction.fallbackChoices(
+        _runtime.main,
+        node.id,
+      );
+      final beat = Beat(
+        id: 'bridge_fallback_${session.turnCount + 1}',
+        nodeId: node.id,
+        scene: const Scene(),
+        appearances: const [],
+        lines: const [
+          DialogueLine(
+            id: 'bridge_fallback_l0',
+            text: '这一段暂时写不出来，可以先去下一站',
+            kind: DialogueKind.narration,
+          ),
+        ],
+        choices: choices,
+      );
+      setState(() {
+        _runtime.adoptBridgeBeat(beat);
+        _bridge = session.copyWith(
+          generatedBeats: [...session.generatedBeats, beat],
+          turnCount: session.turnCount + 1,
+        );
+        _bridging = false;
+        _status = '用稳妥出口继续';
+      });
+    }
+  }
+
+  List<Widget> _fallbackExitButtons() {
+    final outs = _runtime.outboundFromCurrent();
+    if (outs.isEmpty) return const [];
+    return [
+      for (final edge in outs)
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
+          child: AppButton(
+            label:
+                '前往：${_runtime.main.nodeById(edge.to)?.title ?? edge.to}',
+            onPressed: _bridging
+                ? null
+                : () {
+                    setState(() => _runtime.jumpToNode(edge.to));
+                    _syncBridgeNode();
+                    _ensureBridge();
+                  },
+            variant: AppButtonVariant.ghost,
+            expanded: true,
+          ),
+        ),
+    ];
   }
 
   @override
@@ -147,6 +346,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                           castName: _castName,
                           onAdvance: _advance,
                           narrow: narrow,
+                          bridging: _bridging,
                         )
                       : _ChatStage(
                           runtime: _runtime,
@@ -175,12 +375,19 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                     onPressed: _restart,
                     expanded: true,
                   ),
-                ] else
+                ] else if (_runtime.needsBridge || _bridging)
+                  AppButton(
+                    label: _bridging ? '生成中…' : '生成这一段',
+                    onPressed: _bridging ? null : _ensureBridge,
+                    expanded: true,
+                  )
+                else
                   AppButton(
                     label: _mode == PlayViewMode.visualNovel ? '继续' : '下一条',
                     onPressed: _runtime.canAdvance ? _advance : null,
                     expanded: true,
                   ),
+                if (!_runtime.pointer.isEnded) ..._fallbackExitButtons(),
               ],
             ),
           );
@@ -197,6 +404,7 @@ class _VnStage extends StatelessWidget {
     required this.castName,
     required this.onAdvance,
     required this.narrow,
+    required this.bridging,
   });
 
   final MainRuntime runtime;
@@ -204,6 +412,7 @@ class _VnStage extends StatelessWidget {
   final String Function(String) castName;
   final VoidCallback onAdvance;
   final bool narrow;
+  final bool bridging;
 
   @override
   Widget build(BuildContext context) {
@@ -222,7 +431,8 @@ class _VnStage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppText(
-                  location?.isNotEmpty == true ? location! : '场景',
+                  runtime.currentNode?.title ??
+                      (location?.isNotEmpty == true ? location! : '场景'),
                   role: AppTextRole.subtitle,
                   maxLines: 1,
                 ),
@@ -270,6 +480,11 @@ class _VnStage extends StatelessWidget {
                       AppText(line.text, role: AppTextRole.body),
                     ] else if (runtime.pointer.phase == PlayPhase.choices)
                       const AppText('请选择', role: AppTextRole.body)
+                    else if (runtime.needsBridge || bridging)
+                      AppText(
+                        bridging ? '正在写这一段…' : '这一站的过程还没写，点下方生成',
+                        role: AppTextRole.body,
+                      )
                     else if (runtime.pointer.isEnded)
                       const AppText('……', role: AppTextRole.body)
                     else

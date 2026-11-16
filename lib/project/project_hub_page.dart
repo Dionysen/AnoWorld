@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -80,6 +81,18 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     if (mounted) await _load();
   }
 
+  Future<void> _openGraph() async {
+    await Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) => MainGraphPage(projectId: widget.projectId),
+        transitionsBuilder: (_, animation, _, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+    if (mounted) await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final project = _project;
@@ -128,15 +141,15 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
                 expanded: true,
               ),
             const SizedBox(height: AppTheme.spaceSm),
-            const AppButton(
+            AppButton(
               label: '继续创作',
-              onPressed: null,
+              onPressed: _openGraph,
               variant: AppButtonVariant.secondary,
               expanded: true,
             ),
             const SizedBox(height: AppTheme.spaceSm),
             const AppText(
-              '编辑功能完善中，可先切换模式游玩',
+              '可改情节大站与分支，过程戏游玩时生成',
               role: AppTextRole.caption,
             ),
           ],
