@@ -58,6 +58,27 @@ class MainGraphOps {
     return updateNodeMeta(main, nodeId: nodeId, kind: kind);
   }
 
+  /// Copies title / synopsis / tags into a new station offset on the canvas.
+  /// Does not copy beats or edges.
+  MainStory duplicateNode(MainStory main, String nodeId) {
+    final node = main.nodeById(nodeId);
+    if (node == null) return main;
+    final id = newNodeId(main);
+    final x = (node.layout?.x ?? 40) + 48;
+    final y = (node.layout?.y ?? 40) + 48;
+    return upsertNode(
+      main,
+      StoryNode(
+        id: id,
+        title: node.title,
+        synopsis: node.synopsis,
+        beatIds: const [],
+        layout: NodeLayout(x: x, y: y),
+        tags: node.tags,
+      ),
+    );
+  }
+
   /// Removes the node, its beats, and all incident edges.
   MainStory removeNode(MainStory main, String nodeId) {
     if (!main.nodes.any((n) => n.id == nodeId)) return main;

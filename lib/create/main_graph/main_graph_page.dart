@@ -274,6 +274,32 @@ class _MainGraphPageState extends State<MainGraphPage> {
     });
   }
 
+  Future<void> _copyNode(String nodeId) async {
+    final project = _project;
+    if (project == null) return;
+    final before = project.main.nodes.map((n) => n.id).toSet();
+    final next = _ops.duplicateNode(project.main, nodeId);
+    await _persist(next);
+    if (!mounted) return;
+    final created = next.nodes.map((n) => n.id).toSet().difference(before);
+    setState(() {
+      _selectedId = created.isEmpty ? _selectedId : created.first;
+      _selectedEdgeId = null;
+    });
+  }
+
+  Future<void> _deleteNode(String nodeId) async {
+    final project = _project;
+    if (project == null) return;
+    if (project.main.nodes.length <= 1) return;
+    await _persist(_ops.removeNode(project.main, nodeId));
+    if (!mounted) return;
+    setState(() {
+      _selectedId = _project?.main.startNodeId;
+      _selectedEdgeId = null;
+    });
+  }
+
   Future<void> _connect(
     String fromId,
     String toId,
@@ -512,6 +538,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
       onOpenOutput: (_, portId) => _openEdgeEditor(portId),
       onAddOutput: (_) => _tipAddOutput(),
       onOpenNode: _openNodeEditor,
+      onCopyNode: _copyNode,
+      onDeleteNode: main.nodes.length <= 1 ? null : _deleteNode,
       onAddNode: _addNode,
       onArrange: _autoLayout,
     );

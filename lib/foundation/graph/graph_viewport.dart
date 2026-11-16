@@ -24,6 +24,8 @@ class GraphViewport extends StatefulWidget {
     this.onAddOutput,
     this.onOpenOutput,
     this.onOpenNode,
+    this.onCopyNode,
+    this.onDeleteNode,
     this.onAddNode,
     this.onArrange,
     this.focusSelected = false,
@@ -47,6 +49,8 @@ class GraphViewport extends StatefulWidget {
   /// Open editor for a wired output port (edge id).
   final void Function(String nodeId, String portId)? onOpenOutput;
   final ValueChanged<String>? onOpenNode;
+  final ValueChanged<String>? onCopyNode;
+  final ValueChanged<String>? onDeleteNode;
 
   /// Floating actions (canvas bottom-right, outside the pan/zoom layer).
   final VoidCallback? onAddNode;
@@ -392,23 +396,23 @@ class _GraphViewportState extends State<GraphViewport>
                                   : () => widget.onAddOutput!(node.id),
                             ),
                           ),
-                        if (selected != null && widget.onOpenNode != null)
+                        if (selected != null &&
+                            (widget.onOpenNode != null ||
+                                widget.onCopyNode != null ||
+                                widget.onDeleteNode != null))
                           Positioned(
-                            left: selected.x +
-                                selected.resolvedWidth / 2 -
-                                AppCircleButton.diameter / 2,
+                            left: selected.x,
                             top: math.max(
                               0,
                               selected.y -
                                   AppCircleButton.diameter -
                                   AppTheme.spaceXs,
                             ),
-                            child: AppCircleButton(
-                              icon: Icons.edit_outlined,
-                              tooltip: '编辑',
-                              variant: AppCircleButtonVariant.tonal,
-                              onPressed: () =>
-                                  widget.onOpenNode!(selected.id),
+                            child: _SelectionActionBar(
+                              nodeId: selected.id,
+                              onOpen: widget.onOpenNode,
+                              onCopy: widget.onCopyNode,
+                              onDelete: widget.onDeleteNode,
                             ),
                           ),
                       ],
@@ -446,6 +450,55 @@ class _GraphViewportState extends State<GraphViewport>
             ],
           );
       },
+    );
+  }
+}
+
+class _SelectionActionBar extends StatelessWidget {
+  const _SelectionActionBar({
+    required this.nodeId,
+    this.onOpen,
+    this.onCopy,
+    this.onDelete,
+  });
+
+  final String nodeId;
+  final ValueChanged<String>? onOpen;
+  final ValueChanged<String>? onCopy;
+  final ValueChanged<String>? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (onCopy != null) ...[
+          AppCircleButton(
+            icon: Icons.copy_outlined,
+            tooltip: '复制',
+            variant: AppCircleButtonVariant.tonal,
+            onPressed: () => onCopy!(nodeId),
+          ),
+          if (onOpen != null || onDelete != null)
+            const SizedBox(width: AppTheme.spaceSm),
+        ],
+        if (onOpen != null) ...[
+          AppCircleButton(
+            icon: Icons.edit_outlined,
+            tooltip: '编辑',
+            variant: AppCircleButtonVariant.tonal,
+            onPressed: () => onOpen!(nodeId),
+          ),
+          if (onDelete != null) const SizedBox(width: AppTheme.spaceSm),
+        ],
+        if (onDelete != null)
+          AppCircleButton(
+            icon: Icons.delete_outline,
+            tooltip: '删除',
+            variant: AppCircleButtonVariant.tonal,
+            onPressed: () => onDelete!(nodeId),
+          ),
+      ],
     );
   }
 }

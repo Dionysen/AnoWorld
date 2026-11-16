@@ -14,6 +14,23 @@ void main() {
     expect(next.nodeById('n1')!.title, '城门');
   });
 
+  test('duplicateNode copies meta without edges or beats', () {
+    final main = const ProjectFactory().createRainNightSample().main;
+    final src = main.nodeById('n1')!;
+    final next = ops.duplicateNode(main, 'n1');
+    expect(next.nodes.length, main.nodes.length + 1);
+    final copy = next.nodes.last;
+    expect(copy.id, isNot('n1'));
+    expect(copy.title, src.title);
+    expect(copy.synopsis, src.synopsis);
+    expect(copy.beatIds, isEmpty);
+    expect(copy.layout!.x, (src.layout?.x ?? 40) + 48);
+    expect(
+      next.edges.where((e) => e.from == copy.id || e.to == copy.id),
+      isEmpty,
+    );
+  });
+
   test('removeNode cascades edges and beats', () {
     final main = const ProjectFactory().createRainNightSample().main;
     final next = ops.removeNode(main, 'n1');
