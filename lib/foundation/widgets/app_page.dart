@@ -20,18 +20,21 @@ class AppPage extends StatelessWidget {
     final metrics = ImmersiveScope.metricsOf(context);
     final theme = Theme.of(context);
     final media = MediaQuery.of(context);
+    final titleSpacing = theme.appBarTheme.titleSpacing ?? 12;
+    final barColor = theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           ColoredBox(
-            color: theme.colorScheme.surface,
+            color: barColor,
             child: SizedBox(
               height: metrics.barHeight,
               child: Padding(
                 padding: EdgeInsets.only(
                   top: metrics.statusInset,
-                  left: metrics.leadingInset,
+                  left: metrics.leadingInset + titleSpacing,
                   right: metrics.trailingInset,
                 ),
                 child: Row(
@@ -41,7 +44,13 @@ class AppPage extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleLarge,
+                        style: (theme.appBarTheme.titleTextStyle ??
+                                theme.textTheme.titleMedium)
+                            ?.copyWith(
+                              color:
+                                  theme.appBarTheme.foregroundColor ??
+                                  theme.colorScheme.onSurface,
+                            ),
                       ),
                     ),
                     ...actions,

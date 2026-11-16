@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_theme.dart';
 import 'window_channel.dart';
 import 'window_controls.dart';
 
@@ -15,7 +16,10 @@ void installImmersiveSystemUi() {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
+      statusBarBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
       systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
       systemNavigationBarContrastEnforced: false,
     ),
   );
@@ -37,7 +41,7 @@ final class ImmersiveMetrics {
   /// System title bar is still present. The page draws a normal toolbar.
   static const ImmersiveMetrics system = ImmersiveMetrics(
     active: false,
-    titleBarHeight: kToolbarHeight,
+    titleBarHeight: AppTheme.titleBandHeight,
   );
 
   final bool active;
@@ -91,7 +95,9 @@ class ImmersiveScope extends InheritedWidget {
     return maybeOf(context)?.metrics ??
         ImmersiveMetrics(
           active: false,
-          titleBarHeight: kToolbarHeight,
+          titleBarHeight:
+              Theme.of(context).appBarTheme.toolbarHeight ??
+              AppTheme.titleBandHeight,
           statusInset: MediaQuery.paddingOf(context).top,
         );
   }
@@ -120,7 +126,7 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
 
   bool _active = false;
   bool _maximized = false;
-  double _titleBarHeight = kToolbarHeight;
+  double _titleBarHeight = AppTheme.titleBandHeight;
   double _leadingInset = 0;
   int? _pointer;
   Offset? _down;
@@ -174,7 +180,7 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
       }
       final centerY = metrics?.centerY;
       if (centerY != null && centerY > 0) {
-        _titleBarHeight = math.max(kToolbarHeight, centerY * 2);
+        _titleBarHeight = math.max(AppTheme.titleBandHeight, centerY * 2);
       }
       final leading = metrics?.leading;
       _leadingInset = leading != null && leading > 0 ? leading : 80;
@@ -183,10 +189,12 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
   }
 
   ImmersiveMetrics _metrics(BuildContext context) {
+    final bandHeight =
+        Theme.of(context).appBarTheme.toolbarHeight ?? AppTheme.titleBandHeight;
     if (!_desktop) {
       return ImmersiveMetrics(
         active: true,
-        titleBarHeight: kToolbarHeight,
+        titleBarHeight: bandHeight,
         statusInset: MediaQuery.paddingOf(context).top,
       );
     }
@@ -194,9 +202,11 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
       return ImmersiveMetrics.system;
     }
     final controls = _windows || _linux;
+    // macOS may raise the band to line up with traffic lights; otherwise use theme.
+    final titleBarHeight = _macOS ? _titleBarHeight : bandHeight;
     return ImmersiveMetrics(
       active: true,
-      titleBarHeight: _titleBarHeight,
+      titleBarHeight: titleBarHeight,
       leadingInset: _macOS ? _leadingInset : 0,
       trailingInset: controls ? WindowControlMetrics.stripWidth : 0,
       showsWindowControls: controls,

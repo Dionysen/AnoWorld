@@ -49,10 +49,16 @@ void main() {
     );
 
     expect(tester.getTopLeft(find.byKey(bodyKey)).dy, 52);
-    expect(tester.getTopLeft(find.text('Title')).dx, 78);
+    expect(
+      tester.getTopLeft(find.text('Title')).dx,
+      78 + (AppTheme.data.appBarTheme.titleSpacing ?? 12),
+    );
     final title = tester.widget<Text>(find.text('Title'));
     final theme = Theme.of(tester.element(find.text('Title')));
-    expect(title.style, theme.textTheme.titleLarge);
+    expect(
+      title.style?.color,
+      theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface,
+    );
   });
 
   testWidgets(
