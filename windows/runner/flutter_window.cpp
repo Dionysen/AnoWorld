@@ -206,12 +206,48 @@ void FlutterWindow::StartDragging() {
   SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 }
 
+void FlutterWindow::SetMinimumClientSize(int width, int height) {
+  if (width > 0) {
+    min_client_width_ = width;
+  }
+  if (height > 0) {
+    min_client_height_ = height;
+  }
+}
+
 void FlutterWindow::HandleWindowMethod(
     const flutter::MethodCall<flutter::EncodableValue>& call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
   const std::string& method = call.method_name();
   if (method == "immersiveTitleBar") {
     result->Success(flutter::EncodableValue(true));
+    return;
+  }
+  if (method == "setMinimumSize") {
+    const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
+    if (args != nullptr) {
+      auto width_it = args->find(flutter::EncodableValue("width"));
+      auto height_it = args->find(flutter::EncodableValue("height"));
+      int width = min_client_width_;
+      int height = min_client_height_;
+      if (width_it != args->end()) {
+        if (const auto* value = std::get_if<double>(&width_it->second)) {
+          width = static_cast<int>(*value);
+        } else if (const auto* value = std::get_if<int32_t>(&width_it->second)) {
+          width = *value;
+        }
+      }
+      if (height_it != args->end()) {
+        if (const auto* value = std::get_if<double>(&height_it->second)) {
+          height = static_cast<int>(*value);
+        } else if (const auto* value =
+                       std::get_if<int32_t>(&height_it->second)) {
+          height = *value;
+        }
+      }
+      SetMinimumClientSize(width, height);
+    }
+    result->Success();
     return;
   }
   if (method == "startDragging") {
@@ -249,6 +285,17 @@ void FlutterWindow::HandleWindowMethod(
 LRESULT FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                                       WPARAM const wparam,
                                       LPARAM const lparam) noexcept {
+  if (message == WM_GETMINMAXINFO) {
+    auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+    const UINT dpi = GetDpiForWindow(hwnd);
+    RECT bounds = {0, 0, MulDiv(min_client_width_, dpi, 96),
+                   MulDiv(min_client_height_, dpi, 96)};
+    AdjustWindowRectExForDpi(&bounds, GetWindowLong(hwnd, GWL_STYLE), FALSE,
+                             GetWindowLong(hwnd, GWL_EXSTYLE), dpi);
+    info->ptMinTrackSize.x = bounds.right - bounds.left;
+    info->ptMinTrackSize.y = bounds.bottom - bounds.top;
+    return 0;
+  }
   if (message == WM_NCCALCSIZE && wparam == TRUE) {
     ApplyMaximizedClientArea(hwnd, lparam);
     return 0;

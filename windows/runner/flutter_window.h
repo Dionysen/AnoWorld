@@ -37,6 +37,7 @@ class FlutterWindow : public Win32Window {
   void NotifyZoomed() noexcept;
   void StartDragging();
   int FrameBorder();
+  void SetMinimumClientSize(int width, int height);
 
   flutter::DartProject project_;
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
@@ -46,6 +47,9 @@ class FlutterWindow : public Win32Window {
   WNDPROC original_child_proc_ = nullptr;
   bool zoomed_ = false;
   bool zoomed_reported_ = false;
+  // Client-area floor so chrome is not crushed by resize.
+  int min_client_width_ = 298;
+  int min_client_height_ = 116;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

@@ -61,6 +61,22 @@ void main() {
     );
   });
 
+  testWidgets('page does not overflow in a tiny viewport', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const ImmersiveScope(
+          metrics: ImmersiveMetrics(active: true, titleBarHeight: 36),
+          child: AppPage(title: 'Title', body: SizedBox.expand()),
+        ),
+      ),
+    );
+    await tester.binding.setSurfaceSize(const Size(120, 24));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    await tester.binding.setSurfaceSize(null);
+  });
+
   testWidgets(
     'window buttons sit at the top-right when the runner enables them',
     (tester) async {

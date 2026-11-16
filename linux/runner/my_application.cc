@@ -60,6 +60,32 @@ static void window_method_cb(FlMethodChannel* /*channel*/,
   } else if (window == nullptr) {
     fl_method_call_respond_not_implemented(method_call, nullptr);
     return;
+  } else if (g_strcmp0(name, "setMinimumSize") == 0) {
+    FlValue* args = fl_method_call_get_args(method_call);
+    gint width = 298;
+    gint height = 116;
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+      FlValue* width_value = fl_value_lookup_string(args, "width");
+      FlValue* height_value = fl_value_lookup_string(args, "height");
+      if (width_value != nullptr) {
+        if (fl_value_get_type(width_value) == FL_VALUE_TYPE_FLOAT) {
+          width = (gint)fl_value_get_float(width_value);
+        } else if (fl_value_get_type(width_value) == FL_VALUE_TYPE_INT) {
+          width = (gint)fl_value_get_int(width_value);
+        }
+      }
+      if (height_value != nullptr) {
+        if (fl_value_get_type(height_value) == FL_VALUE_TYPE_FLOAT) {
+          height = (gint)fl_value_get_float(height_value);
+        } else if (fl_value_get_type(height_value) == FL_VALUE_TYPE_INT) {
+          height = (gint)fl_value_get_int(height_value);
+        }
+      }
+    }
+    GdkGeometry geometry = {};
+    geometry.min_width = width;
+    geometry.min_height = height;
+    gtk_window_set_geometry_hints(window, nullptr, &geometry, GDK_HINT_MIN_SIZE);
   } else if (g_strcmp0(name, "startDragging") == 0) {
     start_dragging(window);
   } else if (g_strcmp0(name, "toggleMaximize") == 0) {
@@ -111,6 +137,12 @@ static void my_application_activate(GApplication* application) {
   set_window_icon(window);
 
   gtk_window_set_default_size(window, 1280, 720);
+  {
+    GdkGeometry geometry = {};
+    geometry.min_width = 298;
+    geometry.min_height = 116;
+    gtk_window_set_geometry_hints(window, nullptr, &geometry, GDK_HINT_MIN_SIZE);
+  }
   g_signal_connect(window, "notify::is-maximized",
                    G_CALLBACK(on_maximized_changed), self);
 

@@ -41,6 +41,15 @@ abstract final class WindowChannel {
 
   static Future<void> close() => _invoke('close');
 
+  static Future<void> setMinimumSize(Size size) async {
+    try {
+      await channel.invokeMethod<void>('setMinimumSize', <String, double>{
+        'width': size.width,
+        'height': size.height,
+      });
+    } catch (_) {}
+  }
+
   static void setHandler(Future<Object?> Function(MethodCall call)? handler) {
     channel.setMethodCallHandler(handler);
   }

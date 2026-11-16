@@ -17,6 +17,8 @@ class MainFlutterWindow: NSWindow {
     self.isMovableByWindowBackground = false
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
+    // Matches AppTheme.windowMinSize until Flutter updates via the channel.
+    self.contentMinSize = NSSize(width: 298, height: 116)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerWindowChannel(flutterViewController)
@@ -56,6 +58,13 @@ class MainFlutterWindow: NSWindow {
         result(true)
       case "metrics":
         result(self.chromeMetrics())
+      case "setMinimumSize":
+        if let args = call.arguments as? [String: Any] {
+          let width = (args["width"] as? NSNumber)?.doubleValue ?? 298
+          let height = (args["height"] as? NSNumber)?.doubleValue ?? 116
+          self.contentMinSize = NSSize(width: width, height: height)
+        }
+        result(nil)
       case "startDragging":
         self.beginChromeDrag()
         result(nil)

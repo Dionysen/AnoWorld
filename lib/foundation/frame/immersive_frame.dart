@@ -185,6 +185,10 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
       final leading = metrics?.leading;
       _leadingInset = leading != null && leading > 0 ? leading : 80;
     }
+    await WindowChannel.setMinimumSize(AppTheme.windowMinSize);
+    if (!mounted) {
+      return;
+    }
     setState(() => _active = true);
   }
 
@@ -311,6 +315,10 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
   @override
   Widget build(BuildContext context) {
     final metrics = _metrics(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final showControls =
+        metrics.showsWindowControls &&
+        width >= WindowControlMetrics.stripWidth + 24;
     Widget child = widget.child;
     if (_active && _desktop) {
       child = Listener(
@@ -329,7 +337,7 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
         fit: StackFit.expand,
         children: [
           child,
-          if (metrics.showsWindowControls)
+          if (showControls)
             Positioned(
               top: 0,
               right: 0,
