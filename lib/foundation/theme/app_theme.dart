@@ -11,26 +11,44 @@ class AppColorTokens {
   const AppColorTokens({
     required this.canvas,
     required this.onCanvas,
+    required this.sidebar,
     required this.primary,
+    required this.secondary,
+    required this.tertiary,
     required this.muted,
     required this.surfaceRaised,
     required this.outlineSubtle,
+    required this.divider,
+    required this.cursor,
   });
 
   final Color canvas;
   final Color onCanvas;
+  final Color sidebar;
+  /// [ThemeTokens.accent] — highlights, selection, primary actions.
   final Color primary;
+  /// [ThemeTokens.secondaryAccent] — section/action contrast.
+  final Color secondary;
+  /// [ThemeTokens.tertiaryAccent] — extra section contrast / dialogue tint.
+  final Color tertiary;
   final Color muted;
   final Color surfaceRaised;
   final Color outlineSubtle;
+  final Color divider;
+  final Color cursor;
 
   factory AppColorTokens.fromThemeTokens(ThemeTokens tokens) => AppColorTokens(
         canvas: Color(tokens.editorSurface),
         onCanvas: Color(tokens.primaryText),
+        sidebar: Color(tokens.sidebarSurface),
         primary: Color(tokens.accent),
+        secondary: Color(tokens.secondaryAccent),
+        tertiary: Color(tokens.tertiaryAccent),
         muted: Color(tokens.mutedText),
         surfaceRaised: Color(tokens.controlSurface),
         outlineSubtle: Color(tokens.border),
+        divider: Color(tokens.divider),
+        cursor: Color(tokens.cursor),
       );
 }
 
@@ -61,12 +79,54 @@ abstract final class AppTheme {
   static final Color canvas = Color(ThemeTokens.defaults.editorSurface);
   static final Color onCanvas = Color(ThemeTokens.defaults.primaryText);
   static final Color primary = Color(ThemeTokens.defaults.accent);
+  static final Color secondary =
+      Color(ThemeTokens.defaults.secondaryAccent);
+  static final Color tertiary = Color(ThemeTokens.defaults.tertiaryAccent);
   static final Color muted = Color(ThemeTokens.defaults.mutedText);
   static final Color surfaceRaised = Color(ThemeTokens.defaults.controlSurface);
   static final Color outlineSubtle = Color(ThemeTokens.defaults.border);
 
   static AppColorTokens tokensFor(ThemeTokens tokens) =>
       AppColorTokens.fromThemeTokens(tokens);
+
+  /// Maps NT semantic accents into Material [ColorScheme] roles.
+  static ColorScheme colorSchemeFor(
+    AppColorTokens tokens, {
+    required Brightness brightness,
+  }) {
+    final selected = Color.alphaBlend(
+      tokens.primary.withValues(alpha: 0.20),
+      tokens.sidebar,
+    );
+    final tertiaryContainer = Color.alphaBlend(
+      tokens.tertiary.withValues(
+        alpha: brightness == Brightness.dark ? 0.28 : 0.18,
+      ),
+      tokens.canvas,
+    );
+    final base = brightness == Brightness.dark
+        ? ColorScheme.dark(surface: tokens.canvas)
+        : ColorScheme.light(surface: tokens.canvas);
+    return base.copyWith(
+      primary: tokens.primary,
+      onPrimary: Colors.white,
+      secondary: tokens.secondary,
+      onSecondary: Colors.white,
+      tertiary: tokens.tertiary,
+      onTertiary: Colors.white,
+      secondaryContainer: selected,
+      onSecondaryContainer: tokens.onCanvas,
+      tertiaryContainer: tertiaryContainer,
+      onTertiaryContainer: tokens.onCanvas,
+      surface: tokens.canvas,
+      onSurface: tokens.onCanvas,
+      surfaceContainerLowest: tokens.sidebar,
+      surfaceContainerHighest: tokens.surfaceRaised,
+      onSurfaceVariant: tokens.muted,
+      outline: tokens.outlineSubtle,
+      outlineVariant: tokens.divider,
+    );
+  }
 
   static ThemeData dataFor({
     required Brightness brightness,
@@ -86,25 +146,11 @@ abstract final class AppTheme {
       spaceInline: spaceInline,
     );
 
-    final scheme = brightness == Brightness.dark
-        ? ColorScheme.dark(
-            surface: tokens.canvas,
-            onSurface: tokens.onCanvas,
-            primary: tokens.primary,
-            onPrimary: tokens.canvas,
-            onSurfaceVariant: tokens.muted,
-            surfaceContainerHighest: tokens.surfaceRaised,
-            outline: tokens.outlineSubtle,
-          )
-        : ColorScheme.light(
-            surface: tokens.canvas,
-            onSurface: tokens.onCanvas,
-            primary: tokens.primary,
-            onPrimary: Colors.white,
-            onSurfaceVariant: tokens.muted,
-            surfaceContainerHighest: tokens.surfaceRaised,
-            outline: tokens.outlineSubtle,
-          );
+    final scheme = colorSchemeFor(tokens, brightness: brightness);
+    final focusBorder = Color.alphaBlend(
+      tokens.primary.withValues(alpha: 0.5),
+      tokens.outlineSubtle,
+    );
 
     TextStyle sized(
       double baseSize, {
@@ -129,9 +175,36 @@ abstract final class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: tokens.canvas,
-      dividerColor: tokens.outlineSubtle,
+      dividerColor: tokens.divider,
       fontFamily: fontFamily,
       extensions: <ThemeExtension<dynamic>>[ui],
+      splashColor: tokens.primary.withValues(alpha: 0.14),
+      highlightColor: tokens.primary.withValues(alpha: 0.08),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          return null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tokens.primary;
+          }
+          return null;
+        }),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.transparent;
+          }
+          return null;
+        }),
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: tokens.cursor,
+        selectionColor: tokens.primary.withValues(alpha: 0.35),
+        selectionHandleColor: tokens.cursor,
+      ),
       appBarTheme: AppBarTheme(
         toolbarHeight: titleBandHeight,
         backgroundColor: tokens.canvas,
@@ -165,7 +238,7 @@ abstract final class AppTheme {
         ),
         focusedBorder: AppContinuousInputBorder(
           borderRadius: radiusGeom,
-          borderSide: BorderSide(color: tokens.primary),
+          borderSide: BorderSide(color: focusBorder),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
