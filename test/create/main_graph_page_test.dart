@@ -62,8 +62,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('整理排版'), findsOneWidget);
-    await tester.tap(find.text('整理排版'));
+    expect(find.byTooltip('整理排版'), findsOneWidget);
+    await tester.tap(find.byTooltip('整理排版'));
     await tester.pumpAndSettle();
 
     final opened = await repo.open(messy.meta.id);
@@ -90,7 +90,7 @@ void main() {
     expect(find.text('转折'), findsOneWidget);
     expect(find.text('小屏卡片'), findsOneWidget);
 
-    await tester.tap(find.text('加一站'));
+    await tester.tap(find.byTooltip('加一站'));
     await tester.pumpAndSettle();
     expect(find.text('新情节'), findsOneWidget);
 
@@ -295,7 +295,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('编辑选中'));
+    await tester.tap(find.byTooltip('编辑选中'));
     await tester.pumpAndSettle();
 
     expect(find.text('这一站'), findsOneWidget);

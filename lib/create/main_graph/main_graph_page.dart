@@ -11,6 +11,7 @@ import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_viewport.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -492,41 +493,37 @@ class _MainGraphPageState extends State<MainGraphPage> {
                           ),
                           child: Row(
                             children: [
-                              Expanded(
-                                child: AppButton(
-                                  label: '加一站',
-                                  onPressed: _addNode,
-                                  variant: AppButtonVariant.secondary,
-                                ),
+                              AppCircleButton(
+                                icon: Icons.add,
+                                tooltip: '加一站',
+                                variant: AppCircleButtonVariant.ghost,
+                                onPressed: _addNode,
                               ),
                               const SizedBox(width: AppTheme.spaceSm),
-                              Expanded(
-                                child: AppButton(
-                                  label: '整理排版',
-                                  onPressed: _autoLayout,
-                                  variant: AppButtonVariant.secondary,
-                                ),
+                              AppCircleButton(
+                                icon: Icons.account_tree_outlined,
+                                tooltip: '整理排版',
+                                variant: AppCircleButtonVariant.ghost,
+                                onPressed: _autoLayout,
                               ),
                               const SizedBox(width: AppTheme.spaceSm),
-                              Expanded(
-                                child: AppButton(
-                                  label: '编辑选中',
-                                  onPressed: _selectedId == null
-                                      ? null
-                                      : () => _openNodeEditor(_selectedId!),
-                                  variant: AppButtonVariant.secondary,
-                                ),
+                              AppCircleButton(
+                                icon: Icons.edit_outlined,
+                                tooltip: '编辑选中',
+                                variant: AppCircleButtonVariant.ghost,
+                                onPressed: _selectedId == null
+                                    ? null
+                                    : () => _openNodeEditor(_selectedId!),
                               ),
                               const SizedBox(width: AppTheme.spaceSm),
-                              Expanded(
-                                child: AppButton(
-                                  label: '删除选中',
-                                  onPressed: _selectedId == null &&
-                                          _selectedEdgeId == null
-                                      ? null
-                                      : _deleteSelected,
-                                  variant: AppButtonVariant.ghost,
-                                ),
+                              AppCircleButton(
+                                icon: Icons.delete_outline,
+                                tooltip: '删除选中',
+                                variant: AppCircleButtonVariant.ghost,
+                                onPressed: _selectedId == null &&
+                                        _selectedEdgeId == null
+                                    ? null
+                                    : _deleteSelected,
                               ),
                             ],
                           ),

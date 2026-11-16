@@ -100,7 +100,7 @@ class AppPage extends StatelessWidget {
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     showTitleBack ? AppTheme.spaceSm : AppTheme.pagePadding,
-                    AppTheme.spaceMd,
+                    AppTheme.spaceXs,
                     AppTheme.pagePadding,
                     AppTheme.spaceSm,
                   ),

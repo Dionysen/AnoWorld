@@ -4,6 +4,10 @@ enum AppCircleButtonVariant { filled, tonal, ghost }
 
 /// Icon-only circular control. Shape is always a circle — never reads the
 /// corner-radius slider / [AppUiTokens.radius].
+///
+/// [AppCircleButtonVariant.tonal] keeps a resting fill (e.g. page back).
+/// [AppCircleButtonVariant.ghost] has no resting background (e.g. tool bar);
+/// press / hover still show the ink overlay.
 class AppCircleButton extends StatelessWidget {
   const AppCircleButton({
     super.key,
@@ -29,18 +33,21 @@ class AppCircleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final (Color? bg, Color fg) = switch (variant) {
+    final (Color bg, Color fg, Color disabledBg) = switch (variant) {
       AppCircleButtonVariant.filled => (
           scheme.primary,
           scheme.onPrimary,
+          scheme.primary.withValues(alpha: 0.4),
         ),
       AppCircleButtonVariant.tonal => (
           scheme.surfaceContainerHighest,
           scheme.onSurface,
+          scheme.surfaceContainerHighest.withValues(alpha: 0.4),
         ),
       AppCircleButtonVariant.ghost => (
           Colors.transparent,
           scheme.onSurface,
+          Colors.transparent,
         ),
     };
 
@@ -52,7 +59,8 @@ class AppCircleButton extends StatelessWidget {
       style: IconButton.styleFrom(
         backgroundColor: bg,
         foregroundColor: fg,
-        disabledBackgroundColor: bg?.withValues(alpha: 0.4),
+        disabledBackgroundColor: disabledBg,
+        disabledForegroundColor: fg.withValues(alpha: 0.38),
         shape: const CircleBorder(),
         padding: EdgeInsets.zero,
         minimumSize: Size.square(size),
