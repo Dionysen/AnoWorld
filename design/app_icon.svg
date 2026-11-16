@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <title>AnoWorld</title>
+  <desc>A circle split by a luminous vertical gate: solid form for this world, an open arc for the other.</desc>
+  <defs>
+    <radialGradient id="surface" cx="512" cy="340" r="680" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3E4558"/>
+      <stop offset="0.4" stop-color="#222633"/>
+      <stop offset="0.75" stop-color="#12141C"/>
+      <stop offset="1" stop-color="#06070C"/>
+    </radialGradient>
+    <linearGradient id="gate" x1="524" y1="278" x2="524" y2="746" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#98A6F5"/>
+      <stop offset="0.5" stop-color="#F4F6FF"/>
+      <stop offset="1" stop-color="#98A6F5"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#surface)"/>
+  <!-- This world: the circle, cut open along the gate, corners eased. -->
+  <path fill="#E6E2DA" d="M430 280.3A40 40 0 0 0 371.8 244.7A300 300 0 0 0 371.8 779.3A40 40 0 0 0 430 743.7Z"/>
+  <!-- The far side: same circle, only the outline remains. -->
+  <path stroke="#98A6F5" stroke-width="54" stroke-linecap="round" d="M638 241.6A300 300 0 0 1 638 782.4"/>
+  <!-- The gate. -->
+  <rect x="464" y="278" width="120" height="468" rx="60" fill="url(#gate)"/>
+</svg>
