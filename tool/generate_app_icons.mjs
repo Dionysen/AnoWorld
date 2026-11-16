@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url'
 
 const toolDir = dirname(fileURLToPath(import.meta.url))
 const root = dirname(toolDir)
-const plate = '#06070C'
 
 const androidLegacy = [
   ['mipmap-mdpi', 48],
@@ -67,13 +66,6 @@ async function loadResvg() {
   }
 }
 
-function opaqueSvg(source) {
-  return source.replace(
-    /(<svg\b[^>]*>)/,
-    `$1<rect width="1024" height="1024" fill="${plate}"/>`,
-  )
-}
-
 function renderPng(Resvg, svg, size) {
   const png = new Resvg(svg, {
     fitTo: { mode: 'width', value: size },
@@ -113,7 +105,7 @@ function ico(images) {
 }
 
 const { Resvg } = await loadResvg()
-const svg = opaqueSvg(readFileSync(join(root, 'design', 'app_icon.svg'), 'utf8'))
+const svg = readFileSync(join(root, 'design', 'app_icon.svg'), 'utf8')
 const cache = new Map()
 
 function pngAt(size) {
