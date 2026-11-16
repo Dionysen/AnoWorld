@@ -1,5 +1,6 @@
-import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:flutter/material.dart';
+
+import '../frame/immersive_frame.dart';
 
 /// Page shell. Business screens compose this instead of a scaffold or app bar.
 class AppPage extends StatelessWidget {

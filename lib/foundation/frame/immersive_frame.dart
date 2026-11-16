@@ -1,12 +1,13 @@
 import 'dart:math' as math;
 
-import 'package:anoworld/foundation/frame/window_channel.dart';
-import 'package:anoworld/foundation/frame/window_controls.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+
+import 'window_channel.dart';
+import 'window_controls.dart';
 
 /// Makes system bars transparent so page content can extend into them.
 void installImmersiveSystemUi() {

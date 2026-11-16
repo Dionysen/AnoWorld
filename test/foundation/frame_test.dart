@@ -15,13 +15,15 @@ void main() {
     'home renders without window buttons when the channel is absent',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      try {
+        await tester.pumpWidget(const App());
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(const App());
-      await tester.pumpAndSettle();
-
-      expect(find.text('AnoWorld'), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsNothing);
+        expect(find.text('AnoWorld'), findsOneWidget);
+        expect(find.byIcon(Icons.close), findsNothing);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     },
   );
 
@@ -56,12 +58,9 @@ void main() {
   testWidgets(
     'window buttons sit at the top-right when the runner enables them',
     (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(400, 800);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetPhysicalSize);
-
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(400, 800);
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
       messenger.setMockMethodCallHandler(WindowChannel.channel, (call) async {
@@ -70,27 +69,30 @@ void main() {
         }
         return null;
       });
-      addTearDown(
-        () => messenger.setMockMethodCallHandler(WindowChannel.channel, null),
-      );
+      try {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.data,
+            builder: (context, child) => ImmersiveFrame(child: child!),
+            home: const AppPage(title: 'Title', body: SizedBox.expand()),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.data,
-          builder: (context, child) => ImmersiveFrame(child: child!),
-          home: const AppPage(title: 'Title', body: SizedBox.expand()),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.remove), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
-      final closeRect = tester.getRect(find.byIcon(Icons.close));
-      expect(closeRect.right, lessThanOrEqualTo(400));
-      expect(
-        closeRect.right,
-        greaterThan(400 - WindowControlMetrics.buttonWidth),
-      );
+        expect(find.byIcon(Icons.remove), findsOneWidget);
+        expect(find.byIcon(Icons.close), findsOneWidget);
+        final closeRect = tester.getRect(find.byIcon(Icons.close));
+        expect(closeRect.right, lessThanOrEqualTo(400));
+        expect(
+          closeRect.right,
+          greaterThan(400 - WindowControlMetrics.buttonWidth),
+        );
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        messenger.setMockMethodCallHandler(WindowChannel.channel, null);
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      }
     },
   );
 }
