@@ -72,6 +72,18 @@ abstract final class AppTheme {
   static const double pagePadding = spaceMd;
   static const double buttonHeight = 36;
 
+  /// Side/bottom inset for floating sheets (narrower than the page).
+  static const double sheetInset = spaceMd;
+
+  /// Max width so sheets stay a clear layer on wide windows.
+  static const double sheetMaxWidth = 400;
+
+  /// Default height fraction for scrollable list sheets.
+  static const double sheetHeightFactor = 0.78;
+
+  /// Max height fraction when a sheet shrink-wraps to content.
+  static const double sheetMaxHeightFactor = 0.9;
+
   static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
     horizontal: 12,
     vertical: 12,

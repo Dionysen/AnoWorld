@@ -3,6 +3,7 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
+import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -127,6 +128,62 @@ void main() {
 
     expect(find.byIcon(Icons.keyboard_arrow_down), findsOneWidget);
     expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
+  });
+
+  testWidgets('AppForwardIcon shows chevron right', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const Scaffold(body: AppForwardIcon()),
+      ),
+    );
+    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+  });
+
+  testWidgets('showAppSheet is inset and narrower than the screen', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: AppButton(
+                label: '打开',
+                onPressed: () {
+                  showAppSheet<void>(
+                    context: context,
+                    heightFactor: AppTheme.sheetHeightFactor,
+                    builder: (_) => const Center(child: Text('抽屉内容')),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('抽屉内容'), findsOneWidget);
+    final sheetLeft = tester.getTopLeft(find.text('抽屉内容')).dx;
+    expect(sheetLeft, greaterThan(AppTheme.sheetInset));
+    final card = tester.getRect(
+      find
+          .ancestor(
+            of: find.text('抽屉内容'),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(card.width, lessThan(390));
+    expect(card.width, lessThanOrEqualTo(AppTheme.sheetMaxWidth));
   });
 
   testWidgets('AppButton variants share the same height', (tester) async {

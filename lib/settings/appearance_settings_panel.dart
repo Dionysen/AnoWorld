@@ -14,6 +14,7 @@ import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
+import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
@@ -28,7 +29,6 @@ class AppearanceSettingsPanel extends StatefulWidget {
 }
 
 class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
-  var _customColorsExpanded = false;
 
   @override
   void initState() {
@@ -53,88 +53,159 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
   }
 
   Future<void> _openThemePackSheet(SettingsController controller) async {
-    await showModalBottomSheet<void>(
+    await showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+      heightFactor: AppTheme.sheetHeightFactor,
       builder: (sheetContext) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.72,
-          minChildSize: 0.4,
-          maxChildSize: 0.92,
-          builder: (context, scrollController) {
-            return SafeArea(
-              child: ListenableBuilder(
-                listenable: controller,
-                builder: (context, _) {
-                  final appearance = controller.appearance;
-                  final packs = appearance.colorPacks;
-                  final activePack = controller.activePack;
-                  final activeMatches = activePack != null &&
-                      activePack.tokens == controller.activeTokens;
-                  return Column(
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          AppTheme.pagePadding,
-                          0,
-                          AppTheme.pagePadding,
-                          AppTheme.spaceSm,
-                        ),
-                        child: AppSectionHeader('主题预设'),
-                      ),
-                      Expanded(
-                        child: ListView.separated(
-                          controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(
-                            AppTheme.pagePadding,
-                            AppTheme.spaceSm,
-                            AppTheme.pagePadding,
-                            AppTheme.spaceLg,
-                          ),
-                          itemCount: packs.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: AppTheme.spaceGroup),
-                          itemBuilder: (context, index) {
-                            final pack = packs[index];
-                            final isActive = activeMatches &&
-                                pack.id == controller.activePackId;
-                            return AppListTile(
-                              title: _packTitle(pack),
-                              icon: _packIcon(pack),
-                              onTap: () async {
-                                await controller.applyPack(pack.id);
-                                if (sheetContext.mounted) {
-                                  Navigator.pop(sheetContext);
-                                }
-                              },
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _PackTrailing(
-                                    packId: pack.id,
-                                    lightPackId: appearance.lightPackId,
-                                    darkPackId: appearance.darkPackId,
-                                    isActive: isActive,
-                                  ),
-                                  if (!pack.isBuiltIn)
-                                    AppIconButton(
-                                      icon: Icons.more_horiz,
-                                      tooltip: '管理',
-                                      onPressed: () =>
-                                          _customPackMenu(controller, pack),
-                                    ),
-                                ],
+        return ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final appearance = controller.appearance;
+            final packs = appearance.colorPacks;
+            final activePack = controller.activePack;
+            final activeMatches = activePack != null &&
+                activePack.tokens == controller.activeTokens;
+            return Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
+                    AppTheme.spaceXs,
+                    AppTheme.pagePadding,
+                    AppTheme.spaceSm,
+                  ),
+                  child: AppSectionHeader('主题预设'),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTheme.pagePadding,
+                      AppTheme.spaceSm,
+                      AppTheme.pagePadding,
+                      AppTheme.spaceLg,
+                    ),
+                    itemCount: packs.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppTheme.spaceGroup),
+                    itemBuilder: (context, index) {
+                      final pack = packs[index];
+                      final isActive = activeMatches &&
+                          pack.id == controller.activePackId;
+                      return AppListTile(
+                        title: _packTitle(pack),
+                        icon: _packIcon(pack),
+                        onTap: () async {
+                          await controller.applyPack(pack.id);
+                          if (sheetContext.mounted) {
+                            Navigator.pop(sheetContext);
+                          }
+                        },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _PackTrailing(
+                              packId: pack.id,
+                              lightPackId: appearance.lightPackId,
+                              darkPackId: appearance.darkPackId,
+                              isActive: isActive,
+                            ),
+                            if (!pack.isBuiltIn)
+                              AppIconButton(
+                                icon: Icons.more_horiz,
+                                tooltip: '管理',
+                                onPressed: () =>
+                                    _customPackMenu(controller, pack),
                               ),
-                            );
-                          },
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _openCustomColorsSheet(SettingsController controller) async {
+    await showAppSheet<void>(
+      context: context,
+      heightFactor: AppTheme.sheetHeightFactor,
+      builder: (sheetContext) {
+        return ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
+                    AppTheme.spaceXs,
+                    AppTheme.pagePadding,
+                    AppTheme.spaceSm,
+                  ),
+                  child: AppSectionHeader('自定义颜色'),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTheme.pagePadding,
+                      0,
+                      AppTheme.pagePadding,
+                      AppTheme.spaceSm,
+                    ),
+                    itemCount: ThemeToken.values.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppTheme.spaceGroup),
+                    itemBuilder: (context, index) {
+                      final token = ThemeToken.values[index];
+                      return AppListTile(
+                        title: token.label,
+                        subtitle: token.description,
+                        icon: token.icon,
+                        onTap: () => _pickToken(controller, token),
+                        trailing: _ColorSwatch(
+                          color: Color(
+                            controller.activeTokens.valueOf(token),
+                          ),
+                          onTap: () => _pickToken(controller, token),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
+                    AppTheme.spaceSm,
+                    AppTheme.pagePadding,
+                    AppTheme.spaceMd,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: AppButton(
+                          label: '保存为主题',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: () => _saveAsTheme(controller),
+                        ),
+                      ),
+                      const SizedBox(width: AppTheme.spaceSm),
+                      Expanded(
+                        child: AppButton(
+                          label: '恢复默认',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: controller.restoreDefaults,
                         ),
                       ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             );
           },
         );
@@ -161,53 +232,49 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
       extentOffset: text.text.length,
     );
     try {
-      return await showModalBottomSheet<String>(
+      return await showAppSheet<String>(
         context: context,
-        showDragHandle: true,
-        isScrollControlled: true,
         builder: (context) {
-          return SafeArea(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppTheme.pagePadding,
-                AppTheme.spaceSm,
-                AppTheme.pagePadding,
-                MediaQuery.viewInsetsOf(context).bottom + AppTheme.spaceLg,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AppSectionHeader(title),
-                  AppTextField(
-                    label: '主题名称',
-                    controller: text,
-                  ),
-                  const SizedBox(height: AppTheme.spaceMd),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppButton(
-                          label: '取消',
-                          variant: AppButtonVariant.secondary,
-                          onPressed: () => Navigator.pop(context),
-                        ),
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceXs,
+              AppTheme.pagePadding,
+              AppTheme.spaceMd,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppSectionHeader(title),
+                AppTextField(
+                  label: '主题名称',
+                  controller: text,
+                ),
+                const SizedBox(height: AppTheme.spaceMd),
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(
+                        label: '取消',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      const SizedBox(width: AppTheme.spaceSm),
-                      Expanded(
-                        child: AppButton(
-                          label: '保存',
-                          onPressed: () {
-                            final trimmed = text.text.trim();
-                            if (trimmed.isEmpty) return;
-                            Navigator.pop(context, trimmed);
-                          },
-                        ),
+                    ),
+                    const SizedBox(width: AppTheme.spaceSm),
+                    Expanded(
+                      child: AppButton(
+                        label: '保存',
+                        onPressed: () {
+                          final trimmed = text.text.trim();
+                          if (trimmed.isEmpty) return;
+                          Navigator.pop(context, trimmed);
+                        },
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           );
         },
@@ -222,44 +289,39 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
     ThemeColorPack pack,
   ) async {
     if (pack.isBuiltIn) return;
-    final action = await showModalBottomSheet<_PackMenuAction>(
+    final action = await showAppSheet<_PackMenuAction>(
       context: context,
-      showDragHandle: true,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pagePadding,
-              AppTheme.spaceSm,
-              AppTheme.pagePadding,
-              AppTheme.spaceLg,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppSectionHeader(pack.name),
-                AppListTile(
-                  title: '重命名',
-                  icon: Icons.drive_file_rename_outline,
-                  onTap: () =>
-                      Navigator.pop(context, _PackMenuAction.rename),
-                ),
-                const SizedBox(height: AppTheme.spaceSm),
-                AppListTile(
-                  title: '复制',
-                  icon: Icons.copy_outlined,
-                  onTap: () => Navigator.pop(context, _PackMenuAction.copy),
-                ),
-                const SizedBox(height: AppTheme.spaceSm),
-                AppListTile(
-                  title: '删除',
-                  icon: Icons.delete_outline,
-                  onTap: () =>
-                      Navigator.pop(context, _PackMenuAction.delete),
-                ),
-              ],
-            ),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            AppTheme.spaceXs,
+            AppTheme.pagePadding,
+            AppTheme.spaceMd,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppSectionHeader(pack.name),
+              AppListTile(
+                title: '重命名',
+                icon: Icons.drive_file_rename_outline,
+                onTap: () => Navigator.pop(context, _PackMenuAction.rename),
+              ),
+              const SizedBox(height: AppTheme.spaceSm),
+              AppListTile(
+                title: '复制',
+                icon: Icons.copy_outlined,
+                onTap: () => Navigator.pop(context, _PackMenuAction.copy),
+              ),
+              const SizedBox(height: AppTheme.spaceSm),
+              AppListTile(
+                title: '删除',
+                icon: Icons.delete_outline,
+                onTap: () => Navigator.pop(context, _PackMenuAction.delete),
+              ),
+            ],
           ),
         );
       },
@@ -276,48 +338,45 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
       case _PackMenuAction.copy:
         await controller.copyCustomPack(pack.id, '${pack.name} 副本');
       case _PackMenuAction.delete:
-        final confirmed = await showModalBottomSheet<bool>(
+        final confirmed = await showAppSheet<bool>(
           context: context,
-          showDragHandle: true,
           builder: (context) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.pagePadding,
-                  AppTheme.spaceSm,
-                  AppTheme.pagePadding,
-                  AppTheme.spaceLg,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const AppSectionHeader('删除主题？'),
-                    AppText(
-                      '删除「${pack.name}」后无法恢复。',
-                      role: AppTextRole.body,
-                    ),
-                    const SizedBox(height: AppTheme.spaceMd),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AppButton(
-                            label: '取消',
-                            variant: AppButtonVariant.secondary,
-                            onPressed: () => Navigator.pop(context, false),
-                          ),
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                AppTheme.spaceMd,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const AppSectionHeader('删除主题？'),
+                  AppText(
+                    '删除「${pack.name}」后无法恢复。',
+                    role: AppTextRole.body,
+                  ),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppButton(
+                          label: '取消',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: () => Navigator.pop(context, false),
                         ),
-                        const SizedBox(width: AppTheme.spaceSm),
-                        Expanded(
-                          child: AppButton(
-                            label: '删除',
-                            onPressed: () => Navigator.pop(context, true),
-                          ),
+                      ),
+                      const SizedBox(width: AppTheme.spaceSm),
+                      Expanded(
+                        child: AppButton(
+                          label: '删除',
+                          onPressed: () => Navigator.pop(context, true),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             );
           },
@@ -382,46 +441,9 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               title: '自定义颜色',
               subtitle: '调整当前配色',
               icon: Icons.colorize_outlined,
-              onTap: () => setState(
-                () => _customColorsExpanded = !_customColorsExpanded,
-              ),
-              trailing: AppDisclosureIcon(expanded: _customColorsExpanded),
+              onTap: () => _openCustomColorsSheet(controller),
+              trailing: const AppForwardIcon(),
             ),
-            if (_customColorsExpanded) ...[
-              const SizedBox(height: AppTheme.spaceGroup),
-              for (final token in ThemeToken.values) ...[
-                AppListTile(
-                  title: token.label,
-                  subtitle: token.description,
-                  icon: token.icon,
-                  onTap: () => _pickToken(controller, token),
-                  trailing: _ColorSwatch(
-                    color: Color(controller.activeTokens.valueOf(token)),
-                    onTap: () => _pickToken(controller, token),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spaceGroup),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      label: '保存为主题',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: () => _saveAsTheme(controller),
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spaceSm),
-                  Expanded(
-                    child: AppButton(
-                      label: '恢复默认',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: controller.restoreDefaults,
-                    ),
-                  ),
-                ],
-              ),
-            ],
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader('界面'),
             AppFontPickerRow(

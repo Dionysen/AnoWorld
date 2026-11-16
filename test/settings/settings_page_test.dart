@@ -56,6 +56,18 @@ void main() {
     expect(find.text('主题颜色'), findsOneWidget);
     expect(find.text('主题预设'), findsOneWidget);
     expect(find.text('自定义颜色'), findsOneWidget);
+    expect(find.byIcon(Icons.chevron_right), findsWidgets);
+
+    await tester.tap(find.text('自定义颜色'));
+    await tester.pumpAndSettle();
+    expect(find.text('保存为主题'), findsOneWidget);
+    expect(find.text('恢复默认'), findsOneWidget);
+    expect(find.text('应用背景'), findsOneWidget);
+    // Tap the left inset margin (outside the floating card) to dismiss.
+    await tester.tapAt(const Offset(8, 200));
+    await tester.pumpAndSettle();
+    expect(find.text('保存为主题'), findsNothing);
+
     expect(find.text('字体'), findsOneWidget);
     expect(find.text('字体大小'), findsOneWidget);
     expect(find.text('圆角大小'), findsOneWidget);

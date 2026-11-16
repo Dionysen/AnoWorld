@@ -16,3 +16,18 @@ class AppDisclosureIcon extends StatelessWidget {
     );
   }
 }
+
+/// Trailing chevron for rows that open a nested sheet or next screen.
+class AppForwardIcon extends StatelessWidget {
+  const AppForwardIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Icon(
+      Icons.chevron_right,
+      size: 20,
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+  }
+}

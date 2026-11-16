@@ -8,6 +8,7 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
+import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
@@ -30,41 +31,38 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
     required String Function(T) labelOf,
     required String Function(T) urlOf,
   }) {
-    return showModalBottomSheet<T>(
+    return showAppSheet<T>(
       context: context,
-      showDragHandle: true,
       builder: (context) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pagePadding,
-              AppTheme.spaceSm,
-              AppTheme.pagePadding,
-              AppTheme.spaceLg,
+        return ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            AppTheme.spaceXs,
+            AppTheme.pagePadding,
+            AppTheme.spaceMd,
+          ),
+          children: [
+            const AppSectionHeader('选择供应商'),
+            const SizedBox(height: AppTheme.spaceXs),
+            const AppText(
+              '写故事与生图请分开选择',
+              role: AppTextRole.caption,
             ),
-            children: [
-              const AppSectionHeader('选择供应商'),
-              const SizedBox(height: AppTheme.spaceXs),
-              const AppText(
-                '写故事与生图请分开选择',
-                role: AppTextRole.caption,
+            const SizedBox(height: AppTheme.spaceGroup),
+            for (final option in options) ...[
+              AppListTile(
+                title: labelOf(option),
+                subtitle: urlOf(option),
+                icon: Icons.dns_outlined,
+                onTap: () => Navigator.of(context).pop(option),
+                trailing: option == current
+                    ? const AppText('当前', role: AppTextRole.caption)
+                    : null,
               ),
               const SizedBox(height: AppTheme.spaceGroup),
-              for (final option in options) ...[
-                AppListTile(
-                  title: labelOf(option),
-                  subtitle: urlOf(option),
-                  icon: Icons.dns_outlined,
-                  onTap: () => Navigator.of(context).pop(option),
-                  trailing: option == current
-                      ? const AppText('当前', role: AppTextRole.caption)
-                      : null,
-                ),
-                const SizedBox(height: AppTheme.spaceGroup),
-              ],
             ],
-          ),
+          ],
         );
       },
     );
@@ -609,38 +607,32 @@ Future<String?> _showModelSheet(
   required List<String> models,
   required String current,
 }) {
-  return showModalBottomSheet<String>(
+  return showAppSheet<String>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
+    heightFactor: 0.55,
     builder: (context) {
-      return SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * 0.55,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pagePadding,
-              AppTheme.spaceSm,
-              AppTheme.pagePadding,
-              AppTheme.spaceLg,
-            ),
-            children: [
-              const AppSectionHeader('选择模型'),
-              const SizedBox(height: AppTheme.spaceGroup),
-              for (final id in models) ...[
-                AppListTile(
-                  title: id,
-                  icon: Icons.smart_toy_outlined,
-                  onTap: () => Navigator.of(context).pop(id),
-                  trailing: id == current
-                      ? const AppText('当前', role: AppTextRole.caption)
-                      : null,
-                ),
-                const SizedBox(height: AppTheme.spaceGroup),
-              ],
-            ],
-          ),
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.pagePadding,
+          AppTheme.spaceXs,
+          AppTheme.pagePadding,
+          AppTheme.spaceMd,
         ),
+        children: [
+          const AppSectionHeader('选择模型'),
+          const SizedBox(height: AppTheme.spaceGroup),
+          for (final id in models) ...[
+            AppListTile(
+              title: id,
+              icon: Icons.smart_toy_outlined,
+              onTap: () => Navigator.of(context).pop(id),
+              trailing: id == current
+                  ? const AppText('当前', role: AppTextRole.caption)
+                  : null,
+            ),
+            const SizedBox(height: AppTheme.spaceGroup),
+          ],
+        ],
       );
     },
   );
