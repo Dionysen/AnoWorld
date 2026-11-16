@@ -8,6 +8,7 @@ import 'package:anoworld/foundation/theme/theme_preset_labels.dart';
 import 'package:anoworld/foundation/theme/theme_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_color_picker.dart';
+import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_font_picker.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
@@ -269,10 +270,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               title: '主题预设',
               subtitle: '亮色/暗色各自记住一套；点选立即切换当前外观。',
               onTap: () => setState(() => _presetsExpanded = !_presetsExpanded),
-              trailing: AppText(
-                _presetsExpanded ? '收起' : '展开',
-                role: AppTextRole.caption,
-              ),
+              trailing: AppDisclosureIcon(expanded: _presetsExpanded),
             ),
             if (_presetsExpanded) ...[
               const SizedBox(height: AppTheme.spaceSm),
@@ -311,10 +309,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               onTap: () => setState(
                 () => _customColorsExpanded = !_customColorsExpanded,
               ),
-              trailing: AppText(
-                _customColorsExpanded ? '收起' : '展开',
-                role: AppTextRole.caption,
-              ),
+              trailing: AppDisclosureIcon(expanded: _customColorsExpanded),
             ),
             if (_customColorsExpanded) ...[
               const SizedBox(height: AppTheme.spaceSm),

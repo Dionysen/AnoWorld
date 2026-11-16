@@ -1,5 +1,6 @@
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:flutter/material.dart';
@@ -73,6 +74,25 @@ void main() {
     expect(fieldHeight, lessThanOrEqualTo(AppTheme.buttonHeight));
     await tester.tap(find.text('deepseek-flash'));
     expect(tapped, isTrue);
+  });
+
+  testWidgets('AppDisclosureIcon flips between down and up', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const Scaffold(
+          body: Row(
+            children: [
+              AppDisclosureIcon(expanded: false),
+              AppDisclosureIcon(expanded: true),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.keyboard_arrow_down), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
   });
 
   testWidgets('AppButton variants share the same height', (tester) async {
