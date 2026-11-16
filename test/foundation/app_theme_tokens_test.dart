@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('AppTheme embeds AppUiTokens from appearance', () {
     final theme = AppTheme.dark(
-      const AppearanceSettings(
+      AppearanceSettings(
         fontFamily: 'Roboto',
         fontSize: 16.5,
         cornerRadius: 16,
@@ -37,7 +37,7 @@ void main() {
   testWidgets('AppTextField uses theme content padding', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.dark(const AppearanceSettings()),
+        theme: AppTheme.dark(AppearanceSettings()),
         home: const Scaffold(
           body: Padding(
             padding: EdgeInsets.all(8),

@@ -1,11 +1,16 @@
 import 'package:anoworld/domain/settings/appearance_settings.dart';
+import 'package:anoworld/foundation/theme/theme_color_pack.dart';
+import 'package:anoworld/foundation/theme/theme_tokens.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('AppearanceSettings json round-trip keeps numeric ui prefs', () {
-    const original = AppearanceSettings(
+  test('AppearanceSettings json round-trip keeps dual color slots', () {
+    final original = AppearanceSettings(
       mode: AppThemeModeSetting.system,
-      preset: AppThemePreset.slate,
+      lightTokens: ThemeTokens.presets[ThemePreset.mint]!,
+      darkTokens: ThemeTokens.presets[ThemePreset.cursorDark]!,
+      lightPackId: ThemeColorPack.builtInId(ThemePreset.mint),
+      darkPackId: ThemeColorPack.builtInId(ThemePreset.cursorDark),
       fontFamily: 'app-font-1',
       fontPath: r'C:\Fonts\Demo.ttf',
       fontSize: 16.5,
@@ -14,23 +19,29 @@ void main() {
 
     final restored = AppearanceSettings.fromJson(original.toJson());
     expect(restored.mode, original.mode);
-    expect(restored.preset, original.preset);
+    expect(restored.lightPackId, original.lightPackId);
+    expect(restored.darkPackId, original.darkPackId);
+    expect(restored.lightTokens, original.lightTokens);
+    expect(restored.darkTokens, original.darkTokens);
     expect(restored.fontFamily, original.fontFamily);
     expect(restored.fontPath, original.fontPath);
     expect(restored.fontSize, original.fontSize);
     expect(restored.cornerRadius, original.cornerRadius);
   });
 
-  test('AppearanceSettings migrates legacy typeface sans to Roboto', () {
+  test('AppearanceSettings migrates legacy single preset', () {
     final restored = AppearanceSettings.fromJson(<String, dynamic>{
       'mode': 'dark',
-      'preset': 'midnight',
-      'typeface': 'sans',
+      'preset': 'black',
       'fontScale': 1.0,
       'cornerRadius': 'soft',
     });
-    expect(restored.fontFamily, 'Roboto');
-    expect(restored.fontPath, isNull);
+    expect(restored.darkPackId, ThemeColorPack.builtInId(ThemePreset.cursorDark));
+    expect(
+      restored.darkTokens,
+      ThemeTokens.presets[ThemePreset.cursorDark],
+    );
+    expect(restored.lightPackId, ThemeColorPack.builtInId(ThemePreset.light));
     expect(restored.fontSize, 15);
     expect(restored.cornerRadius, 16);
   });
@@ -45,7 +56,7 @@ void main() {
   });
 
   test('clearFont clears family and path', () {
-    const original = AppearanceSettings(
+    final original = AppearanceSettings(
       fontFamily: 'x',
       fontPath: '/a.ttf',
     );

@@ -53,18 +53,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('主题模式'), findsOneWidget);
+    expect(find.text('主题颜色'), findsOneWidget);
+    expect(find.text('主题预设'), findsOneWidget);
+    expect(find.text('自定义颜色'), findsOneWidget);
     expect(find.text('字体'), findsOneWidget);
     expect(find.text('字体大小'), findsOneWidget);
     expect(find.text('圆角大小'), findsOneWidget);
-    expect(find.text('午夜'), findsOneWidget);
-    expect(find.text('黑色'), findsOneWidget);
 
-    await tester.tap(find.text('黑色'));
+    await tester.tap(find.text('主题预设'));
     await tester.pumpAndSettle();
-    expect(find.text('使用中'), findsOneWidget);
+    await tester.ensureVisible(find.text('Cursor 深色'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cursor 深色'), findsOneWidget);
+    await tester.tap(find.text('Cursor 深色'));
+    await tester.pumpAndSettle();
+    expect(find.text('使用中'), findsWidgets);
 
     expect(find.textContaining('本机已安装的字体'), findsOneWidget);
 
+    await tester.ensureVisible(find.byType(Slider).first);
+    await tester.pumpAndSettle();
     expect(find.byType(Slider), findsNWidgets(2));
     await tester.drag(find.byType(Slider).first, const Offset(40, 0));
     await tester.pumpAndSettle();

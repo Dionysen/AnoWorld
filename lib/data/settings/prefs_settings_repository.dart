@@ -34,7 +34,7 @@ class PrefsSettingsRepository implements SettingsRepository {
   @override
   Future<AppearanceSettings> loadAppearance() async {
     final raw = (await _prefs()).getString(appearanceKey);
-    if (raw == null || raw.isEmpty) return const AppearanceSettings();
+    if (raw == null || raw.isEmpty) return AppearanceSettings();
     final map = asJsonMap(jsonDecode(raw), path: appearanceKey);
     return AppearanceSettings.fromJson(map);
   }

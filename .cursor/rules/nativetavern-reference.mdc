@@ -15,7 +15,7 @@ alwaysApply: true
 | 生图供应商 | `ImageGenProvider`（`image_generation_service.dart`） | OAI 生图、NovelAI、A1111、ComfyUI 等，勿复用文本列表 |
 | AI 连接 UI | `ai_config_screen.dart` / image gen settings | 文本与生图分区、可改 Base URL、模型探测 |
 | 沉浸壳 / 双布局导航 | shell / layout | 已有 foundation 约定时以本仓库为准 |
-| 主题色 | `theme_tokens.dart` | 可借鉴色板，落点仍走 `AppTheme` / `AppearanceSettings` |
+| 主题色 | `ThemeTokens` / `ThemeColorPack` / `ThemeAppearance` | 迁移全套预设；亮/暗分槽记忆；自定义色 + 保存为主题 / 恢复默认 |
 | 字体选择 | `FontFilePickerRow` / `FileSystemFontRepository` | 系统字体列表 + 导入 ttf/otf；存 `fontPath`/`fontFamily`，勿只做枚举切换 |
 
 ## 要求

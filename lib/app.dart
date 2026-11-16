@@ -22,26 +22,17 @@ class App extends StatefulWidget {
     this.pickImportDirectory,
   });
 
-  /// Override for tests. Production uses [FolderProjectRepository].
   final ProjectRepository? projects;
-
-  /// Override for tests. Production uses [FileSaveRepository].
   final SaveRepository? saves;
-
-  /// Override for tests. Production uses [PrefsSettingsRepository].
   final SettingsRepository? settingsRepository;
-
-  /// Optional prebuilt controller (tests).
   final SettingsController? settingsController;
-
-  /// Override folder picker for tests.
   final Future<String?> Function()? pickImportDirectory;
 
   @override
   State<App> createState() => _AppState();
 }
 
-class _AppState extends State<App> {
+class _AppState extends State<App> with WidgetsBindingObserver {
   late final SettingsController _settings = widget.settingsController ??
       SettingsController(
         repository: widget.settingsRepository ?? PrefsSettingsRepository(),
@@ -50,6 +41,7 @@ class _AppState extends State<App> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.settingsController == null) {
       _settings.load();
     }
@@ -57,10 +49,18 @@ class _AppState extends State<App> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (widget.settingsController == null) {
       _settings.dispose();
     }
     super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    _settings.syncPlatformBrightness(
+      WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    );
   }
 
   @override

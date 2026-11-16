@@ -28,9 +28,8 @@ void main() {
       ),
     );
     await repo.saveAppearance(
-      const AppearanceSettings(
+      AppearanceSettings(
         mode: AppThemeModeSetting.light,
-        preset: AppThemePreset.mist,
         fontFamily: 'Roboto',
         fontSize: 16.5,
         cornerRadius: 16,

@@ -7,7 +7,7 @@ class MemorySettingsRepository implements SettingsRepository {
     AiSettings? ai,
     AppearanceSettings? appearance,
   })  : _ai = ai ?? const AiSettings(),
-        _appearance = appearance ?? const AppearanceSettings();
+        _appearance = appearance ?? AppearanceSettings();
 
   AiSettings _ai;
   AppearanceSettings _appearance;

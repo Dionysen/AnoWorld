@@ -1,4 +1,6 @@
 import 'package:anoworld/domain/models/json_map.dart';
+import 'package:anoworld/foundation/theme/theme_color_pack.dart';
+import 'package:anoworld/foundation/theme/theme_tokens.dart';
 import 'package:flutter/material.dart';
 
 enum AppThemeModeSetting { system, light, dark }
@@ -19,40 +21,13 @@ extension AppThemeModeSettingX on AppThemeModeSetting {
   static AppThemeModeSetting parse(String? raw) {
     return AppThemeModeSetting.values.firstWhere(
       (m) => m.name == raw,
-      orElse: () => AppThemeModeSetting.dark,
-    );
-  }
-}
-
-/// Built-in color stories. Each preset supplies light + dark palettes.
-enum AppThemePreset { midnight, slate, mist, black }
-
-extension AppThemePresetX on AppThemePreset {
-  String get label => switch (this) {
-        AppThemePreset.midnight => '午夜',
-        AppThemePreset.slate => '岩灰',
-        AppThemePreset.mist => '薄雾',
-        AppThemePreset.black => '黑色',
-      };
-
-  String get blurb => switch (this) {
-        AppThemePreset.midnight => '沉浸暗色，默认画布',
-        AppThemePreset.slate => '冷灰强调，偏编辑器',
-        AppThemePreset.mist => '浅色冷静，适合白天',
-        AppThemePreset.black => '近黑画布，参考 NativeTavern Cursor 深色',
-      };
-
-  static AppThemePreset parse(String? raw) {
-    return AppThemePreset.values.firstWhere(
-      (p) => p.name == raw,
-      orElse: () => AppThemePreset.midnight,
+      orElse: () => AppThemeModeSetting.system,
     );
   }
 }
 
 /// Slider ranges for appearance size controls (settings UI + clamp on load).
 abstract final class AppearanceUiRange {
-  /// Body text size in logical px.
   static const double fontSizeMin = 12;
   static const double fontSizeMax = 20;
   static const double fontSizeStep = 0.5;
@@ -64,18 +39,34 @@ abstract final class AppearanceUiRange {
   static const double cornerRadiusDefault = 10;
 }
 
+/// Persisted appearance: mode, light/dark token slots, custom packs, chrome.
 class AppearanceSettings {
-  const AppearanceSettings({
-    this.mode = AppThemeModeSetting.dark,
-    this.preset = AppThemePreset.midnight,
+  AppearanceSettings({
+    this.mode = AppThemeModeSetting.system,
+    ThemeTokens? lightTokens,
+    ThemeTokens? darkTokens,
+    String? lightPackId,
+    String? darkPackId,
+    this.customPacks = const [],
     this.fontFamily,
     this.fontPath,
     this.fontSize = AppearanceUiRange.fontSizeDefault,
     this.cornerRadius = AppearanceUiRange.cornerRadiusDefault,
-  });
+  })  : lightTokens = lightTokens ?? ThemeTokens.presets[ThemePreset.light]!,
+        darkTokens = darkTokens ?? ThemeTokens.defaults,
+        lightPackId =
+            lightPackId ?? ThemeColorPack.builtInId(ThemePreset.light),
+        darkPackId =
+            darkPackId ?? ThemeColorPack.builtInId(ThemePreset.darkModern);
+
+  factory AppearanceSettings.defaults() => AppearanceSettings();
 
   final AppThemeModeSetting mode;
-  final AppThemePreset preset;
+  final ThemeTokens lightTokens;
+  final ThemeTokens darkTokens;
+  final String lightPackId;
+  final String darkPackId;
+  final List<ThemeColorPack> customPacks;
 
   /// Runtime [FontLoader] family id (or a bundled name like Roboto). Null = system.
   final String? fontFamily;
@@ -83,15 +74,51 @@ class AppearanceSettings {
   /// Durable font file path used to re-register [fontFamily] on launch.
   final String? fontPath;
 
-  /// Body text size in logical pixels (see [AppearanceUiRange]).
   final double fontSize;
-
-  /// Continuous corner radius in logical pixels (see [AppearanceUiRange]).
   final double cornerRadius;
+
+  List<ThemeColorPack> get colorPacks => [
+        ...ThemeColorPack.builtIns,
+        ...customPacks,
+      ];
+
+  ThemeColorPack? packById(String id) {
+    for (final pack in colorPacks) {
+      if (pack.id == id) return pack;
+    }
+    return null;
+  }
+
+  ThemeTokens tokensFor(Brightness brightness) =>
+      brightness == Brightness.dark ? darkTokens : lightTokens;
+
+  String packIdFor(Brightness brightness) =>
+      brightness == Brightness.dark ? darkPackId : lightPackId;
+
+  bool isEffectivelyDark(Brightness platformBrightness) => switch (mode) {
+        AppThemeModeSetting.dark => true,
+        AppThemeModeSetting.light => false,
+        AppThemeModeSetting.system => platformBrightness == Brightness.dark,
+      };
+
+  ThemeTokens activeTokens(Brightness platformBrightness) =>
+      tokensFor(isEffectivelyDark(platformBrightness)
+          ? Brightness.dark
+          : Brightness.light);
+
+  String activePackId(Brightness platformBrightness) => packIdFor(
+        isEffectivelyDark(platformBrightness)
+            ? Brightness.dark
+            : Brightness.light,
+      );
 
   AppearanceSettings copyWith({
     AppThemeModeSetting? mode,
-    AppThemePreset? preset,
+    ThemeTokens? lightTokens,
+    ThemeTokens? darkTokens,
+    String? lightPackId,
+    String? darkPackId,
+    List<ThemeColorPack>? customPacks,
     String? fontFamily,
     String? fontPath,
     double? fontSize,
@@ -100,7 +127,11 @@ class AppearanceSettings {
   }) {
     return AppearanceSettings(
       mode: mode ?? this.mode,
-      preset: preset ?? this.preset,
+      lightTokens: lightTokens ?? this.lightTokens,
+      darkTokens: darkTokens ?? this.darkTokens,
+      lightPackId: lightPackId ?? this.lightPackId,
+      darkPackId: darkPackId ?? this.darkPackId,
+      customPacks: customPacks ?? this.customPacks,
       fontFamily: clearFont ? null : fontFamily ?? this.fontFamily,
       fontPath: clearFont ? null : fontPath ?? this.fontPath,
       fontSize: fontSize ?? this.fontSize,
@@ -110,7 +141,11 @@ class AppearanceSettings {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'mode': mode.name,
-        'preset': preset.name,
+        'lightTokens': lightTokens.toJson(),
+        'darkTokens': darkTokens.toJson(),
+        'lightPackId': lightPackId,
+        'darkPackId': darkPackId,
+        'customPacks': customPacks.map((p) => p.toJson()).toList(),
         if (fontFamily != null) 'fontFamily': fontFamily,
         if (fontPath != null) 'fontPath': fontPath,
         'fontSize': fontSize,
@@ -120,8 +155,6 @@ class AppearanceSettings {
   factory AppearanceSettings.fromJson(Map<String, dynamic> json) {
     var fontFamily = json.optionalString('fontFamily');
     var fontPath = json.optionalString('fontPath');
-
-    // Migrate old typeface enum: system → default; sans → Roboto (no path).
     if (fontFamily == null && fontPath == null) {
       final typeface = json.optionalString('typeface');
       if (typeface == 'sans') {
@@ -129,15 +162,60 @@ class AppearanceSettings {
       }
     }
 
+    final customRaw = json.optionalList('customPacks');
+    final custom = <ThemeColorPack>[];
+    for (final item in customRaw) {
+      if (item is! Map) continue;
+      custom.add(
+        ThemeColorPack.fromJson(Map<String, dynamic>.from(item)),
+      );
+    }
+
+    final lightMap = json.optionalMap('lightTokens');
+    final darkMap = json.optionalMap('darkTokens');
+    if (lightMap != null || darkMap != null) {
+      return AppearanceSettings(
+        mode: AppThemeModeSettingX.parse(json.optionalString('mode')),
+        lightTokens: lightMap != null
+            ? ThemeTokens.fromJson(lightMap)
+            : ThemeTokens.presets[ThemePreset.light]!,
+        darkTokens: darkMap != null
+            ? ThemeTokens.fromJson(darkMap)
+            : ThemeTokens.defaults,
+        lightPackId: json.optionalString('lightPackId') ??
+            ThemeColorPack.builtInId(ThemePreset.light),
+        darkPackId: json.optionalString('darkPackId') ??
+            ThemeColorPack.builtInId(ThemePreset.darkModern),
+        customPacks: custom,
+        fontFamily: fontFamily,
+        fontPath: fontPath,
+        fontSize: _parseFontSize(json['fontSize'] ?? json['fontScale']),
+        cornerRadius: _parseCornerRadius(json['cornerRadius']),
+      );
+    }
+
+    // Legacy single-preset → dual slots (NativeTavern-style memory).
+    final legacy = _legacyPreset(json.optionalString('preset'));
     return AppearanceSettings(
       mode: AppThemeModeSettingX.parse(json.optionalString('mode')),
-      preset: AppThemePresetX.parse(json.optionalString('preset')),
+      lightTokens: ThemeTokens.presets[ThemePreset.light]!,
+      darkTokens: ThemeTokens.presets[legacy] ?? ThemeTokens.defaults,
+      lightPackId: ThemeColorPack.builtInId(ThemePreset.light),
+      darkPackId: ThemeColorPack.builtInId(legacy),
       fontFamily: fontFamily,
       fontPath: fontPath,
       fontSize: _parseFontSize(json['fontSize'] ?? json['fontScale']),
       cornerRadius: _parseCornerRadius(json['cornerRadius']),
     );
   }
+
+  static ThemePreset _legacyPreset(String? raw) => switch (raw) {
+        'slate' => ThemePreset.slate,
+        'mist' => ThemePreset.light,
+        'black' => ThemePreset.cursorDark,
+        'midnight' => ThemePreset.midnight,
+        _ => ThemePreset.darkModern,
+      };
 
   static double _snapFontSize(double value) {
     final step = AppearanceUiRange.fontSizeStep;
@@ -156,10 +234,8 @@ class AppearanceSettings {
       _ => null,
     };
     if (fromLegacy != null) return fromLegacy;
-
     if (raw is! num) return AppearanceUiRange.fontSizeDefault;
     final value = raw.toDouble();
-    // Legacy multiplier (≈0.85–1.3) → body px.
     if (value > 0 && value < 3) {
       return _snapFontSize(value * AppearanceUiRange.fontSizeDefault);
     }
