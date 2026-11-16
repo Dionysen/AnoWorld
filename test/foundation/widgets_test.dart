@@ -75,6 +75,42 @@ void main() {
     expect(tapped, isTrue);
   });
 
+  testWidgets('AppButton variants share the same height', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: Row(
+            children: [
+              AppButton(
+                label: '取消',
+                variant: AppButtonVariant.secondary,
+                onPressed: () {},
+              ),
+              AppButton(
+                label: '完成',
+                onPressed: () {},
+              ),
+              AppButton(
+                label: '幽灵',
+                variant: AppButtonVariant.ghost,
+                onPressed: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final cancel = tester.getSize(find.widgetWithText(AppButton, '取消'));
+    final done = tester.getSize(find.widgetWithText(AppButton, '完成'));
+    final ghost = tester.getSize(find.widgetWithText(AppButton, '幽灵'));
+    expect(cancel.height, AppTheme.buttonHeight);
+    expect(done.height, AppTheme.buttonHeight);
+    expect(ghost.height, AppTheme.buttonHeight);
+    expect(cancel.height, done.height);
+  });
+
   testWidgets('AppButton does not overflow in a narrow strip', (tester) async {
     await tester.binding.setSurfaceSize(const Size(120, 80));
     addTearDown(() => tester.binding.setSurfaceSize(null));

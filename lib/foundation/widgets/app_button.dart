@@ -20,6 +20,13 @@ class AppButton extends StatelessWidget {
   final AppButtonVariant variant;
   final bool expanded;
 
+  static const Size _minSize = Size(0, AppTheme.buttonHeight);
+  static const Size _fixedSize = Size.fromHeight(AppTheme.buttonHeight);
+  static const EdgeInsets _padding = EdgeInsets.symmetric(
+    horizontal: AppTheme.spaceMd,
+    vertical: AppTheme.spaceSm,
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -30,14 +37,11 @@ class AppButton extends StatelessWidget {
       AppButtonVariant.primary => FilledButton(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
-            minimumSize: const Size(0, AppTheme.buttonHeight),
-            fixedSize: const Size.fromHeight(AppTheme.buttonHeight),
+            minimumSize: _minSize,
+            fixedSize: _fixedSize,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spaceMd,
-              vertical: AppTheme.spaceSm,
-            ),
+            visualDensity: VisualDensity.standard,
+            padding: _padding,
             shape: shape,
           ),
           child: child,
@@ -47,14 +51,11 @@ class AppButton extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: theme.colorScheme.onSurface,
             side: BorderSide(color: theme.colorScheme.outline),
-            minimumSize: const Size(0, AppTheme.buttonHeight),
-            fixedSize: const Size.fromHeight(AppTheme.buttonHeight),
+            minimumSize: _minSize,
+            fixedSize: _fixedSize,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spaceMd,
-              vertical: AppTheme.spaceSm,
-            ),
+            visualDensity: VisualDensity.standard,
+            padding: _padding,
             shape: shape,
           ),
           child: child,
@@ -63,12 +64,12 @@ class AppButton extends StatelessWidget {
           onPressed: onPressed,
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
-            minimumSize: const Size(0, 36),
+            minimumSize: _minSize,
+            fixedSize: _fixedSize,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spaceSm,
-              vertical: AppTheme.spaceXs,
-            ),
+            visualDensity: VisualDensity.standard,
+            padding: _padding,
+            shape: shape,
           ),
           child: child,
         ),

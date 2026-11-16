@@ -139,7 +139,7 @@ class _AppColorPickerDialogState extends State<_AppColorPickerDialog> {
       actions: [
         AppButton(
           label: '取消',
-          variant: AppButtonVariant.ghost,
+          variant: AppButtonVariant.secondary,
           onPressed: () => Navigator.of(context).pop(),
         ),
         AppButton(
