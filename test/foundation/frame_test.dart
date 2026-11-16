@@ -1,6 +1,3 @@
-import 'package:anoworld/app.dart';
-import 'package:anoworld/data/project/memory_project_repository.dart';
-import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/frame/window_channel.dart';
 import 'package:anoworld/foundation/frame/window_controls.dart';
@@ -12,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/test_app.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -21,12 +20,7 @@ void main() {
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       try {
-        await tester.pumpWidget(
-          App(
-            projects: MemoryProjectRepository(),
-            saves: MemorySaveRepository(),
-          ),
-        );
+        await tester.pumpWidget(testApp());
         await tester.pumpAndSettle();
 
         expect(find.text('AnoWorld'), findsOneWidget);

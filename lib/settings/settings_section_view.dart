@@ -2,7 +2,9 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
-import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/settings/about_panel.dart';
+import 'package:anoworld/settings/ai_settings_panel.dart';
+import 'package:anoworld/settings/appearance_settings_panel.dart';
 import 'package:anoworld/settings/settings_sections.dart';
 import 'package:flutter/widgets.dart';
 
@@ -14,7 +16,7 @@ class SettingsSectionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppPageBody(children: _bodyFor(section));
+    return AppPageBody(children: [_bodyFor(section)]);
   }
 }
 
@@ -42,39 +44,27 @@ class SettingsSectionView extends StatelessWidget {
             header!,
             const SizedBox(height: AppTheme.spaceMd),
           ],
-          ..._bodyFor(section),
+          _bodyFor(section),
         ],
       ),
     );
   }
 }
 
-List<Widget> _bodyFor(SettingsSection section) {
+Widget _bodyFor(SettingsSection section) {
   return switch (section) {
-    SettingsSection.general => const [
-        AppSectionHeader('通用'),
-        AppEmptyState(
-          message: '通用选项稍后接入',
-          detail: '语言、启动行为、窗口与外观相关开关会放在这里。',
-        ),
-      ],
-    SettingsSection.ai => const [
-        AppSectionHeader('文本与生图'),
-        AppEmptyState(
-          message: 'API 配置稍后接入',
-          detail: '这里会放文本 AI 与生图的地址、密钥和模型。',
-        ),
-      ],
-    SettingsSection.about => const [
-        AppSectionHeader('关于'),
-        AppText('AnoWorld', role: AppTextRole.subtitle),
-        SizedBox(height: AppTheme.spaceSm),
-        AppText(
-          '视觉小说创作器与运行时。本地作品包，双模式游玩。',
-          role: AppTextRole.body,
-        ),
-        SizedBox(height: AppTheme.spaceMd),
-        AppText('版本 0.1.0', role: AppTextRole.caption),
-      ],
+    SettingsSection.general => const Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppSectionHeader('通用'),
+          AppEmptyState(
+            message: '通用选项稍后接入',
+            detail: '语言、启动行为等开关会放在这里。外观请到「外观」分区。',
+          ),
+        ],
+      ),
+    SettingsSection.appearance => const AppearanceSettingsPanel(),
+    SettingsSection.ai => const AiSettingsPanel(),
+    SettingsSection.about => const AboutPanel(),
   };
 }

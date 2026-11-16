@@ -1,14 +1,20 @@
-import 'package:anoworld/app/app_scope.dart';
-import 'package:anoworld/data/project/memory_project_repository.dart';
-import 'package:anoworld/data/save/memory_save_repository.dart';
-import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/layout/app_layout.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/settings/about_panel.dart';
 import 'package:anoworld/settings/settings_page.dart';
-import 'package:flutter/material.dart';
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../support/test_app.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
+
   Future<void> pumpSettings(WidgetTester tester, Size size) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
@@ -16,18 +22,7 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    await tester.pumpWidget(
-      AppScope(
-        projects: MemoryProjectRepository(),
-        saves: MemorySaveRepository(),
-        child: MaterialApp(
-          theme: AppTheme.data,
-          builder: (context, child) =>
-              ImmersiveFrame(child: child ?? const SizedBox.shrink()),
-          home: const SettingsPage(),
-        ),
-      ),
-    );
+    await tester.pumpWidget(testScoped(home: const SettingsPage()));
     await tester.pumpAndSettle();
   }
 
@@ -36,17 +31,32 @@ void main() {
 
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('通用'), findsWidgets);
+    expect(find.text('外观'), findsWidgets);
     expect(find.text('AI'), findsWidgets);
     expect(find.text('关于'), findsWidgets);
     expect(find.text('通用选项稍后接入'), findsOneWidget);
 
     await tester.tap(find.text('AI').last);
     await tester.pumpAndSettle();
-    expect(find.text('API 配置稍后接入'), findsOneWidget);
+    expect(find.text('文本 AI'), findsOneWidget);
+    expect(find.text('生图 AI'), findsOneWidget);
 
     await tester.tap(find.text('关于').last);
     await tester.pumpAndSettle();
-    expect(find.text('版本 0.1.0'), findsOneWidget);
+    expect(find.text(AppAbout.versionLabel), findsOneWidget);
+    expect(find.text(AppAbout.tagline), findsOneWidget);
+  });
+
+  testWidgets('appearance can switch preset', (tester) async {
+    await pumpSettings(tester, const Size(390, 844));
+    await tester.tap(find.text('外观').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('主题模式'), findsOneWidget);
+    expect(find.text('午夜'), findsOneWidget);
+    await tester.tap(find.text('薄雾'));
+    await tester.pumpAndSettle();
+    expect(find.text('使用中'), findsOneWidget);
   });
 
   testWidgets('landscape settings uses side rail sections', (tester) async {
@@ -58,6 +68,6 @@ void main() {
     expect(find.text('通用选项稍后接入'), findsOneWidget);
     await tester.tap(find.text('AI').first);
     await tester.pumpAndSettle();
-    expect(find.text('API 配置稍后接入'), findsOneWidget);
+    expect(find.text('保存'), findsOneWidget);
   });
 }

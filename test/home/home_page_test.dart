@@ -1,16 +1,9 @@
-import 'package:anoworld/app.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
-import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-App testApp({MemoryProjectRepository? projects}) {
-  return App(
-    projects: projects ?? MemoryProjectRepository(),
-    saves: MemorySaveRepository(),
-  );
-}
+import '../support/test_app.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +66,7 @@ void main() {
 
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('通用'), findsWidgets);
+    expect(find.text('外观'), findsWidgets);
     expect(find.text('AI'), findsWidgets);
     expect(find.text('关于'), findsWidgets);
   });

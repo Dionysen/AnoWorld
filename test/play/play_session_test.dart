@@ -1,12 +1,9 @@
-import 'package:anoworld/app/app_scope.dart';
-import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
-import 'package:anoworld/foundation/frame/immersive_frame.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/play/play_session_page.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/test_app.dart';
 
 void main() {
   final sample = const ProjectFactory().createRainNightSample(
@@ -15,15 +12,8 @@ void main() {
 
   Future<void> pumpPlay(WidgetTester tester) async {
     await tester.pumpWidget(
-      AppScope(
-        projects: MemoryProjectRepository(),
-        saves: MemorySaveRepository(),
-        child: MaterialApp(
-          theme: AppTheme.data,
-          builder: (context, child) =>
-              ImmersiveFrame(child: child ?? const SizedBox.shrink()),
-          home: PlaySessionPage(project: sample, resumeSave: false),
-        ),
+      testScoped(
+        home: PlaySessionPage(project: sample, resumeSave: false),
       ),
     );
     await tester.pumpAndSettle();
@@ -60,15 +50,9 @@ void main() {
   testWidgets('save writes an auto slot', (tester) async {
     final saves = MemorySaveRepository();
     await tester.pumpWidget(
-      AppScope(
-        projects: MemoryProjectRepository(),
+      testScoped(
         saves: saves,
-        child: MaterialApp(
-          theme: AppTheme.data,
-          builder: (context, child) =>
-              ImmersiveFrame(child: child ?? const SizedBox.shrink()),
-          home: PlaySessionPage(project: sample, resumeSave: false),
-        ),
+        home: PlaySessionPage(project: sample, resumeSave: false),
       ),
     );
     await tester.pumpAndSettle();

@@ -1,0 +1,39 @@
+import 'package:anoworld/data/settings/prefs_settings_repository.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/domain/settings/appearance_settings.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('prefs settings repository round-trips ai and appearance', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final repo = PrefsSettingsRepository(preferences: prefs);
+
+    await repo.saveAi(
+      const AiSettings(
+        text: AiEndpointConfig(
+          baseUrl: 'https://api.example.com/v1',
+          apiKey: 'sk-test',
+          model: 'gpt-test',
+        ),
+      ),
+    );
+    await repo.saveAppearance(
+      const AppearanceSettings(
+        mode: AppThemeModeSetting.light,
+        preset: AppThemePreset.mist,
+      ),
+    );
+
+    final ai = await repo.loadAi();
+    expect(ai.text.model, 'gpt-test');
+    expect(ai.text.apiKey, 'sk-test');
+
+    final appearance = await repo.loadAppearance();
+    expect(appearance.mode, AppThemeModeSetting.light);
+    expect(appearance.preset, AppThemePreset.mist);
+  });
+}

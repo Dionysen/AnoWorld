@@ -4,7 +4,7 @@
 
 ## 当前主题
 
-先用暗色沉浸画布 `#0B0C12`：软件背景与窗口顶栏同色，文字约 `#E8E6F0`，强调色约 `#98A6F5`，次要字约 `#9A96A8`，抬起表面约 `#14151F`。间距 / 圆角 token 与组件封装见 `lib/foundation/theme/app_theme.dart`、`lib/foundation/widgets/`。
+默认「午夜」深色：画布 `#0B0C12`，文字 `#E8E6F0`，强调 `#98A6F5`。另有「岩灰」「薄雾」配色，以及浅色/深色/跟随系统。设置 → 外观切换；实现见 `AppTheme` / `AppearanceSettings`。间距与组件封装在 `lib/foundation/theme/`、`lib/foundation/widgets/`。
 
 ## 布局与窗口
 
