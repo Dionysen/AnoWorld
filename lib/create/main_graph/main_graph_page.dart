@@ -26,6 +26,7 @@ import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
+import 'package:anoworld/foundation/widgets/app_docked_panel.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
@@ -48,6 +49,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   Object? _error;
   bool _loading = true;
   bool _cardMode = false;
+  bool _overviewOpen = false;
   String? _selectedId;
   String? _selectedEdgeId;
   final Map<String, Uint8List> _nodeThumbnails = {};
@@ -541,42 +543,51 @@ class _MainGraphPageState extends State<MainGraphPage> {
       if (card) {
         _selectedId ??= project.main.startNodeId;
         _selectedEdgeId = null;
+        _overviewOpen = false;
       }
     });
   }
 
-  Future<void> _openGraphMap(BuildContext context, MainStory main) async {
+  void _toggleOverview() {
     if (_cardMode) return;
-    await showAppSheet<void>(
-      context: context,
-      size: AppSheetSize.half,
-      builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            0,
-            AppTheme.pagePadding,
-            AppTheme.pagePadding,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const AppSectionHeader(
-                '走向全览',
-                subtitle: '滑动地图移动镜头，中央方框即当前画面',
-              ),
-              Expanded(
-                child: GraphOverviewMap(
-                  camera: _viewportCamera,
-                  nodes: _graphNodes(main),
-                  edges: _graphEdges(main),
-                  thumbnails: _nodeThumbnails,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    setState(() => _overviewOpen = !_overviewOpen);
+  }
+
+  void _closeOverview() {
+    if (!_overviewOpen) return;
+    setState(() => _overviewOpen = false);
+  }
+
+  Widget? _buildOverviewPanel(MainStory main) {
+    if (!_overviewOpen || _cardMode) return null;
+    return AppDockedPanel(
+      onDismiss: _closeOverview,
+      header: const Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppTheme.pagePadding,
+          0,
+          AppTheme.pagePadding,
+          0,
+        ),
+        child: AppSectionHeader(
+          '走向全览',
+          subtitle: '滑动地图移动镜头，拖标题跟手收起',
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.pagePadding,
+          0,
+          AppTheme.pagePadding,
+          AppTheme.pagePadding,
+        ),
+        child: GraphOverviewMap(
+          camera: _viewportCamera,
+          nodes: _graphNodes(main),
+          edges: _graphEdges(main),
+          thumbnails: _nodeThumbnails,
+        ),
+      ),
     );
   }
 
@@ -592,8 +603,10 @@ class _MainGraphPageState extends State<MainGraphPage> {
         selectedIcon: Icons.map,
         label: '全图',
         enabled: !_cardMode,
-        onPressed: () => _openGraphMap(context, project.main),
+        selected: _overviewOpen,
+        onPressed: _toggleOverview,
       ),
+      bottomPanel: _buildOverviewPanel(project.main),
       body: Builder(
         builder: (context) {
           final bottom = MediaQuery.paddingOf(context).bottom;

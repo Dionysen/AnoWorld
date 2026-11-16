@@ -30,6 +30,7 @@ class AppBottomNavExtraCapsule {
     required this.onPressed,
     this.selectedIcon,
     this.enabled = true,
+    this.selected = false,
   });
 
   final IconData icon;
@@ -39,6 +40,9 @@ class AppBottomNavExtraCapsule {
   /// When null or [enabled] is false, the control is greyed out.
   final VoidCallback? onPressed;
   final bool enabled;
+
+  /// Toggle / panel-open highlight (independent of main destinations).
+  final bool selected;
 }
 
 /// Adaptive app chrome: bottom bar (compact) or left rail + optional secondary
@@ -55,6 +59,7 @@ class AppNavShell extends StatelessWidget {
     this.railTopInset,
     this.forceCompact = false,
     this.bottomNavExtra,
+    this.bottomPanel,
   });
 
   final List<AppNavItem> destinations;
@@ -77,6 +82,10 @@ class AppNavShell extends StatelessWidget {
 
   /// Optional second capsule to the right of the main bar (compact mode only).
   final AppBottomNavExtraCapsule? bottomNavExtra;
+
+  /// Optional panel docked above the bottom nav (compact mode only).
+  /// Typically an [AppDockedPanel]; sits under the capsules in z-order.
+  final Widget? bottomPanel;
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +118,16 @@ class AppNavShell extends StatelessWidget {
                 ),
                 child: body,
               ),
+              if (bottomPanel != null)
+                Positioned(
+                  left: AppTheme.sheetInset,
+                  right: AppTheme.sheetInset,
+                  bottom: barClearance,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: bottomPanel,
+                  ),
+                ),
               Align(
                 alignment: Alignment.bottomCenter,
                 child: _BottomNav(
@@ -429,7 +448,7 @@ class _BottomNav extends StatelessWidget {
                   icon: extra!.icon,
                   selectedIcon: extra!.selectedIcon,
                 ),
-                selected: false,
+                selected: extra!.selected,
                 enabled: extra!.enabled,
                 onTap: extra!.enabled ? extra!.onPressed : null,
               ),

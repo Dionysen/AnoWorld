@@ -1,6 +1,7 @@
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
+import 'package:anoworld/foundation/widgets/app_docked_panel.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
@@ -138,6 +139,93 @@ void main() {
       ),
     );
     expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+  });
+
+  testWidgets('AppSheetDragToDismiss pops the sheet', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: AppButton(
+                label: '打开',
+                onPressed: () {
+                  showAppSheet<void>(
+                    context: context,
+                    size: AppSheetSize.half,
+                    enableDrag: false,
+                    builder: (_) => const Column(
+                      children: [
+                        AppSheetDragToDismiss(
+                          child: SizedBox(
+                            height: 48,
+                            child: Center(child: Text('可拖标题')),
+                          ),
+                        ),
+                        Expanded(child: Center(child: Text('地图区'))),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+    expect(find.text('地图区'), findsOneWidget);
+
+    await tester.drag(find.text('可拖标题'), const Offset(0, 120));
+    await tester.pumpAndSettle();
+    expect(find.text('地图区'), findsNothing);
+  });
+
+  testWidgets('AppDockedPanel handle dismisses via onDismiss', (tester) async {
+    var open = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return Stack(
+                children: [
+                  if (open)
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: AppDockedPanel(
+                        onDismiss: () => setState(() => open = false),
+                        child: const Center(child: Text('面板内容')),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('面板内容'), findsOneWidget);
+
+    // Short drag follows then springs back.
+    await tester.drag(
+      find.byType(AppSheetDragHandle),
+      const Offset(0, 40),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('面板内容'), findsOneWidget);
+
+    // Long drag dismisses.
+    await tester.drag(
+      find.byType(AppSheetDragHandle),
+      const Offset(0, 400),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('面板内容'), findsNothing);
   });
 
   testWidgets('showAppSheet is inset and respects half vs full height', (

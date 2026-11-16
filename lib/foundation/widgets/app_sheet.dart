@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -22,10 +23,15 @@ enum AppSheetSize {
 ///
 /// Use [size] for the initial height: [AppSheetSize.half] / [AppSheetSize.full]
 /// for fixed panes, [AppSheetSize.compact] for content-sized menus.
+///
+/// Set [enableDrag] to false when the body needs vertical pan (e.g. map).
+/// Then only [AppSheetDragToDismiss] regions (top handle, and any wrapped
+/// title) can drag the sheet closed; system back / barrier tap still work.
 Future<T?> showAppSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   AppSheetSize size = AppSheetSize.compact,
+  bool enableDrag = true,
 }) {
   final heightFactor = switch (size) {
     AppSheetSize.compact => null,
@@ -36,6 +42,7 @@ Future<T?> showAppSheet<T>({
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
+    enableDrag: enableDrag,
     backgroundColor: Colors.transparent,
     elevation: 0,
     builder: (sheetContext) {
@@ -51,9 +58,13 @@ Future<T?> showAppSheet<T>({
         AppTheme.sheetMaxWidth,
         screenW - AppTheme.sheetInset * 2,
       );
-      final cardHeight = heightFactor == null
-          ? null
-          : screenH * heightFactor;
+      final cardHeight =
+          heightFactor == null ? null : screenH * heightFactor;
+
+      Widget handle = const AppSheetDragHandle();
+      if (!enableDrag) {
+        handle = AppSheetDragToDismiss(child: handle);
+      }
 
       final card = Material(
         key: const ValueKey('app_sheet_card'),
@@ -73,9 +84,7 @@ Future<T?> showAppSheet<T>({
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const _AppSheetDragHandle(),
-                    // Shrink-wrap to content; callers that need scroll must
-                    // bound their own scrollables (e.g. LimitedBox / max height).
+                    handle,
                     builder(sheetContext),
                   ],
                 ),
@@ -86,15 +95,13 @@ Future<T?> showAppSheet<T>({
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const _AppSheetDragHandle(),
+                    handle,
                     Expanded(child: builder(sheetContext)),
                   ],
                 ),
               ),
       );
 
-      // Explicit full-screen host so half/full card heights are not collapsed
-      // by the modal sheet's intrinsic sizing.
       return SizedBox(
         width: screenW,
         height: screenH,
@@ -125,14 +132,18 @@ Future<T?> showAppSheet<T>({
   );
 }
 
-class _AppSheetDragHandle extends StatelessWidget {
-  const _AppSheetDragHandle();
+/// Top grabber shared by modal sheets and [AppDockedPanel].
+class AppSheetDragHandle extends StatelessWidget {
+  const AppSheetDragHandle({super.key});
+
+  static const double hitHeight = 28;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: AppTheme.spaceSm),
+    return SizedBox(
+      height: hitHeight,
+      width: double.infinity,
       child: Center(
         child: DecoratedBox(
           decoration: ShapeDecoration(
@@ -144,4 +155,80 @@ class _AppSheetDragHandle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Vertical drag-down dismisses via [onDismiss], or pops the route if null.
+///
+/// Uses an eager vertical-drag recognizer so competing pans (map, scroll)
+/// do not steal the handle / title chrome.
+class AppSheetDragToDismiss extends StatefulWidget {
+  const AppSheetDragToDismiss({
+    super.key,
+    required this.child,
+    this.onDismiss,
+  });
+
+  final Widget child;
+  final VoidCallback? onDismiss;
+
+  @override
+  State<AppSheetDragToDismiss> createState() => _AppSheetDragToDismissState();
+}
+
+class _AppSheetDragToDismissState extends State<AppSheetDragToDismiss> {
+  double _dy = 0;
+
+  void _dismiss() {
+    final custom = widget.onDismiss;
+    if (custom != null) {
+      custom();
+      return;
+    }
+    final nav = Navigator.of(context);
+    if (nav.canPop()) nav.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RawGestureDetector(
+      behavior: HitTestBehavior.opaque,
+      gestures: <Type, GestureRecognizerFactory>{
+        _EagerVerticalDragGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<
+                _EagerVerticalDragGestureRecognizer>(
+          _EagerVerticalDragGestureRecognizer.new,
+          (instance) {
+            instance
+              ..onStart = (_) {
+                _dy = 0;
+              }
+              ..onUpdate = (details) {
+                _dy += details.delta.dy;
+              }
+              ..onEnd = (details) {
+                final fling = details.primaryVelocity ?? 0;
+                final shouldClose = _dy > 40 || fling > 600;
+                _dy = 0;
+                if (shouldClose) _dismiss();
+              }
+              ..onCancel = () {
+                _dy = 0;
+              };
+          },
+        ),
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _EagerVerticalDragGestureRecognizer
+    extends VerticalDragGestureRecognizer {
+  @override
+  void rejectGesture(int pointer) {
+    acceptGesture(pointer);
+  }
+
+  @override
+  String get debugDescription => 'eager vertical drag';
 }

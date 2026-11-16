@@ -287,6 +287,12 @@ void main() {
     await tester.tap(find.text('全图'));
     await tester.pumpAndSettle();
     expect(find.text('走向全览'), findsOneWidget);
+    expect(find.byKey(const ValueKey('app_docked_panel')), findsOneWidget);
+
+    await tester.tap(find.text('全图'));
+    await tester.pumpAndSettle();
+    expect(find.text('走向全览'), findsNothing);
+    expect(find.byKey(const ValueKey('app_docked_panel')), findsNothing);
 
     final after = (await repo.open(sample.meta.id)).main;
     expect(after.nodes.map((n) => n.id), before.nodes.map((n) => n.id));
