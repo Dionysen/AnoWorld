@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:anoworld/domain/ai/ai_model_catalog.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/openai_base_url.dart';
 import 'package:http/http.dart' as http;
 
 /// Fetches models via OpenAI-compatible `GET {baseUrl}/models`.
@@ -11,17 +12,12 @@ class HttpOpenAiModelCatalog implements AiModelCatalog {
 
   final http.Client _client;
 
-  static String normalizeBaseUrl(String raw) {
-    var url = raw.trim();
-    while (url.endsWith('/')) {
-      url = url.substring(0, url.length - 1);
-    }
-    return url;
-  }
+  /// Kept for callers/tests; delegates to foundation normalization.
+  static String normalizeBaseUrl(String raw) => normalizeOpenAiBaseUrl(raw);
 
   @override
   Future<List<String>> listModels(AiEndpointConfig endpoint) async {
-    final base = normalizeBaseUrl(
+    final base = normalizeOpenAiBaseUrl(
       endpoint.baseUrl.isEmpty ? endpoint.defaultBaseUrl : endpoint.baseUrl,
     );
     if (base.isEmpty) {

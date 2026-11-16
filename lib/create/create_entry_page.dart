@@ -1,3 +1,4 @@
+import 'package:anoworld/create/staged_create_page.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
@@ -20,7 +21,7 @@ extension CreateEntryKindLabels on CreateEntryKind {
       };
 }
 
-/// Placeholder for one of the three UX creation paths.
+/// Entry for one of the three UX creation paths.
 class CreateEntryPage extends StatelessWidget {
   const CreateEntryPage({super.key, required this.kind});
 
@@ -28,6 +29,10 @@ class CreateEntryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kind == CreateEntryKind.stagedPrompts) {
+      return const StagedCreatePage();
+    }
+
     return AppPage(
       title: kind.title,
       onBack: () => Navigator.of(context).maybePop(),
@@ -37,7 +42,7 @@ class CreateEntryPage extends StatelessWidget {
           AppText(kind.blurb, role: AppTextRole.body),
           const AppEmptyState(
             message: '这条创作路径马上就好',
-            detail: '可先打开已有作品或新建空白作品',
+            detail: '可先用分阶段提示词，或打开已有作品',
           ),
         ],
       ),

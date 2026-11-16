@@ -6,6 +6,7 @@ import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/data/settings/memory_settings_repository.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
@@ -37,6 +38,7 @@ App testApp({
   ProjectRepository? projects,
   SaveRepository? saves,
   SettingsController? settings,
+  AiTextClient? textClient,
   Future<String?> Function()? pickImportDirectory,
 }) {
   final controller = settings ?? testSettingsController();
@@ -44,6 +46,7 @@ App testApp({
     projects: projects ?? MemoryProjectRepository(),
     saves: saves ?? MemorySaveRepository(),
     settingsController: controller,
+    textClient: textClient,
     pickImportDirectory: pickImportDirectory,
   );
 }
@@ -53,12 +56,14 @@ Widget testScoped({
   ProjectRepository? projects,
   SaveRepository? saves,
   SettingsController? settings,
+  AiTextClient? textClient,
 }) {
   final controller = settings ?? testSettingsController();
   return AppScope(
     projects: projects ?? MemoryProjectRepository(),
     saves: saves ?? MemorySaveRepository(),
     settings: controller,
+    textClient: textClient,
     child: ListenableBuilder(
       listenable: controller,
       builder: (context, _) {

@@ -1,6 +1,7 @@
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/ai/http_openai_model_catalog.dart';
 import 'package:anoworld/domain/ai/ai_model_catalog.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:flutter/widgets.dart';
@@ -13,6 +14,7 @@ class AppScope extends InheritedWidget {
     required this.saves,
     required this.settings,
     this.modelCatalog,
+    this.textClient,
     required super.child,
   });
 
@@ -20,6 +22,7 @@ class AppScope extends InheritedWidget {
   final SaveRepository saves;
   final SettingsController settings;
   final AiModelCatalog? modelCatalog;
+  final AiTextClient? textClient;
 
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
@@ -38,10 +41,14 @@ class AppScope extends InheritedWidget {
   static AiModelCatalog modelCatalogOf(BuildContext context) =>
       of(context).modelCatalog ?? HttpOpenAiModelCatalog();
 
+  static AiTextClient textClientOf(BuildContext context) =>
+      of(context).textClient ?? EndpointAiTextClient();
+
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
       projects != oldWidget.projects ||
       saves != oldWidget.saves ||
       settings != oldWidget.settings ||
-      modelCatalog != oldWidget.modelCatalog;
+      modelCatalog != oldWidget.modelCatalog ||
+      textClient != oldWidget.textClient;
 }

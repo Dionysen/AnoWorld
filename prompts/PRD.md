@@ -85,6 +85,8 @@ MVP 优先固定动作（输入输出可进编辑器、可撤销、可再生成�
 
 设置项：文本与生图使用**不同供应商列表**（对齐 NativeTavern：`LLMProvider` vs `ImageGenProvider`）。文本侧：OpenAI / DeepSeek / OpenRouter / 通义 / 硅基流动 / Moonshot / 智谱 / MiniMax / Ollama / 自定义；生图侧：OpenAI Images / OAI Chat 生图 / 硅基流动 / Pollinations / NovelAI / A1111 / ComfyUI / 自定义。各自一份 Base URL、Key、Model；支持探测的渠道在输入密钥后可拉 `/models`。文案生成与续写注入项目当前 **Preset**（文风、禁用、偏好），与 Background 分离。参考实现见同级仓库 `NativeTavern`，规则见 `.cursor/rules/nativetavern-reference.mdc`。
 
+**当前实现**：文本侧已接通 OpenAI 兼容 `chat/completions`（`OpenAiChatClient` + `AiTextClient`）；创作动作为路径 3 分阶段生成（设定 / 角色 / 短主线）并写回作品。路径 1/2、润色等其它固定动作、生图调用尚未落地。
+
 ## 图片资源
 
 - **主路径**：配置生图 AI，按场景/角色描述生成背景图、立绘等，写入项目资源并挂到 Beat/Cast。

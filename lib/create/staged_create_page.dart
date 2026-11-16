@@ -1,0 +1,416 @@
+import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/staged_create_actions.dart';
+import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/foundation/widgets/app_segmented.dart';
+import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/play/play_session_page.dart';
+import 'package:flutter/widgets.dart';
+
+enum _Stage { world, cast, main }
+
+/// UX path 3: short prompts → world → cast → playable opening.
+class StagedCreatePage extends StatefulWidget {
+  const StagedCreatePage({super.key});
+
+  @override
+  State<StagedCreatePage> createState() => _StagedCreatePageState();
+}
+
+class _StagedCreatePageState extends State<StagedCreatePage> {
+  _Stage _stage = _Stage.world;
+  Project? _project;
+  bool _booting = true;
+  bool _busy = false;
+  String? _status;
+
+  final _prompt = TextEditingController();
+  final _preview = TextEditingController();
+
+  Background? _background;
+  List<CastMember>? _cast;
+  MainStory? _main;
+  bool _hasPreview = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _boot());
+  }
+
+  @override
+  void dispose() {
+    _prompt.dispose();
+    _preview.dispose();
+    super.dispose();
+  }
+
+  Future<void> _boot() async {
+    try {
+      final project =
+          await AppScope.projectsOf(context).create(title: '未命名作品');
+      if (!mounted) return;
+      setState(() {
+        _project = project;
+        _booting = false;
+        _prompt.text = '';
+        _status = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _booting = false;
+        _status = '创建作品失败：$error';
+      });
+    }
+  }
+
+  StagedCreateActions _actions() =>
+      StagedCreateActions(textClient: AppScope.textClientOf(context));
+
+  String get _stageTitle => switch (_stage) {
+        _Stage.world => '世界',
+        _Stage.cast => '人物',
+        _Stage.main => '走向',
+      };
+
+  String get _exampleHint => switch (_stage) {
+        _Stage.world => '例如：雨夜的边城，人们靠传闻活着',
+        _Stage.cast => '例如：少年想离开，客栈老板知道出路',
+        _Stage.main => '例如：今晚必须出城，在客栈做一个选择',
+      };
+
+  String get _promptLabel => switch (_stage) {
+        _Stage.world => '写一两句世界',
+        _Stage.cast => '写一两句人物',
+        _Stage.main => '写一两句走向',
+      };
+
+  void _showPreview(String text) {
+    _preview.text = text;
+    _hasPreview = true;
+  }
+
+  String _formatBackground(Background background) {
+    return background.sections
+        .map((s) => '【${s.title}】\n${s.body}')
+        .join('\n\n');
+  }
+
+  String _formatCast(List<CastMember> cast) {
+    return cast
+        .map((c) {
+          final bits = <String>[c.name];
+          if (c.summary.isNotEmpty) bits.add(c.summary);
+          if (c.personality.isNotEmpty) bits.add('性格：${c.personality}');
+          if (c.speechStyle.isNotEmpty) bits.add('说话：${c.speechStyle}');
+          return bits.join('\n');
+        })
+        .join('\n\n');
+  }
+
+  String? _nameOf(String characterId) {
+    final cast = _cast;
+    if (cast == null) return null;
+    for (final member in cast) {
+      if (member.id == characterId) return member.name;
+    }
+    return null;
+  }
+
+  String _formatMain(MainStory main) {
+    final buf = StringBuffer(main.summary);
+    for (final node in main.nodes) {
+      buf.writeln();
+      buf.writeln();
+      buf.write('· ${node.title}');
+      if (node.synopsis != null && node.synopsis!.isNotEmpty) {
+        buf.write(' — ${node.synopsis}');
+      }
+      for (final beatId in node.beatIds) {
+        final beat = main.beatById(beatId);
+        if (beat == null) continue;
+        for (final line in beat.lines) {
+          buf.writeln();
+          final speaker = line.speakerId == null
+              ? '旁白'
+              : (_nameOf(line.speakerId!) ?? line.speakerId!);
+          buf.write('$speaker：${line.text}');
+        }
+        for (final choice in beat.choices) {
+          buf.writeln();
+          buf.write('选项：${choice.text}');
+        }
+      }
+    }
+    return buf.toString();
+  }
+
+  Background? _backgroundFromPreview() {
+    final text = _preview.text.trim();
+    if (text.isEmpty || _background == null) return _background;
+    // Keep section ids; replace bodies from editable blob best-effort by whole text.
+    if (_background!.sections.length == 1) {
+      final only = _background!.sections.first;
+      return Background(
+        sections: [
+          BackgroundSection(id: only.id, title: only.title, body: text),
+        ],
+      );
+    }
+    return Background(
+      sections: [
+        BackgroundSection(
+          id: _background!.sections.first.id,
+          title: '设定',
+          body: text,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _persist(Project project) async {
+    await AppScope.projectsOf(context).save(project);
+    if (!mounted) return;
+    setState(() => _project = project);
+  }
+
+  Future<void> _generate() async {
+    final project = _project;
+    if (project == null || _busy) return;
+    final prompt = _prompt.text.trim();
+    if (prompt.isEmpty) {
+      setState(() => _status = '先写一两句提示');
+      return;
+    }
+
+    final endpoint = AppScope.settingsOf(context).ai.text;
+    if (!endpoint.isConfigured ||
+        (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
+      setState(() => _status = '请先在设置里配好写故事的服务');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _status = '正在生成…';
+    });
+
+    try {
+      final actions = _actions();
+      final preset = project.activePreset;
+      switch (_stage) {
+        case _Stage.world:
+          final background = await actions.generateWorld(
+            endpoint: endpoint,
+            preset: preset,
+            prompt: prompt,
+          );
+          final next = actions.applyWorld(project, background);
+          await _persist(next);
+          if (!mounted) return;
+          setState(() {
+            _background = background;
+            _showPreview(_formatBackground(background));
+            _status = null;
+          });
+        case _Stage.cast:
+          final background = _backgroundFromPreview() ?? _background;
+          if (background == null || background.sections.isEmpty) {
+            setState(() => _status = '请先完成世界设定');
+            return;
+          }
+          final cast = await actions.generateCast(
+            endpoint: endpoint,
+            preset: preset,
+            prompt: prompt,
+            background: background,
+          );
+          var next = actions.applyWorld(project, background);
+          next = actions.applyCast(next, cast);
+          await _persist(next);
+          if (!mounted) return;
+          setState(() {
+            _background = background;
+            _cast = cast;
+            _showPreview(_formatCast(cast));
+            _status = null;
+          });
+        case _Stage.main:
+          final background = _background ?? project.background;
+          final cast = _cast ?? project.cast;
+          if (background.sections.isEmpty || cast.isEmpty) {
+            setState(() => _status = '请先完成设定和角色');
+            return;
+          }
+          final main = await actions.generateMain(
+            endpoint: endpoint,
+            preset: preset,
+            prompt: prompt,
+            background: background,
+            cast: cast,
+          );
+          final next = actions.applyMain(project, main);
+          await _persist(next);
+          if (!mounted) return;
+          setState(() {
+            _main = main;
+            _showPreview(_formatMain(main));
+            _status = null;
+          });
+      }
+    } on AiTextException catch (error) {
+      if (!mounted) return;
+      setState(() => _status = error.message);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _status = '生成失败，请稍后重试');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _nextOrPlay() async {
+    final project = _project;
+    if (project == null) return;
+
+    switch (_stage) {
+      case _Stage.world:
+        final background = _backgroundFromPreview();
+        if (background == null || background.sections.isEmpty) {
+          setState(() => _status = '请先生成设定');
+          return;
+        }
+        final next = _actions().applyWorld(project, background);
+        await _persist(next);
+        if (!mounted) return;
+        setState(() {
+          _background = background;
+          _stage = _Stage.cast;
+          _prompt.clear();
+          _hasPreview = false;
+          _preview.clear();
+          _status = null;
+        });
+      case _Stage.cast:
+        final cast = _cast;
+        if (cast == null || cast.isEmpty) {
+          setState(() => _status = '请先生成角色');
+          return;
+        }
+        setState(() {
+          _stage = _Stage.main;
+          _prompt.clear();
+          _hasPreview = false;
+          _preview.clear();
+          _status = null;
+        });
+      case _Stage.main:
+        final main = _main;
+        if (main == null || main.beats.isEmpty) {
+          setState(() => _status = '请先生成走向');
+          return;
+        }
+        final latest = _project;
+        if (latest == null) return;
+        await Navigator.of(context).pushReplacement(
+          PageRouteBuilder<void>(
+            pageBuilder: (_, _, _) => PlaySessionPage(project: latest),
+            transitionsBuilder: (_, animation, _, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+          ),
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppPage(
+      title: '分阶段提示词',
+      onBack: () => Navigator.of(context).maybePop(),
+      body: AppPageBody(
+        children: [
+          if (_booting)
+            const AppText('正在准备作品…', role: AppTextRole.caption)
+          else ...[
+            AppSegmented<_Stage>(
+              value: _stage,
+              onChanged: (value) {
+                if (_busy) return;
+                if (value == _Stage.cast && _background == null) {
+                  setState(() => _status = '请先完成世界');
+                  return;
+                }
+                if (value == _Stage.main &&
+                    (_background == null || _cast == null)) {
+                  setState(() => _status = '请先完成世界和人物');
+                  return;
+                }
+                setState(() {
+                  _stage = value;
+                  _hasPreview = false;
+                  _preview.clear();
+                  _prompt.clear();
+                  _status = null;
+                });
+              },
+              options: const [
+                AppSegmentOption(value: _Stage.world, label: '世界'),
+                AppSegmentOption(value: _Stage.cast, label: '人物'),
+                AppSegmentOption(value: _Stage.main, label: '走向'),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            AppSectionHeader(
+              _stageTitle,
+              subtitle: _exampleHint,
+            ),
+            AppTextField(
+              label: _promptLabel,
+              controller: _prompt,
+              hint: _exampleHint,
+              minLines: 2,
+              maxLines: 4,
+            ),
+            const SizedBox(height: AppTheme.spaceGroup),
+            AppButton(
+              label: _busy
+                  ? '生成中…'
+                  : (_hasPreview ? '重写这一阶段' : '生成'),
+              onPressed: _busy ? null : _generate,
+              expanded: true,
+            ),
+            if (_hasPreview) ...[
+              const SizedBox(height: AppTheme.spaceLg),
+              AppTextField(
+                label: '预览（可改）',
+                controller: _preview,
+                minLines: 6,
+                maxLines: 12,
+              ),
+              const SizedBox(height: AppTheme.spaceGroup),
+              AppButton(
+                label: _stage == _Stage.main ? '开始游玩' : '下一步',
+                onPressed: _busy ? null : _nextOrPlay,
+                expanded: true,
+              ),
+            ],
+            if (_status != null) ...[
+              const SizedBox(height: AppTheme.spaceMd),
+              AppText(_status!, role: AppTextRole.caption),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}

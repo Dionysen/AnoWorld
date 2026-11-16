@@ -1,0 +1,118 @@
+import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/staged_create_actions.dart';
+import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/preset.dart';
+import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+class _ScriptedTextClient implements AiTextClient {
+  _ScriptedTextClient(this.replies);
+
+  final List<String> replies;
+  int calls = 0;
+  final users = <String>[];
+
+  @override
+  Future<String> complete({
+    required AiTextEndpoint endpoint,
+    required String system,
+    required String user,
+  }) async {
+    users.add(user);
+    if (calls >= replies.length) {
+      throw AiTextException('no more replies');
+    }
+    return replies[calls++];
+  }
+}
+
+void main() {
+  const endpoint = AiTextEndpoint(
+    kind: AiTextProviderKind.openAiCompatible,
+    baseUrl: 'http://localhost:8080/v1',
+    apiKey: 'sk',
+    model: 'demo',
+  );
+  final preset = Preset.builtinDefault();
+
+  test('generateWorld maps and applyWorld only changes background', () async {
+    final client = _ScriptedTextClient([
+      '{"sections":[{"title":"世界观","body":"雨夜边城"}]}',
+    ]);
+    final actions = StagedCreateActions(textClient: client);
+    final background = await actions.generateWorld(
+      endpoint: endpoint,
+      preset: preset,
+      prompt: '雨夜边城',
+    );
+    expect(background.sections.first.body, '雨夜边城');
+
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final next = actions.applyWorld(blank, background);
+    expect(next.background.sections.first.body, '雨夜边城');
+    expect(next.cast, blank.cast);
+    expect(next.main.startNodeId, blank.main.startNodeId);
+  });
+
+  test('retries once when first payload is not json', () async {
+    final client = _ScriptedTextClient([
+      'not json',
+      '{"sections":[{"title":"世界观","body":"修好了"}]}',
+    ]);
+    final actions = StagedCreateActions(textClient: client);
+    final background = await actions.generateWorld(
+      endpoint: endpoint,
+      preset: preset,
+      prompt: '提示',
+    );
+    expect(background.sections.first.body, '修好了');
+    expect(client.calls, 2);
+    expect(client.users.last, contains('只输出合法 JSON'));
+  });
+
+  test('generateMain validates playable graph', () async {
+    final client = _ScriptedTextClient([
+      '''
+{"summary":"短主线","scenes":[
+{"title":"城门","location":"城门","lines":[{"speaker":"少年","text":"走。"}]},
+{"title":"客栈","location":"客栈","lines":[{"speaker":"掌柜","text":"住吗？"}],
+ "choices":[{"text":"住","end":true},{"text":"再看看","stay":true}]}
+]}
+''',
+    ]);
+    final actions = StagedCreateActions(textClient: client);
+    final cast = const [
+      CastMember(id: 'c_0', name: '少年'),
+      CastMember(id: 'c_1', name: '掌柜'),
+    ];
+    final main = await actions.generateMain(
+      endpoint: endpoint,
+      preset: preset,
+      prompt: '出城',
+      background: const Background(
+        sections: [
+          BackgroundSection(id: 'bg', title: '世界', body: '边城'),
+        ],
+      ),
+      cast: cast,
+    );
+    expect(main.beats, hasLength(2));
+    expect(main.beats.last.choices, isNotEmpty);
+  });
+
+  test('applyCast does not wipe main', () {
+    final sample = const ProjectFactory().createRainNightSample();
+    final actions = StagedCreateActions(
+      textClient: _ScriptedTextClient(const []),
+    );
+    final next = actions.applyCast(
+      sample,
+      const [CastMember(id: 'c_new', name: '新人')],
+    );
+    expect(next.cast.single.name, '新人');
+    expect(next.main.summary, sample.main.summary);
+  });
+}

@@ -3,6 +3,7 @@ import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
 import 'package:anoworld/data/save/file_save_repository.dart';
 import 'package:anoworld/data/settings/prefs_settings_repository.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/repositories/settings_repository.dart';
@@ -19,6 +20,7 @@ class App extends StatefulWidget {
     this.saves,
     this.settingsRepository,
     this.settingsController,
+    this.textClient,
     this.pickImportDirectory,
   });
 
@@ -26,6 +28,7 @@ class App extends StatefulWidget {
   final SaveRepository? saves;
   final SettingsRepository? settingsRepository;
   final SettingsController? settingsController;
+  final AiTextClient? textClient;
   final Future<String?> Function()? pickImportDirectory;
 
   @override
@@ -69,6 +72,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       projects: widget.projects ?? FolderProjectRepository(),
       saves: widget.saves ?? FileSaveRepository(),
       settings: _settings,
+      textClient: widget.textClient,
       child: ListenableBuilder(
         listenable: _settings,
         builder: (context, _) {
