@@ -109,4 +109,46 @@ abstract final class GraphEdgeGeometry {
         p2 * (3 * u * tt) +
         p3 * (tt * t);
   }
+
+  /// Min distance from [point] to the cubic between [from] and [to].
+  static double distanceToCubic(
+    Offset point,
+    Offset from,
+    Offset to, {
+    int samples = 28,
+  }) {
+    final c1 = controlOut(from, to);
+    final c2 = controlIn(from, to);
+    var best = double.infinity;
+    for (var i = 0; i <= samples; i++) {
+      final t = i / samples;
+      final d = (pointOnCubic(from, c1, c2, to, t) - point).distance;
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  /// Nearest edge id within [maxDistance], or null.
+  static String? hitTestEdge({
+    required Map<String, GraphNodeData> nodes,
+    required List<GraphEdgeData> edges,
+    required Offset point,
+    double maxDistance = 12,
+  }) {
+    String? bestId;
+    var best = maxDistance;
+    for (final edge in edges) {
+      final fromNode = nodes[edge.fromId];
+      final toNode = nodes[edge.toId];
+      if (fromNode == null || toNode == null) continue;
+      final a = outputPort(fromNode, portId: edge.fromPortId ?? edge.id);
+      final b = inputPort(toNode);
+      final d = distanceToCubic(point, a, b);
+      if (d <= best) {
+        best = d;
+        bestId = edge.id;
+      }
+    }
+    return bestId;
+  }
 }

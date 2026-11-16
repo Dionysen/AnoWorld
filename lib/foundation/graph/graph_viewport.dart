@@ -15,6 +15,8 @@ class GraphViewport extends StatefulWidget {
     required this.onSelect,
     required this.onMove,
     required this.onConnect,
+    this.selectedEdgeId,
+    this.onSelectEdge,
     this.onAddOutput,
     this.onOpenOutput,
     this.onOpenNode,
@@ -26,6 +28,8 @@ class GraphViewport extends StatefulWidget {
   final List<GraphEdgeData> edges;
   final String? selectedId;
   final ValueChanged<String?> onSelect;
+  final String? selectedEdgeId;
+  final ValueChanged<String?>? onSelectEdge;
   final void Function(String id, double x, double y) onMove;
 
   /// [fromPortId] is an existing edge id to retarget, or [GraphOutputPort.pendingId].
@@ -62,12 +66,31 @@ class _GraphViewportState extends State<GraphViewport> {
         for (final n in widget.nodes) n.id: n,
       };
 
+  GraphEdgeData? get _selectedEdge {
+    final id = widget.selectedEdgeId;
+    if (id == null) return null;
+    for (final e in widget.edges) {
+      if (e.id == id) return e;
+    }
+    return null;
+  }
+
   void _clearLink() {
     setState(() {
       _linkFromId = null;
       _linkFromPortId = null;
       _draftPointer = null;
     });
+  }
+
+  void _selectNode(String? id) {
+    widget.onSelect(id);
+    widget.onSelectEdge?.call(null);
+  }
+
+  void _selectEdge(String? id) {
+    widget.onSelectEdge?.call(id);
+    if (id != null) widget.onSelect(null);
   }
 
   String? _hitInputPort(Offset canvasPoint) {
@@ -93,7 +116,7 @@ class _GraphViewportState extends State<GraphViewport> {
       _draftPointer = node == null
           ? null
           : GraphEdgeGeometry.outputPort(node, portId: portId);
-      widget.onSelect(nodeId);
+      _selectNode(nodeId);
     });
   }
 
@@ -116,18 +139,31 @@ class _GraphViewportState extends State<GraphViewport> {
     _clearLink();
   }
 
-  void _onCanvasTap() {
+  void _onCanvasTapUp(TapUpDetails details) {
     if (_linkFromId != null) {
       _clearLink();
       return;
     }
-    widget.onSelect(null);
+    final scene = _scenePoint(details.globalPosition);
+    if (scene != null) {
+      final edgeId = GraphEdgeGeometry.hitTestEdge(
+        nodes: _byId,
+        edges: widget.edges,
+        point: scene,
+      );
+      if (edgeId != null) {
+        _selectEdge(edgeId);
+        return;
+      }
+    }
+    _selectNode(null);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final byId = _byId;
+    final selectedEdge = _selectedEdge;
     final draftFromNode =
         _linkFromId == null ? null : byId[_linkFromId!];
     final draftFrom = draftFromNode == null
@@ -150,7 +186,7 @@ class _GraphViewportState extends State<GraphViewport> {
         return ClipRect(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: _onCanvasTap,
+            onTapUp: _onCanvasTapUp,
             child: InteractiveViewer(
               key: _viewerKey,
               transformationController: _transform,
@@ -173,8 +209,7 @@ class _GraphViewportState extends State<GraphViewport> {
                           edges: widget.edges,
                           strokeColor: theme.colorScheme.outline,
                           emphasisColor: theme.colorScheme.primary,
-                          labelStyle: theme.textTheme.labelSmall ??
-                              const TextStyle(fontSize: 11),
+                          selectedEdgeId: widget.selectedEdgeId,
                           draftFrom: draftFrom,
                           draftTo: _draftPointer,
                         ),
@@ -189,7 +224,13 @@ class _GraphViewportState extends State<GraphViewport> {
                           selected: node.id == widget.selectedId ||
                               node.id == _linkFromId,
                           highlightPorts: linking && node.id != _linkFromId,
-                          onTap: () => widget.onSelect(node.id),
+                          highlightInput: selectedEdge?.toId == node.id,
+                          highlightOutputPortId:
+                              selectedEdge?.fromId == node.id
+                                  ? (selectedEdge!.fromPortId ??
+                                      selectedEdge.id)
+                                  : null,
+                          onTap: () => _selectNode(node.id),
                           onPanUpdate: (details) {
                             if (linking) return;
                             if (!_draggingNode) {

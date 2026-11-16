@@ -1,3 +1,4 @@
+import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_chip.dart';
 import 'package:anoworld/foundation/graph/graph_viewport.dart';
@@ -64,6 +65,109 @@ void main() {
     await tester.tap(find.text('Alpha'));
     await tester.pump();
     expect(selected, 'a');
+  });
+
+  testWidgets('tapping subtitle selects node', (tester) async {
+    String? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: SizedBox(
+            width: 480,
+            height: 320,
+            child: GraphViewport(
+              nodes: const [
+                GraphNodeData(
+                  id: 'a',
+                  label: '戏台檐下',
+                  subtitle: '阿汛用一句实话换到今晚出城的门路',
+                  x: 40,
+                  y: 40,
+                  inputLabel: '进入',
+                ),
+              ],
+              edges: const [],
+              selectedId: selected,
+              onSelect: (id) => selected = id,
+              onMove: (_, __, ___) {},
+              onConnect: (_, __, ___) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('阿汛用一句实话换到今晚出城的门路'));
+    await tester.pump();
+    expect(selected, 'a');
+  });
+
+  testWidgets('tapping a wire selects the edge', (tester) async {
+    String? selectedEdge;
+    String? selectedNode = 'keep';
+    const from = GraphNodeData(
+      id: 'a',
+      label: 'Alpha',
+      x: 40,
+      y: 40,
+      width: 120,
+      height: 80,
+      outputs: [GraphOutputPort(id: 'e1')],
+    );
+    const to = GraphNodeData(
+      id: 'b',
+      label: 'Beta',
+      x: 280,
+      y: 40,
+      width: 120,
+      height: 80,
+    );
+    final a = GraphEdgeGeometry.outputPort(from, portId: 'e1');
+    final b = GraphEdgeGeometry.inputPort(to);
+    final mid = GraphEdgeGeometry.pointOnCubic(
+      a,
+      GraphEdgeGeometry.controlOut(a, b),
+      GraphEdgeGeometry.controlIn(a, b),
+      b,
+      0.5,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: SizedBox(
+            width: 520,
+            height: 360,
+            child: GraphViewport(
+              nodes: const [from, to],
+              edges: const [
+                GraphEdgeData(
+                  id: 'e1',
+                  fromId: 'a',
+                  toId: 'b',
+                  fromPortId: 'e1',
+                ),
+              ],
+              selectedId: selectedNode,
+              selectedEdgeId: selectedEdge,
+              onSelect: (id) => selectedNode = id,
+              onSelectEdge: (id) => selectedEdge = id,
+              onMove: (_, __, ___) {},
+              onConnect: (_, __, ___) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Scene coords match layout when InteractiveViewer is at identity.
+    await tester.tapAt(mid);
+    await tester.pump();
+    expect(selectedEdge, 'e1');
+    expect(selectedNode, isNull);
   });
 
   testWidgets('dragging output port onto input connects nodes', (tester) async {

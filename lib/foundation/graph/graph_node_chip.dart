@@ -20,6 +20,8 @@ class GraphNodeChip extends StatelessWidget {
     required this.onPanUpdate,
     required this.onPanEnd,
     this.highlightPorts = false,
+    this.highlightInput = false,
+    this.highlightOutputPortId,
     this.onOutputDragStart,
     this.onOutputDragUpdate,
     this.onOutputDragEnd,
@@ -30,6 +32,12 @@ class GraphNodeChip extends StatelessWidget {
   final GraphNodeData data;
   final bool selected;
   final bool highlightPorts;
+
+  /// Emphasize the left input pin (e.g. selected edge arrives here).
+  final bool highlightInput;
+
+  /// Emphasize one right output pin by port / edge id.
+  final String? highlightOutputPortId;
   final VoidCallback onTap;
   final GestureDragUpdateCallback onPanUpdate;
   final GestureDragEndCallback onPanEnd;
@@ -56,12 +64,30 @@ class GraphNodeChip extends StatelessWidget {
       height: 1.1,
     );
 
+    final cardGestures = <Type, GestureRecognizerFactory>{
+      TapGestureRecognizer:
+          GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+        TapGestureRecognizer.new,
+        (instance) => instance.onTap = onTap,
+      ),
+      _EagerPanGestureRecognizer:
+          GestureRecognizerFactoryWithHandlers<_EagerPanGestureRecognizer>(
+        _EagerPanGestureRecognizer.new,
+        (instance) {
+          instance
+            ..onUpdate = onPanUpdate
+            ..onEnd = onPanEnd;
+        },
+      ),
+    };
+
     return SizedBox(
       width: width + GraphPort.hitSize,
       height: height,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          // Select / drag hit target under the card art.
           Positioned(
             left: horizontalPad,
             top: 0,
@@ -69,23 +95,17 @@ class GraphNodeChip extends StatelessWidget {
             height: height,
             child: RawGestureDetector(
               behavior: HitTestBehavior.opaque,
-              gestures: <Type, GestureRecognizerFactory>{
-                TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<
-                    TapGestureRecognizer>(
-                  TapGestureRecognizer.new,
-                  (instance) => instance.onTap = onTap,
-                ),
-                _EagerPanGestureRecognizer:
-                    GestureRecognizerFactoryWithHandlers<
-                        _EagerPanGestureRecognizer>(
-                  _EagerPanGestureRecognizer.new,
-                  (instance) {
-                    instance
-                      ..onUpdate = onPanUpdate
-                      ..onEnd = onPanEnd;
-                  },
-                ),
-              },
+              gestures: cardGestures,
+              child: const ColoredBox(color: Color(0x00000000)),
+            ),
+          ),
+          // Visual only — title / subtitle / badge must not eat taps.
+          Positioned(
+            left: horizontalPad,
+            top: 0,
+            width: width,
+            height: height,
+            child: IgnorePointer(
               child: GraphNodeCard(
                 title: data.label,
                 subtitle: data.subtitle,
@@ -125,10 +145,9 @@ class GraphNodeChip extends StatelessWidget {
               ),
             ),
           ),
-          // Title buttons sit above the card so taps are not stolen by pan.
+          // Title buttons only as wide as their label (not a full-row shield).
           for (var i = 0; i < outputs.length; i++)
             Positioned(
-              left: horizontalPad + AppTheme.spaceSm,
               right: GraphPort.hitSize * 0.55,
               top: GraphEdgeGeometry.outputPortLocalY(
                     index: i,
@@ -137,8 +156,7 @@ class GraphNodeChip extends StatelessWidget {
                   ) -
                   GraphEdgeGeometry.portRowHeight / 2,
               height: GraphEdgeGeometry.portRowHeight,
-              child: Align(
-                alignment: Alignment.centerRight,
+              child: Center(
                 child: _PortTitleButton(
                   key: ValueKey(
                     'graph_port_title_${data.id}_${outputs[i].id}',
@@ -161,7 +179,7 @@ class GraphNodeChip extends StatelessWidget {
                 GraphPort.hitSize / 2,
             child: GraphPort(
               side: GraphPortSide.input,
-              emphasized: highlightPorts || selected,
+              emphasized: highlightPorts || highlightInput || selected,
             ),
           ),
           for (var i = 0; i < outputs.length; i++)
@@ -177,7 +195,9 @@ class GraphNodeChip extends StatelessWidget {
                 key: ValueKey('graph_port_out_${data.id}_${outputs[i].id}'),
                 side: GraphPortSide.output,
                 pending: outputs[i].pending,
-                emphasized: selected || highlightPorts,
+                emphasized: selected ||
+                    highlightPorts ||
+                    outputs[i].id == highlightOutputPortId,
                 onDragStart: onOutputDragStart == null
                     ? null
                     : () => onOutputDragStart!(outputs[i].id),

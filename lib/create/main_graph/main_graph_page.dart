@@ -39,6 +39,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   bool _loading = true;
   bool _cardMode = false;
   String? _selectedId;
+  String? _selectedEdgeId;
   double _cardOffset = 0; // -1 left, 0 center, 1 right
 
   @override
@@ -124,7 +125,6 @@ class _MainGraphPageState extends State<MainGraphPage> {
           fromId: edge.from,
           toId: edge.to,
           fromPortId: edge.id,
-          label: edge.label,
           emphasized: edge.kind == EdgeKind.branch,
         ),
     ];
@@ -150,16 +150,31 @@ class _MainGraphPageState extends State<MainGraphPage> {
     );
     final withNode = _ops.upsertNode(main, node);
     await _persist(withNode);
-    setState(() => _selectedId = id);
+    setState(() {
+      _selectedId = id;
+      _selectedEdgeId = null;
+    });
   }
 
   Future<void> _deleteSelected() async {
     final project = _project;
+    if (project == null) return;
+    final edgeId = _selectedEdgeId;
+    if (edgeId != null) {
+      await _persist(_ops.removeEdge(project.main, edgeId));
+      if (!mounted) return;
+      setState(() => _selectedEdgeId = null);
+      return;
+    }
     final id = _selectedId;
-    if (project == null || id == null) return;
+    if (id == null) return;
     if (project.main.nodes.length <= 1) return;
     await _persist(_ops.removeNode(project.main, id));
-    setState(() => _selectedId = _project?.main.startNodeId);
+    if (!mounted) return;
+    setState(() {
+      _selectedId = _project?.main.startNodeId;
+      _selectedEdgeId = null;
+    });
   }
 
   Future<void> _connect(
@@ -380,7 +395,15 @@ class _MainGraphPageState extends State<MainGraphPage> {
       nodes: _graphNodes(main),
       edges: _graphEdges(main),
       selectedId: _selectedId,
-      onSelect: (id) => setState(() => _selectedId = id),
+      selectedEdgeId: _selectedEdgeId,
+      onSelect: (id) => setState(() {
+        _selectedId = id;
+        if (id != null) _selectedEdgeId = null;
+      }),
+      onSelectEdge: (id) => setState(() {
+        _selectedEdgeId = id;
+        if (id != null) _selectedId = null;
+      }),
       onMove: (id, x, y) async {
         await _persist(
           _ops.moveNode(main, id, NodeLayout(x: x, y: y)),
@@ -622,7 +645,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
                               Expanded(
                                 child: AppButton(
                                   label: '删除选中',
-                                  onPressed: _selectedId == null
+                                  onPressed: _selectedId == null &&
+                                          _selectedEdgeId == null
                                       ? null
                                       : _deleteSelected,
                                   variant: AppButtonVariant.ghost,

@@ -88,6 +88,65 @@ void main() {
     );
   });
 
+  test('hitTestEdge finds nearest wire', () {
+    const from = GraphNodeData(
+      id: 'a',
+      label: 'A',
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 80,
+      outputs: [GraphOutputPort(id: 'e1')],
+    );
+    const to = GraphNodeData(
+      id: 'b',
+      label: 'B',
+      x: 220,
+      y: 0,
+      width: 100,
+      height: 80,
+    );
+    final a = GraphEdgeGeometry.outputPort(from, portId: 'e1');
+    final b = GraphEdgeGeometry.inputPort(to);
+    final mid = GraphEdgeGeometry.pointOnCubic(
+      a,
+      GraphEdgeGeometry.controlOut(a, b),
+      GraphEdgeGeometry.controlIn(a, b),
+      b,
+      0.5,
+    );
+    expect(
+      GraphEdgeGeometry.hitTestEdge(
+        nodes: {'a': from, 'b': to},
+        edges: const [
+          GraphEdgeData(
+            id: 'e1',
+            fromId: 'a',
+            toId: 'b',
+            fromPortId: 'e1',
+          ),
+        ],
+        point: mid,
+      ),
+      'e1',
+    );
+    expect(
+      GraphEdgeGeometry.hitTestEdge(
+        nodes: {'a': from, 'b': to},
+        edges: const [
+          GraphEdgeData(
+            id: 'e1',
+            fromId: 'a',
+            toId: 'b',
+            fromPortId: 'e1',
+          ),
+        ],
+        point: const Offset(999, 999),
+      ),
+      isNull,
+    );
+  });
+
   test('cubic path starts and ends at ports', () {
     const a = Offset(0, 0);
     const b = Offset(200, 40);
