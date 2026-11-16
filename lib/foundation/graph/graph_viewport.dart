@@ -4,6 +4,7 @@ import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_edge_painter.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_chip.dart';
+import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 
@@ -25,6 +26,7 @@ class GraphViewport extends StatefulWidget {
     this.focusSelected = false,
     this.minScale = 0.4,
     this.maxScale = 2.5,
+    this.camera,
   });
 
   final List<GraphNodeData> nodes;
@@ -48,14 +50,20 @@ class GraphViewport extends StatefulWidget {
   final double minScale;
   final double maxScale;
 
+  /// When set, pan/zoom state is owned here (for overview navigator sync).
+  final GraphViewportController? camera;
+
   @override
   State<GraphViewport> createState() => _GraphViewportState();
 }
 
 class _GraphViewportState extends State<GraphViewport>
     with SingleTickerProviderStateMixin {
-  final _transform = TransformationController();
+  TransformationController? _ownedTransform;
   final _viewerKey = GlobalKey();
+
+  TransformationController get _transform =>
+      widget.camera?.transform ?? _ownedTransform!;
   String? _linkFromId;
   String? _linkFromPortId;
   Offset? _draftPointer;
@@ -69,6 +77,7 @@ class _GraphViewportState extends State<GraphViewport>
   @override
   void initState() {
     super.initState();
+    _ownedTransform ??= TransformationController();
     _focusAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 220),
@@ -83,7 +92,7 @@ class _GraphViewportState extends State<GraphViewport>
   @override
   void dispose() {
     _focusAnim.dispose();
-    _transform.dispose();
+    _ownedTransform?.dispose();
     super.dispose();
   }
 
@@ -275,6 +284,7 @@ class _GraphViewportState extends State<GraphViewport>
         final nextSize = Size(width, height);
         if (nextSize != _viewportSize) {
           _viewportSize = nextSize;
+          widget.camera?.setViewportSize(nextSize);
           if (widget.focusSelected) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) _focusCamera(animate: false);
@@ -334,16 +344,11 @@ class _GraphViewportState extends State<GraphViewport>
                             if (!_draggingNode) {
                               setState(() => _draggingNode = true);
                             }
-                            // Focus mode: scene deltas ignore camera scale.
-                            final scale = widget.focusSelected
-                                ? _transform.value.getMaxScaleOnAxis()
-                                : 1.0;
-                            final dx = details.delta.dx / scale;
-                            final dy = details.delta.dy / scale;
+                            // Deltas are in the chip's local (scene) space.
                             widget.onMove(
                               node.id,
-                              node.x + dx,
-                              node.y + dy,
+                              node.x + details.delta.dx,
+                              node.y + details.delta.dy,
                             );
                           },
                           onPanEnd: (_) {

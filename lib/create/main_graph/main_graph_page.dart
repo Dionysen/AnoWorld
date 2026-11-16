@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:anoworld/app/app_scope.dart';
@@ -15,6 +16,7 @@ import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_thumbnail.dart';
 import 'package:anoworld/foundation/graph/graph_overview_map.dart';
 import 'package:anoworld/foundation/graph/graph_viewport.dart';
+import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
@@ -49,6 +51,15 @@ class _MainGraphPageState extends State<MainGraphPage> {
   String? _selectedId;
   String? _selectedEdgeId;
   final Map<String, Uint8List> _nodeThumbnails = {};
+  final _viewportCamera = GraphViewportController();
+  Timer? _saveDebounce;
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    _viewportCamera.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -86,18 +97,42 @@ class _MainGraphPageState extends State<MainGraphPage> {
     }
   }
 
-  Future<void> _persist(MainStory main) async {
+  Future<void> _persist(
+    MainStory main, {
+    bool refreshThumbnails = true,
+  }) async {
     final project = _project;
     if (project == null) return;
     final next = project.copyWith(
       main: main,
       meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
     );
+    setState(() => _project = next);
     await AppScope.projectsOf(context).save(next);
     if (!mounted) return;
-    setState(() => _project = next);
-    // ignore: unawaited_futures
-    _refreshNodeThumbnails(next.main);
+    if (refreshThumbnails) {
+      // ignore: unawaited_futures
+      _refreshNodeThumbnails(next.main);
+    }
+  }
+
+  /// Layout drag: update UI immediately, debounce disk write, skip thumbnails.
+  void _moveNodeLocal(String id, double x, double y) {
+    final project = _project;
+    if (project == null) return;
+    final main = _ops.moveNode(project.main, id, NodeLayout(x: x, y: y));
+    setState(() {
+      _project = project.copyWith(
+        main: main,
+        meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+      );
+    });
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 280), () async {
+      final latest = _project;
+      if (latest == null || !mounted) return;
+      await AppScope.projectsOf(context).save(latest);
+    });
   }
 
   Future<void> _loadThumbnailsFromDisk() async {
@@ -475,6 +510,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
     final focusId = _selectedId ??
         (_cardMode ? main.startNodeId : null);
     return GraphViewport(
+      camera: _viewportCamera,
       nodes: _graphNodes(main),
       edges: _graphEdges(main),
       selectedId: focusId,
@@ -490,11 +526,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                 _selectedEdgeId = id;
                 if (id != null) _selectedId = null;
               }),
-      onMove: (id, x, y) async {
-        await _persist(
-          _ops.moveNode(main, id, NodeLayout(x: x, y: y)),
-        );
-      },
+      onMove: _moveNodeLocal,
       onConnect: _connect,
       onOpenOutput: (_, portId) => _openEdgeEditor(portId),
       onAddOutput: (_) => _tipAddOutput(),
@@ -518,7 +550,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
     await showAppSheet<void>(
       context: context,
       size: AppSheetSize.half,
-      builder: (sheetContext) {
+      builder: (_) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(
             AppTheme.pagePadding,
@@ -531,22 +563,14 @@ class _MainGraphPageState extends State<MainGraphPage> {
             children: [
               const AppSectionHeader(
                 '走向全览',
-                subtitle: '点一站，回到画布上选中它',
+                subtitle: '滑动地图移动镜头，中央方框即当前画面',
               ),
               Expanded(
                 child: GraphOverviewMap(
+                  camera: _viewportCamera,
                   nodes: _graphNodes(main),
                   edges: _graphEdges(main),
                   thumbnails: _nodeThumbnails,
-                  selectedId: _selectedId,
-                  onNodeTap: (id) {
-                    Navigator.of(sheetContext).pop();
-                    if (!mounted) return;
-                    setState(() {
-                      _selectedId = id;
-                      _selectedEdgeId = null;
-                    });
-                  },
                 ),
               ),
             ],
