@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/app_ui_tokens.dart';
 
 enum AppButtonVariant { primary, secondary, ghost }
 
@@ -22,6 +23,8 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = AppUiTokens.of(context);
+    final shape = tokens.shape();
     final child = Text(label, maxLines: 1, overflow: TextOverflow.ellipsis);
     final button = switch (variant) {
       AppButtonVariant.primary => FilledButton(
@@ -32,9 +35,7 @@ class AppButton extends StatelessWidget {
               horizontal: AppTheme.spaceMd,
               vertical: AppTheme.spaceSm,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
+            shape: shape,
           ),
           child: child,
         ),
@@ -48,9 +49,7 @@ class AppButton extends StatelessWidget {
               horizontal: AppTheme.spaceMd,
               vertical: AppTheme.spaceSm,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
+            shape: shape,
           ),
           child: child,
         ),

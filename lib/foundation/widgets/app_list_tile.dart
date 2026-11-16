@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/app_ui_tokens.dart';
 import 'app_text.dart';
 
 /// Tappable row for lists. Visuals come from theme tokens only.
@@ -21,12 +22,14 @@ class AppListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final shape = AppUiTokens.of(context).shape();
     return Material(
       color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        customBorder: shape,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppTheme.spaceMd,

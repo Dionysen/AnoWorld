@@ -1,8 +1,7 @@
 import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/settings/about_panel.dart';
 import 'package:anoworld/settings/settings_page.dart';
-import 'dart:ui' show Size;
-
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -47,16 +46,27 @@ void main() {
     expect(find.text(AppAbout.tagline), findsOneWidget);
   });
 
-  testWidgets('appearance can switch preset', (tester) async {
+  testWidgets('appearance can switch preset and ui prefs', (tester) async {
     await pumpSettings(tester, const Size(390, 844));
     await tester.tap(find.text('外观').last);
     await tester.pumpAndSettle();
 
     expect(find.text('主题模式'), findsOneWidget);
+    expect(find.text('字体'), findsOneWidget);
+    expect(find.text('字体大小'), findsOneWidget);
+    expect(find.text('圆角大小'), findsOneWidget);
     expect(find.text('午夜'), findsOneWidget);
+
     await tester.tap(find.text('薄雾'));
     await tester.pumpAndSettle();
     expect(find.text('使用中'), findsOneWidget);
+
+    await tester.tap(find.text('无衬线'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Slider), findsNWidgets(2));
+    await tester.drag(find.byType(Slider).first, const Offset(40, 0));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('landscape settings uses side rail sections', (tester) async {

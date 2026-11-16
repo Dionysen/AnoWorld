@@ -1,10 +1,20 @@
 # 界面风格
 
-颜色、圆角、字体这些还没定完。做页面时补在这里，并从主题读取，不在调用处写死。
+颜色、圆角、字体从主题与 `AppUiTokens` 读取，不在业务调用处写死。换外观设置后全局控件一起变。
 
 ## 当前主题
 
-默认「午夜」深色：画布 `#0B0C12`，文字 `#E8E6F0`，强调 `#98A6F5`。另有「岩灰」「薄雾」配色，以及浅色/深色/跟随系统。设置 → 外观切换；实现见 `AppTheme` / `AppearanceSettings`。间距与组件封装在 `lib/foundation/theme/`、`lib/foundation/widgets/`。
+默认「午夜」深色：画布 `#0B0C12`，文字 `#E8E6F0`，强调 `#98A6F5`。另有「岩灰」「薄雾」配色。设置 → **外观** 可改：
+
+| 项 | 选项 | 落点 |
+| --- | --- | --- |
+| 主题模式 | 跟随系统 / 浅色 / 深色 | `AppearanceSettings.mode` → `MaterialApp.themeMode` |
+| 配色 | 午夜 / 岩灰 / 薄雾 | `AppearanceSettings.preset` → `AppTheme.tokensFor` |
+| 字体 | 系统默认 / 无衬线（Roboto） | `AppearanceSettings.typeface` |
+| 字体大小 | 滑块 **12–20 px**，步长 **0.5 px**（默认 15） | `AppearanceSettings.fontSize` → body 字号；其它角色按相对 15px 比例缩放 |
+| 圆角大小 | 滑块 0–24 px，步长 1（默认 10）；**曲率连续**（超椭圆） | `AppearanceSettings.cornerRadius` → `AppUiTokens.radius` / `AppShapes.continuous` |
+
+大小类控件统一用基础设施 `AppSlider`（参数：`min` / `max` / `step`），区间常量在 `AppearanceUiRange`。圆角一律走 `RoundedSuperellipseBorder`（`AppShapes` / `AppContinuousInputBorder`），不用普通圆弧 `BorderRadius` 裁切控件外形。实现：`AppTheme.dataFor` / `AppTheme.light|dark(appearance)`，运行时度量在 `AppUiTokens`。输入框内边距默认 `8×6`（`AppTheme.fieldPadding`）。间距与组件在 `lib/foundation/theme/`、`lib/foundation/widgets/`；业务页只用封装控件（`AppButton`、`AppTextField`、`AppSlider`、`AppSegmented`、`AppOptionGroup`、`AppListTile`、`AppSurface` 等）。
 
 ## 布局与窗口
 
@@ -20,7 +30,7 @@
 
 | 模式 | 条件 | 设置页导航 |
 | --- | --- | --- |
-| 竖屏 / 窄屏 | 宽度 `< 600` | **底部导航栏**（通用 / AI / 关于） |
+| 竖屏 / 窄屏 | 宽度 `< 600` | **底部导航栏**（通用 / 外观 / AI / 关于） |
 | 横屏 / 大屏 | 宽度 `≥ 600` | **左侧导航栏**（同上分区） |
 
 日后若作品区也要多层壳，再在对应页面复用 `AppNavShell`，不要挂到首页根上。

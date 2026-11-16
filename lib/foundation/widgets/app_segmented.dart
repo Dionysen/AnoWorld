@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_shapes.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_ui_tokens.dart';
 
 class AppSegmentOption<T> {
   const AppSegmentOption({required this.value, required this.label});
@@ -25,11 +27,11 @@ class AppSegmented<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = AppUiTokens.of(context);
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: theme.colorScheme.outline),
+        shape: tokens.shape(side: BorderSide(color: theme.colorScheme.outline)),
       ),
       child: Row(
         children: [
@@ -38,6 +40,7 @@ class AppSegmented<T> extends StatelessWidget {
               child: _Segment(
                 label: option.label,
                 selected: option.value == value,
+                radius: tokens.radius,
                 onTap: () => onChanged(option.value),
               ),
             ),
@@ -51,22 +54,28 @@ class _Segment extends StatelessWidget {
   const _Segment({
     required this.label,
     required this.selected,
+    required this.radius,
     required this.onTap,
   });
 
   final String label;
   final bool selected;
+  final double radius;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final shape = AppShapes.continuous(
+      radius: (radius - 1).clamp(0.0, radius),
+    );
     return Material(
       color: selected ? theme.colorScheme.primary : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMd - 1),
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd - 1),
+        customBorder: shape,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             vertical: AppTheme.spaceSm,
@@ -85,6 +94,38 @@ class _Segment extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Labeled control block: caption + segmented options (settings forms).
+class AppOptionGroup<T> extends StatelessWidget {
+  const AppOptionGroup({
+    super.key,
+    required this.label,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final List<AppSegmentOption<T>> options;
+  final T value;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: AppTheme.spaceSm),
+        AppSegmented<T>(
+          options: options,
+          value: value,
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }

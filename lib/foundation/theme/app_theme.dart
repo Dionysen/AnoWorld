@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../domain/settings/appearance_settings.dart';
 import '../frame/window_controls.dart';
+import 'app_continuous_input_border.dart';
+import 'app_shapes.dart';
+import 'app_ui_tokens.dart';
 
 class AppColorTokens {
   const AppColorTokens({
@@ -38,6 +41,12 @@ abstract final class AppTheme {
   static const double spaceLg = 24;
   static const double radiusMd = 10;
   static const double pagePadding = spaceMd;
+
+  /// Default field padding (compact; controls read [AppUiTokens.fieldPadding]).
+  static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
+    horizontal: 8,
+    vertical: 6,
+  );
 
   /// Default dark tokens (午夜) — used by chrome that needs a fixed floor.
   static const Color canvas = Color(0xFF0B0C12);
@@ -104,10 +113,23 @@ abstract final class AppTheme {
   }
 
   static ThemeData dataFor({
-    required AppThemePreset preset,
     required Brightness brightness,
+    AppearanceSettings appearance = const AppearanceSettings(),
   }) {
-    final tokens = tokensFor(preset: preset, brightness: brightness);
+    final tokens = tokensFor(
+      preset: appearance.preset,
+      brightness: brightness,
+    );
+    final radius = appearance.cornerRadius;
+    final bodyPx = appearance.fontSize;
+    final fontFamily = appearance.typeface.fontFamily;
+    final ui = AppUiTokens(
+      radius: radius,
+      fontSize: bodyPx,
+      fontFamily: fontFamily,
+      fieldPadding: fieldPadding,
+    );
+
     final scheme = brightness == Brightness.dark
         ? ColorScheme.dark(
             surface: tokens.canvas,
@@ -128,12 +150,33 @@ abstract final class AppTheme {
             outline: tokens.outlineSubtle,
           );
 
+    /// Relative to bodyLarge base 15px.
+    TextStyle sized(
+      double baseSize, {
+      FontWeight weight = FontWeight.w400,
+      Color? color,
+      double height = 1.35,
+    }) {
+      return TextStyle(
+        fontSize: baseSize * (bodyPx / AppearanceUiRange.fontSizeDefault),
+        fontWeight: weight,
+        color: color,
+        height: height,
+        fontFamily: fontFamily,
+      );
+    }
+
+    final shape = AppShapes.continuous(radius: radius);
+    final radiusGeom = BorderRadius.circular(radius);
+
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: tokens.canvas,
       dividerColor: tokens.outlineSubtle,
+      fontFamily: fontFamily,
+      extensions: <ThemeExtension<dynamic>>[ui],
       appBarTheme: AppBarTheme(
         toolbarHeight: titleBandHeight,
         backgroundColor: tokens.canvas,
@@ -143,69 +186,60 @@ abstract final class AppTheme {
         titleSpacing: 12,
       ),
       textTheme: TextTheme(
-        titleLarge: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: tokens.onCanvas,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: tokens.onCanvas,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 15,
-          height: 1.35,
-          color: tokens.onCanvas,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          height: 1.35,
-          color: tokens.onCanvas,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 12,
-          height: 1.3,
-          color: tokens.muted,
-        ),
-        labelLarge: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: tokens.onCanvas,
-        ),
+        titleLarge: sized(22, weight: FontWeight.w600, color: tokens.onCanvas),
+        titleMedium:
+            sized(16, weight: FontWeight.w600, color: tokens.onCanvas),
+        bodyLarge: sized(15, color: tokens.onCanvas),
+        bodyMedium: sized(14, color: tokens.onCanvas),
+        bodySmall: sized(12, color: tokens.muted, height: 1.3),
+        labelLarge:
+            sized(14, weight: FontWeight.w600, color: tokens.onCanvas),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: tokens.surfaceRaised,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: spaceMd,
-          vertical: spaceSm + 4,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
+        isDense: true,
+        contentPadding: fieldPadding,
+        border: AppContinuousInputBorder(
+          borderRadius: radiusGeom,
           borderSide: BorderSide(color: tokens.outlineSubtle),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
+        enabledBorder: AppContinuousInputBorder(
+          borderRadius: radiusGeom,
           borderSide: BorderSide(color: tokens.outlineSubtle),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
+        focusedBorder: AppContinuousInputBorder(
+          borderRadius: radiusGeom,
           borderSide: BorderSide(color: tokens.primary),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: shape,
+          padding: const EdgeInsets.symmetric(
+            horizontal: spaceMd,
+            vertical: spaceSm,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: shape,
+          padding: const EdgeInsets.symmetric(
+            horizontal: spaceMd,
+            vertical: spaceSm,
+          ),
         ),
       ),
     );
   }
 
   /// Backward-compatible default (午夜 · 深色).
-  static ThemeData get data => dataFor(
-        preset: AppThemePreset.midnight,
-        brightness: Brightness.dark,
-      );
+  static ThemeData get data => dataFor(brightness: Brightness.dark);
 
-  static ThemeData light(AppThemePreset preset) =>
-      dataFor(preset: preset, brightness: Brightness.light);
+  static ThemeData light(AppearanceSettings appearance) =>
+      dataFor(brightness: Brightness.light, appearance: appearance);
 
-  static ThemeData dark(AppThemePreset preset) =>
-      dataFor(preset: preset, brightness: Brightness.dark);
+  static ThemeData dark(AppearanceSettings appearance) =>
+      dataFor(brightness: Brightness.dark, appearance: appearance);
 }

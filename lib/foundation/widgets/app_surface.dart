@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/app_ui_tokens.dart';
 
 /// Raised panel using theme surface tokens.
 class AppSurface extends StatelessWidget {
@@ -16,11 +17,11 @@ class AppSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = AppUiTokens.of(context);
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: theme.colorScheme.outline),
+        shape: tokens.shape(side: BorderSide(color: theme.colorScheme.outline)),
       ),
       child: Padding(padding: padding, child: child),
     );

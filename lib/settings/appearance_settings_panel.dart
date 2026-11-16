@@ -4,6 +4,7 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
+import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/widgets.dart';
 
@@ -31,6 +32,50 @@ class AppearanceSettingsPanel extends StatelessWidget {
                 for (final mode in AppThemeModeSetting.values)
                   AppSegmentOption(value: mode, label: mode.label),
               ],
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            const AppSectionHeader('界面'),
+            AppOptionGroup<AppTypeface>(
+              label: '字体',
+              value: current.typeface,
+              onChanged: (typeface) {
+                controller.updateAppearance(
+                  current.copyWith(typeface: typeface),
+                );
+              },
+              options: [
+                for (final face in AppTypeface.values)
+                  AppSegmentOption(value: face, label: face.label),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+            AppSlider(
+              label: '字体大小',
+              value: current.fontSize,
+              min: AppearanceUiRange.fontSizeMin,
+              max: AppearanceUiRange.fontSizeMax,
+              step: AppearanceUiRange.fontSizeStep,
+              valueText: (v) =>
+                  '${v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1)} px',
+              onChanged: (size) {
+                controller.updateAppearance(
+                  current.copyWith(fontSize: size),
+                );
+              },
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+            AppSlider(
+              label: '圆角大小',
+              value: current.cornerRadius,
+              min: AppearanceUiRange.cornerRadiusMin,
+              max: AppearanceUiRange.cornerRadiusMax,
+              step: AppearanceUiRange.cornerRadiusStep,
+              valueText: (v) => '${v.round()} px',
+              onChanged: (radius) {
+                controller.updateAppearance(
+                  current.copyWith(cornerRadius: radius),
+                );
+              },
             ),
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader('配色'),

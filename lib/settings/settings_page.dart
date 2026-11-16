@@ -6,7 +6,7 @@ import 'package:flutter/widgets.dart';
 
 /// Settings opened from the home title action.
 ///
-/// Portrait: bottom nav for 通用 / AI / 关于.
+/// Portrait: bottom nav for 通用 / 外观 / AI / 关于.
 /// Landscape: left rail for the same sections.
 class SettingsPage extends StatefulWidget {
   const SettingsPage({

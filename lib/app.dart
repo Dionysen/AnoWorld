@@ -76,8 +76,8 @@ class _AppState extends State<App> {
           return MaterialApp(
             title: 'AnoWorld',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(appearance.preset),
-            darkTheme: AppTheme.dark(appearance.preset),
+            theme: AppTheme.light(appearance),
+            darkTheme: AppTheme.dark(appearance),
             themeMode: appearance.mode.material,
             builder: (context, child) {
               return ImmersiveFrame(child: child ?? const SizedBox.shrink());

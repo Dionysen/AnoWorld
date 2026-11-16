@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../frame/immersive_frame.dart';
 import '../layout/app_layout.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_ui_tokens.dart';
 
 class AppNavItem {
   const AppNavItem({
@@ -162,10 +163,11 @@ class AppNavSectionList extends StatelessWidget {
                     color: selected
                         ? theme.colorScheme.primary.withValues(alpha: 0.18)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    shape: AppUiTokens.of(context).shape(),
+                    clipBehavior: Clip.antiAlias,
                     child: InkWell(
                       onTap: () => onSelected(item.id),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      customBorder: AppUiTokens.of(context).shape(),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppTheme.spaceMd,
@@ -286,10 +288,11 @@ class _RailButton extends StatelessWidget {
         color: selected
             ? theme.colorScheme.primary.withValues(alpha: 0.14)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        shape: AppUiTokens.of(context).shape(),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          customBorder: AppUiTokens.of(context).shape(),
           child: SizedBox(
             height: 64,
             child: Column(

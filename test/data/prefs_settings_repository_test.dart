@@ -25,6 +25,9 @@ void main() {
       const AppearanceSettings(
         mode: AppThemeModeSetting.light,
         preset: AppThemePreset.mist,
+        typeface: AppTypeface.sans,
+        fontSize: 16.5,
+        cornerRadius: 16,
       ),
     );
 
@@ -35,5 +38,8 @@ void main() {
     final appearance = await repo.loadAppearance();
     expect(appearance.mode, AppThemeModeSetting.light);
     expect(appearance.preset, AppThemePreset.mist);
+    expect(appearance.typeface, AppTypeface.sans);
+    expect(appearance.fontSize, 16.5);
+    expect(appearance.cornerRadius, 16);
   });
 }

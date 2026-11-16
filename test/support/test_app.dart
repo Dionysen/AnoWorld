@@ -46,8 +46,8 @@ Widget testScoped({
       builder: (context, _) {
         final appearance = controller.appearance;
         return MaterialApp(
-          theme: AppTheme.light(appearance.preset),
-          darkTheme: AppTheme.dark(appearance.preset),
+          theme: AppTheme.light(appearance),
+          darkTheme: AppTheme.dark(appearance),
           themeMode: appearance.mode.material,
           builder: (context, child) =>
               ImmersiveFrame(child: child ?? const SizedBox.shrink()),
