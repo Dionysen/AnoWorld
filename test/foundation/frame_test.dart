@@ -1,5 +1,6 @@
 import 'package:anoworld/app.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
+import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/frame/window_channel.dart';
 import 'package:anoworld/foundation/frame/window_controls.dart';
@@ -21,7 +22,10 @@ void main() {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       try {
         await tester.pumpWidget(
-          App(projects: MemoryProjectRepository()),
+          App(
+            projects: MemoryProjectRepository(),
+            saves: MemorySaveRepository(),
+          ),
         );
         await tester.pumpAndSettle();
 

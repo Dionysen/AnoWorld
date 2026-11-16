@@ -1,0 +1,29 @@
+import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/repositories/save_repository.dart';
+
+class MemorySaveRepository implements SaveRepository {
+  MemorySaveRepository({Map<String, SaveSlot>? seed})
+      : _slots = Map<String, SaveSlot>.from(seed ?? const {});
+
+  final Map<String, SaveSlot> _slots;
+
+  @override
+  Future<SaveSlot?> load(String projectId) async => _slots[projectId];
+
+  @override
+  Future<void> save({
+    required String projectId,
+    required MainSavePointer pointer,
+  }) async {
+    _slots[projectId] = SaveSlot(
+      projectId: projectId,
+      pointer: pointer,
+      savedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  @override
+  Future<void> clear(String projectId) async {
+    _slots.remove(projectId);
+  }
+}

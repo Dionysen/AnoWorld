@@ -1,4 +1,5 @@
 import 'package:anoworld/domain/repositories/project_repository.dart';
+import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:flutter/widgets.dart';
 
 /// App-wide services. Business pages read repositories from here.
@@ -6,10 +7,12 @@ class AppScope extends InheritedWidget {
   const AppScope({
     super.key,
     required this.projects,
+    required this.saves,
     required super.child,
   });
 
   final ProjectRepository projects;
+  final SaveRepository saves;
 
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
@@ -20,7 +23,9 @@ class AppScope extends InheritedWidget {
   static ProjectRepository projectsOf(BuildContext context) =>
       of(context).projects;
 
+  static SaveRepository savesOf(BuildContext context) => of(context).saves;
+
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
-      projects != oldWidget.projects;
+      projects != oldWidget.projects || saves != oldWidget.saves;
 }

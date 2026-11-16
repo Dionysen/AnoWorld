@@ -6,7 +6,7 @@ import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
-import 'package:anoworld/play/play_placeholder_page.dart';
+import 'package:anoworld/play/play_session_page.dart';
 import 'package:flutter/widgets.dart';
 
 /// After opening a work: play or continue editing (edit UI comes later).
@@ -24,6 +24,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   Object? _error;
   bool _loading = true;
   bool _loadScheduled = false;
+  bool _hasSave = false;
 
   @override
   void didChangeDependencies() {
@@ -35,15 +36,18 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
 
   Future<void> _load() async {
     final projects = AppScope.projectsOf(context);
+    final saves = AppScope.savesOf(context);
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final project = await projects.open(widget.projectId);
+      final slot = await saves.load(widget.projectId);
       if (!mounted) return;
       setState(() {
         _project = project;
+        _hasSave = slot != null;
         _loading = false;
       });
     } catch (error) {
@@ -55,17 +59,25 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     }
   }
 
-  void _openPlay() {
+  Future<void> _openPlay({required bool resume}) async {
     final project = _project;
     if (project == null) return;
-    Navigator.of(context).push(
+    if (!resume) {
+      await AppScope.savesOf(context).clear(widget.projectId);
+      if (!mounted) return;
+    }
+    await Navigator.of(context).push(
       PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => PlayPlaceholderPage(project: project),
+        pageBuilder: (_, _, _) => PlaySessionPage(
+          project: project,
+          resumeSave: resume,
+        ),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
       ),
     );
+    if (mounted) await _load();
   }
 
   @override
@@ -96,11 +108,25 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             ),
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader('下一步'),
-            AppButton(
-              label: '开始游玩',
-              onPressed: _openPlay,
-              expanded: true,
-            ),
+            if (_hasSave) ...[
+              AppButton(
+                label: '继续游玩',
+                onPressed: () => _openPlay(resume: true),
+                expanded: true,
+              ),
+              const SizedBox(height: AppTheme.spaceSm),
+              AppButton(
+                label: '从头游玩',
+                onPressed: () => _openPlay(resume: false),
+                variant: AppButtonVariant.secondary,
+                expanded: true,
+              ),
+            ] else
+              AppButton(
+                label: '开始游玩',
+                onPressed: () => _openPlay(resume: false),
+                expanded: true,
+              ),
             const SizedBox(height: AppTheme.spaceSm),
             const AppButton(
               label: '继续创作',
@@ -110,7 +136,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             ),
             const SizedBox(height: AppTheme.spaceSm),
             const AppText(
-              '创作编辑器下一阶段接入；现在可先游玩样例或空白开场。',
+              '创作编辑器下一阶段接入；现在可切换视觉小说 / 聊天模式游玩。',
               role: AppTextRole.caption,
             ),
           ],

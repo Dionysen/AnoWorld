@@ -2,6 +2,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/create_entry_page.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
@@ -86,6 +87,27 @@ class _HomePageState extends State<HomePage> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _status = '新建失败：$error');
+    }
+  }
+
+  Future<void> _addSample() async {
+    final projects = AppScope.projectsOf(context);
+    try {
+      final existing = await projects.listProjects();
+      for (final row in existing) {
+        if (row.id == 'proj_rain_night') {
+          if (!mounted) return;
+          await _openRoute(const ProjectHubPage(projectId: 'proj_rain_night'));
+          return;
+        }
+      }
+      final sample = const ProjectFactory().createRainNightSample();
+      await projects.save(sample);
+      if (!mounted) return;
+      await _openRoute(ProjectHubPage(projectId: sample.meta.id));
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _status = '样例写入失败：$error');
     }
   }
 
@@ -180,11 +202,22 @@ class _HomePageState extends State<HomePage> {
           else if (_projects.isEmpty)
             AppEmptyState(
               message: '还没有作品',
-              detail: '导入角色卡、粘贴故事，或新建空白作品开始。',
-              action: AppButton(
-                label: '新建空白作品',
-                onPressed: _createBlank,
-                variant: AppButtonVariant.secondary,
+              detail: '导入角色卡、粘贴故事，或先试用内置短样例。',
+              action: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppButton(
+                    label: '试用「雨夜投宿」',
+                    onPressed: _addSample,
+                    variant: AppButtonVariant.secondary,
+                  ),
+                  const SizedBox(height: AppTheme.spaceSm),
+                  AppButton(
+                    label: '新建空白作品',
+                    onPressed: _createBlank,
+                    variant: AppButtonVariant.ghost,
+                  ),
+                ],
               ),
             )
           else
