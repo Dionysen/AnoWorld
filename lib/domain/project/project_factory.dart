@@ -34,7 +34,12 @@ class ProjectFactory {
         summary: '',
         startNodeId: nodeId,
         nodes: const <StoryNode>[
-          StoryNode(id: nodeId, title: '开场', beatIds: <String>[beatId]),
+          StoryNode(
+            id: nodeId,
+            title: '开场',
+            beatIds: <String>[beatId],
+            tags: <String>['opening'],
+          ),
         ],
         edges: const <StoryEdge>[],
         beats: const <Beat>[
@@ -117,13 +122,15 @@ class ProjectFactory {
             synopsis: '离开',
             beatIds: <String>['b1'],
             layout: NodeLayout(x: 0, y: 0),
+            tags: <String>['opening'],
           ),
           StoryNode(
             id: 'n2',
             title: '客栈',
             synopsis: '投宿',
             beatIds: <String>['b2'],
-            layout: NodeLayout(x: 200, y: 0),
+            layout: NodeLayout(x: 220, y: 0),
+            tags: <String>['turning'],
           ),
         ],
         edges: const <StoryEdge>[

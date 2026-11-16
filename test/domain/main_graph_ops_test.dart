@@ -1,5 +1,6 @@
 import 'package:anoworld/domain/main/main_graph_ops.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/story_node_kind.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -47,5 +48,12 @@ void main() {
     );
     expect(next.nodeById('n1')!.title, '城门外');
     expect(next.nodeById('n1')!.synopsis, '必须离开');
+  });
+
+  test('setNodeKind updates kind tag', () {
+    final main = const ProjectFactory().createRainNightSample().main;
+    final next = ops.setNodeKind(main, 'n2', StoryNodeKind.ending);
+    expect(StoryNodeKind.fromTags(next.nodeById('n2')!.tags), StoryNodeKind.ending);
+    expect(next.nodeById('n2')!.tags, isNot(contains('turning')));
   });
 }

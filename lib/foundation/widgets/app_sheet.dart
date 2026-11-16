@@ -74,7 +74,9 @@ Future<T?> showAppSheet<T>({
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const _AppSheetDragHandle(),
-                    Flexible(child: builder(sheetContext)),
+                    // Shrink-wrap to content; callers that need scroll must
+                    // bound their own scrollables (e.g. LimitedBox / max height).
+                    builder(sheetContext),
                   ],
                 ),
               )

@@ -1,4 +1,6 @@
-import 'dart:ui' show Offset;
+import 'dart:ui' show Color, Offset;
+
+import 'package:anoworld/foundation/graph/graph_node_card.dart';
 
 /// Portable graph node placement (no product/business fields).
 class GraphNodeData {
@@ -8,13 +10,17 @@ class GraphNodeData {
     required this.x,
     required this.y,
     this.subtitle,
-    this.width = 148,
-    this.height = 64,
+    this.badgeLabel,
+    this.badgeColor,
+    this.width = GraphNodeCard.defaultWidth,
+    this.height = 104,
   });
 
   final String id;
   final String label;
   final String? subtitle;
+  final String? badgeLabel;
+  final Color? badgeColor;
   final double x;
   final double y;
   final double width;
@@ -25,15 +31,20 @@ class GraphNodeData {
   GraphNodeData copyWith({
     String? label,
     String? subtitle,
+    String? badgeLabel,
+    Color? badgeColor,
     double? x,
     double? y,
     double? width,
     double? height,
+    bool clearBadge = false,
   }) {
     return GraphNodeData(
       id: id,
       label: label ?? this.label,
       subtitle: subtitle ?? this.subtitle,
+      badgeLabel: clearBadge ? null : (badgeLabel ?? this.badgeLabel),
+      badgeColor: clearBadge ? null : (badgeColor ?? this.badgeColor),
       x: x ?? this.x,
       y: y ?? this.y,
       width: width ?? this.width,

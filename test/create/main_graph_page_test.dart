@@ -26,6 +26,8 @@ void main() {
 
     expect(find.text('城门'), findsOneWidget);
     expect(find.text('客栈'), findsOneWidget);
+    expect(find.text('开场'), findsOneWidget);
+    expect(find.text('转折'), findsOneWidget);
     expect(find.text('小屏卡片'), findsOneWidget);
 
     await tester.tap(find.text('加一站'));
@@ -133,6 +135,7 @@ void main() {
 
     expect(find.text('这一站'), findsOneWidget);
     expect(find.text('本站目标'), findsOneWidget);
-    expect(find.text('连出去'), findsOneWidget);
+    expect(find.text('种类'), findsOneWidget);
+    expect(find.text('开场'), findsWidgets);
   });
 }

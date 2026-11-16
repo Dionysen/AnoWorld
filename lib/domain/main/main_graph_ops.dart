@@ -1,4 +1,5 @@
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/story_node_kind.dart';
 
 /// Immutable updates for Main nodes / edges (editor + generators).
 class MainGraphOps {
@@ -36,6 +37,7 @@ class MainGraphOps {
     required String nodeId,
     String? title,
     String? synopsis,
+    StoryNodeKind? kind,
   }) {
     final node = main.nodeById(nodeId);
     if (node == null) return main;
@@ -47,9 +49,13 @@ class MainGraphOps {
         synopsis: synopsis ?? node.synopsis,
         beatIds: node.beatIds,
         layout: node.layout,
-        tags: node.tags,
+        tags: kind == null ? node.tags : StoryNodeKind.apply(node.tags, kind),
       ),
     );
+  }
+
+  MainStory setNodeKind(MainStory main, String nodeId, StoryNodeKind kind) {
+    return updateNodeMeta(main, nodeId: nodeId, kind: kind);
   }
 
   /// Removes the node, its beats, and all incident edges.

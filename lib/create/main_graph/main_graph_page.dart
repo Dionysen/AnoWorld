@@ -1,8 +1,11 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
 import 'package:anoworld/domain/main/main_graph_ops.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/models/story_node_kind.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
+import 'package:anoworld/foundation/graph/graph_node_card.dart';
 import 'package:anoworld/foundation/graph/graph_viewport.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -10,6 +13,7 @@ import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
@@ -78,13 +82,18 @@ class _MainGraphPageState extends State<MainGraphPage> {
     setState(() => _project = next);
   }
 
-  List<GraphNodeData> _graphNodes(MainStory main) {
+  List<GraphNodeData> _graphNodes(MainStory main, BuildContext context) {
     return [
       for (final node in main.nodes)
         GraphNodeData(
           id: node.id,
           label: node.title,
           subtitle: node.synopsis,
+          badgeLabel: StoryNodeKind.fromTags(node.tags).label,
+          badgeColor: StoryNodeKindStyle.color(
+            context,
+            StoryNodeKind.fromTags(node.tags),
+          ),
           x: node.layout?.x ?? 40,
           y: node.layout?.y ?? 40,
         ),
@@ -115,21 +124,14 @@ class _MainGraphPageState extends State<MainGraphPage> {
       title: '新情节',
       synopsis: '写清这一站要发生什么',
       beatIds: const [],
-      layout: NodeLayout(x: 40 + (count % 4) * 180.0, y: 40 + (count ~/ 4) * 120.0),
-      tags: const [],
-    );
-    // Need outbound eventually — tag ending so validator allows until linked.
-    final withNode = _ops.upsertNode(
-      main,
-      StoryNode(
-        id: node.id,
-        title: node.title,
-        synopsis: node.synopsis,
-        beatIds: node.beatIds,
-        layout: node.layout,
-        tags: const ['ending'],
+      layout: NodeLayout(
+        x: 40 + (count % 4) * 200.0,
+        y: 40 + (count ~/ 4) * 140.0,
       ),
+      // Ending until linked so empty stations stay playable/valid.
+      tags: StoryNodeKind.apply(const [], StoryNodeKind.ending),
     );
+    final withNode = _ops.upsertNode(main, node);
     await _persist(withNode);
     setState(() => _selectedId = id);
   }
@@ -147,20 +149,10 @@ class _MainGraphPageState extends State<MainGraphPage> {
     final project = _project;
     if (project == null) return;
     var main = project.main;
-    // Clear ending tag on source when it gains an exit.
     final from = main.nodeById(fromId);
-    if (from != null && from.tags.contains('ending')) {
-      main = _ops.upsertNode(
-        main,
-        StoryNode(
-          id: from.id,
-          title: from.title,
-          synopsis: from.synopsis,
-          beatIds: from.beatIds,
-          layout: from.layout,
-          tags: from.tags.where((t) => t != 'ending').toList(growable: false),
-        ),
-      );
+    if (from != null &&
+        StoryNodeKind.fromTags(from.tags) == StoryNodeKind.ending) {
+      main = _ops.setNodeKind(main, fromId, StoryNodeKind.scene);
     }
     main = _ops.addEdge(
       main,
@@ -181,77 +173,124 @@ class _MainGraphPageState extends State<MainGraphPage> {
     if (node == null) return;
     final title = TextEditingController(text: node.title);
     final synopsis = TextEditingController(text: node.synopsis ?? '');
+    var kind = StoryNodeKind.fromTags(node.tags);
     final outs = _ops.outgoing(project.main, nodeId);
 
     await showAppSheet<void>(
       context: context,
-      size: AppSheetSize.half,
+      size: AppSheetSize.compact,
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(AppTheme.spaceMd),
-          child: ListView(
-            children: [
-              const AppSectionHeader('这一站'),
-              AppTextField(label: '标题', controller: title),
-              const SizedBox(height: AppTheme.spaceSm),
-              AppTextField(
-                label: '本站目标',
-                controller: synopsis,
-                minLines: 2,
-                maxLines: 4,
-              ),
-              const SizedBox(height: AppTheme.spaceMd),
-              const AppText('连出去', role: AppTextRole.caption),
-              const SizedBox(height: AppTheme.spaceXs),
-              if (outs.isEmpty)
-                const AppText('还没有连线，可在画布上从节点角标拉出', role: AppTextRole.caption)
-              else
-                ...outs.map((e) {
-                  final to = project.main.nodeById(e.to)?.title ?? e.to;
-                  return AppListTile(
-                    title: to,
-                    subtitle: e.kind == EdgeKind.branch ? '岔路' : '接着',
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.all(AppTheme.spaceMd),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const AppSectionHeader('这一站'),
+                  AppTextField(label: '标题', controller: title),
+                  const SizedBox(height: AppTheme.spaceSm),
+                  AppTextField(
+                    label: '本站目标',
+                    controller: synopsis,
+                    minLines: 2,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  AppSelectField(
+                    label: '种类',
+                    value: kind.label,
                     onTap: () async {
-                      await _persist(_ops.removeEdge(project.main, e.id));
+                      final picked = await showAppSheet<StoryNodeKind>(
+                        context: ctx,
+                        size: AppSheetSize.compact,
+                        builder: (pickCtx) {
+                          return Padding(
+                            padding: const EdgeInsets.all(AppTheme.spaceMd),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                for (final k in StoryNodeKind.values)
+                                  AppListTile(
+                                    title: k.label,
+                                    onTap: () =>
+                                        Navigator.of(pickCtx).pop(k),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                      if (picked != null) {
+                        setSheetState(() => kind = picked);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  const AppText('连出去', role: AppTextRole.caption),
+                  const SizedBox(height: AppTheme.spaceXs),
+                  if (outs.isEmpty)
+                    const AppText(
+                      '还没有连线，可在画布上从节点角标拉出',
+                      role: AppTextRole.caption,
+                    )
+                  else
+                    ...outs.map((e) {
+                      final to = project.main.nodeById(e.to)?.title ?? e.to;
+                      return AppListTile(
+                        title: to,
+                        subtitle:
+                            e.kind == EdgeKind.branch ? '岔路' : '接着',
+                        onTap: () async {
+                          await _persist(
+                            _ops.removeEdge(project.main, e.id),
+                          );
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                        },
+                      );
+                    }),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  AppButton(
+                    label: '保存',
+                    onPressed: () async {
+                      final main = _ops.updateNodeMeta(
+                        project.main,
+                        nodeId: nodeId,
+                        title: title.text.trim().isEmpty
+                            ? node.title
+                            : title.text.trim(),
+                        synopsis: synopsis.text.trim(),
+                        kind: kind,
+                      );
+                      await _persist(main);
                       if (ctx.mounted) Navigator.of(ctx).pop();
                     },
-                  );
-                }),
-              const SizedBox(height: AppTheme.spaceMd),
-              AppButton(
-                label: '保存',
-                onPressed: () async {
-                  final main = _ops.updateNodeMeta(
-                    project.main,
-                    nodeId: nodeId,
-                    title: title.text.trim().isEmpty
-                        ? node.title
-                        : title.text.trim(),
-                    synopsis: synopsis.text.trim(),
-                  );
-                  await _persist(main);
-                  if (ctx.mounted) Navigator.of(ctx).pop();
-                },
-                expanded: true,
+                    expanded: true,
+                  ),
+                  const SizedBox(height: AppTheme.spaceSm),
+                  AppButton(
+                    label: '删除这一站',
+                    variant: AppButtonVariant.ghost,
+                    onPressed: project.main.nodes.length <= 1
+                        ? null
+                        : () async {
+                            await _persist(
+                              _ops.removeNode(project.main, nodeId),
+                            );
+                            if (mounted) {
+                              setState(
+                                () => _selectedId =
+                                    _project?.main.startNodeId,
+                              );
+                            }
+                            if (ctx.mounted) Navigator.of(ctx).pop();
+                          },
+                  ),
+                ],
               ),
-              const SizedBox(height: AppTheme.spaceSm),
-              AppButton(
-                label: '删除这一站',
-                variant: AppButtonVariant.ghost,
-                onPressed: project.main.nodes.length <= 1
-                    ? null
-                    : () async {
-                        await _persist(_ops.removeNode(project.main, nodeId));
-                        if (mounted) {
-                          setState(
-                            () => _selectedId = _project?.main.startNodeId,
-                          );
-                        }
-                        if (ctx.mounted) Navigator.of(ctx).pop();
-                      },
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -261,7 +300,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
 
   Widget _buildCanvas(MainStory main) {
     return GraphViewport(
-      nodes: _graphNodes(main),
+      nodes: _graphNodes(main, context),
       edges: _graphEdges(main),
       selectedId: _selectedId,
       onSelect: (id) => setState(() => _selectedId = id),
@@ -360,42 +399,35 @@ class _MainGraphPageState extends State<MainGraphPage> {
                       _openNodeEditor(node.id);
                     }
                   },
-                  child: SizedBox(
-                    width: cardW,
-                    child: Material(
-                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.spaceMd,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppTheme.spaceMd),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppText(node.title, role: AppTextRole.title),
-                            if (node.synopsis != null &&
-                                node.synopsis!.isNotEmpty) ...[
-                              const SizedBox(height: AppTheme.spaceSm),
-                              AppText(
-                                node.synopsis!,
-                                role: AppTextRole.body,
-                                maxLines: 4,
-                              ),
-                            ],
-                            const SizedBox(height: AppTheme.spaceSm),
-                            AppText(
-                              showOut
-                                  ? '右半边是连出去的站'
-                                  : showIn
-                                      ? '左半边是连进来的站'
-                                      : '左右滑查看连接',
-                              role: AppTextRole.caption,
-                            ),
-                          ],
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GraphNodeCard(
+                        title: node.title,
+                        subtitle: node.synopsis,
+                        badgeLabel:
+                            StoryNodeKind.fromTags(node.tags).label,
+                        badgeColor: StoryNodeKindStyle.color(
+                          context,
+                          StoryNodeKind.fromTags(node.tags),
                         ),
+                        selected: true,
+                        elevated: true,
+                        width: cardW,
+                        titleMaxLines: 2,
+                        subtitleMaxLines: 4,
                       ),
-                    ),
+                      const SizedBox(height: AppTheme.spaceSm),
+                      AppText(
+                        showOut
+                            ? '右半边是连出去的站'
+                            : showIn
+                                ? '左半边是连进来的站'
+                                : '左右滑查看连接',
+                        role: AppTextRole.caption,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
               ),

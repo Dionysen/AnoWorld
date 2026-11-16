@@ -1,6 +1,7 @@
 import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/story_node_kind.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 
 /// Maps model JSON blobs into domain layers for staged create.
@@ -122,7 +123,12 @@ class StageResultMapper {
             x: (i % 4) * 220.0,
             y: (i ~/ 4) * 140.0,
           ),
-          tags: ending ? const <String>['ending'] : const <String>[],
+          tags: StoryNodeKind.apply(
+            const <String>[],
+            ending
+                ? StoryNodeKind.ending
+                : (i == 0 ? StoryNodeKind.opening : StoryNodeKind.scene),
+          ),
         ),
       );
     }
@@ -312,7 +318,7 @@ class StageResultMapper {
         synopsis: '故事在此收束',
         beatIds: const <String>[],
         layout: NodeLayout(x: nodes.length * 80.0, y: 280),
-        tags: const <String>['ending'],
+        tags: StoryNodeKind.apply(const <String>[], StoryNodeKind.ending),
       ),
     );
     return id;

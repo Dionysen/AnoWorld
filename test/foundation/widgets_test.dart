@@ -188,6 +188,12 @@ void main() {
     expect(half.height, closeTo(screen.height * AppTheme.sheetHalfHeightFactor, 1));
     expect(full.height, closeTo(screen.height * AppTheme.sheetFullHeightFactor, 1));
     expect(full.height, greaterThan(half.height));
+
+    final compact = await openAndMeasure(AppSheetSize.compact);
+    expect(
+      compact.height,
+      lessThan(screen.height * AppTheme.sheetHalfHeightFactor),
+    );
   });
 
   testWidgets('AppButton variants share the same height', (tester) async {

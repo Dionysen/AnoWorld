@@ -72,6 +72,9 @@ abstract final class AppTheme {
   static const double pagePadding = spaceMd;
   static const double buttonHeight = 36;
 
+  /// Elevation for raised surfaces (cards that should cast a shadow).
+  static const double surfaceElevation = 8;
+
   /// Side/bottom inset for floating sheets (narrower than the page).
   static const double sheetInset = spaceMd;
 
