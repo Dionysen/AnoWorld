@@ -44,6 +44,38 @@ void main() {
     expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
   });
 
+  testWidgets('AppListTile subtitle uses space up to the trailing control', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    const subtitle = '浅色与深色各记一套';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const Scaffold(
+          body: Padding(
+            padding: EdgeInsets.all(16),
+            child: AppListTile(
+              title: '主题预设',
+              subtitle: subtitle,
+              icon: Icons.style_outlined,
+              trailing: Icon(Icons.keyboard_arrow_down, size: 20),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final textRight = tester.getBottomRight(find.text(subtitle)).dx;
+    final trailingLeft =
+        tester.getTopLeft(find.byIcon(Icons.keyboard_arrow_down)).dx;
+    // Text should reach near the chevron — not stop in the middle.
+    expect(trailingLeft - textRight, lessThan(40));
+    expect(find.text(subtitle), findsOneWidget);
+  });
+
   testWidgets('AppSelectField labels outside like text field', (tester) async {
     var tapped = false;
     await tester.pumpWidget(

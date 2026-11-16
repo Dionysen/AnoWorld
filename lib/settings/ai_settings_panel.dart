@@ -47,7 +47,7 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
               const AppSectionHeader('选择供应商'),
               const SizedBox(height: AppTheme.spaceXs),
               const AppText(
-                '写故事和画图用的服务商不一样，请按用途分开选择。',
+                '写故事与生图请分开选择',
                 role: AppTextRole.caption,
               ),
               const SizedBox(height: AppTheme.spaceGroup),
@@ -272,7 +272,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
   Widget build(BuildContext context) {
     return _ChannelScaffold(
       title: '文本 AI',
-      caption: '用来写对白与剧情。选好服务商和模型后会自动记住。',
+      caption: '写对白与剧情',
       providerLabel: widget.endpoint.kind.label,
       onPickKind: widget.onPickKind,
       baseUrl: _baseUrl,
@@ -470,7 +470,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
   Widget build(BuildContext context) {
     return _ChannelScaffold(
       title: '生图 AI',
-      caption: '用来生成插画。与写故事的服务商分开设置，互不影响。',
+      caption: '生成插画，与文本分开',
       providerLabel: widget.endpoint.kind.label,
       onPickKind: widget.onPickKind,
       baseUrl: _baseUrl,

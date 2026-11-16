@@ -61,22 +61,22 @@ extension ThemeTokenLabels on ThemeToken {
       };
 
   String get description => switch (this) {
-        ThemeToken.editorSurface => '整个窗口背后的底色。',
-        ThemeToken.sidebarSurface => '侧栏、弹层这类面板的底色。',
-        ThemeToken.controlSurface => '按钮、菜单和输入框的底色。',
-        ThemeToken.border => '按钮和输入框的描边颜色。',
-        ThemeToken.divider => '列表、分区之间的细线颜色。',
-        ThemeToken.primaryText => '标题和正文的颜色。',
-        ThemeToken.mutedText => '提示、说明这类次要文字的颜色。',
-        ThemeToken.accent => '选中、高亮时用的主色。',
-        ThemeToken.secondaryAccent => '需要和主强调色区分时用的第二种颜色。',
-        ThemeToken.tertiaryAccent => '再需要区分时用的第三种颜色。',
-        ThemeToken.cursor => '输入时闪烁的光标颜色。',
-        ThemeToken.chatBackground => '聊天页没有背景图时的底色。',
-        ThemeToken.characterBubble => '角色发言气泡的底色。',
-        ThemeToken.userBubble => '你发言气泡的底色。',
-        ThemeToken.chatText => '消息里普通叙述的颜色。',
-        ThemeToken.dialogueText => '引号里说的话会用这个颜色，并加粗。',
+        ThemeToken.editorSurface => '窗口底色',
+        ThemeToken.sidebarSurface => '侧栏与弹层',
+        ThemeToken.controlSurface => '按钮、菜单、输入框',
+        ThemeToken.border => '控件描边',
+        ThemeToken.divider => '列表分隔线',
+        ThemeToken.primaryText => '标题与正文',
+        ThemeToken.mutedText => '提示与说明',
+        ThemeToken.accent => '选中与高亮',
+        ThemeToken.secondaryAccent => '第二强调',
+        ThemeToken.tertiaryAccent => '第三强调',
+        ThemeToken.cursor => '输入光标',
+        ThemeToken.chatBackground => '聊天页底色',
+        ThemeToken.characterBubble => '角色气泡',
+        ThemeToken.userBubble => '我的气泡',
+        ThemeToken.chatText => '叙述文字',
+        ThemeToken.dialogueText => '引号对白',
       };
 
   IconData get icon => switch (this) {

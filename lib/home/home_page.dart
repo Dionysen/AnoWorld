@@ -202,7 +202,7 @@ class _HomePageState extends State<HomePage> {
           else if (_projects.isEmpty)
             AppEmptyState(
               message: '还没有作品',
-              detail: '导入角色卡、粘贴故事，或先试用内置短样例。',
+              detail: '导入、粘贴故事，或试用内置样例',
               action: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

@@ -69,7 +69,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('使用中'), findsWidgets);
 
-    expect(find.textContaining('电脑可选本机字体'), findsOneWidget);
+    expect(find.textContaining('系统字体或导入文件'), findsOneWidget);
 
     await tester.ensureVisible(find.byType(Slider).first);
     await tester.pumpAndSettle();

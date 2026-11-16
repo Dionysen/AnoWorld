@@ -59,7 +59,7 @@ Widget _bodyFor(SettingsSection section) {
           AppSectionHeader('通用'),
           AppEmptyState(
             message: '这里还没有可改的选项',
-            detail: '语言、启动方式等会放在这里。想改外观请打开「外观」。',
+            detail: '语言、启动等将放在这里',
           ),
         ],
       ),

@@ -2,7 +2,7 @@
 
 本文描述**用户看见和做什么**，不是实现细节。数据落点对照 [Core.md](./Core.md)、[MainBeat.md](./MainBeat.md)。功能设计变更时同步改本文，避免体验和 schema 各说各话。
 
-界面文案必须面向用户：短、口语、说清能做什么；不出现 Beat、Edge、Transition、schema、token、NativeTavern、LLM、「接入」等内部词或注释口吻。对用户说：作品、设定、角色、情节、场景、对白、选项。技术设置用通俗标签（服务地址、密钥）。更细约定见 `.cursor/rules/ui-copy.mdc`。
+界面文案必须面向用户：短、口语、说清能做什么；不出现 Beat、Edge、Transition、schema、token、NativeTavern、LLM、「接入」等内部词或注释口吻。副标题/说明行简明扼要、不说教，末尾不加句号。对用户说：作品、设定、角色、情节、场景、对白、选项。技术设置用通俗标签（服务地址、密钥）。更细约定见 `.cursor/rules/ui-copy.mdc`。
 
 ## 结论：schema 不该由用户填
 

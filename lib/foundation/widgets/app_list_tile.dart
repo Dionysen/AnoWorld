@@ -51,7 +51,7 @@ class AppListTile extends StatelessWidget {
               ],
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     AppText(
                       title,
@@ -63,20 +63,17 @@ class AppListTile extends StatelessWidget {
                       AppText(
                         subtitle!,
                         role: AppTextRole.caption,
-                        maxLines: 1,
+                        maxLines: 2,
                       ),
                     ],
                   ],
                 ),
               ),
+              // Trailing stays intrinsic-width so title/subtitle can use the
+              // whole middle — no Flexible blank between text and controls.
               if (trailing != null) ...[
                 const SizedBox(width: AppTheme.spaceSm),
-                Flexible(
-                  child: Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: trailing!,
-                  ),
-                ),
+                trailing!,
               ],
             ],
           ),

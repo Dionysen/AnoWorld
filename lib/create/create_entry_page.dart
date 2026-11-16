@@ -14,11 +14,9 @@ extension CreateEntryKindLabels on CreateEntryKind {
       };
 
   String get blurb => switch (this) {
-        CreateEntryKind.characterCard =>
-          '选择酒馆角色卡，确认摘取内容后生成短开场。',
-        CreateEntryKind.novel => '贴一段剧情，拆成能玩的设定、角色与情节。',
-        CreateEntryKind.stagedPrompts =>
-          '按世界 → 人物 → 走向逐步写一两句，走到走向即可开玩。',
+        CreateEntryKind.characterCard => '导入角色卡，生成短开场',
+        CreateEntryKind.novel => '粘贴剧情，拆成可玩内容',
+        CreateEntryKind.stagedPrompts => '按世界 → 人物 → 走向逐步填写',
       };
 }
 
@@ -39,7 +37,7 @@ class CreateEntryPage extends StatelessWidget {
           AppText(kind.blurb, role: AppTextRole.body),
           const AppEmptyState(
             message: '这条创作路径马上就好',
-            detail: '现在可以先打开已有作品，或新建一个空白作品。',
+            detail: '可先打开已有作品或新建空白作品',
           ),
         ],
       ),
