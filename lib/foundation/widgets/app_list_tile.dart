@@ -59,7 +59,12 @@ class AppListTile extends StatelessWidget {
               ),
               if (trailing != null) ...[
                 const SizedBox(width: AppTheme.spaceSm),
-                trailing!,
+                Flexible(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: trailing!,
+                  ),
+                ),
               ],
             ],
           ),

@@ -10,7 +10,7 @@ void main() {
   test('AppTheme embeds AppUiTokens from appearance', () {
     final theme = AppTheme.dark(
       const AppearanceSettings(
-        typeface: AppTypeface.sans,
+        fontFamily: 'Roboto',
         fontSize: 16.5,
         cornerRadius: 16,
       ),

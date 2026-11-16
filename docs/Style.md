@@ -10,11 +10,11 @@
 | --- | --- | --- |
 | 主题模式 | 跟随系统 / 浅色 / 深色 | `AppearanceSettings.mode` → `MaterialApp.themeMode` |
 | 配色 | 午夜 / 岩灰 / 薄雾 / 黑色 | `AppearanceSettings.preset` → `AppTheme.tokensFor` |
-| 字体 | 系统默认 / 无衬线（Roboto） | `AppearanceSettings.typeface` |
+| 字体 | 系统默认，或本机/导入字体文件（对齐 NativeTavern） | `AppearanceSettings.fontFamily` + `fontPath`；目录与探测在 `foundation/fonts/`，选择 UI 为 `AppFontPickerRow` |
 | 字体大小 | 滑块 **12–20 px**，步长 **0.5 px**（默认 15） | `AppearanceSettings.fontSize` → body 字号；其它角色按相对 15px 比例缩放 |
 | 圆角大小 | 滑块 0–24 px，步长 1（默认 10）；**曲率连续**（超椭圆） | `AppearanceSettings.cornerRadius` → `AppUiTokens.radius` / `AppShapes.continuous` |
 
-大小类控件统一用基础设施 `AppSlider`（参数：`min` / `max` / `step`），区间常量在 `AppearanceUiRange`。圆角一律走 `RoundedSuperellipseBorder`（`AppShapes` / `AppContinuousInputBorder`），不用普通圆弧 `BorderRadius` 裁切控件外形。实现：`AppTheme.dataFor` / `AppTheme.light|dark(appearance)`，运行时度量在 `AppUiTokens`。输入框内边距默认 `12×12`（`AppTheme.fieldPadding`）。间距常量：`AppTheme.spaceXs/Sm/Inline/Md/Lg`；行内控件间距用 `spaceInline`（亦挂在 `AppUiTokens.spaceInline`）。按钮高度 `AppTheme.buttonHeight`（40）；`AppSelectField` 值区与之对齐。`AppSelectField`：布局对齐 `AppTextField`（标签在框外上方），值区同款描边/填充，可带右侧 `trailing`（如探测按钮）。组件在 `lib/foundation/theme/`、`lib/foundation/widgets/`；业务页只用封装控件（`AppButton`、`AppTextField`、`AppSelectField`、`AppSlider`、`AppSegmented`、`AppOptionGroup`、`AppListTile`、`AppSurface` 等）。
+大小类控件统一用基础设施 `AppSlider`（参数：`min` / `max` / `step`），区间常量在 `AppearanceUiRange`。圆角一律走 `RoundedSuperellipseBorder`（`AppShapes` / `AppContinuousInputBorder`），不用普通圆弧 `BorderRadius` 裁切控件外形。实现：`AppTheme.dataFor` / `AppTheme.light|dark(appearance)`，运行时度量在 `AppUiTokens`。输入框内边距默认 `12×12`（`AppTheme.fieldPadding`）。间距常量：`AppTheme.spaceXs/Sm/Inline/Md/Lg`；行内控件间距用 `spaceInline`（亦挂在 `AppUiTokens.spaceInline`）。按钮高度 `AppTheme.buttonHeight`（40）；`AppSelectField` 值区与之对齐。`AppSelectField`：布局对齐 `AppTextField`（标签在框外上方），值区同款描边/填充，可带右侧 `trailing`（如探测按钮）。组件在 `lib/foundation/theme/`、`lib/foundation/widgets/`；业务页只用封装控件（`AppButton`、`AppTextField`、`AppSelectField`、`AppSlider`、`AppSegmented`、`AppOptionGroup`、`AppListTile`、`AppFontPickerRow`、`AppSurface` 等）。
 
 ## 布局与窗口
 

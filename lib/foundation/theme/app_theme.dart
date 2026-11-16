@@ -144,7 +144,7 @@ abstract final class AppTheme {
     );
     final radius = appearance.cornerRadius;
     final bodyPx = appearance.fontSize;
-    final fontFamily = appearance.typeface.fontFamily;
+    final fontFamily = appearance.fontFamily;
     final ui = AppUiTokens(
       radius: radius,
       fontSize: bodyPx,

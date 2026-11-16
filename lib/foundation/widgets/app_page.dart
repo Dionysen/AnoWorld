@@ -46,14 +46,25 @@ class AppPage extends StatelessWidget {
           final showBar = barHeight > 0;
           final showTitle =
               showBar && barHeight >= metrics.statusInset + 20;
-          final backWidth = onBack == null ? 0.0 : 36.0;
+          // Width left for the title row after chrome insets.
+          final rowWidth = math.max(
+            0.0,
+            constraints.maxWidth -
+                metrics.leadingInset -
+                metrics.trailingInset,
+          );
+          // Back needs ~36; hide it (and then the title) when the band is too
+          // narrow instead of painting yellow/black overflow stripes.
+          final showBack = onBack != null && rowWidth >= 36;
+          final showTitleText = rowWidth >= (showBack ? 52 : 24);
           final titleReserve = metrics.leadingInset +
               titleSpacing +
               metrics.trailingInset +
-              backWidth +
+              (showBack ? 36.0 : 0.0) +
               48;
-          final showActions =
-              actions.isNotEmpty && constraints.maxWidth >= titleReserve + 72;
+          final showActions = actions.isNotEmpty &&
+              showTitleText &&
+              constraints.maxWidth >= titleReserve + 72;
 
           return Column(
             children: [
@@ -71,25 +82,28 @@ class AppPage extends StatelessWidget {
                                 math.max(0, barHeight - 20),
                               ),
                               left: metrics.leadingInset +
-                                  (onBack == null ? titleSpacing : 0),
+                                  (showBack ? 0 : titleSpacing),
                               right: metrics.trailingInset,
                             ),
                             child: Row(
                               children: [
-                                if (onBack != null)
+                                if (showBack)
                                   AppIconButton(
                                     icon: Icons.arrow_back,
                                     tooltip: '返回',
                                     onPressed: onBack,
                                   ),
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: titleStyle,
-                                  ),
-                                ),
+                                if (showTitleText)
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: titleStyle,
+                                    ),
+                                  )
+                                else
+                                  const Spacer(),
                                 if (showActions) ...actions,
                               ],
                             ),

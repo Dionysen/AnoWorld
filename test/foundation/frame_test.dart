@@ -81,6 +81,34 @@ void main() {
     await tester.binding.setSurfaceSize(null);
   });
 
+  testWidgets('page with back hides chrome when insets leave no room', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: ImmersiveScope(
+          metrics: const ImmersiveMetrics(
+            active: true,
+            titleBarHeight: 36,
+            leadingInset: 40,
+            trailingInset: 96,
+          ),
+          child: AppPage(
+            title: '设置',
+            onBack: () {},
+            body: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    await tester.binding.setSurfaceSize(const Size(160, 200));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byIcon(Icons.arrow_back), findsNothing);
+    await tester.binding.setSurfaceSize(null);
+  });
+
   testWidgets(
     'window buttons sit at the top-right when the runner enables them',
     (tester) async {

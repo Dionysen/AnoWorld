@@ -1,6 +1,7 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_font_picker.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
@@ -8,8 +9,23 @@ import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/widgets.dart';
 
-class AppearanceSettingsPanel extends StatelessWidget {
+class AppearanceSettingsPanel extends StatefulWidget {
   const AppearanceSettingsPanel({super.key});
+
+  @override
+  State<AppearanceSettingsPanel> createState() =>
+      _AppearanceSettingsPanelState();
+}
+
+class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AppScope.settingsOf(context).ensureFontsLoaded();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,18 +51,16 @@ class AppearanceSettingsPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader('界面'),
-            AppOptionGroup<AppTypeface>(
+            AppFontPickerRow(
               label: '字体',
-              value: current.typeface,
-              onChanged: (typeface) {
-                controller.updateAppearance(
-                  current.copyWith(typeface: typeface),
-                );
-              },
-              options: [
-                for (final face in AppTypeface.values)
-                  AppSegmentOption(value: face, label: face.label),
-              ],
+              description: '点按选择字体；电脑会列出本机已安装的字体，手机可导入字体文件。',
+              fonts: controller.fontCatalog,
+              selectedPath: current.fontPath,
+              selectedLabel: controller.selectedFontLabel(),
+              isLoading: controller.fontsLoading,
+              onSelected: controller.selectFont,
+              onImportPath: controller.importFontFromPath,
+              onDeleteFont: controller.deleteImportedFont,
             ),
             const SizedBox(height: AppTheme.spaceMd),
             AppSlider(

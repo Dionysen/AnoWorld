@@ -31,7 +31,7 @@ void main() {
       const AppearanceSettings(
         mode: AppThemeModeSetting.light,
         preset: AppThemePreset.mist,
-        typeface: AppTypeface.sans,
+        fontFamily: 'Roboto',
         fontSize: 16.5,
         cornerRadius: 16,
       ),

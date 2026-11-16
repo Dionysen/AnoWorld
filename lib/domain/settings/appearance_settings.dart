@@ -50,28 +50,6 @@ extension AppThemePresetX on AppThemePreset {
   }
 }
 
-enum AppTypeface { system, sans }
-
-extension AppTypefaceX on AppTypeface {
-  String get label => switch (this) {
-        AppTypeface.system => '系统默认',
-        AppTypeface.sans => '无衬线',
-      };
-
-  /// `null` keeps the platform default; otherwise Material-bundled Roboto.
-  String? get fontFamily => switch (this) {
-        AppTypeface.system => null,
-        AppTypeface.sans => 'Roboto',
-      };
-
-  static AppTypeface parse(String? raw) {
-    return AppTypeface.values.firstWhere(
-      (t) => t.name == raw,
-      orElse: () => AppTypeface.system,
-    );
-  }
-}
-
 /// Slider ranges for appearance size controls (settings UI + clamp on load).
 abstract final class AppearanceUiRange {
   /// Body text size in logical px.
@@ -90,14 +68,20 @@ class AppearanceSettings {
   const AppearanceSettings({
     this.mode = AppThemeModeSetting.dark,
     this.preset = AppThemePreset.midnight,
-    this.typeface = AppTypeface.system,
+    this.fontFamily,
+    this.fontPath,
     this.fontSize = AppearanceUiRange.fontSizeDefault,
     this.cornerRadius = AppearanceUiRange.cornerRadiusDefault,
   });
 
   final AppThemeModeSetting mode;
   final AppThemePreset preset;
-  final AppTypeface typeface;
+
+  /// Runtime [FontLoader] family id (or a bundled name like Roboto). Null = system.
+  final String? fontFamily;
+
+  /// Durable font file path used to re-register [fontFamily] on launch.
+  final String? fontPath;
 
   /// Body text size in logical pixels (see [AppearanceUiRange]).
   final double fontSize;
@@ -108,14 +92,17 @@ class AppearanceSettings {
   AppearanceSettings copyWith({
     AppThemeModeSetting? mode,
     AppThemePreset? preset,
-    AppTypeface? typeface,
+    String? fontFamily,
+    String? fontPath,
     double? fontSize,
     double? cornerRadius,
+    bool clearFont = false,
   }) {
     return AppearanceSettings(
       mode: mode ?? this.mode,
       preset: preset ?? this.preset,
-      typeface: typeface ?? this.typeface,
+      fontFamily: clearFont ? null : fontFamily ?? this.fontFamily,
+      fontPath: clearFont ? null : fontPath ?? this.fontPath,
       fontSize: fontSize ?? this.fontSize,
       cornerRadius: cornerRadius ?? this.cornerRadius,
     );
@@ -124,16 +111,29 @@ class AppearanceSettings {
   Map<String, dynamic> toJson() => <String, dynamic>{
         'mode': mode.name,
         'preset': preset.name,
-        'typeface': typeface.name,
+        if (fontFamily != null) 'fontFamily': fontFamily,
+        if (fontPath != null) 'fontPath': fontPath,
         'fontSize': fontSize,
         'cornerRadius': cornerRadius,
       };
 
   factory AppearanceSettings.fromJson(Map<String, dynamic> json) {
+    var fontFamily = json.optionalString('fontFamily');
+    var fontPath = json.optionalString('fontPath');
+
+    // Migrate old typeface enum: system → default; sans → Roboto (no path).
+    if (fontFamily == null && fontPath == null) {
+      final typeface = json.optionalString('typeface');
+      if (typeface == 'sans') {
+        fontFamily = 'Roboto';
+      }
+    }
+
     return AppearanceSettings(
       mode: AppThemeModeSettingX.parse(json.optionalString('mode')),
       preset: AppThemePresetX.parse(json.optionalString('preset')),
-      typeface: AppTypefaceX.parse(json.optionalString('typeface')),
+      fontFamily: fontFamily,
+      fontPath: fontPath,
       fontSize: _parseFontSize(json['fontSize'] ?? json['fontScale']),
       cornerRadius: _parseCornerRadius(json['cornerRadius']),
     );
@@ -141,8 +141,7 @@ class AppearanceSettings {
 
   static double _snapFontSize(double value) {
     final step = AppearanceUiRange.fontSizeStep;
-    final snapped =
-        (value / step).round() * step;
+    final snapped = (value / step).round() * step;
     return snapped.clamp(
       AppearanceUiRange.fontSizeMin,
       AppearanceUiRange.fontSizeMax,

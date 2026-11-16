@@ -63,8 +63,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('使用中'), findsOneWidget);
 
-    await tester.tap(find.text('无衬线'));
-    await tester.pumpAndSettle();
+    expect(find.textContaining('本机已安装的字体'), findsOneWidget);
 
     expect(find.byType(Slider), findsNWidgets(2));
     await tester.drag(find.byType(Slider).first, const Offset(40, 0));
