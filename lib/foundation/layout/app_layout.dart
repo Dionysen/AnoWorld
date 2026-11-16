@@ -22,6 +22,9 @@ abstract final class AppLayout {
   static const double bottomNavHorizontalInset = 16;
   static const double bottomNavBottomInset = 10;
 
+  /// Frosted-glass blur for the capsule (`BackdropFilter` sigma).
+  static const double bottomNavBlurSigma = 28;
+
   /// Content width (after rail) needed for secondary + detail.
   static double get threePaneContentMinWidth =>
       secondaryPaneWidth + paneDividerWidth + detailPaneMinWidth;

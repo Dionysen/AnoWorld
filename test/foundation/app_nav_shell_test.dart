@@ -41,11 +41,9 @@ void main() {
     expect(find.text('外观'), findsOneWidget);
     expect(find.text('通用'), findsOneWidget);
 
-    final capsule = tester.widgetList<Material>(find.byType(Material)).firstWhere(
-      (m) => m.elevation == 10,
-    );
-    expect(capsule.elevation, 10);
-    expect(capsule.shape, isNotNull);
+    expect(find.byType(BackdropFilter), findsOneWidget);
+    final blur = tester.widget<BackdropFilter>(find.byType(BackdropFilter));
+    expect(blur.filter, isNotNull);
 
     // Floating insets: capsule content stays inside horizontal margins.
     final labelLeft = tester.getTopLeft(find.text('通用')).dx;

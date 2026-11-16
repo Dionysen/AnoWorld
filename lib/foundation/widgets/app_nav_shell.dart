@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../frame/immersive_frame.dart';
@@ -358,10 +360,17 @@ class _BottomNav extends StatelessWidget {
     // viewPadding: ignore body MediaQuery padding inflation from the shell.
     final bottom = MediaQuery.viewPaddingOf(context).bottom;
     const height = AppLayout.bottomNavHeight;
+    final radius = height / 2;
+    final isDark = theme.brightness == Brightness.dark;
     // Capsule ends: radius = half height (independent of control corner slider).
     final capsule = AppShapes.continuous(
-      radius: height / 2,
-      side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.55)),
+      radius: radius,
+      side: BorderSide(
+        color: theme.colorScheme.outline.withValues(alpha: isDark ? 0.45 : 0.35),
+      ),
+    );
+    final glassFill = theme.colorScheme.surfaceContainerHighest.withValues(
+      alpha: isDark ? 0.32 : 0.48,
     );
 
     return Padding(
@@ -371,26 +380,48 @@ class _BottomNav extends StatelessWidget {
         AppLayout.bottomNavHorizontalInset,
         bottom + AppLayout.bottomNavBottomInset,
       ),
-      child: Material(
-        color: theme.colorScheme.surfaceContainerHighest,
-        elevation: 10,
-        shadowColor: Colors.black.withValues(alpha: 0.45),
-        surfaceTintColor: Colors.transparent,
-        shape: capsule,
-        clipBehavior: Clip.antiAlias,
-        child: SizedBox(
-          height: height,
-          child: Row(
-            children: [
-              for (var i = 0; i < destinations.length; i++)
-                Expanded(
-                  child: _BottomNavButton(
-                    item: destinations[i],
-                    selected: i == selectedIndex,
-                    onTap: () => onDestinationSelected(i),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.18),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipPath(
+          clipper: ShapeBorderClipper(shape: capsule),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: AppLayout.bottomNavBlurSigma,
+              sigmaY: AppLayout.bottomNavBlurSigma,
+            ),
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                color: glassFill,
+                shape: capsule,
+              ),
+              child: Material(
+                type: MaterialType.transparency,
+                child: SizedBox(
+                  height: height,
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < destinations.length; i++)
+                        Expanded(
+                          child: _BottomNavButton(
+                            item: destinations[i],
+                            selected: i == selectedIndex,
+                            onTap: () => onDestinationSelected(i),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-            ],
+              ),
+            ),
           ),
         ),
       ),

@@ -34,7 +34,7 @@
 | 竖屏 / 窄屏 | 宽度 `< 600` | **悬浮胶囊底栏**（左右/底边留白，两端全圆角；选中项轻强调底；通用 / 外观 / AI / 关于） |
 | 横屏 / 大屏 | 宽度 `≥ 600` | **左侧导航栏**（同上分区） |
 
-窄屏底栏尺寸见 `AppLayout.bottomNavHeight` / `bottomNavHorizontalInset` / `bottomNavBottomInset`；胶囊圆角固定为高度一半，不跟控件圆角滑块走。胶囊以 `Stack` 叠在内容之上，四周留白透明透出页面；`AppPage` 不预扣底边，`AppPageBody` 读 `MediaQuery.padding.bottom`（壳层会加上胶囊高度）以免内容被挡。
+窄屏底栏尺寸见 `AppLayout.bottomNavHeight` / `bottomNavHorizontalInset` / `bottomNavBottomInset` / `bottomNavBlurSigma`；胶囊圆角固定为高度一半，不跟控件圆角滑块走。胶囊以 `Stack` 叠在内容之上，四周留白透明；本体为半透明表面 + `BackdropFilter` 毛玻璃模糊（对齐新版 iOS 胶囊质感）。`AppPage` 不预扣底边，`AppPageBody` 读 `MediaQuery.padding.bottom`（壳层会加上胶囊高度）以免内容被挡。
 
 日后若作品区也要多层壳，再在对应页面复用 `AppNavShell`，不要挂到首页根上。
 
