@@ -291,6 +291,48 @@ void main() {
     expect(port, 'e2');
   });
 
+  testWidgets('focusSelected locks camera onto selected node', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 300,
+            child: GraphViewport(
+              nodes: const [
+                GraphNodeData(
+                  id: 'a',
+                  label: 'Alpha',
+                  x: 40,
+                  y: 40,
+                  width: 120,
+                  height: 80,
+                ),
+              ],
+              edges: const [],
+              selectedId: 'a',
+              focusSelected: true,
+              onSelect: (_) {},
+              onMove: (_, __, ___) {},
+              onConnect: (_, __, ___) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    expect(viewer.panEnabled, isFalse);
+    expect(viewer.scaleEnabled, isFalse);
+    final scale = viewer.transformationController!.value.getMaxScaleOnAxis();
+    expect(scale, greaterThan(1.0));
+    expect(find.text('Alpha'), findsOneWidget);
+  });
+
   testWidgets('chip pan notifies onMove callback', (tester) async {
     var panned = false;
     await tester.pumpWidget(

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_edge_painter.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
@@ -20,6 +22,7 @@ class GraphViewport extends StatefulWidget {
     this.onAddOutput,
     this.onOpenOutput,
     this.onOpenNode,
+    this.focusSelected = false,
     this.minScale = 0.4,
     this.maxScale = 2.5,
   });
@@ -39,6 +42,9 @@ class GraphViewport extends StatefulWidget {
   /// Open editor for a wired output port (edge id).
   final void Function(String nodeId, String portId)? onOpenOutput;
   final ValueChanged<String>? onOpenNode;
+
+  /// When true, camera locks onto [selectedId] (centered + zoomed). Same graph.
+  final bool focusSelected;
   final double minScale;
   final double maxScale;
 
@@ -46,15 +52,56 @@ class GraphViewport extends StatefulWidget {
   State<GraphViewport> createState() => _GraphViewportState();
 }
 
-class _GraphViewportState extends State<GraphViewport> {
+class _GraphViewportState extends State<GraphViewport>
+    with SingleTickerProviderStateMixin {
   final _transform = TransformationController();
   final _viewerKey = GlobalKey();
   String? _linkFromId;
   String? _linkFromPortId;
   Offset? _draftPointer;
   bool _draggingNode = false;
+  Size _viewportSize = Size.zero;
+  late final AnimationController _focusAnim;
+  Animation<Matrix4>? _focusTween;
 
   static const double _portHitRadius = 48;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    )..addListener(() {
+        final tween = _focusTween;
+        if (tween != null) {
+          _transform.value = tween.value;
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _focusAnim.dispose();
+    _transform.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant GraphViewport oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final focusChanged = oldWidget.focusSelected != widget.focusSelected;
+    final selectionChanged = oldWidget.selectedId != widget.selectedId;
+    final nodesMoved = oldWidget.nodes != widget.nodes;
+    if (widget.focusSelected &&
+        (focusChanged || selectionChanged || nodesMoved)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusCamera(animate: !focusChanged || selectionChanged);
+      });
+    } else if (!widget.focusSelected && focusChanged) {
+      _animateTransform(Matrix4.identity());
+    }
+  }
 
   Offset? _scenePoint(Offset global) {
     final box = _viewerKey.currentContext?.findRenderObject() as RenderBox?;
@@ -156,7 +203,47 @@ class _GraphViewportState extends State<GraphViewport> {
         return;
       }
     }
-    _selectNode(null);
+    if (!widget.focusSelected) {
+      _selectNode(null);
+    }
+  }
+
+  Matrix4 _matrixForNode(GraphNodeData node, Size viewport) {
+    final nw = math.max(node.resolvedWidth, 1.0);
+    final nh = math.max(node.resolvedHeight, 1.0);
+    final scale = math
+        .min(viewport.width * 0.72 / nw, viewport.height * 0.55 / nh)
+        .clamp(widget.minScale, widget.maxScale);
+    final cx = node.x + nw / 2;
+    final cy = node.y + nh / 2;
+    final tx = viewport.width / 2 - cx * scale;
+    final ty = viewport.height / 2 - cy * scale;
+    return Matrix4.identity()
+      ..translateByDouble(tx, ty, 0, 1)
+      ..scaleByDouble(scale, scale, 1, 1);
+  }
+
+  void _animateTransform(Matrix4 target) {
+    _focusTween = Matrix4Tween(
+      begin: _transform.value.clone(),
+      end: target,
+    ).animate(CurvedAnimation(parent: _focusAnim, curve: Curves.easeOutCubic));
+    _focusAnim.forward(from: 0);
+  }
+
+  void _focusCamera({required bool animate}) {
+    if (!widget.focusSelected || _viewportSize == Size.zero) return;
+    final id = widget.selectedId;
+    if (id == null) return;
+    final node = _byId[id];
+    if (node == null) return;
+    final target = _matrixForNode(node, _viewportSize);
+    if (animate) {
+      _animateTransform(target);
+    } else {
+      _focusAnim.stop();
+      _transform.value = target;
+    }
   }
 
   @override
@@ -172,7 +259,9 @@ class _GraphViewportState extends State<GraphViewport> {
             draftFromNode,
             portId: _linkFromPortId,
           );
-    final canvasInteractive = !_draggingNode && _linkFromId == null;
+    final freeCamera = !widget.focusSelected;
+    final canvasInteractive =
+        freeCamera && !_draggingNode && _linkFromId == null;
     final linking = _linkFromId != null;
 
     return LayoutBuilder(
@@ -183,6 +272,15 @@ class _GraphViewportState extends State<GraphViewport> {
         final height = constraints.maxHeight.isFinite
             ? constraints.maxHeight
             : 600.0;
+        final nextSize = Size(width, height);
+        if (nextSize != _viewportSize) {
+          _viewportSize = nextSize;
+          if (widget.focusSelected) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _focusCamera(animate: false);
+            });
+          }
+        }
         return ClipRect(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -236,15 +334,25 @@ class _GraphViewportState extends State<GraphViewport> {
                             if (!_draggingNode) {
                               setState(() => _draggingNode = true);
                             }
+                            // Focus mode: scene deltas ignore camera scale.
+                            final scale = widget.focusSelected
+                                ? _transform.value.getMaxScaleOnAxis()
+                                : 1.0;
+                            final dx = details.delta.dx / scale;
+                            final dy = details.delta.dy / scale;
                             widget.onMove(
                               node.id,
-                              node.x + details.delta.dx,
-                              node.y + details.delta.dy,
+                              node.x + dx,
+                              node.y + dy,
                             );
                           },
                           onPanEnd: (_) {
                             if (_draggingNode) {
                               setState(() => _draggingNode = false);
+                            }
+                            if (widget.focusSelected &&
+                                node.id == widget.selectedId) {
+                              _focusCamera(animate: true);
                             }
                           },
                           onOutputDragStart: (portId) =>

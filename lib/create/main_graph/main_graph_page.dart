@@ -8,7 +8,6 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/story_node_kind.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
-import 'package:anoworld/foundation/graph/graph_node_card.dart';
 import 'package:anoworld/foundation/graph/graph_viewport.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -22,7 +21,7 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 
-/// Main skeleton editor: canvas (UX A) + optional card mode (UX B).
+/// Main skeleton editor: canvas (UX A) + focus camera for small screens (UX B).
 class MainGraphPage extends StatefulWidget {
   const MainGraphPage({super.key, required this.projectId});
 
@@ -41,7 +40,6 @@ class _MainGraphPageState extends State<MainGraphPage> {
   bool _cardMode = false;
   String? _selectedId;
   String? _selectedEdgeId;
-  double _cardOffset = 0; // -1 left, 0 center, 1 right
 
   @override
   void didChangeDependencies() {
@@ -410,19 +408,24 @@ class _MainGraphPageState extends State<MainGraphPage> {
   }
 
   Widget _buildCanvas(MainStory main) {
+    final focusId = _selectedId ??
+        (_cardMode ? main.startNodeId : null);
     return GraphViewport(
       nodes: _graphNodes(main),
       edges: _graphEdges(main),
-      selectedId: _selectedId,
-      selectedEdgeId: _selectedEdgeId,
+      selectedId: focusId,
+      selectedEdgeId: _cardMode ? null : _selectedEdgeId,
+      focusSelected: _cardMode,
       onSelect: (id) => setState(() {
-        _selectedId = id;
+        _selectedId = id ?? (_cardMode ? focusId : null);
         if (id != null) _selectedEdgeId = null;
       }),
-      onSelectEdge: (id) => setState(() {
-        _selectedEdgeId = id;
-        if (id != null) _selectedId = null;
-      }),
+      onSelectEdge: _cardMode
+          ? null
+          : (id) => setState(() {
+                _selectedEdgeId = id;
+                if (id != null) _selectedId = null;
+              }),
       onMove: (id, x, y) async {
         await _persist(
           _ops.moveNode(main, id, NodeLayout(x: x, y: y)),
@@ -432,163 +435,6 @@ class _MainGraphPageState extends State<MainGraphPage> {
       onOpenOutput: (_, portId) => _openEdgeEditor(portId),
       onAddOutput: (_) => _tipAddOutput(),
       onOpenNode: _openNodeEditor,
-    );
-  }
-
-  Widget _buildCards(MainStory main) {
-    final currentId = _selectedId ?? main.startNodeId;
-    final node = main.nodeById(currentId);
-    if (node == null) {
-      return const AppEmptyState(message: '没有可选的情节站');
-    }
-    final outs = _ops.outgoing(main, node.id);
-    final ins = _ops.incoming(main, node.id);
-    final showOut = _cardOffset < -0.35;
-    final showIn = _cardOffset > 0.35;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final cardW = w * 0.72;
-        return GestureDetector(
-          onHorizontalDragUpdate: (d) {
-            setState(() {
-              _cardOffset =
-                  (_cardOffset + d.delta.dx / (w * 0.45)).clamp(-1.0, 1.0);
-            });
-          },
-          onHorizontalDragEnd: (_) {
-            setState(() {
-              if (_cardOffset < -0.45) {
-                _cardOffset = -1;
-              } else if (_cardOffset > 0.45) {
-                _cardOffset = 1;
-              } else {
-                _cardOffset = 0;
-              }
-            });
-          },
-          child: Stack(
-            children: [
-              if (showOut)
-                Positioned(
-                  right: AppTheme.spaceMd,
-                  top: AppTheme.spaceLg,
-                  bottom: AppTheme.spaceLg,
-                  width: w * 0.42,
-                  child: _linkList(
-                    title: '连出去的站',
-                    edges: outs,
-                    main: main,
-                    resolveTitle: (e) =>
-                        main.nodeById(e.to)?.title ?? e.to,
-                    onPick: (e) {
-                      setState(() {
-                        _selectedId = e.to;
-                        _cardOffset = 0;
-                      });
-                    },
-                  ),
-                ),
-              if (showIn)
-                Positioned(
-                  left: AppTheme.spaceMd,
-                  top: AppTheme.spaceLg,
-                  bottom: AppTheme.spaceLg,
-                  width: w * 0.42,
-                  child: _linkList(
-                    title: '连进来的站',
-                    edges: ins,
-                    main: main,
-                    resolveTitle: (e) =>
-                        main.nodeById(e.from)?.title ?? e.from,
-                    onPick: (e) {
-                      setState(() {
-                        _selectedId = e.from;
-                        _cardOffset = 0;
-                      });
-                    },
-                  ),
-                ),
-              Align(
-                alignment: Alignment(_cardOffset * 0.85, 0),
-                child: GestureDetector(
-                  onTap: () {
-                    if (_cardOffset.abs() > 0.2) {
-                      setState(() => _cardOffset = 0);
-                    } else {
-                      _openNodeEditor(node.id);
-                    }
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GraphNodeCard(
-                        title: node.title,
-                        subtitle: node.synopsis,
-                        badgeLabel:
-                            StoryNodeKind.fromTags(node.tags).label,
-                        badgeColor: StoryNodeKindStyle.color(
-                          StoryNodeKind.fromTags(node.tags),
-                        ),
-                        selected: true,
-                        elevated: true,
-                        width: cardW,
-                        titleMaxLines: 2,
-                        subtitleMaxLines: 4,
-                      ),
-                      const SizedBox(height: AppTheme.spaceSm),
-                      AppText(
-                        showOut
-                            ? '右半边是连出去的站'
-                            : showIn
-                                ? '左半边是连进来的站'
-                                : '左右滑查看连接',
-                        role: AppTextRole.caption,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _linkList({
-    required String title,
-    required List<StoryEdge> edges,
-    required MainStory main,
-    required String Function(StoryEdge) resolveTitle,
-    required ValueChanged<StoryEdge> onPick,
-  }) {
-    if (edges.isEmpty) {
-      return AppEmptyState(message: '这一侧没有连接', detail: title);
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppText(title, role: AppTextRole.caption),
-        const SizedBox(height: AppTheme.spaceSm),
-        Expanded(
-          child: ListView.separated(
-            itemCount: edges.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(height: AppTheme.spaceXs),
-            itemBuilder: (_, i) {
-              final e = edges[i];
-              return AppListTile(
-                title: resolveTitle(e),
-                subtitle: e.label,
-                onTap: () => onPick(e),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -605,7 +451,10 @@ class _MainGraphPageState extends State<MainGraphPage> {
             variant: AppButtonVariant.ghost,
             onPressed: () => setState(() {
               _cardMode = !_cardMode;
-              _cardOffset = 0;
+              if (_cardMode) {
+                _selectedId ??= project.main.startNodeId;
+                _selectedEdgeId = null;
+              }
             }),
           ),
         ],
@@ -683,11 +532,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                           ),
                         ),
                         const SizedBox(height: AppTheme.spaceSm),
-                        Expanded(
-                          child: _cardMode
-                              ? _buildCards(project.main)
-                              : _buildCanvas(project.main),
-                        ),
+                        Expanded(child: _buildCanvas(project.main)),
                       ],
                     ),
     );

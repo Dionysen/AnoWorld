@@ -4,6 +4,7 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/graph/graph_viewport.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -254,14 +255,28 @@ void main() {
     await tester.pumpAndSettle();
 
     final before = (await repo.open(sample.meta.id)).main;
+    expect(find.byType(GraphViewport), findsOneWidget);
+
     await tester.tap(find.text('小屏卡片'));
     await tester.pumpAndSettle();
     expect(find.text('画布'), findsOneWidget);
+    expect(find.byType(GraphViewport), findsOneWidget);
     expect(find.text('城门'), findsWidgets);
+    final focused = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    expect(focused.panEnabled, isFalse);
+    expect(focused.scaleEnabled, isFalse);
 
     await tester.tap(find.text('画布'));
     await tester.pumpAndSettle();
     expect(find.text('小屏卡片'), findsOneWidget);
+    expect(find.byType(GraphViewport), findsOneWidget);
+    final free = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    expect(free.panEnabled, isTrue);
+    expect(free.scaleEnabled, isTrue);
 
     final after = (await repo.open(sample.meta.id)).main;
     expect(after.nodes.map((n) => n.id), before.nodes.map((n) => n.id));
