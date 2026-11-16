@@ -69,9 +69,9 @@ class AppSlider extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppTheme.spaceMd,
-          AppTheme.spaceSm + 2,
           AppTheme.spaceMd,
-          AppTheme.spaceSm,
+          AppTheme.spaceMd,
+          AppTheme.spaceMd,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -89,6 +89,7 @@ class AppSlider extends StatelessWidget {
                 AppText(readout, role: AppTextRole.caption),
               ],
             ),
+            const SizedBox(height: AppTheme.spaceSm),
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 3,
