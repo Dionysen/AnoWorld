@@ -93,6 +93,35 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('forceCompact keeps bottom capsule on a wide viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1024, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const Scaffold(
+          body: AppNavShell(
+            destinations: _items,
+            selectedIndex: 0,
+            onDestinationSelected: _noop,
+            forceCompact: true,
+            body: SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(BackdropFilter), findsOneWidget);
+    expect(find.text('通用'), findsOneWidget);
+    // Wide auto mode would use a side rail; forceCompact must stay bottom.
+    final labelBottom = tester.getBottomLeft(find.text('通用')).dy;
+    expect(labelBottom, greaterThan(720 - 120));
+  });
 }
 
 void _noop(int _) {}

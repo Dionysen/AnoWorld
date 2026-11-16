@@ -34,6 +34,7 @@ class AppNavShell extends StatelessWidget {
     this.secondary,
     this.secondaryWidth = AppLayout.secondaryPaneWidth,
     this.railTopInset,
+    this.forceCompact = false,
   });
 
   final List<AppNavItem> destinations;
@@ -50,13 +51,19 @@ class AppNavShell extends StatelessWidget {
   /// height (root chrome). Nested pages under [AppPage] should pass `0`.
   final double? railTopInset;
 
+  /// When true, always use the floating capsule bottom nav (e.g. graph
+  /// 画布/卡片 switch). Ignores width breakpoint / side rail.
+  final bool forceCompact;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final mode = chromeModeForWidth(width);
+        final mode = forceCompact
+            ? AppChromeMode.compact
+            : chromeModeForWidth(width);
         final threePane = AppLayout.useThreePane(
           shellWidth: width,
           hasSecondary: secondary != null,

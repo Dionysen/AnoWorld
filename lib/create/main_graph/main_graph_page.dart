@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/create/main_graph/main_graph_view_nav.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/expand_edge_detail_action.dart';
@@ -14,6 +15,7 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
@@ -439,27 +441,91 @@ class _MainGraphPageState extends State<MainGraphPage> {
     );
   }
 
+  void _setViewMode(int index, Project project) {
+    final card = index == 1;
+    setState(() {
+      _cardMode = card;
+      if (card) {
+        _selectedId ??= project.main.startNodeId;
+        _selectedEdgeId = null;
+      }
+    });
+  }
+
+  Widget _buildEditor(Project project) {
+    return AppNavShell(
+      destinations: mainGraphViewNavItems,
+      selectedIndex: _cardMode ? 1 : 0,
+      onDestinationSelected: (index) => _setViewMode(index, project),
+      forceCompact: true,
+      railTopInset: 0,
+      body: Builder(
+        builder: (context) {
+          final bottom = MediaQuery.paddingOf(context).bottom;
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottom),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.spaceMd,
+                    AppTheme.spaceSm,
+                    AppTheme.spaceMd,
+                    0,
+                  ),
+                  child: Row(
+                    children: [
+                      AppCircleButton(
+                        icon: Icons.add,
+                        tooltip: '加一站',
+                        variant: AppCircleButtonVariant.ghost,
+                        onPressed: _addNode,
+                      ),
+                      const SizedBox(width: AppTheme.spaceSm),
+                      AppCircleButton(
+                        icon: Icons.dashboard_customize_outlined,
+                        tooltip: '整理排版',
+                        variant: AppCircleButtonVariant.ghost,
+                        onPressed: _autoLayout,
+                      ),
+                      const SizedBox(width: AppTheme.spaceSm),
+                      AppCircleButton(
+                        icon: Icons.edit_outlined,
+                        tooltip: '编辑选中',
+                        variant: AppCircleButtonVariant.ghost,
+                        onPressed: _selectedId == null
+                            ? null
+                            : () => _openNodeEditor(_selectedId!),
+                      ),
+                      const SizedBox(width: AppTheme.spaceSm),
+                      AppCircleButton(
+                        icon: Icons.delete_outline,
+                        tooltip: '删除选中',
+                        variant: AppCircleButtonVariant.ghost,
+                        onPressed: _selectedId == null &&
+                                _selectedEdgeId == null
+                            ? null
+                            : _deleteSelected,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spaceSm),
+                Expanded(child: _buildCanvas(project.main)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final project = _project;
     return AppPage(
       title: '情节走向',
       onBack: () => Navigator.of(context).maybePop(),
-      actions: [
-        if (!_loading && project != null) ...[
-          AppButton(
-            label: _cardMode ? '画布' : '小屏卡片',
-            variant: AppButtonVariant.ghost,
-            onPressed: () => setState(() {
-              _cardMode = !_cardMode;
-              if (_cardMode) {
-                _selectedId ??= project.main.startNodeId;
-                _selectedEdgeId = null;
-              }
-            }),
-          ),
-        ],
-      ],
       body: _loading
           ? const AppPageBody(
               children: [AppText('加载中…', role: AppTextRole.caption)],
@@ -482,56 +548,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   ? const AppPageBody(
                       children: [AppEmptyState(message: '没有作品')],
                     )
-                  : Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppTheme.spaceMd,
-                            AppTheme.spaceSm,
-                            AppTheme.spaceMd,
-                            0,
-                          ),
-                          child: Row(
-                            children: [
-                              AppCircleButton(
-                                icon: Icons.add,
-                                tooltip: '加一站',
-                                variant: AppCircleButtonVariant.ghost,
-                                onPressed: _addNode,
-                              ),
-                              const SizedBox(width: AppTheme.spaceSm),
-                              AppCircleButton(
-                                icon: Icons.account_tree_outlined,
-                                tooltip: '整理排版',
-                                variant: AppCircleButtonVariant.ghost,
-                                onPressed: _autoLayout,
-                              ),
-                              const SizedBox(width: AppTheme.spaceSm),
-                              AppCircleButton(
-                                icon: Icons.edit_outlined,
-                                tooltip: '编辑选中',
-                                variant: AppCircleButtonVariant.ghost,
-                                onPressed: _selectedId == null
-                                    ? null
-                                    : () => _openNodeEditor(_selectedId!),
-                              ),
-                              const SizedBox(width: AppTheme.spaceSm),
-                              AppCircleButton(
-                                icon: Icons.delete_outline,
-                                tooltip: '删除选中',
-                                variant: AppCircleButtonVariant.ghost,
-                                onPressed: _selectedId == null &&
-                                        _selectedEdgeId == null
-                                    ? null
-                                    : _deleteSelected,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.spaceSm),
-                        Expanded(child: _buildCanvas(project.main)),
-                      ],
-                    ),
+                  : _buildEditor(project),
     );
   }
 }

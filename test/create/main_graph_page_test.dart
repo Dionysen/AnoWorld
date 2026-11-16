@@ -88,7 +88,8 @@ void main() {
     expect(find.text('客栈'), findsOneWidget);
     expect(find.text('开场'), findsOneWidget);
     expect(find.text('转折'), findsOneWidget);
-    expect(find.text('小屏卡片'), findsOneWidget);
+    expect(find.text('画布'), findsOneWidget);
+    expect(find.text('卡片'), findsOneWidget);
 
     await tester.tap(find.byTooltip('加一站'));
     await tester.pumpAndSettle();
@@ -257,9 +258,10 @@ void main() {
     final before = (await repo.open(sample.meta.id)).main;
     expect(find.byType(GraphViewport), findsOneWidget);
 
-    await tester.tap(find.text('小屏卡片'));
+    await tester.tap(find.text('卡片'));
     await tester.pumpAndSettle();
     expect(find.text('画布'), findsOneWidget);
+    expect(find.text('卡片'), findsOneWidget);
     expect(find.byType(GraphViewport), findsOneWidget);
     expect(find.text('城门'), findsWidgets);
     final focused = tester.widget<InteractiveViewer>(
@@ -270,7 +272,6 @@ void main() {
 
     await tester.tap(find.text('画布'));
     await tester.pumpAndSettle();
-    expect(find.text('小屏卡片'), findsOneWidget);
     expect(find.byType(GraphViewport), findsOneWidget);
     final free = tester.widget<InteractiveViewer>(
       find.byType(InteractiveViewer),
