@@ -63,15 +63,18 @@ void main() {
     expect(find.text('开始游玩'), findsOneWidget);
   });
 
-  testWidgets('settings action opens settings page', (tester) async {
+  testWidgets('settings action opens settings with section nav', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
+    expect(find.text('设置'), findsNothing);
     await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
 
     expect(find.text('设置'), findsOneWidget);
-    expect(find.text('API 配置稍后接入'), findsOneWidget);
+    expect(find.text('通用'), findsWidgets);
+    expect(find.text('AI'), findsWidgets);
+    expect(find.text('关于'), findsWidgets);
   });
 
   testWidgets('create entry opens placeholder', (tester) async {

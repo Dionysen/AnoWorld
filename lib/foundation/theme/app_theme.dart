@@ -14,7 +14,7 @@ abstract final class AppTheme {
   /// hiding controls rather than overflowing.
   static const Size windowMinSize = Size(
     WindowControlMetrics.stripWidth + 160,
-    titleBandHeight + 80,
+    titleBandHeight + 56 + 80,
   );
 
   /// Single immersive canvas: page body and title band share this fill.
