@@ -18,7 +18,7 @@ class AppUiTokens extends ThemeExtension<AppUiTokens> {
     radius: 10,
     fontSize: 15,
     fontFamily: null,
-    fieldPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    fieldPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
   );
 
   /// Continuous-corner radius in logical pixels.

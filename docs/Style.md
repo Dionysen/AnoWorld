@@ -14,7 +14,7 @@
 | 字体大小 | 滑块 **12–20 px**，步长 **0.5 px**（默认 15） | `AppearanceSettings.fontSize` → body 字号；其它角色按相对 15px 比例缩放 |
 | 圆角大小 | 滑块 0–24 px，步长 1（默认 10）；**曲率连续**（超椭圆） | `AppearanceSettings.cornerRadius` → `AppUiTokens.radius` / `AppShapes.continuous` |
 
-大小类控件统一用基础设施 `AppSlider`（参数：`min` / `max` / `step`），区间常量在 `AppearanceUiRange`。圆角一律走 `RoundedSuperellipseBorder`（`AppShapes` / `AppContinuousInputBorder`），不用普通圆弧 `BorderRadius` 裁切控件外形。实现：`AppTheme.dataFor` / `AppTheme.light|dark(appearance)`，运行时度量在 `AppUiTokens`。输入框内边距默认 `8×6`（`AppTheme.fieldPadding`）。间距与组件在 `lib/foundation/theme/`、`lib/foundation/widgets/`；业务页只用封装控件（`AppButton`、`AppTextField`、`AppSlider`、`AppSegmented`、`AppOptionGroup`、`AppListTile`、`AppSurface` 等）。
+大小类控件统一用基础设施 `AppSlider`（参数：`min` / `max` / `step`），区间常量在 `AppearanceUiRange`。圆角一律走 `RoundedSuperellipseBorder`（`AppShapes` / `AppContinuousInputBorder`），不用普通圆弧 `BorderRadius` 裁切控件外形。实现：`AppTheme.dataFor` / `AppTheme.light|dark(appearance)`，运行时度量在 `AppUiTokens`。输入框内边距默认 `12×12`（`AppTheme.fieldPadding`）。间距与组件在 `lib/foundation/theme/`、`lib/foundation/widgets/`；业务页只用封装控件（`AppButton`、`AppTextField`、`AppSlider`、`AppSegmented`、`AppOptionGroup`、`AppListTile`、`AppSurface` 等）。
 
 ## 布局与窗口
 

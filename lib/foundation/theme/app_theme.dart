@@ -42,10 +42,10 @@ abstract final class AppTheme {
   static const double radiusMd = 10;
   static const double pagePadding = spaceMd;
 
-  /// Default field padding (compact; controls read [AppUiTokens.fieldPadding]).
+  /// Default field padding (controls read [AppUiTokens.fieldPadding]).
   static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
-    horizontal: 8,
-    vertical: 6,
+    horizontal: 12,
+    vertical: 12,
   );
 
   /// Default dark tokens (午夜) — used by chrome that needs a fixed floor.
