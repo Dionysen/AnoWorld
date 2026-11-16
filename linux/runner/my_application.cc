@@ -17,6 +17,32 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+static FlValue* current_geometry(GtkWindow* window) {
+  gint x = 0;
+  gint y = 0;
+  gint width = 0;
+  gint height = 0;
+  gtk_window_get_position(window, &x, &y);
+  gtk_window_get_size(window, &width, &height);
+  FlValue* map = fl_value_new_map();
+  fl_value_set_string_take(map, "x", fl_value_new_float(x));
+  fl_value_set_string_take(map, "y", fl_value_new_float(y));
+  fl_value_set_string_take(map, "width", fl_value_new_float(width));
+  fl_value_set_string_take(map, "height", fl_value_new_float(height));
+  fl_value_set_string_take(map, "maximized",
+                           fl_value_new_bool(gtk_window_is_maximized(window)));
+  return map;
+}
+
+static void notify_geometry(MyApplication* self) {
+  if (self->window_channel == nullptr || self->window == nullptr) {
+    return;
+  }
+  g_autoptr(FlValue) args = current_geometry(self->window);
+  fl_method_channel_invoke_method(self->window_channel, "geometryChanged", args,
+                                  nullptr, nullptr, nullptr);
+}
+
 static void on_maximized_changed(GObject* object,
                                  GParamSpec*,
                                  gpointer user_data) {
@@ -28,6 +54,14 @@ static void on_maximized_changed(GObject* object,
   g_autoptr(FlValue) args = fl_value_new_bool(maximized);
   fl_method_channel_invoke_method(self->window_channel, "windowState", args,
                                   nullptr, nullptr, nullptr);
+  notify_geometry(self);
+}
+
+static gboolean on_configure_event(GtkWidget*,
+                                   GdkEventConfigure*,
+                                   gpointer user_data) {
+  notify_geometry(MY_APPLICATION(user_data));
+  return FALSE;
 }
 
 static void start_dragging(GtkWindow* window) {
@@ -86,6 +120,48 @@ static void window_method_cb(FlMethodChannel* /*channel*/,
     geometry.min_width = width;
     geometry.min_height = height;
     gtk_window_set_geometry_hints(window, nullptr, &geometry, GDK_HINT_MIN_SIZE);
+  } else if (g_strcmp0(name, "getGeometry") == 0) {
+    result = current_geometry(window);
+  } else if (g_strcmp0(name, "setGeometry") == 0) {
+    FlValue* args = fl_method_call_get_args(method_call);
+    gint x = 0;
+    gint y = 0;
+    gint width = 1280;
+    gint height = 720;
+    gboolean maximized = FALSE;
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+      FlValue* x_value = fl_value_lookup_string(args, "x");
+      FlValue* y_value = fl_value_lookup_string(args, "y");
+      FlValue* width_value = fl_value_lookup_string(args, "width");
+      FlValue* height_value = fl_value_lookup_string(args, "height");
+      FlValue* maximized_value = fl_value_lookup_string(args, "maximized");
+      if (x_value != nullptr && fl_value_get_type(x_value) == FL_VALUE_TYPE_FLOAT) {
+        x = (gint)fl_value_get_float(x_value);
+      }
+      if (y_value != nullptr && fl_value_get_type(y_value) == FL_VALUE_TYPE_FLOAT) {
+        y = (gint)fl_value_get_float(y_value);
+      }
+      if (width_value != nullptr &&
+          fl_value_get_type(width_value) == FL_VALUE_TYPE_FLOAT) {
+        width = (gint)fl_value_get_float(width_value);
+      }
+      if (height_value != nullptr &&
+          fl_value_get_type(height_value) == FL_VALUE_TYPE_FLOAT) {
+        height = (gint)fl_value_get_float(height_value);
+      }
+      if (maximized_value != nullptr &&
+          fl_value_get_type(maximized_value) == FL_VALUE_TYPE_BOOL) {
+        maximized = fl_value_get_bool(maximized_value);
+      }
+    }
+    if (gtk_window_is_maximized(window)) {
+      gtk_window_unmaximize(window);
+    }
+    gtk_window_move(window, x, y);
+    gtk_window_resize(window, width, height);
+    if (maximized) {
+      gtk_window_maximize(window);
+    }
   } else if (g_strcmp0(name, "startDragging") == 0) {
     start_dragging(window);
   } else if (g_strcmp0(name, "toggleMaximize") == 0) {
@@ -145,6 +221,8 @@ static void my_application_activate(GApplication* application) {
   }
   g_signal_connect(window, "notify::is-maximized",
                    G_CALLBACK(on_maximized_changed), self);
+  g_signal_connect(window, "configure-event", G_CALLBACK(on_configure_event),
+                   self);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

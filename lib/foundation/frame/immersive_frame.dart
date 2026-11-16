@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import 'window_channel.dart';
 import 'window_controls.dart';
+import 'window_geometry.dart';
 
 /// Makes system bars transparent so page content can extend into them.
 void installImmersiveSystemUi() {
@@ -112,10 +114,18 @@ class ImmersiveScope extends InheritedWidget {
 /// Mobile extends into the status bar. Desktop asks the runner to remove the
 /// system title bar, then draws drag space and, on Windows and Linux, window
 /// buttons. A missing channel keeps the system title bar.
+///
+/// Desktop also restores and remembers the outer window frame via
+/// [geometryStore].
 class ImmersiveFrame extends StatefulWidget {
-  const ImmersiveFrame({super.key, required this.child});
+  const ImmersiveFrame({
+    super.key,
+    required this.child,
+    this.geometryStore,
+  });
 
   final Widget child;
+  final WindowGeometryStore? geometryStore;
 
   @override
   State<ImmersiveFrame> createState() => _ImmersiveFrameState();
@@ -123,6 +133,11 @@ class ImmersiveFrame extends StatefulWidget {
 
 class _ImmersiveFrameState extends State<ImmersiveFrame> {
   static const _dragSlop = 4.0;
+
+  late final WindowGeometryStore _geometryStore =
+      widget.geometryStore ?? PrefsWindowGeometryStore();
+  AppLifecycleListener? _lifecycle;
+  Timer? _persistDebounce;
 
   bool _active = false;
   bool _maximized = false;
@@ -150,20 +165,43 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
       return;
     }
     WindowChannel.setHandler(_onMethodCall);
+    _lifecycle = AppLifecycleListener(
+      onInactive: () => unawaited(_persistGeometryNow()),
+      onHide: () => unawaited(_persistGeometryNow()),
+      onDetach: () => unawaited(_persistGeometryNow()),
+    );
     _enable();
   }
 
   @override
   void dispose() {
+    _persistDebounce?.cancel();
+    _lifecycle?.dispose();
     if (_desktop) {
+      unawaited(_persistGeometryNow());
       WindowChannel.setHandler(null);
     }
     super.dispose();
   }
 
   Future<Object?> _onMethodCall(MethodCall call) async {
-    if (call.method == 'windowState' && mounted) {
-      setState(() => _maximized = call.arguments == true);
+    if (call.method == 'windowState') {
+      if (mounted) {
+        setState(() => _maximized = call.arguments == true);
+      }
+      _schedulePersist();
+    } else if (call.method == 'geometryChanged') {
+      final geometry = WindowGeometry.tryParse(
+        call.arguments is Map
+            ? Map<Object?, Object?>.from(call.arguments as Map)
+            : null,
+      );
+      if (geometry != null) {
+        if (mounted) {
+          setState(() => _maximized = geometry.maximized);
+        }
+        unawaited(_geometryStore.save(geometry));
+      }
     }
     return null;
   }
@@ -186,10 +224,31 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
       _leadingInset = leading != null && leading > 0 ? leading : 80;
     }
     await WindowChannel.setMinimumSize(AppTheme.windowMinSize);
+    try {
+      final saved = await _geometryStore.load();
+      if (saved != null) {
+        await WindowChannel.setGeometry(saved);
+        _maximized = saved.maximized;
+      }
+    } catch (_) {}
     if (!mounted) {
       return;
     }
     setState(() => _active = true);
+  }
+
+  void _schedulePersist() {
+    _persistDebounce?.cancel();
+    _persistDebounce = Timer(const Duration(milliseconds: 250), () {
+      unawaited(_persistGeometryNow());
+    });
+  }
+
+  Future<void> _persistGeometryNow() async {
+    final geometry = await WindowChannel.getGeometry();
+    if (geometry != null) {
+      await _geometryStore.save(geometry);
+    }
   }
 
   ImmersiveMetrics _metrics(BuildContext context) {
@@ -206,7 +265,6 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
       return ImmersiveMetrics.system;
     }
     final controls = _windows || _linux;
-    // macOS may raise the band to line up with traffic lights; otherwise use theme.
     final titleBarHeight = _macOS ? _titleBarHeight : bandHeight;
     return ImmersiveMetrics(
       active: true,

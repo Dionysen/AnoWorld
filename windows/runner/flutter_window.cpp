@@ -193,6 +193,7 @@ void FlutterWindow::NotifyZoomed() noexcept {
     zoomed_reported_ = true;
     channel_->InvokeMethod("windowState",
                            std::make_unique<flutter::EncodableValue>(zoomed));
+    NotifyGeometry();
   } catch (...) {
   }
 }
@@ -215,6 +216,106 @@ void FlutterWindow::SetMinimumClientSize(int width, int height) {
   }
 }
 
+namespace {
+
+double ReadNumber(const flutter::EncodableMap& args, const char* key,
+                  double fallback) {
+  auto it = args.find(flutter::EncodableValue(key));
+  if (it == args.end()) {
+    return fallback;
+  }
+  if (const auto* value = std::get_if<double>(&it->second)) {
+    return *value;
+  }
+  if (const auto* value = std::get_if<int32_t>(&it->second)) {
+    return static_cast<double>(*value);
+  }
+  if (const auto* value = std::get_if<int64_t>(&it->second)) {
+    return static_cast<double>(*value);
+  }
+  return fallback;
+}
+
+bool ReadBool(const flutter::EncodableMap& args, const char* key,
+              bool fallback) {
+  auto it = args.find(flutter::EncodableValue(key));
+  if (it == args.end()) {
+    return fallback;
+  }
+  if (const auto* value = std::get_if<bool>(&it->second)) {
+    return *value;
+  }
+  return fallback;
+}
+
+}  // namespace
+
+flutter::EncodableMap FlutterWindow::CurrentGeometry() {
+  flutter::EncodableMap map;
+  HWND hwnd = GetHandle();
+  if (hwnd == nullptr) {
+    return map;
+  }
+  WINDOWPLACEMENT placement{};
+  placement.length = sizeof(placement);
+  if (!GetWindowPlacement(hwnd, &placement)) {
+    return map;
+  }
+  const RECT& rect = placement.rcNormalPosition;
+  const UINT dpi = GetDpiForWindow(hwnd);
+  auto to_logical = [dpi](LONG value) {
+    return static_cast<double>(MulDiv(value, 96, dpi));
+  };
+  map[flutter::EncodableValue("x")] =
+      flutter::EncodableValue(to_logical(rect.left));
+  map[flutter::EncodableValue("y")] =
+      flutter::EncodableValue(to_logical(rect.top));
+  map[flutter::EncodableValue("width")] =
+      flutter::EncodableValue(to_logical(rect.right - rect.left));
+  map[flutter::EncodableValue("height")] =
+      flutter::EncodableValue(to_logical(rect.bottom - rect.top));
+  map[flutter::EncodableValue("maximized")] =
+      flutter::EncodableValue(IsZoomed(hwnd) == TRUE);
+  return map;
+}
+
+void FlutterWindow::ApplyGeometry(const flutter::EncodableMap& args) {
+  HWND hwnd = GetHandle();
+  if (hwnd == nullptr) {
+    return;
+  }
+  const UINT dpi = GetDpiForWindow(hwnd);
+  auto to_physical = [dpi](double value) {
+    return MulDiv(static_cast<int>(value), dpi, 96);
+  };
+  const int x = to_physical(ReadNumber(args, "x", 100));
+  const int y = to_physical(ReadNumber(args, "y", 100));
+  const int width = to_physical(ReadNumber(args, "width", min_client_width_));
+  const int height =
+      to_physical(ReadNumber(args, "height", min_client_height_));
+  const bool maximized = ReadBool(args, "maximized", false);
+  if (IsZoomed(hwnd)) {
+    ShowWindow(hwnd, SW_RESTORE);
+  }
+  SetWindowPos(hwnd, nullptr, x, y, width, height,
+               SWP_NOZORDER | SWP_NOACTIVATE);
+  if (maximized) {
+    ShowWindow(hwnd, SW_MAXIMIZE);
+  }
+}
+
+void FlutterWindow::NotifyGeometry() {
+  try {
+    if (!channel_) {
+      return;
+    }
+    channel_->InvokeMethod(
+        "geometryChanged",
+        std::make_unique<flutter::EncodableValue>(CurrentGeometry()));
+  } catch (...) {
+  }
+}
+
 void FlutterWindow::HandleWindowMethod(
     const flutter::MethodCall<flutter::EncodableValue>& call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
@@ -226,26 +327,21 @@ void FlutterWindow::HandleWindowMethod(
   if (method == "setMinimumSize") {
     const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
     if (args != nullptr) {
-      auto width_it = args->find(flutter::EncodableValue("width"));
-      auto height_it = args->find(flutter::EncodableValue("height"));
-      int width = min_client_width_;
-      int height = min_client_height_;
-      if (width_it != args->end()) {
-        if (const auto* value = std::get_if<double>(&width_it->second)) {
-          width = static_cast<int>(*value);
-        } else if (const auto* value = std::get_if<int32_t>(&width_it->second)) {
-          width = *value;
-        }
-      }
-      if (height_it != args->end()) {
-        if (const auto* value = std::get_if<double>(&height_it->second)) {
-          height = static_cast<int>(*value);
-        } else if (const auto* value =
-                       std::get_if<int32_t>(&height_it->second)) {
-          height = *value;
-        }
-      }
-      SetMinimumClientSize(width, height);
+      SetMinimumClientSize(
+          static_cast<int>(ReadNumber(*args, "width", min_client_width_)),
+          static_cast<int>(ReadNumber(*args, "height", min_client_height_)));
+    }
+    result->Success();
+    return;
+  }
+  if (method == "getGeometry") {
+    result->Success(flutter::EncodableValue(CurrentGeometry()));
+    return;
+  }
+  if (method == "setGeometry") {
+    const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
+    if (args != nullptr) {
+      ApplyGeometry(*args);
     }
     result->Success();
     return;
@@ -325,6 +421,12 @@ LRESULT FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_SIZE:
       EnsureChildHook();
       NotifyZoomed();
+      break;
+    case WM_EXITSIZEMOVE:
+      NotifyGeometry();
+      break;
+    case WM_CLOSE:
+      NotifyGeometry();
       break;
   }
 

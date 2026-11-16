@@ -2,14 +2,17 @@ import 'package:anoworld/app.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/frame/window_channel.dart';
 import 'package:anoworld/foundation/frame/window_controls.dart';
+import 'package:anoworld/foundation/frame/window_geometry.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues(<String, Object>{});
 
   testWidgets(
     'home renders without window buttons when the channel is absent',
@@ -92,17 +95,20 @@ void main() {
         return null;
       });
       try {
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: AppTheme.data,
-            builder: (context, child) => ImmersiveFrame(child: child!),
-            home: const AppPage(title: 'Title', body: SizedBox.expand()),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.data,
+          builder: (context, child) => ImmersiveFrame(
+            geometryStore: _MemoryGeometryStore(),
+            child: child!,
           ),
-        );
-        await tester.pumpAndSettle();
+          home: const AppPage(title: 'Title', body: SizedBox.expand()),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.remove), findsOneWidget);
-        expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(Icons.remove), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
         final closeRect = tester.getRect(find.byIcon(Icons.close));
         expect(closeRect.right, lessThanOrEqualTo(400));
         expect(
@@ -117,4 +123,16 @@ void main() {
       }
     },
   );
+}
+
+final class _MemoryGeometryStore implements WindowGeometryStore {
+  WindowGeometry? value;
+
+  @override
+  Future<WindowGeometry?> load() async => value;
+
+  @override
+  Future<void> save(WindowGeometry geometry) async {
+    value = geometry;
+  }
 }

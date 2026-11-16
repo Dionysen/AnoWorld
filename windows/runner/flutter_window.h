@@ -35,9 +35,12 @@ class FlutterWindow : public Win32Window {
   LRESULT CaptionHitTest(LPARAM lparam);
   void ApplyMaximizedClientArea(HWND window, LPARAM lparam) const;
   void NotifyZoomed() noexcept;
+  void NotifyGeometry();
   void StartDragging();
   int FrameBorder();
   void SetMinimumClientSize(int width, int height);
+  flutter::EncodableMap CurrentGeometry();
+  void ApplyGeometry(const flutter::EncodableMap& args);
 
   flutter::DartProject project_;
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;

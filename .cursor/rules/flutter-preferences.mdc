@@ -37,6 +37,8 @@ alwaysApply: true
 
 - 禁止因窗口变小而出现黄黑溢出条或控件互相挤压变形；布局必须在给定约束内完成。
 - 桌面窗口最小客户区应覆盖当前页面/壳层控件排布后的最小可摆放尺寸（至少覆盖顶栏与窗口按钮等 chrome），通过 runner / `WindowChannel.setMinimumSize` 落实。
+- 桌面窗口位置、大小与最大化状态由基础设施记忆并在下次启动恢复（`WindowGeometryStore` + runner `getGeometry` / `setGeometry`），业务层不要各自存一份。
+- 沉浸式顶栏填充色与页面背景同色，禁止顶栏另起一套实色条造成「非沉浸」分层。
 - 若空间仍不足（极窄、预览、分屏）：优先隐藏次要控件，标题与正文用省略号；不得用固定高度硬撑出 RenderFlex overflow。
 - 新增可缩放界面时用 `LayoutBuilder` / 弹性布局验收极小约束；相关 Widget 测试应覆盖「过小视口仍不溢出」。
 

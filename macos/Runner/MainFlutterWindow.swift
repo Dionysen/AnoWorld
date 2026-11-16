@@ -4,6 +4,7 @@ import FlutterMacOS
 class MainFlutterWindow: NSWindow {
   private var allowProgrammaticZoom = false
   private var dragMouseUpMonitor: Any?
+  private var windowChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -22,14 +23,20 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerWindowChannel(flutterViewController)
+    registerGeometryObservers()
 
     super.awakeFromNib()
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
   }
 
   override func zoom(_ sender: Any?) {
     allowProgrammaticZoom = true
     super.zoom(sender)
     allowProgrammaticZoom = false
+    notifyGeometry()
   }
 
   override func performZoom(_ sender: Any?) {
@@ -42,6 +49,7 @@ class MainFlutterWindow: NSWindow {
       name: "app/window",
       binaryMessenger: controller.engine.binaryMessenger
     )
+    windowChannel = channel
     channel.setMethodCallHandler { [weak self] call, result in
       guard let self else {
         result(
@@ -65,6 +73,13 @@ class MainFlutterWindow: NSWindow {
           self.contentMinSize = NSSize(width: width, height: height)
         }
         result(nil)
+      case "getGeometry":
+        result(self.currentGeometry())
+      case "setGeometry":
+        if let args = call.arguments as? [String: Any] {
+          self.applyGeometry(args)
+        }
+        result(nil)
       case "startDragging":
         self.beginChromeDrag()
         result(nil)
@@ -74,6 +89,57 @@ class MainFlutterWindow: NSWindow {
       default:
         result(FlutterMethodNotImplemented)
       }
+    }
+  }
+
+  private func registerGeometryObservers() {
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(onGeometryChanged(_:)),
+      name: NSWindow.didResizeNotification,
+      object: self
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(onGeometryChanged(_:)),
+      name: NSWindow.didMoveNotification,
+      object: self
+    )
+  }
+
+  @objc private func onGeometryChanged(_ notification: Notification) {
+    notifyGeometry()
+  }
+
+  private func notifyGeometry() {
+    windowChannel?.invokeMethod("geometryChanged", arguments: currentGeometry())
+  }
+
+  private func currentGeometry() -> [String: Any] {
+    let frame = self.frame
+    return [
+      "x": frame.origin.x,
+      "y": frame.origin.y,
+      "width": frame.size.width,
+      "height": frame.size.height,
+      "maximized": self.isZoomed,
+    ]
+  }
+
+  private func applyGeometry(_ args: [String: Any]) {
+    let x = (args["x"] as? NSNumber)?.doubleValue ?? frame.origin.x
+    let y = (args["y"] as? NSNumber)?.doubleValue ?? frame.origin.y
+    let width = (args["width"] as? NSNumber)?.doubleValue ?? frame.size.width
+    let height = (args["height"] as? NSNumber)?.doubleValue ?? frame.size.height
+    let maximized = (args["maximized"] as? NSNumber)?.boolValue ?? false
+    if isZoomed {
+      allowProgrammaticZoom = true
+      super.zoom(nil)
+      allowProgrammaticZoom = false
+    }
+    setFrame(NSRect(x: x, y: y, width: width, height: height), display: true)
+    if maximized != isZoomed {
+      zoom(nil)
     }
   }
 
@@ -96,6 +162,7 @@ class MainFlutterWindow: NSWindow {
       self.dragMouseUpMonitor = nil
     }
     isMovable = false
+    notifyGeometry()
   }
 
   /// Distances from the content view so the toolbar lines up with the traffic lights.

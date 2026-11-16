@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import 'window_geometry.dart';
+
 /// Desktop window operations. Runners that do not implement the channel leave
 /// the system title bar in place.
 abstract final class WindowChannel {
@@ -31,6 +33,21 @@ abstract final class WindowChannel {
     } catch (_) {
       return null;
     }
+  }
+
+  static Future<WindowGeometry?> getGeometry() async {
+    try {
+      final raw = await channel.invokeMapMethod<String, Object?>('getGeometry');
+      return WindowGeometry.tryParse(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> setGeometry(WindowGeometry geometry) async {
+    try {
+      await channel.invokeMethod<void>('setGeometry', geometry.toMap());
+    } catch (_) {}
   }
 
   static Future<void> startDragging() => _invoke('startDragging');
