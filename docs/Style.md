@@ -4,12 +4,12 @@
 
 ## 当前主题
 
-默认「午夜」深色：画布 `#0B0C12`，文字 `#E8E6F0`，强调 `#98A6F5`。另有「岩灰」「薄雾」配色。设置 → **外观** 可改：
+默认「午夜」深色：画布 `#0B0C12`，文字 `#E8E6F0`，强调 `#98A6F5`。另有「岩灰」「薄雾」，以及参考 NativeTavern **Cursor 深色** 的「黑色」（画布 `#101010`，抬起面 `#141414`，强调 `#4D9DF4`）。设置 → **外观** 可改：
 
 | 项 | 选项 | 落点 |
 | --- | --- | --- |
 | 主题模式 | 跟随系统 / 浅色 / 深色 | `AppearanceSettings.mode` → `MaterialApp.themeMode` |
-| 配色 | 午夜 / 岩灰 / 薄雾 | `AppearanceSettings.preset` → `AppTheme.tokensFor` |
+| 配色 | 午夜 / 岩灰 / 薄雾 / 黑色 | `AppearanceSettings.preset` → `AppTheme.tokensFor` |
 | 字体 | 系统默认 / 无衬线（Roboto） | `AppearanceSettings.typeface` |
 | 字体大小 | 滑块 **12–20 px**，步长 **0.5 px**（默认 15） | `AppearanceSettings.fontSize` → body 字号；其它角色按相对 15px 比例缩放 |
 | 圆角大小 | 滑块 0–24 px，步长 1（默认 10）；**曲率连续**（超椭圆） | `AppearanceSettings.cornerRadius` → `AppUiTokens.radius` / `AppShapes.continuous` |

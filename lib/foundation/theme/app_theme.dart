@@ -109,6 +109,23 @@ abstract final class AppTheme {
           surfaceRaised: Color(0xFFFFFFFF),
           outlineSubtle: Color(0xFFD5DAE6),
         ),
+      // Near-black chrome aligned with NativeTavern ThemePreset.cursorDark.
+      (AppThemePreset.black, Brightness.dark) => const AppColorTokens(
+          canvas: Color(0xFF101010),
+          onCanvas: Color(0xFFCCCCCC),
+          primary: Color(0xFF4D9DF4),
+          muted: Color(0xFF6E6E6E),
+          surfaceRaised: Color(0xFF141414),
+          outlineSubtle: Color(0xFF2A2A2A),
+        ),
+      (AppThemePreset.black, Brightness.light) => const AppColorTokens(
+          canvas: Color(0xFFF5F5F5),
+          onCanvas: Color(0xFF1A1A1A),
+          primary: Color(0xFF2B7CD3),
+          muted: Color(0xFF6E6E6E),
+          surfaceRaised: Color(0xFFFFFFFF),
+          outlineSubtle: Color(0xFFD6D6D6),
+        ),
     };
   }
 

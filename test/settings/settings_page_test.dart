@@ -57,8 +57,9 @@ void main() {
     expect(find.text('字体大小'), findsOneWidget);
     expect(find.text('圆角大小'), findsOneWidget);
     expect(find.text('午夜'), findsOneWidget);
+    expect(find.text('黑色'), findsOneWidget);
 
-    await tester.tap(find.text('薄雾'));
+    await tester.tap(find.text('黑色'));
     await tester.pumpAndSettle();
     expect(find.text('使用中'), findsOneWidget);
 

@@ -25,19 +25,21 @@ extension AppThemeModeSettingX on AppThemeModeSetting {
 }
 
 /// Built-in color stories. Each preset supplies light + dark palettes.
-enum AppThemePreset { midnight, slate, mist }
+enum AppThemePreset { midnight, slate, mist, black }
 
 extension AppThemePresetX on AppThemePreset {
   String get label => switch (this) {
         AppThemePreset.midnight => '午夜',
         AppThemePreset.slate => '岩灰',
         AppThemePreset.mist => '薄雾',
+        AppThemePreset.black => '黑色',
       };
 
   String get blurb => switch (this) {
         AppThemePreset.midnight => '沉浸暗色，默认画布',
         AppThemePreset.slate => '冷灰强调，偏编辑器',
         AppThemePreset.mist => '浅色冷静，适合白天',
+        AppThemePreset.black => '近黑画布，参考 NativeTavern Cursor 深色',
       };
 
   static AppThemePreset parse(String? raw) {
