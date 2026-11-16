@@ -14,6 +14,63 @@ void main() {
     now: DateTime.utc(2026, 1, 1),
   );
 
+  testWidgets('auto layout button rearranges stations', (tester) async {
+    final blank = const ProjectFactory().createBlank(
+      id: 'p_layout',
+      title: '排版',
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final messy = blank.copyWith(
+      main: MainStory(
+        summary: blank.main.summary,
+        startNodeId: 'n_a',
+        nodes: const [
+          StoryNode(
+            id: 'n_a',
+            title: '甲',
+            beatIds: [],
+            layout: NodeLayout(x: 400, y: 200),
+          ),
+          StoryNode(
+            id: 'n_b',
+            title: '乙',
+            beatIds: [],
+            layout: NodeLayout(x: 40, y: 40),
+            tags: ['ending'],
+          ),
+        ],
+        edges: const [
+          StoryEdge(
+            id: 'e_ab',
+            from: 'n_a',
+            to: 'n_b',
+            kind: EdgeKind.defaultEdge,
+          ),
+        ],
+        beats: const [],
+      ),
+    );
+    final repo = MemoryProjectRepository(
+      seed: {messy.meta.id: messy},
+    );
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: MainGraphPage(projectId: messy.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('整理排版'), findsOneWidget);
+    await tester.tap(find.text('整理排版'));
+    await tester.pumpAndSettle();
+
+    final opened = await repo.open(messy.meta.id);
+    final ax = opened.main.nodeById('n_a')!.layout!.x;
+    final bx = opened.main.nodeById('n_b')!.layout!.x;
+    expect(ax, lessThan(bx));
+  });
+
   testWidgets('canvas shows stations and can add a station', (tester) async {
     final repo = MemoryProjectRepository(
       seed: {sample.meta.id: sample},

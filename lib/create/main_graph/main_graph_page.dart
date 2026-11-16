@@ -2,6 +2,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/expand_edge_detail_action.dart';
+import 'package:anoworld/domain/main/main_graph_layout.dart';
 import 'package:anoworld/domain/main/main_graph_ops.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -127,6 +128,25 @@ class _MainGraphPageState extends State<MainGraphPage> {
           fromPortId: edge.id,
         ),
     ];
+  }
+
+  Future<void> _autoLayout() async {
+    final project = _project;
+    if (project == null) return;
+    final graph = _graphNodes(project.main);
+    final widths = <String, double>{
+      for (final n in graph) n.id: n.resolvedWidth,
+    };
+    final heights = <String, double>{
+      for (final n in graph) n.id: n.resolvedHeight,
+    };
+    await _persist(
+      MainGraphLayout.arrange(
+        project.main,
+        widths: widths,
+        heights: heights,
+      ),
+    );
   }
 
   Future<void> _addNode() async {
@@ -627,6 +647,14 @@ class _MainGraphPageState extends State<MainGraphPage> {
                                 child: AppButton(
                                   label: '加一站',
                                   onPressed: _addNode,
+                                  variant: AppButtonVariant.secondary,
+                                ),
+                              ),
+                              const SizedBox(width: AppTheme.spaceSm),
+                              Expanded(
+                                child: AppButton(
+                                  label: '整理排版',
+                                  onPressed: _autoLayout,
                                   variant: AppButtonVariant.secondary,
                                 ),
                               ),
