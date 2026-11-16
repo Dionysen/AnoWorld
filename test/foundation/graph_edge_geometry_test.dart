@@ -16,7 +16,7 @@ void main() {
     );
     final out = GraphEdgeGeometry.outputPort(node);
     final input = GraphEdgeGeometry.inputPort(node);
-    expect(out.dx, 110);
+    expect(out.dx, 10 + node.resolvedWidth);
     expect(input.dx, 10);
     expect(out.dy, input.dy);
     expect(

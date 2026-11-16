@@ -39,7 +39,11 @@ class BridgeGenerateAction {
       final to = project.main.nodeById(e.to);
       final title = to?.title ?? e.to;
       final syn = to?.synopsis ?? '';
-      return '- id:${e.to} 标题:$title 目标:$syn';
+      final choice = e.label?.trim().isNotEmpty == true ? e.label!.trim() : '（无选项标题）';
+      final detail = e.detail?.trim().isNotEmpty == true
+          ? e.detail!.trim()
+          : '（无详细说明）';
+      return '- id:${e.to} 下一站:$title 目标:$syn 选项:$choice 说明:$detail';
     }).join('\n');
 
     final forceConverge = session.turnCount + 1 >= maxBeats;
@@ -107,10 +111,17 @@ $exitLines
       for (var i = 0; i < outs.length; i++)
         Choice(
           id: 'fb_$i',
-          text: '前往：${main.nodeById(outs[i].to)?.title ?? outs[i].to}',
+          text: _fallbackChoiceText(main, outs[i]),
           target: Transition.toNode(outs[i].to),
         ),
     ];
+  }
+
+  static String _fallbackChoiceText(MainStory main, StoryEdge edge) {
+    final label = edge.label?.trim();
+    if (label != null && label.isNotEmpty) return label;
+    final dest = main.nodeById(edge.to)?.title ?? edge.to;
+    return '前往：$dest';
   }
 
   static String _system(Preset preset, {required bool forceConverge}) {

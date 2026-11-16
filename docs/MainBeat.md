@@ -75,7 +75,8 @@ NodeLayout { x: number, y: number }
 | `from` | `Id` | 是 | 源节点 |
 | `to` | `Id` | 是 | 目标节点 |
 | `kind` | `"default" \| "branch"` | 是 | 见下 |
-| `label` | `string` | 否 | 画布上分支标注；可不等于玩家选项文案 |
+| `label` | `string` | 否 | 画布出线插头按钮标题；也可作保底选项文案 |
+| `detail` | `string` | 否 | 这条路的详细说明（作者笔记 / 给 AI 的走向提示）；可点插头编辑，也可用 AI 根据标题+草稿展开 |
 | `priority` | `number` | 否 | 同 from 多条 `default` 时取最小者；默认 `0` |
 
 **`kind` 约定**

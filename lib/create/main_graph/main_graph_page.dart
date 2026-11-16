@@ -1,5 +1,7 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/expand_edge_detail_action.dart';
 import 'package:anoworld/domain/main/main_graph_ops.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -274,15 +276,15 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   else
                     ...outs.map((e) {
                       final to = project.main.nodeById(e.to)?.title ?? e.to;
+                      final title = e.label?.trim().isNotEmpty == true
+                          ? e.label!
+                          : (e.kind == EdgeKind.branch ? '岔路' : '继续');
                       return AppListTile(
-                        title: to,
-                        subtitle:
-                            e.kind == EdgeKind.branch ? '岔路' : '接着',
+                        title: title,
+                        subtitle: '通向$to',
                         onTap: () async {
-                          await _persist(
-                            _ops.removeEdge(project.main, e.id),
-                          );
-                          if (ctx.mounted) Navigator.of(ctx).pop();
+                          Navigator.of(ctx).pop();
+                          await _openEdgeEditor(e.id);
                         },
                       );
                     }),
@@ -334,6 +336,45 @@ class _MainGraphPageState extends State<MainGraphPage> {
     synopsis.dispose();
   }
 
+  Future<void> _openEdgeEditor(String edgeId) async {
+    final project = _project;
+    if (project == null) return;
+    StoryEdge? edge;
+    for (final e in project.main.edges) {
+      if (e.id == edgeId) {
+        edge = e;
+        break;
+      }
+    }
+    if (edge == null) return;
+
+    final from = project.main.nodeById(edge.from);
+    final to = project.main.nodeById(edge.to);
+    await showAppSheet<void>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (ctx) {
+        return _EdgeEditorBody(
+          edge: edge!,
+          from: from,
+          to: to,
+          onSave: (next) async {
+            await _persist(_ops.upsertEdge(project.main, next));
+          },
+          onDelete: () async {
+            await _persist(_ops.removeEdge(project.main, edge!.id));
+          },
+        );
+      },
+    );
+  }
+
+  void _tipAddOutput() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('拖到下一站左侧插头，就能连上')),
+    );
+  }
+
   Widget _buildCanvas(MainStory main) {
     return GraphViewport(
       nodes: _graphNodes(main),
@@ -346,6 +387,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
         );
       },
       onConnect: _connect,
+      onOpenOutput: (_, portId) => _openEdgeEditor(portId),
+      onAddOutput: (_) => _tipAddOutput(),
       onOpenNode: _openNodeEditor,
     );
   }
@@ -596,6 +639,160 @@ class _MainGraphPageState extends State<MainGraphPage> {
                         ),
                       ],
                     ),
+    );
+  }
+}
+
+class _EdgeEditorBody extends StatefulWidget {
+  const _EdgeEditorBody({
+    required this.edge,
+    required this.from,
+    required this.to,
+    required this.onSave,
+    required this.onDelete,
+  });
+
+  final StoryEdge edge;
+  final StoryNode? from;
+  final StoryNode? to;
+  final Future<void> Function(StoryEdge next) onSave;
+  final Future<void> Function() onDelete;
+
+  @override
+  State<_EdgeEditorBody> createState() => _EdgeEditorBodyState();
+}
+
+class _EdgeEditorBodyState extends State<_EdgeEditorBody> {
+  late final TextEditingController _title;
+  late final TextEditingController _detail;
+  var _busy = false;
+  String? _aiError;
+
+  @override
+  void initState() {
+    super.initState();
+    final fallback =
+        widget.edge.kind == EdgeKind.branch ? '岔路' : '继续';
+    _title = TextEditingController(
+      text: widget.edge.label?.trim().isNotEmpty == true
+          ? widget.edge.label!
+          : fallback,
+    );
+    _detail = TextEditingController(text: widget.edge.detail ?? '');
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _detail.dispose();
+    super.dispose();
+  }
+
+  Future<void> _expandWithAi() async {
+    setState(() {
+      _busy = true;
+      _aiError = null;
+    });
+    try {
+      final expanded = await ExpandEdgeDetailAction(
+        textClient: AppScope.textClientOf(context),
+      ).expand(
+        endpoint: AppScope.settingsOf(context).ai.text,
+        title: _title.text,
+        detail: _detail.text,
+        fromTitle: widget.from?.title,
+        fromSynopsis: widget.from?.synopsis,
+        toTitle: widget.to?.title,
+        toSynopsis: widget.to?.synopsis,
+      );
+      if (!mounted) return;
+      setState(() {
+        _detail.text = expanded;
+        _busy = false;
+      });
+    } on AiTextException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _aiError = error.message;
+        _busy = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _aiError = '没写出来，请稍后再试';
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.spaceMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppSectionHeader(
+            '这条路',
+            subtitle: '通向${widget.to?.title ?? widget.edge.to}',
+          ),
+          AppTextField(label: '标题', controller: _title),
+          const SizedBox(height: AppTheme.spaceSm),
+          AppTextField(
+            label: '详细说明',
+            controller: _detail,
+            minLines: 3,
+            maxLines: 8,
+          ),
+          const SizedBox(height: AppTheme.spaceXs),
+          const AppText(
+            '可以只写关键词，再让 AI 帮你展开',
+            role: AppTextRole.caption,
+          ),
+          if (_aiError != null) ...[
+            const SizedBox(height: AppTheme.spaceSm),
+            AppText(_aiError!, role: AppTextRole.caption),
+          ],
+          const SizedBox(height: AppTheme.spaceMd),
+          AppButton(
+            label: _busy ? '正在写…' : '让 AI 写详细一点',
+            variant: AppButtonVariant.secondary,
+            onPressed: _busy ? null : _expandWithAi,
+            expanded: true,
+          ),
+          const SizedBox(height: AppTheme.spaceSm),
+          AppButton(
+            label: '保存',
+            onPressed: _busy
+                ? null
+                : () async {
+                    final labelText = _title.text.trim();
+                    final detailText = _detail.text.trim();
+                    await widget.onSave(
+                      widget.edge.copyWith(
+                        label: labelText.isEmpty ? null : labelText,
+                        detail: detailText.isEmpty ? null : detailText,
+                        clearLabel: labelText.isEmpty,
+                        clearDetail: detailText.isEmpty,
+                      ),
+                    );
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
+            expanded: true,
+          ),
+          const SizedBox(height: AppTheme.spaceSm),
+          AppButton(
+            label: '删掉这条连线',
+            variant: AppButtonVariant.ghost,
+            onPressed: _busy
+                ? null
+                : () async {
+                    await widget.onDelete();
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
+          ),
+        ],
+      ),
     );
   }
 }

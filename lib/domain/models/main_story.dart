@@ -155,6 +155,7 @@ class StoryEdge {
     required this.to,
     required this.kind,
     this.label,
+    this.detail,
     this.priority = 0,
   });
 
@@ -162,7 +163,12 @@ class StoryEdge {
   final String from;
   final String to;
   final EdgeKind kind;
+
+  /// Short title on the canvas port button.
   final String? label;
+
+  /// Longer notes for authors / AI (choice motive, what happens on this path).
+  final String? detail;
   final int priority;
 
   StoryEdge copyWith({
@@ -171,8 +177,10 @@ class StoryEdge {
     String? to,
     EdgeKind? kind,
     String? label,
+    String? detail,
     int? priority,
     bool clearLabel = false,
+    bool clearDetail = false,
   }) {
     return StoryEdge(
       id: id ?? this.id,
@@ -180,6 +188,7 @@ class StoryEdge {
       to: to ?? this.to,
       kind: kind ?? this.kind,
       label: clearLabel ? null : (label ?? this.label),
+      detail: clearDetail ? null : (detail ?? this.detail),
       priority: priority ?? this.priority,
     );
   }
@@ -190,6 +199,7 @@ class StoryEdge {
         'to': to,
         'kind': kind.wireName,
         if (label != null) 'label': label,
+        if (detail != null) 'detail': detail,
         if (priority != 0) 'priority': priority,
       };
 
@@ -200,6 +210,7 @@ class StoryEdge {
       to: json.requireString('to'),
       kind: EdgeKindCodec.parse(json.requireString('kind')),
       label: json.optionalString('label'),
+      detail: json.optionalString('detail'),
       priority: (json.optionalNum('priority') ?? 0).toInt(),
     );
   }

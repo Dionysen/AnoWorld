@@ -59,7 +59,7 @@ abstract final class GraphEdgeGeometry {
           count: count,
           headerSubtitle: node.hasHeaderSubtitle,
         );
-    return Offset(node.x + node.width, y);
+    return Offset(node.x + node.resolvedWidth, y);
   }
 
   /// Input port: left edge, first content row.

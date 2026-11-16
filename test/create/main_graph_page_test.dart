@@ -1,7 +1,9 @@
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -229,4 +231,89 @@ void main() {
     expect(find.text('种类'), findsOneWidget);
     expect(find.text('开场'), findsWidgets);
   });
+
+  testWidgets('tapping output title opens edge editor', (tester) async {
+    final blank = const ProjectFactory().createBlank(
+      id: 'p_edge_edit',
+      title: '边编辑',
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final withEdge = blank.copyWith(
+      main: MainStory(
+        summary: blank.main.summary,
+        startNodeId: 'n_a',
+        nodes: const [
+          StoryNode(
+            id: 'n_a',
+            title: '起点',
+            synopsis: '开始',
+            beatIds: [],
+            layout: NodeLayout(x: 40, y: 80),
+          ),
+          StoryNode(
+            id: 'n_b',
+            title: '终点',
+            synopsis: '结束',
+            beatIds: [],
+            layout: NodeLayout(x: 280, y: 80),
+            tags: ['ending'],
+          ),
+        ],
+        edges: const [
+          StoryEdge(
+            id: 'e_ab',
+            from: 'n_a',
+            to: 'n_b',
+            kind: EdgeKind.defaultEdge,
+            label: '敲门',
+            detail: '雨夜',
+          ),
+        ],
+        beats: const [],
+      ),
+    );
+    final repo = MemoryProjectRepository(
+      seed: {withEdge.meta.id: withEdge},
+    );
+    final fake = _RecordingTextClient();
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        textClient: fake,
+        home: MainGraphPage(projectId: withEdge.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('graph_port_title_n_a_e_ab')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('这条路'), findsOneWidget);
+    expect(find.text('详细说明'), findsOneWidget);
+    expect(find.text('让 AI 写详细一点'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '轻敲木门');
+    await tester.pump();
+    final save = find.text('保存');
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    final opened = await repo.open(withEdge.meta.id);
+    expect(opened.main.edges.single.label, '轻敲木门');
+    expect(opened.main.edges.single.detail, '雨夜');
+  });
+}
+
+class _RecordingTextClient implements AiTextClient {
+  @override
+  Future<String> complete({
+    required AiTextEndpoint endpoint,
+    required String system,
+    required String user,
+  }) async =>
+      '展开后的说明';
 }

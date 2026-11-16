@@ -16,6 +16,7 @@ class GraphViewport extends StatefulWidget {
     required this.onMove,
     required this.onConnect,
     this.onAddOutput,
+    this.onOpenOutput,
     this.onOpenNode,
     this.minScale = 0.4,
     this.maxScale = 2.5,
@@ -30,6 +31,9 @@ class GraphViewport extends StatefulWidget {
   /// [fromPortId] is an existing edge id to retarget, or [GraphOutputPort.pendingId].
   final void Function(String fromId, String toId, String fromPortId) onConnect;
   final ValueChanged<String>? onAddOutput;
+
+  /// Open editor for a wired output port (edge id).
+  final void Function(String nodeId, String portId)? onOpenOutput;
   final ValueChanged<String>? onOpenNode;
   final double minScale;
   final double maxScale;
@@ -206,6 +210,10 @@ class _GraphViewportState extends State<GraphViewport> {
                               _onOutputDragStart(node.id, portId),
                           onOutputDragUpdate: _onOutputDragUpdate,
                           onOutputDragEnd: _onOutputDragEnd,
+                          onOutputTap: widget.onOpenOutput == null
+                              ? null
+                              : (portId) =>
+                                  widget.onOpenOutput!(node.id, portId),
                           onAddOutput: widget.onAddOutput == null
                               ? null
                               : () => widget.onAddOutput!(node.id),

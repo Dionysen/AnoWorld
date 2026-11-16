@@ -2,6 +2,7 @@ import 'dart:ui' show Color, Offset;
 
 import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_node_card.dart';
+import 'package:anoworld/foundation/graph/graph_port_title.dart';
 
 /// One output socket on a node (may map to an existing edge, or a pending add).
 class GraphOutputPort {
@@ -22,6 +23,10 @@ class GraphOutputPort {
     id: pendingId,
     pending: true,
   );
+
+  /// Canvas button text (max [GraphPortTitle.maxChars], then ellipsis).
+  String get displayLabel =>
+      GraphPortTitle.display(label, pending: pending);
 }
 
 /// Portable graph node placement (no product/business fields).
@@ -35,7 +40,7 @@ class GraphNodeData {
     this.badgeLabel,
     this.badgeColor,
     this.inputLabel,
-    this.width = GraphNodeCard.defaultWidth,
+    this.width,
     this.height,
     this.outputs = const [GraphOutputPort.pendingPort],
   });
@@ -50,7 +55,9 @@ class GraphNodeData {
   final String? inputLabel;
   final double x;
   final double y;
-  final double width;
+
+  /// Explicit width; when null, derived from port title lengths.
+  final double? width;
   final List<GraphOutputPort> outputs;
 
   /// Explicit height, or derived from [outputs] count.
@@ -66,7 +73,21 @@ class GraphNodeData {
         headerSubtitle: hasHeaderSubtitle,
       );
 
-  Offset get center => Offset(x + width / 2, y + resolvedHeight / 2);
+  double get resolvedWidth =>
+      width ??
+      GraphPortTitle.widthForTitles(
+        [
+          for (final port in (outputs.isEmpty
+              ? const [GraphOutputPort.pendingPort]
+              : outputs))
+            port.displayLabel,
+        ],
+        hasInputLabel:
+            inputLabel != null && inputLabel!.trim().isNotEmpty,
+      );
+
+  Offset get center =>
+      Offset(x + resolvedWidth / 2, y + resolvedHeight / 2);
 
   GraphNodeData copyWith({
     String? label,
@@ -80,6 +101,7 @@ class GraphNodeData {
     double? height,
     List<GraphOutputPort>? outputs,
     bool clearBadge = false,
+    bool clearWidth = false,
   }) {
     return GraphNodeData(
       id: id,
@@ -90,7 +112,7 @@ class GraphNodeData {
       inputLabel: inputLabel ?? this.inputLabel,
       x: x ?? this.x,
       y: y ?? this.y,
-      width: width ?? this.width,
+      width: clearWidth ? null : (width ?? this.width),
       height: height ?? this.height,
       outputs: outputs ?? this.outputs,
     );
