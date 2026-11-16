@@ -1,4 +1,5 @@
 import 'package:anoworld/app.dart';
+import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/frame/window_channel.dart';
 import 'package:anoworld/foundation/frame/window_controls.dart';
@@ -19,7 +20,9 @@ void main() {
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       try {
-        await tester.pumpWidget(const App());
+        await tester.pumpWidget(
+          App(projects: MemoryProjectRepository()),
+        );
         await tester.pumpAndSettle();
 
         expect(find.text('AnoWorld'), findsOneWidget);
