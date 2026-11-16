@@ -1,0 +1,132 @@
+{
+  "meta": {
+    "id": "proj_rain_night",
+    "title": "雨夜投宿",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z",
+    "schemaVersion": 1
+  },
+  "presets": [
+    {
+      "id": "preset_default",
+      "name": "默认",
+      "styleNotes": "简洁对白，少系统腔；场景描写克制。",
+      "outputBans": ["剧透后续主线", "OOC 系统说明"],
+      "outputPreferences": ["选项短而可执行", "先给可玩段落再润色"],
+      "applyToCreator": true,
+      "applyToRuntimeChat": true
+    }
+  ],
+  "activePresetId": "preset_default",
+  "background": {
+    "sections": [
+      {
+        "id": "bg_world",
+        "title": "世界观",
+        "body": "边陲小城外常有过路旅人；雨夜客栈是唯一歇脚处。"
+      }
+    ]
+  },
+  "cast": [
+    {
+      "id": "c_hero",
+      "name": "少年",
+      "summary": "离家远行的旅人",
+      "personality": "沉着，话少",
+      "speechStyle": "短句",
+      "exampleLines": []
+    },
+    {
+      "id": "c_keeper",
+      "name": "掌柜",
+      "summary": "客栈老板",
+      "personality": "精明但不坏",
+      "speechStyle": "口头禅多",
+      "exampleLines": []
+    }
+  ],
+  "main": {
+    "summary": "少年离家，雨夜投宿。",
+    "startNodeId": "n1",
+    "nodes": [
+      {
+        "id": "n1",
+        "title": "城门",
+        "synopsis": "离开",
+        "beatIds": ["b1"],
+        "layout": { "x": 0, "y": 0 }
+      },
+      {
+        "id": "n2",
+        "title": "客栈",
+        "synopsis": "投宿",
+        "beatIds": ["b2"],
+        "layout": { "x": 200, "y": 0 }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "from": "n1",
+        "to": "n2",
+        "kind": "default"
+      }
+    ],
+    "beats": [
+      {
+        "id": "b1",
+        "nodeId": "n1",
+        "scene": {
+          "locationText": "城门",
+          "backgroundAssetId": "bg_gate"
+        },
+        "appearances": [
+          { "characterId": "c_hero", "slot": "center" }
+        ],
+        "lines": [
+          {
+            "id": "l1",
+            "speakerId": "c_hero",
+            "text": "该走了。",
+            "kind": "speech"
+          }
+        ],
+        "choices": []
+      },
+      {
+        "id": "b2",
+        "nodeId": "n2",
+        "scene": {
+          "locationText": "客栈",
+          "backgroundAssetId": "bg_inn"
+        },
+        "appearances": [
+          { "characterId": "c_hero", "slot": "left" },
+          { "characterId": "c_keeper", "slot": "right" }
+        ],
+        "lines": [
+          {
+            "id": "l2",
+            "speakerId": "c_keeper",
+            "text": "留宿？",
+            "kind": "speech"
+          }
+        ],
+        "choices": [
+          {
+            "id": "ch1",
+            "text": "住下",
+            "target": { "type": "end" }
+          },
+          {
+            "id": "ch2",
+            "text": "再看看",
+            "target": { "type": "beat", "beatId": "b2" }
+          }
+        ]
+      }
+    ]
+  },
+  "side": { "instances": [] },
+  "assets": []
+}
