@@ -275,7 +275,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             const SizedBox(height: AppTheme.spaceGroup),
             AppListTile(
               title: '主题预设',
-              subtitle: '亮色/暗色各自记住一套；点选立即切换当前外观。',
+              subtitle: '浅色和深色可以各选一套配色，点一下就会换上。',
               icon: Icons.style_outlined,
               onTap: () => setState(() => _presetsExpanded = !_presetsExpanded),
               trailing: AppDisclosureIcon(expanded: _presetsExpanded),
@@ -314,7 +314,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             const SizedBox(height: AppTheme.spaceGroup),
             AppListTile(
               title: '自定义颜色',
-              subtitle: '调整当前外观下的各项颜色，修改后立即生效。',
+              subtitle: '微调当前这套配色，改完马上能看到效果。',
               icon: Icons.colorize_outlined,
               onTap: () => setState(
                 () => _customColorsExpanded = !_customColorsExpanded,
@@ -360,7 +360,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             const AppSectionHeader('界面'),
             AppFontPickerRow(
               label: '字体',
-              description: '点按选择字体；电脑会列出本机已安装的字体，手机可导入字体文件。',
+              description: '点这里换字体。电脑可选本机字体，手机也可以导入字体文件。',
               icon: Icons.text_fields,
               fonts: controller.fontCatalog,
               selectedPath: current.fontPath,

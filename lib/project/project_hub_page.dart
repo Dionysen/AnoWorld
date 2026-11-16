@@ -136,7 +136,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             ),
             const SizedBox(height: AppTheme.spaceSm),
             const AppText(
-              '创作编辑器下一阶段接入；现在可切换视觉小说 / 聊天模式游玩。',
+              '编辑功能还在完善。现在可以切换视觉小说或聊天模式先玩起来。',
               role: AppTextRole.caption,
             ),
           ],

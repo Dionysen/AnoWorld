@@ -78,7 +78,7 @@ void main() {
     await tester.tap(find.text('导入角色卡'));
     await tester.pumpAndSettle();
 
-    expect(find.text('流程即将接入'), findsOneWidget);
+    expect(find.text('这条创作路径马上就好'), findsOneWidget);
   });
 
   testWidgets('hub start play opens runtime', (tester) async {

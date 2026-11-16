@@ -33,13 +33,13 @@ void main() {
     expect(find.text('外观'), findsWidgets);
     expect(find.text('AI'), findsWidgets);
     expect(find.text('关于'), findsWidgets);
-    expect(find.text('通用选项稍后接入'), findsOneWidget);
+    expect(find.text('这里还没有可改的选项'), findsOneWidget);
 
     await tester.tap(find.text('AI').last);
     await tester.pumpAndSettle();
     expect(find.text('文本 AI'), findsOneWidget);
     expect(find.text('生图 AI'), findsOneWidget);
-    expect(find.text('供应商'), findsWidgets);
+    expect(find.text('当前服务商'), findsWidgets);
 
     await tester.tap(find.text('关于').last);
     await tester.pumpAndSettle();
@@ -69,7 +69,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('使用中'), findsWidgets);
 
-    expect(find.textContaining('本机已安装的字体'), findsOneWidget);
+    expect(find.textContaining('电脑可选本机字体'), findsOneWidget);
 
     await tester.ensureVisible(find.byType(Slider).first);
     await tester.pumpAndSettle();
@@ -84,12 +84,12 @@ void main() {
       Size(AppLayout.railBreakpoint + 200, 800),
     );
 
-    expect(find.text('通用选项稍后接入'), findsOneWidget);
+    expect(find.text('这里还没有可改的选项'), findsOneWidget);
     await tester.tap(find.text('AI').first);
     await tester.pumpAndSettle();
-    expect(find.text('供应商'), findsWidgets);
+    expect(find.text('当前服务商'), findsWidgets);
     expect(find.text('模型'), findsWidgets);
-    expect(find.text('探测模型'), findsWidgets);
+    expect(find.text('查找模型'), findsWidgets);
     expect(find.text('保存'), findsNothing);
   });
 }

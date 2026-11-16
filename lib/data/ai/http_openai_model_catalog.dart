@@ -25,10 +25,10 @@ class HttpOpenAiModelCatalog implements AiModelCatalog {
       endpoint.baseUrl.isEmpty ? endpoint.defaultBaseUrl : endpoint.baseUrl,
     );
     if (base.isEmpty) {
-      throw AiModelCatalogException('请先填写 Base URL');
+      throw AiModelCatalogException('请先填写服务地址');
     }
     if (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty) {
-      throw AiModelCatalogException('请先填写 API Key');
+      throw AiModelCatalogException('请先填写密钥');
     }
 
     final uri = Uri.parse('$base/models');
@@ -41,17 +41,17 @@ class HttpOpenAiModelCatalog implements AiModelCatalog {
     final response = await _client.get(uri, headers: headers);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw AiModelCatalogException(
-        '探测失败（HTTP ${response.statusCode}）',
+        '查找模型失败（错误码 ${response.statusCode}）',
       );
     }
 
     final decoded = jsonDecode(response.body);
     if (decoded is! Map<String, dynamic>) {
-      throw AiModelCatalogException('模型列表格式无法识别');
+      throw AiModelCatalogException('返回内容无法识别，请检查服务地址');
     }
     final data = decoded['data'];
     if (data is! List) {
-      throw AiModelCatalogException('模型列表为空或格式错误');
+      throw AiModelCatalogException('没有可用模型，或返回格式不对');
     }
 
     final ids = <String>[];
@@ -63,7 +63,7 @@ class HttpOpenAiModelCatalog implements AiModelCatalog {
     }
     ids.sort();
     if (ids.isEmpty) {
-      throw AiModelCatalogException('未探测到可用模型');
+      throw AiModelCatalogException('没有找到可用模型');
     }
     return ids;
   }

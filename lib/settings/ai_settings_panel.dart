@@ -47,7 +47,7 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
               const AppSectionHeader('选择供应商'),
               const SizedBox(height: AppTheme.spaceXs),
               const AppText(
-                '文本与生图供应商列表不同；Base URL 仍可手改。',
+                '写故事和画图用的服务商不一样，请按用途分开选择。',
                 role: AppTextRole.caption,
               ),
               const SizedBox(height: AppTheme.spaceGroup),
@@ -215,8 +215,8 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
     if (!_canProbe) {
       setState(() {
         _probeStatus = widget.endpoint.needsApiKey
-            ? '填写 Base URL 与 API Key 后自动探测'
-            : '填写 Base URL 后自动探测';
+            ? '填好服务地址和密钥后，会自动查找可用模型'
+            : '填好服务地址后，会自动查找可用模型';
       });
       return;
     }
@@ -226,7 +226,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
     }
     setState(() {
       _probing = true;
-      _probeStatus = '正在探测可用模型…';
+      _probeStatus = '正在查找可用模型…';
     });
     try {
       final models =
@@ -238,7 +238,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
         _models = models;
         _probing = false;
         _lastProbedSignature = signature;
-        _probeStatus = '已探测到 ${models.length} 个模型';
+        _probeStatus = '找到 ${models.length} 个可用模型';
       });
       if (shouldPickDefault) {
         widget.onChanged(_draft.copyWith(model: models.first));
@@ -249,7 +249,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
         _probing = false;
         _probeStatus = error is AiModelCatalogException
             ? error.message
-            : '探测失败：$error';
+            : '查找失败：$error';
       });
     }
   }
@@ -272,7 +272,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
   Widget build(BuildContext context) {
     return _ChannelScaffold(
       title: '文本 AI',
-      caption: '文本供应商列表（参考 NativeTavern LLM）；点选模型即保存。',
+      caption: '用来写对白与剧情。选好服务商和模型后会自动记住。',
       providerLabel: widget.endpoint.kind.label,
       onPickKind: widget.onPickKind,
       baseUrl: _baseUrl,
@@ -398,8 +398,8 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     if (!_canProbe) {
       setState(() {
         _probeStatus = widget.endpoint.needsApiKey
-            ? '填写 Base URL 与 API Key 后自动探测'
-            : '该供应商请手动填写模型，或点探测使用内置列表';
+            ? '填好服务地址和密钥后，会自动查找可用模型'
+            : '请手动填写模型，或点「查找模型」使用常用列表';
       });
       return;
     }
@@ -409,7 +409,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     }
     setState(() {
       _probing = true;
-      _probeStatus = '正在探测可用模型…';
+      _probeStatus = '正在查找可用模型…';
     });
     try {
       List<String> models;
@@ -426,7 +426,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
         _models = models;
         _probing = false;
         _lastProbedSignature = signature;
-        _probeStatus = '已探测到 ${models.length} 个模型';
+        _probeStatus = '找到 ${models.length} 个可用模型';
       });
       if (shouldPickDefault) {
         widget.onChanged(_draft.copyWith(model: models.first));
@@ -439,7 +439,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
           _models = fallback;
           _probing = false;
           _lastProbedSignature = signature;
-          _probeStatus = '接口探测失败，已使用内置模型列表';
+          _probeStatus = '暂时连不上服务，已改用常用模型列表';
         });
         return;
       }
@@ -447,7 +447,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
         _probing = false;
         _probeStatus = error is AiModelCatalogException
             ? error.message
-            : '探测失败：$error';
+            : '查找失败：$error';
       });
     }
   }
@@ -470,7 +470,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
   Widget build(BuildContext context) {
     return _ChannelScaffold(
       title: '生图 AI',
-      caption: '生图供应商列表（参考 NativeTavern ImageGen，与文本不同）；点选模型即保存。',
+      caption: '用来生成插画。与写故事的服务商分开设置，互不影响。',
       providerLabel: widget.endpoint.kind.label,
       onPickKind: widget.onPickKind,
       baseUrl: _baseUrl,
@@ -548,14 +548,14 @@ class _ChannelScaffold extends StatelessWidget {
         const SizedBox(height: AppTheme.spaceGroup),
         AppListTile(
           title: providerLabel,
-          subtitle: '供应商',
+          subtitle: '当前服务商',
           icon: Icons.cloud_outlined,
           onTap: onPickKind,
           trailing: const AppText('更换', role: AppTextRole.caption),
         ),
         const SizedBox(height: AppTheme.spaceGroup),
         AppTextField(
-          label: 'Base URL',
+          label: '服务地址',
           controller: baseUrl,
           hint: defaultBaseUrl,
           keyboardType: TextInputType.url,
@@ -566,7 +566,7 @@ class _ChannelScaffold extends StatelessWidget {
         const SizedBox(height: AppTheme.spaceGroup),
         if (needsApiKey) ...[
           AppTextField(
-            label: 'API Key',
+            label: '密钥',
             controller: apiKey,
             obscureText: true,
             hint: 'sk-…',
@@ -583,7 +583,7 @@ class _ChannelScaffold extends StatelessWidget {
           hint: modelHint,
           onTap: onPickModel,
           trailing: AppButton(
-            label: probing ? '探测中' : '探测模型',
+            label: probing ? '查找中' : '查找模型',
             variant: AppButtonVariant.secondary,
             onPressed: onProbe,
           ),
@@ -599,9 +599,9 @@ class _ChannelScaffold extends StatelessWidget {
 
 String? _modelHint(String model, bool probing, List<String> models) {
   if (model.trim().isNotEmpty) return null;
-  if (probing) return '探测中…';
-  if (models.isEmpty) return '点此选择或先探测';
-  return '已探测 ${models.length} 个';
+  if (probing) return '正在查找…';
+  if (models.isEmpty) return '点这里选择，或先查找可用模型';
+  return '已找到 ${models.length} 个';
 }
 
 Future<String?> _showModelSheet(

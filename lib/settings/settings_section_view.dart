@@ -58,8 +58,8 @@ Widget _bodyFor(SettingsSection section) {
         children: [
           AppSectionHeader('通用'),
           AppEmptyState(
-            message: '通用选项稍后接入',
-            detail: '语言、启动行为等开关会放在这里。外观请到「外观」分区。',
+            message: '这里还没有可改的选项',
+            detail: '语言、启动方式等会放在这里。想改外观请打开「外观」。',
           ),
         ],
       ),

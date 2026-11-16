@@ -38,8 +38,8 @@ class CreateEntryPage extends StatelessWidget {
           AppSectionHeader('创作入口'),
           AppText(kind.blurb, role: AppTextRole.body),
           const AppEmptyState(
-            message: '流程即将接入',
-            detail: '当前可先从作品列表打开已有包，或新建空白作品。',
+            message: '这条创作路径马上就好',
+            detail: '现在可以先打开已有作品，或新建一个空白作品。',
           ),
         ],
       ),
