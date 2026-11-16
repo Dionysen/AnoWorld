@@ -37,10 +37,15 @@ abstract final class AppTheme {
 
   static const double spaceXs = 4;
   static const double spaceSm = 8;
+  /// Inline gap between adjacent controls in one row (e.g. model picker + probe).
+  static const double spaceInline = 12;
   static const double spaceMd = 16;
   static const double spaceLg = 24;
   static const double radiusMd = 10;
   static const double pagePadding = spaceMd;
+
+  /// Primary/secondary button height (also select-field value box when paired).
+  static const double buttonHeight = 36;
 
   /// Default field padding (controls read [AppUiTokens.fieldPadding]).
   static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
@@ -145,6 +150,7 @@ abstract final class AppTheme {
       fontSize: bodyPx,
       fontFamily: fontFamily,
       fieldPadding: fieldPadding,
+      spaceInline: spaceInline,
     );
 
     final scheme = brightness == Brightness.dark

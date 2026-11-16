@@ -81,7 +81,8 @@ void main() {
     await tester.tap(find.text('AI').first);
     await tester.pumpAndSettle();
     expect(find.text('供应商'), findsWidgets);
+    expect(find.text('模型'), findsWidgets);
     expect(find.text('探测模型'), findsWidgets);
-    expect(find.text('保存'), findsWidgets);
+    expect(find.text('保存'), findsNothing);
   });
 }

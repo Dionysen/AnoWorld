@@ -3,6 +3,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 
 import 'app_shapes.dart';
+import 'app_theme.dart';
 
 /// Runtime UI metrics carried on [ThemeData] (radius, field padding, type size).
 @immutable
@@ -12,6 +13,7 @@ class AppUiTokens extends ThemeExtension<AppUiTokens> {
     required this.fontSize,
     required this.fontFamily,
     required this.fieldPadding,
+    this.spaceInline = AppTheme.spaceInline,
   });
 
   static const fallback = AppUiTokens(
@@ -19,6 +21,7 @@ class AppUiTokens extends ThemeExtension<AppUiTokens> {
     fontSize: 15,
     fontFamily: null,
     fieldPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    spaceInline: AppTheme.spaceInline,
   );
 
   /// Continuous-corner radius in logical pixels.
@@ -29,6 +32,9 @@ class AppUiTokens extends ThemeExtension<AppUiTokens> {
 
   final String? fontFamily;
   final EdgeInsets fieldPadding;
+
+  /// Gap between adjacent controls in one row.
+  final double spaceInline;
 
   static AppUiTokens of(BuildContext context) {
     return Theme.of(context).extension<AppUiTokens>() ?? fallback;
@@ -44,6 +50,7 @@ class AppUiTokens extends ThemeExtension<AppUiTokens> {
     double? fontSize,
     String? fontFamily,
     EdgeInsets? fieldPadding,
+    double? spaceInline,
     bool clearFontFamily = false,
   }) {
     return AppUiTokens(
@@ -51,6 +58,7 @@ class AppUiTokens extends ThemeExtension<AppUiTokens> {
       fontSize: fontSize ?? this.fontSize,
       fontFamily: clearFontFamily ? null : (fontFamily ?? this.fontFamily),
       fieldPadding: fieldPadding ?? this.fieldPadding,
+      spaceInline: spaceInline ?? this.spaceInline,
     );
   }
 
@@ -63,6 +71,7 @@ class AppUiTokens extends ThemeExtension<AppUiTokens> {
       fontFamily: t < 0.5 ? fontFamily : other.fontFamily,
       fieldPadding: EdgeInsets.lerp(fieldPadding, other.fieldPadding, t) ??
           fieldPadding,
+      spaceInline: lerpDouble(spaceInline, other.spaceInline, t) ?? spaceInline,
     );
   }
 }

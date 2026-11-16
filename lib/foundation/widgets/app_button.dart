@@ -30,7 +30,10 @@ class AppButton extends StatelessWidget {
       AppButtonVariant.primary => FilledButton(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 40),
+            minimumSize: const Size(0, AppTheme.buttonHeight),
+            fixedSize: const Size.fromHeight(AppTheme.buttonHeight),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(
               horizontal: AppTheme.spaceMd,
               vertical: AppTheme.spaceSm,
@@ -44,7 +47,10 @@ class AppButton extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: theme.colorScheme.onSurface,
             side: BorderSide(color: theme.colorScheme.outline),
-            minimumSize: const Size(0, 40),
+            minimumSize: const Size(0, AppTheme.buttonHeight),
+            fixedSize: const Size.fromHeight(AppTheme.buttonHeight),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(
               horizontal: AppTheme.spaceMd,
               vertical: AppTheme.spaceSm,
@@ -58,6 +64,7 @@ class AppButton extends StatelessWidget {
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
             minimumSize: const Size(0, 36),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(
               horizontal: AppTheme.spaceSm,
               vertical: AppTheme.spaceXs,

@@ -7,6 +7,7 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
@@ -80,33 +81,31 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
           children: [
             _ChannelEditor(
               title: '文本 AI',
-              caption: '选择供应商后填写 Base URL 与密钥；输入密钥后会自动探测可用模型。',
+              caption: '选择供应商后填写 Base URL 与密钥；输入密钥后会自动探测可用模型，点选即保存。',
               endpoint: ai.text,
-              forImage: false,
               catalog: catalog,
               onPickKind: () async {
                 final kind = await _pickKind(ai.text.kind);
                 if (kind == null || !mounted) return;
                 await _persist(ai.switchTextKind(kind));
               },
-              onSave: (endpoint) async {
-                await _persist(ai.withText(endpoint), status: '文本 AI 已保存');
+              onChanged: (endpoint) async {
+                await _persist(ai.withText(endpoint));
               },
             ),
             const SizedBox(height: AppTheme.spaceLg),
             _ChannelEditor(
               title: '生图 AI',
-              caption: '可与文本选用不同供应商；同样支持密钥后自动探测模型。',
+              caption: '可与文本选用不同供应商；点选模型即保存。',
               endpoint: ai.image,
-              forImage: true,
               catalog: catalog,
               onPickKind: () async {
                 final kind = await _pickKind(ai.image.kind);
                 if (kind == null || !mounted) return;
                 await _persist(ai.switchImageKind(kind));
               },
-              onSave: (endpoint) async {
-                await _persist(ai.withImage(endpoint), status: '生图 AI 已保存');
+              onChanged: (endpoint) async {
+                await _persist(ai.withImage(endpoint));
               },
             ),
             if (_status != null) ...[
@@ -125,19 +124,17 @@ class _ChannelEditor extends StatefulWidget {
     required this.title,
     required this.caption,
     required this.endpoint,
-    required this.forImage,
     required this.catalog,
     required this.onPickKind,
-    required this.onSave,
+    required this.onChanged,
   });
 
   final String title;
   final String caption;
   final AiEndpointConfig endpoint;
-  final bool forImage;
   final AiModelCatalog catalog;
   final VoidCallback onPickKind;
-  final ValueChanged<AiEndpointConfig> onSave;
+  final ValueChanged<AiEndpointConfig> onChanged;
 
   @override
   State<_ChannelEditor> createState() => _ChannelEditorState();
@@ -146,7 +143,6 @@ class _ChannelEditor extends StatefulWidget {
 class _ChannelEditorState extends State<_ChannelEditor> {
   late final TextEditingController _baseUrl;
   late final TextEditingController _apiKey;
-  late final TextEditingController _model;
   AiProviderKind? _boundKind;
 
   List<String> _models = const [];
@@ -160,7 +156,6 @@ class _ChannelEditorState extends State<_ChannelEditor> {
     super.initState();
     _baseUrl = TextEditingController(text: widget.endpoint.baseUrl);
     _apiKey = TextEditingController(text: widget.endpoint.apiKey);
-    _model = TextEditingController(text: widget.endpoint.model);
     _boundKind = widget.endpoint.kind;
     _scheduleAutoProbe(immediate: true);
   }
@@ -172,11 +167,19 @@ class _ChannelEditorState extends State<_ChannelEditor> {
       _boundKind = widget.endpoint.kind;
       _baseUrl.text = widget.endpoint.baseUrl;
       _apiKey.text = widget.endpoint.apiKey;
-      _model.text = widget.endpoint.model;
       _models = const [];
       _probeStatus = null;
       _lastProbedSignature = null;
       _scheduleAutoProbe(immediate: true);
+      return;
+    }
+    if (widget.endpoint.baseUrl != oldWidget.endpoint.baseUrl &&
+        _baseUrl.text.trim() != widget.endpoint.baseUrl) {
+      _baseUrl.text = widget.endpoint.baseUrl;
+    }
+    if (widget.endpoint.apiKey != oldWidget.endpoint.apiKey &&
+        _apiKey.text.trim() != widget.endpoint.apiKey) {
+      _apiKey.text = widget.endpoint.apiKey;
     }
   }
 
@@ -185,14 +188,12 @@ class _ChannelEditorState extends State<_ChannelEditor> {
     _probeDebounce?.cancel();
     _baseUrl.dispose();
     _apiKey.dispose();
-    _model.dispose();
     super.dispose();
   }
 
   AiEndpointConfig get _draft => widget.endpoint.copyWith(
         baseUrl: _baseUrl.text.trim(),
         apiKey: _apiKey.text.trim(),
-        model: _model.text.trim(),
       );
 
   String get _probeSignature {
@@ -208,6 +209,10 @@ class _ChannelEditorState extends State<_ChannelEditor> {
     if (base.isEmpty) return false;
     if (d.kind.needsApiKey && d.apiKey.isEmpty) return false;
     return true;
+  }
+
+  void _commitFields() {
+    widget.onChanged(_draft);
   }
 
   void _scheduleAutoProbe({bool immediate = false}) {
@@ -242,15 +247,17 @@ class _ChannelEditorState extends State<_ChannelEditor> {
     try {
       final models = await widget.catalog.listModels(_draft);
       if (!mounted) return;
+      final shouldPickDefault =
+          widget.endpoint.model.trim().isEmpty && models.isNotEmpty;
       setState(() {
         _models = models;
         _probing = false;
         _lastProbedSignature = signature;
         _probeStatus = '已探测到 ${models.length} 个模型';
-        if (_model.text.trim().isEmpty && models.isNotEmpty) {
-          _model.text = models.first;
-        }
       });
+      if (shouldPickDefault) {
+        widget.onChanged(_draft.copyWith(model: models.first));
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -289,7 +296,7 @@ class _ChannelEditorState extends State<_ChannelEditor> {
                   AppListTile(
                     title: id,
                     onTap: () => Navigator.of(context).pop(id),
-                    trailing: id == _model.text.trim()
+                    trailing: id == widget.endpoint.model
                         ? const AppText('当前', role: AppTextRole.caption)
                         : null,
                   ),
@@ -302,19 +309,17 @@ class _ChannelEditorState extends State<_ChannelEditor> {
       },
     );
     if (selected == null || !mounted) return;
-    setState(() => _model.text = selected);
+    widget.onChanged(_draft.copyWith(model: selected));
   }
 
   @override
   Widget build(BuildContext context) {
     final endpoint = widget.endpoint;
-    final modelHint = widget.forImage
-        ? (endpoint.kind.defaultImageModel().isEmpty
-            ? 'dall-e-3'
-            : endpoint.kind.defaultImageModel())
-        : (endpoint.kind.defaultTextModel().isEmpty
-            ? 'gpt-4o-mini'
-            : endpoint.kind.defaultTextModel());
+    final modelHint = endpoint.model.trim().isEmpty
+        ? (_probing
+            ? '探测中…'
+            : (_models.isEmpty ? '点此选择或先探测' : '已探测 ${_models.length} 个'))
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -336,7 +341,10 @@ class _ChannelEditorState extends State<_ChannelEditor> {
           keyboardType: TextInputType.url,
           textInputAction: TextInputAction.next,
           onChanged: (_) => _scheduleAutoProbe(),
-          onEditingComplete: () => _scheduleAutoProbe(immediate: true),
+          onEditingComplete: () {
+            _commitFields();
+            _scheduleAutoProbe(immediate: true);
+          },
         ),
         const SizedBox(height: AppTheme.spaceSm),
         if (endpoint.kind.needsApiKey) ...[
@@ -345,57 +353,34 @@ class _ChannelEditorState extends State<_ChannelEditor> {
             controller: _apiKey,
             obscureText: true,
             hint: 'sk-…',
-            textInputAction: TextInputAction.next,
+            textInputAction: TextInputAction.done,
             onChanged: (_) => _scheduleAutoProbe(),
-            onEditingComplete: () => _scheduleAutoProbe(immediate: true),
-            onSubmitted: (_) => _scheduleAutoProbe(immediate: true),
+            onEditingComplete: () {
+              _commitFields();
+              _scheduleAutoProbe(immediate: true);
+            },
+            onSubmitted: (_) {
+              _commitFields();
+              _scheduleAutoProbe(immediate: true);
+            },
           ),
           const SizedBox(height: AppTheme.spaceSm),
         ],
-        AppListTile(
-          title: '可用模型',
-          subtitle: _probing
-              ? '探测中…'
-              : (_models.isEmpty
-                  ? '输入密钥后自动探测，或点此刷新'
-                  : '已探测 ${_models.length} 个，点此选择'),
-          onTap: _probing ? null : _pickModel,
-          trailing: AppText(
-            _probing ? '…' : '选择',
-            role: AppTextRole.caption,
-          ),
-        ),
-        const SizedBox(height: AppTheme.spaceSm),
-        AppTextField(
+        AppSelectField(
           label: '模型',
-          controller: _model,
+          value: endpoint.model,
           hint: modelHint,
+          onTap: _probing ? null : _pickModel,
+          trailing: AppButton(
+            label: _probing ? '探测中' : '探测模型',
+            variant: AppButtonVariant.secondary,
+            onPressed: _probing ? null : () => _probeModels(force: true),
+          ),
         ),
         if (_probeStatus != null) ...[
           const SizedBox(height: AppTheme.spaceXs),
           AppText(_probeStatus!, role: AppTextRole.caption),
         ],
-        const SizedBox(height: AppTheme.spaceMd),
-        Row(
-          children: [
-            Expanded(
-              child: AppButton(
-                label: '探测模型',
-                variant: AppButtonVariant.secondary,
-                expanded: true,
-                onPressed: _probing ? null : () => _probeModels(force: true),
-              ),
-            ),
-            const SizedBox(width: AppTheme.spaceSm),
-            Expanded(
-              child: AppButton(
-                label: '保存',
-                expanded: true,
-                onPressed: () => widget.onSave(_draft),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
