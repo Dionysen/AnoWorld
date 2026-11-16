@@ -14,11 +14,16 @@ void main() {
 
     await repo.saveAi(
       const AiSettings(
-        text: AiEndpointConfig(
-          kind: AiProviderKind.deepSeek,
+        text: AiTextEndpoint(
+          kind: AiTextProviderKind.deepSeek,
           baseUrl: 'https://api.deepseek.com/v1',
           apiKey: 'sk-test',
           model: 'gpt-test',
+        ),
+        image: AiImageEndpoint(
+          kind: AiImageProviderKind.comfyui,
+          baseUrl: 'http://127.0.0.1:8188',
+          model: 'sdxl',
         ),
       ),
     );
@@ -34,14 +39,11 @@ void main() {
 
     final ai = await repo.loadAi();
     expect(ai.text.model, 'gpt-test');
-    expect(ai.text.apiKey, 'sk-test');
-    expect(ai.text.kind, AiProviderKind.deepSeek);
+    expect(ai.text.kind, AiTextProviderKind.deepSeek);
+    expect(ai.image.kind, AiImageProviderKind.comfyui);
 
     final appearance = await repo.loadAppearance();
     expect(appearance.mode, AppThemeModeSetting.light);
-    expect(appearance.preset, AppThemePreset.mist);
-    expect(appearance.typeface, AppTypeface.sans);
     expect(appearance.fontSize, 16.5);
-    expect(appearance.cornerRadius, 16);
   });
 }

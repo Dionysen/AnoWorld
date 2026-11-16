@@ -6,7 +6,8 @@ import 'package:http/http.dart' as http;
 
 /// Fetches models via OpenAI-compatible `GET {baseUrl}/models`.
 class HttpOpenAiModelCatalog implements AiModelCatalog {
-  HttpOpenAiModelCatalog({http.Client? client}) : _client = client ?? http.Client();
+  HttpOpenAiModelCatalog({http.Client? client})
+      : _client = client ?? http.Client();
 
   final http.Client _client;
 
@@ -21,14 +22,12 @@ class HttpOpenAiModelCatalog implements AiModelCatalog {
   @override
   Future<List<String>> listModels(AiEndpointConfig endpoint) async {
     final base = normalizeBaseUrl(
-      endpoint.baseUrl.isEmpty
-          ? endpoint.kind.defaultBaseUrl
-          : endpoint.baseUrl,
+      endpoint.baseUrl.isEmpty ? endpoint.defaultBaseUrl : endpoint.baseUrl,
     );
     if (base.isEmpty) {
       throw AiModelCatalogException('请先填写 Base URL');
     }
-    if (endpoint.kind.needsApiKey && endpoint.apiKey.trim().isEmpty) {
+    if (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty) {
       throw AiModelCatalogException('请先填写 API Key');
     }
 

@@ -1,7 +1,7 @@
 import 'package:anoworld/domain/models/json_map.dart';
 
-/// Built-in provider templates (OpenAI-compatible HTTP). Inspired by NativeTavern.
-enum AiProviderKind {
+/// Text/LLM providers (OpenAI-compatible HTTP). Inspired by NativeTavern `LLMProvider`.
+enum AiTextProviderKind {
   openAiCompatible,
   openai,
   deepSeek,
@@ -14,73 +14,166 @@ enum AiProviderKind {
   ollama,
 }
 
-extension AiProviderKindX on AiProviderKind {
+extension AiTextProviderKindX on AiTextProviderKind {
   String get label => switch (this) {
-        AiProviderKind.openAiCompatible => '自定义',
-        AiProviderKind.openai => 'OpenAI',
-        AiProviderKind.deepSeek => 'DeepSeek',
-        AiProviderKind.openRouter => 'OpenRouter',
-        AiProviderKind.qwen => '通义千问',
-        AiProviderKind.siliconFlow => '硅基流动',
-        AiProviderKind.moonshot => 'Moonshot',
-        AiProviderKind.zai => '智谱',
-        AiProviderKind.miniMax => 'MiniMax',
-        AiProviderKind.ollama => 'Ollama',
+        AiTextProviderKind.openAiCompatible => '自定义',
+        AiTextProviderKind.openai => 'OpenAI',
+        AiTextProviderKind.deepSeek => 'DeepSeek',
+        AiTextProviderKind.openRouter => 'OpenRouter',
+        AiTextProviderKind.qwen => '通义千问',
+        AiTextProviderKind.siliconFlow => '硅基流动',
+        AiTextProviderKind.moonshot => 'Moonshot',
+        AiTextProviderKind.zai => '智谱',
+        AiTextProviderKind.miniMax => 'MiniMax',
+        AiTextProviderKind.ollama => 'Ollama',
       };
 
   String get defaultBaseUrl => switch (this) {
-        AiProviderKind.openAiCompatible => 'http://localhost:8080/v1',
-        AiProviderKind.openai => 'https://api.openai.com/v1',
-        AiProviderKind.deepSeek => 'https://api.deepseek.com/v1',
-        AiProviderKind.openRouter => 'https://openrouter.ai/api/v1',
-        AiProviderKind.qwen =>
+        AiTextProviderKind.openAiCompatible => 'http://localhost:8080/v1',
+        AiTextProviderKind.openai => 'https://api.openai.com/v1',
+        AiTextProviderKind.deepSeek => 'https://api.deepseek.com/v1',
+        AiTextProviderKind.openRouter => 'https://openrouter.ai/api/v1',
+        AiTextProviderKind.qwen =>
           'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        AiProviderKind.siliconFlow => 'https://api.siliconflow.cn/v1',
-        AiProviderKind.moonshot => 'https://api.moonshot.cn/v1',
-        AiProviderKind.zai => 'https://open.bigmodel.cn/api/paas/v4',
-        AiProviderKind.miniMax => 'https://api.minimaxi.com/v1',
-        AiProviderKind.ollama => 'http://localhost:11434/v1',
+        AiTextProviderKind.siliconFlow => 'https://api.siliconflow.cn/v1',
+        AiTextProviderKind.moonshot => 'https://api.moonshot.cn/v1',
+        AiTextProviderKind.zai => 'https://open.bigmodel.cn/api/paas/v4',
+        AiTextProviderKind.miniMax => 'https://api.minimaxi.com/v1',
+        AiTextProviderKind.ollama => 'http://localhost:11434/v1',
       };
 
-  String defaultTextModel() => switch (this) {
-        AiProviderKind.openAiCompatible => '',
-        AiProviderKind.openai => 'gpt-4o-mini',
-        AiProviderKind.deepSeek => 'deepseek-chat',
-        AiProviderKind.openRouter => 'openai/gpt-4o-mini',
-        AiProviderKind.qwen => 'qwen-plus',
-        AiProviderKind.siliconFlow => 'deepseek-ai/DeepSeek-V3',
-        AiProviderKind.moonshot => 'kimi-latest',
-        AiProviderKind.zai => 'glm-4',
-        AiProviderKind.miniMax => 'MiniMax-M2',
-        AiProviderKind.ollama => 'llama3.2',
+  String get defaultModel => switch (this) {
+        AiTextProviderKind.openAiCompatible => '',
+        AiTextProviderKind.openai => 'gpt-4o-mini',
+        AiTextProviderKind.deepSeek => 'deepseek-chat',
+        AiTextProviderKind.openRouter => 'openai/gpt-4o-mini',
+        AiTextProviderKind.qwen => 'qwen-plus',
+        AiTextProviderKind.siliconFlow => 'deepseek-ai/DeepSeek-V3',
+        AiTextProviderKind.moonshot => 'kimi-latest',
+        AiTextProviderKind.zai => 'glm-4',
+        AiTextProviderKind.miniMax => 'MiniMax-M2',
+        AiTextProviderKind.ollama => 'llama3.2',
       };
 
-  String defaultImageModel() => switch (this) {
-        AiProviderKind.openai => 'dall-e-3',
-        AiProviderKind.openAiCompatible => '',
-        _ => '',
-      };
+  bool get needsApiKey => this != AiTextProviderKind.ollama;
 
-  bool get needsApiKey => this != AiProviderKind.ollama;
+  bool get supportsModelProbe => true;
 
-  static AiProviderKind parse(String? raw) {
-    return AiProviderKind.values.firstWhere(
+  static AiTextProviderKind parse(String? raw) {
+    return AiTextProviderKind.values.firstWhere(
       (k) => k.name == raw,
-      orElse: () => AiProviderKind.openAiCompatible,
+      orElse: () => AiTextProviderKind.openAiCompatible,
     );
   }
 }
 
-/// Active endpoint for one channel (text or image).
-class AiEndpointConfig {
-  const AiEndpointConfig({
-    this.kind = AiProviderKind.openAiCompatible,
+/// Image providers. Inspired by NativeTavern `ImageGenProvider` (separate from LLM).
+enum AiImageProviderKind {
+  openAiCompatible,
+  openai,
+  openaiChat,
+  siliconFlow,
+  pollinations,
+  novelai,
+  automatic1111,
+  comfyui,
+}
+
+extension AiImageProviderKindX on AiImageProviderKind {
+  String get label => switch (this) {
+        AiImageProviderKind.openAiCompatible => '自定义 / OAI 生图',
+        AiImageProviderKind.openai => 'OpenAI Images',
+        AiImageProviderKind.openaiChat => 'OAI Chat 生图',
+        AiImageProviderKind.siliconFlow => '硅基流动',
+        AiImageProviderKind.pollinations => 'Pollinations（免费）',
+        AiImageProviderKind.novelai => 'NovelAI',
+        AiImageProviderKind.automatic1111 => 'Automatic1111',
+        AiImageProviderKind.comfyui => 'ComfyUI',
+      };
+
+  String get defaultBaseUrl => switch (this) {
+        AiImageProviderKind.openAiCompatible => 'http://localhost:8080/v1',
+        AiImageProviderKind.openai => 'https://api.openai.com/v1',
+        AiImageProviderKind.openaiChat => 'https://api.openai.com/v1',
+        AiImageProviderKind.siliconFlow => 'https://api.siliconflow.cn/v1',
+        AiImageProviderKind.pollinations => 'https://image.pollinations.ai',
+        AiImageProviderKind.novelai => 'https://image.novelai.net',
+        AiImageProviderKind.automatic1111 => 'http://localhost:7860',
+        AiImageProviderKind.comfyui => 'http://127.0.0.1:8188',
+      };
+
+  String get defaultModel => switch (this) {
+        AiImageProviderKind.openAiCompatible => '',
+        AiImageProviderKind.openai => 'dall-e-3',
+        AiImageProviderKind.openaiChat => 'gpt-image-1',
+        AiImageProviderKind.siliconFlow => '',
+        AiImageProviderKind.pollinations => 'flux',
+        AiImageProviderKind.novelai => 'nai-diffusion-4-5-curated',
+        AiImageProviderKind.automatic1111 => '',
+        AiImageProviderKind.comfyui => '',
+      };
+
+  bool get needsApiKey => switch (this) {
+        AiImageProviderKind.pollinations ||
+        AiImageProviderKind.automatic1111 ||
+        AiImageProviderKind.comfyui =>
+          false,
+        _ => true,
+      };
+
+  /// OpenAI-compatible `/models` probe; locals often need other endpoints later.
+  bool get supportsModelProbe => switch (this) {
+        AiImageProviderKind.openAiCompatible ||
+        AiImageProviderKind.openai ||
+        AiImageProviderKind.openaiChat ||
+        AiImageProviderKind.siliconFlow =>
+          true,
+        _ => false,
+      };
+
+  List<String> get fallbackModels => switch (this) {
+        AiImageProviderKind.openai => const ['dall-e-3', 'dall-e-2', 'gpt-image-1'],
+        AiImageProviderKind.openaiChat =>
+          const ['gpt-image-1', 'gpt-image-1-mini'],
+        AiImageProviderKind.pollinations => const ['flux', 'turbo'],
+        AiImageProviderKind.novelai => const [
+            'nai-diffusion-4-5-curated',
+            'nai-diffusion-4-5-full',
+          ],
+        _ => const <String>[],
+      };
+
+  static AiImageProviderKind parse(String? raw) {
+    // Migrate old text-provider kinds saved on the image channel.
+    final migrated = switch (raw) {
+      'deepSeek' ||
+      'openRouter' ||
+      'qwen' ||
+      'moonshot' ||
+      'zai' ||
+      'miniMax' ||
+      'ollama' =>
+        AiImageProviderKind.openAiCompatible,
+      _ => null,
+    };
+    if (migrated != null) return migrated;
+    return AiImageProviderKind.values.firstWhere(
+      (k) => k.name == raw,
+      orElse: () => AiImageProviderKind.openAiCompatible,
+    );
+  }
+}
+
+/// Active text endpoint.
+class AiTextEndpoint {
+  const AiTextEndpoint({
+    this.kind = AiTextProviderKind.openAiCompatible,
     this.baseUrl = '',
     this.apiKey = '',
     this.model = '',
   });
 
-  final AiProviderKind kind;
+  final AiTextProviderKind kind;
   final String baseUrl;
   final String apiKey;
   final String model;
@@ -88,13 +181,16 @@ class AiEndpointConfig {
   bool get isConfigured =>
       baseUrl.trim().isNotEmpty && model.trim().isNotEmpty;
 
-  AiEndpointConfig copyWith({
-    AiProviderKind? kind,
+  bool get needsApiKey => kind.needsApiKey;
+  bool get supportsModelProbe => kind.supportsModelProbe;
+
+  AiTextEndpoint copyWith({
+    AiTextProviderKind? kind,
     String? baseUrl,
     String? apiKey,
     String? model,
   }) {
-    return AiEndpointConfig(
+    return AiTextEndpoint(
       kind: kind ?? this.kind,
       baseUrl: baseUrl ?? this.baseUrl,
       apiKey: apiKey ?? this.apiKey,
@@ -102,18 +198,13 @@ class AiEndpointConfig {
     );
   }
 
-  /// Switch supplier: restore [saved] slot if any, else kind defaults.
-  AiEndpointConfig switchKind(
-    AiProviderKind next, {
-    required bool forImage,
-    AiEndpointConfig? saved,
-  }) {
+  AiTextEndpoint switchKind(AiTextProviderKind next, {AiTextEndpoint? saved}) {
     if (saved != null && saved.kind == next) return saved;
-    return AiEndpointConfig(
+    return AiTextEndpoint(
       kind: next,
       baseUrl: next.defaultBaseUrl,
       apiKey: '',
-      model: forImage ? next.defaultImageModel() : next.defaultTextModel(),
+      model: next.defaultModel,
     );
   }
 
@@ -124,32 +215,13 @@ class AiEndpointConfig {
         'model': model,
       };
 
-  factory AiEndpointConfig.fromJson(
-    Map<String, dynamic>? json, {
-    required bool forImage,
-  }) {
-    if (json == null) return const AiEndpointConfig();
-
-    // Multi-provider format → active entry.
+  factory AiTextEndpoint.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const AiTextEndpoint();
     if (json.containsKey('providers')) {
-      final rawList = json.optionalList('providers');
-      final activeId = json.optionalString('activeId');
-      Map<String, dynamic>? chosen;
-      for (final item in rawList) {
-        if (item is! Map) continue;
-        final map = Map<String, dynamic>.from(item);
-        chosen ??= map;
-        if (activeId != null && map.optionalString('id') == activeId) {
-          chosen = map;
-          break;
-        }
-      }
-      return AiEndpointConfig.fromJson(chosen, forImage: forImage);
+      return AiTextEndpoint.fromJson(_activeFromProviders(json));
     }
-
-    final kind = AiProviderKindX.parse(json.optionalString('kind'));
-    return AiEndpointConfig(
-      kind: kind,
+    return AiTextEndpoint(
+      kind: AiTextProviderKindX.parse(json.optionalString('kind')),
       baseUrl: json.optionalString('baseUrl') ?? '',
       apiKey: json.optionalString('apiKey') ?? '',
       model: json.optionalString('model') ?? '',
@@ -157,26 +229,108 @@ class AiEndpointConfig {
   }
 }
 
-class AiSettings {
-  const AiSettings({
-    this.text = const AiEndpointConfig(),
-    this.image = const AiEndpointConfig(),
-    this.textSlots = const <String, AiEndpointConfig>{},
-    this.imageSlots = const <String, AiEndpointConfig>{},
+/// Active image endpoint (providers differ from text).
+class AiImageEndpoint {
+  const AiImageEndpoint({
+    this.kind = AiImageProviderKind.openAiCompatible,
+    this.baseUrl = '',
+    this.apiKey = '',
+    this.model = '',
   });
 
-  final AiEndpointConfig text;
-  final AiEndpointConfig image;
+  final AiImageProviderKind kind;
+  final String baseUrl;
+  final String apiKey;
+  final String model;
 
-  /// Last-known fields per [AiProviderKind.name] when switching away.
-  final Map<String, AiEndpointConfig> textSlots;
-  final Map<String, AiEndpointConfig> imageSlots;
+  bool get isConfigured =>
+      baseUrl.trim().isNotEmpty && model.trim().isNotEmpty;
+
+  bool get needsApiKey => kind.needsApiKey;
+  bool get supportsModelProbe => kind.supportsModelProbe;
+
+  AiImageEndpoint copyWith({
+    AiImageProviderKind? kind,
+    String? baseUrl,
+    String? apiKey,
+    String? model,
+  }) {
+    return AiImageEndpoint(
+      kind: kind ?? this.kind,
+      baseUrl: baseUrl ?? this.baseUrl,
+      apiKey: apiKey ?? this.apiKey,
+      model: model ?? this.model,
+    );
+  }
+
+  AiImageEndpoint switchKind(
+    AiImageProviderKind next, {
+    AiImageEndpoint? saved,
+  }) {
+    if (saved != null && saved.kind == next) return saved;
+    return AiImageEndpoint(
+      kind: next,
+      baseUrl: next.defaultBaseUrl,
+      apiKey: '',
+      model: next.defaultModel,
+    );
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'kind': kind.name,
+        'baseUrl': baseUrl,
+        'apiKey': apiKey,
+        'model': model,
+      };
+
+  factory AiImageEndpoint.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const AiImageEndpoint();
+    if (json.containsKey('providers')) {
+      return AiImageEndpoint.fromJson(_activeFromProviders(json));
+    }
+    return AiImageEndpoint(
+      kind: AiImageProviderKindX.parse(json.optionalString('kind')),
+      baseUrl: json.optionalString('baseUrl') ?? '',
+      apiKey: json.optionalString('apiKey') ?? '',
+      model: json.optionalString('model') ?? '',
+    );
+  }
+}
+
+Map<String, dynamic>? _activeFromProviders(Map<String, dynamic> json) {
+  final rawList = json.optionalList('providers');
+  final activeId = json.optionalString('activeId');
+  Map<String, dynamic>? chosen;
+  for (final item in rawList) {
+    if (item is! Map) continue;
+    final map = Map<String, dynamic>.from(item);
+    chosen ??= map;
+    if (activeId != null && map.optionalString('id') == activeId) {
+      chosen = map;
+      break;
+    }
+  }
+  return chosen;
+}
+
+class AiSettings {
+  const AiSettings({
+    this.text = const AiTextEndpoint(),
+    this.image = const AiImageEndpoint(),
+    this.textSlots = const <String, AiTextEndpoint>{},
+    this.imageSlots = const <String, AiImageEndpoint>{},
+  });
+
+  final AiTextEndpoint text;
+  final AiImageEndpoint image;
+  final Map<String, AiTextEndpoint> textSlots;
+  final Map<String, AiImageEndpoint> imageSlots;
 
   AiSettings copyWith({
-    AiEndpointConfig? text,
-    AiEndpointConfig? image,
-    Map<String, AiEndpointConfig>? textSlots,
-    Map<String, AiEndpointConfig>? imageSlots,
+    AiTextEndpoint? text,
+    AiImageEndpoint? image,
+    Map<String, AiTextEndpoint>? textSlots,
+    Map<String, AiImageEndpoint>? imageSlots,
   }) {
     return AiSettings(
       text: text ?? this.text,
@@ -186,30 +340,30 @@ class AiSettings {
     );
   }
 
-  AiSettings withText(AiEndpointConfig next) {
-    final slots = Map<String, AiEndpointConfig>.from(textSlots)
+  AiSettings withText(AiTextEndpoint next) {
+    final slots = Map<String, AiTextEndpoint>.from(textSlots)
       ..[next.kind.name] = next;
     return copyWith(text: next, textSlots: slots);
   }
 
-  AiSettings withImage(AiEndpointConfig next) {
-    final slots = Map<String, AiEndpointConfig>.from(imageSlots)
+  AiSettings withImage(AiImageEndpoint next) {
+    final slots = Map<String, AiImageEndpoint>.from(imageSlots)
       ..[next.kind.name] = next;
     return copyWith(image: next, imageSlots: slots);
   }
 
-  AiSettings switchTextKind(AiProviderKind kind) {
+  AiSettings switchTextKind(AiTextProviderKind kind) {
     final saved = textSlots[kind.name];
-    final next = text.switchKind(kind, forImage: false, saved: saved);
-    final slots = Map<String, AiEndpointConfig>.from(textSlots)
+    final next = text.switchKind(kind, saved: saved);
+    final slots = Map<String, AiTextEndpoint>.from(textSlots)
       ..[text.kind.name] = text;
     return copyWith(text: next, textSlots: slots);
   }
 
-  AiSettings switchImageKind(AiProviderKind kind) {
+  AiSettings switchImageKind(AiImageProviderKind kind) {
     final saved = imageSlots[kind.name];
-    final next = image.switchKind(kind, forImage: true, saved: saved);
-    final slots = Map<String, AiEndpointConfig>.from(imageSlots)
+    final next = image.switchKind(kind, saved: saved);
+    final slots = Map<String, AiImageEndpoint>.from(imageSlots)
       ..[image.kind.name] = image;
     return copyWith(image: next, imageSlots: slots);
   }
@@ -227,34 +381,71 @@ class AiSettings {
 
   factory AiSettings.fromJson(Map<String, dynamic> json) {
     return AiSettings(
-      text: AiEndpointConfig.fromJson(
-        json.optionalMap('text'),
-        forImage: false,
-      ),
-      image: AiEndpointConfig.fromJson(
-        json.optionalMap('image'),
-        forImage: true,
-      ),
-      textSlots: _slotsFromJson(json.optionalMap('textSlots'), forImage: false),
-      imageSlots:
-          _slotsFromJson(json.optionalMap('imageSlots'), forImage: true),
+      text: AiTextEndpoint.fromJson(json.optionalMap('text')),
+      image: AiImageEndpoint.fromJson(json.optionalMap('image')),
+      textSlots: _textSlotsFromJson(json.optionalMap('textSlots')),
+      imageSlots: _imageSlotsFromJson(json.optionalMap('imageSlots')),
     );
   }
 
-  static Map<String, AiEndpointConfig> _slotsFromJson(
-    Map<String, dynamic>? raw, {
-    required bool forImage,
-  }) {
+  static Map<String, AiTextEndpoint> _textSlotsFromJson(
+    Map<String, dynamic>? raw,
+  ) {
     if (raw == null) return const {};
-    final out = <String, AiEndpointConfig>{};
+    final out = <String, AiTextEndpoint>{};
     for (final entry in raw.entries) {
       final value = entry.value;
       if (value is! Map) continue;
-      out[entry.key] = AiEndpointConfig.fromJson(
-        Map<String, dynamic>.from(value),
-        forImage: forImage,
-      );
+      out[entry.key] =
+          AiTextEndpoint.fromJson(Map<String, dynamic>.from(value));
     }
     return out;
   }
+
+  static Map<String, AiImageEndpoint> _imageSlotsFromJson(
+    Map<String, dynamic>? raw,
+  ) {
+    if (raw == null) return const {};
+    final out = <String, AiImageEndpoint>{};
+    for (final entry in raw.entries) {
+      final value = entry.value;
+      if (value is! Map) continue;
+      out[entry.key] =
+          AiImageEndpoint.fromJson(Map<String, dynamic>.from(value));
+    }
+    return out;
+  }
+}
+
+/// Compatibility alias used by model catalog HTTP layer.
+class AiEndpointConfig {
+  const AiEndpointConfig({
+    required this.baseUrl,
+    required this.apiKey,
+    required this.model,
+    required this.needsApiKey,
+    this.defaultBaseUrl = '',
+  });
+
+  final String baseUrl;
+  final String apiKey;
+  final String model;
+  final bool needsApiKey;
+  final String defaultBaseUrl;
+
+  factory AiEndpointConfig.fromText(AiTextEndpoint e) => AiEndpointConfig(
+        baseUrl: e.baseUrl,
+        apiKey: e.apiKey,
+        model: e.model,
+        needsApiKey: e.needsApiKey,
+        defaultBaseUrl: e.kind.defaultBaseUrl,
+      );
+
+  factory AiEndpointConfig.fromImage(AiImageEndpoint e) => AiEndpointConfig(
+        baseUrl: e.baseUrl,
+        apiKey: e.apiKey,
+        model: e.model,
+        needsApiKey: e.needsApiKey,
+        defaultBaseUrl: e.kind.defaultBaseUrl,
+      );
 }

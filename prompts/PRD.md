@@ -83,7 +83,7 @@ MVP 优先固定动作（输入输出可进编辑器、可撤销、可再生成�
 - 为某 Beat 生成选项与后果摘要
 - 润色对白 / 统一文风
 
-设置项：文本 / 生图各自选择一个供应商（预设如 OpenAI、DeepSeek、OpenRouter 等，或自定义；参考 NativeTavern），含可改 Base URL、Key、Model；输入密钥后可自动探测 `/models` 列表。文案生成与续写注入项目当前 **Preset**（文风、禁用、偏好），与 Background 分离。
+设置项：文本与生图使用**不同供应商列表**（对齐 NativeTavern：`LLMProvider` vs `ImageGenProvider`）。文本侧：OpenAI / DeepSeek / OpenRouter / 通义 / 硅基流动 / Moonshot / 智谱 / MiniMax / Ollama / 自定义；生图侧：OpenAI Images / OAI Chat 生图 / 硅基流动 / Pollinations / NovelAI / A1111 / ComfyUI / 自定义。各自一份 Base URL、Key、Model；支持探测的渠道在输入密钥后可拉 `/models`。文案生成与续写注入项目当前 **Preset**（文风、禁用、偏好），与 Background 分离。参考实现见同级仓库 `NativeTavern`，规则见 `.cursor/rules/nativetavern-reference.mdc`。
 
 ## 图片资源
 
@@ -113,7 +113,7 @@ MVP 优先固定动作（输入输出可进编辑器、可撤销、可再生成�
 
 - 世界书：仅 Background 文本块，或最小「可检索条目」——见 Core，标记待定。
 - 聊天「章节内有限自由聊」的幅度（默认：挂在当前章节/场景下续写）。
-- MVP 生图：先支持一种主流 API 形态，还是抽象多提供商——实现时再定，产品要求是「可配置生图为主」。
+- MVP 生图：设置侧已按多供应商拆分（与文本分开）；运行时先落地一种主流调用形态即可，产品要求仍是「可配置生图为主」。
 
 ---
 

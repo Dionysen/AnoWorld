@@ -16,6 +16,7 @@ alwaysApply: true
 | 作品包、领域不变量、仓库职责 | [docs/Core.md](mdc:docs/Core.md) |
 | MainBeat / 节点与场景 schema | [docs/MainBeat.md](mdc:docs/MainBeat.md) |
 | 产品范围与非目标 | [prompts/PRD.md](mdc:prompts/PRD.md) |
+| AI 文本/生图供应商、连接形态 | 对照 [nativetavern-reference.mdc](mdc:.cursor/rules/nativetavern-reference.mdc) 与同级 `NativeTavern`，再更新 UX / PRD |
 
 ## 要求
 

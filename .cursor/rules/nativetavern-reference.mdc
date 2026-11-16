@@ -1,0 +1,24 @@
+---
+description: 实现时可参考同目录 NativeTavern；AI 文本与生图供应商等应对齐其职责拆分
+alwaysApply: true
+---
+
+# 参考 NativeTavern
+
+同级仓库：`g:\Public\NativeTavern`（或本机等价路径）。AnoWorld **不是** ST/NT 克隆，但下列能力实现前应先对照 NT 的现有做法，再按 AnoWorld 的 Core/UX/PRD 收敛。
+
+## 优先对照
+
+| 主题 | NT 落点（示意） | AnoWorld 注意 |
+| --- | --- | --- |
+| 文本 / LLM 供应商 | `LLMProvider`（`llm_service.dart`） | 与生图供应商**分开**枚举与设置 |
+| 生图供应商 | `ImageGenProvider`（`image_generation_service.dart`） | OAI 生图、NovelAI、A1111、ComfyUI 等，勿复用文本列表 |
+| AI 连接 UI | `ai_config_screen.dart` / image gen settings | 文本与生图分区、可改 Base URL、模型探测 |
+| 沉浸壳 / 双布局导航 | shell / layout | 已有 foundation 约定时以本仓库为准 |
+| 主题色 | `theme_tokens.dart` | 可借鉴色板，落点仍走 `AppTheme` / `AppearanceSettings` |
+
+## 要求
+
+- 新增或改 AI、生图、连接配置前：先读 NT 对应文件，再改 AnoWorld。
+- 文档（UX / Style / PRD）写清「文本供应商 ≠ 生图供应商」及当前真实选项。
+- 不要把 NT 的 Drift/Riverpod/整包架构原样搬进 AnoWorld；只吸收产品行为与字段划分。

@@ -20,9 +20,11 @@ void main() {
     final catalog = HttpOpenAiModelCatalog(client: client);
     final models = await catalog.listModels(
       const AiEndpointConfig(
-        kind: AiProviderKind.openAiCompatible,
         baseUrl: 'https://api.example.com/v1/',
         apiKey: 'sk-test',
+        model: '',
+        needsApiKey: true,
+        defaultBaseUrl: 'http://localhost:8080/v1',
       ),
     );
 
@@ -37,8 +39,10 @@ void main() {
     expect(
       () => catalog.listModels(
         const AiEndpointConfig(
-          kind: AiProviderKind.openai,
           baseUrl: 'https://api.openai.com/v1',
+          apiKey: '',
+          model: '',
+          needsApiKey: true,
         ),
       ),
       throwsA(isA<AiModelCatalogException>()),

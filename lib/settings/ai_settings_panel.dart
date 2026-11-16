@@ -20,16 +20,17 @@ class AiSettingsPanel extends StatefulWidget {
 }
 
 class _AiSettingsPanelState extends State<AiSettingsPanel> {
-  String? _status;
-
-  Future<void> _persist(AiSettings next, {String? status}) async {
+  Future<void> _persist(AiSettings next) async {
     await AppScope.settingsOf(context).updateAi(next);
-    if (!mounted) return;
-    setState(() => _status = status);
   }
 
-  Future<AiProviderKind?> _pickKind(AiProviderKind current) {
-    return showModalBottomSheet<AiProviderKind>(
+  Future<T?> _pickProvider<T>({
+    required T current,
+    required List<T> options,
+    required String Function(T) labelOf,
+    required String Function(T) urlOf,
+  }) {
+    return showModalBottomSheet<T>(
       context: context,
       showDragHandle: true,
       builder: (context) {
@@ -46,16 +47,16 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
               const AppSectionHeader('选择供应商'),
               const SizedBox(height: AppTheme.spaceXs),
               const AppText(
-                '选预设或「自定义」；Base URL 仍可手改。',
+                '文本与生图供应商列表不同；Base URL 仍可手改。',
                 role: AppTextRole.caption,
               ),
               const SizedBox(height: AppTheme.spaceMd),
-              for (final kind in AiProviderKind.values) ...[
+              for (final option in options) ...[
                 AppListTile(
-                  title: kind.label,
-                  subtitle: kind.defaultBaseUrl,
-                  onTap: () => Navigator.of(context).pop(kind),
-                  trailing: kind == current
+                  title: labelOf(option),
+                  subtitle: urlOf(option),
+                  onTap: () => Navigator.of(context).pop(option),
+                  trailing: option == current
                       ? const AppText('当前', role: AppTextRole.caption)
                       : null,
                 ),
@@ -79,39 +80,37 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _ChannelEditor(
-              title: '文本 AI',
-              caption: '选择供应商后填写 Base URL 与密钥；输入密钥后会自动探测可用模型，点选即保存。',
+            _TextChannelEditor(
               endpoint: ai.text,
               catalog: catalog,
               onPickKind: () async {
-                final kind = await _pickKind(ai.text.kind);
+                final kind = await _pickProvider<AiTextProviderKind>(
+                  current: ai.text.kind,
+                  options: AiTextProviderKind.values,
+                  labelOf: (k) => k.label,
+                  urlOf: (k) => k.defaultBaseUrl,
+                );
                 if (kind == null || !mounted) return;
                 await _persist(ai.switchTextKind(kind));
               },
-              onChanged: (endpoint) async {
-                await _persist(ai.withText(endpoint));
-              },
+              onChanged: (endpoint) => _persist(ai.withText(endpoint)),
             ),
             const SizedBox(height: AppTheme.spaceLg),
-            _ChannelEditor(
-              title: '生图 AI',
-              caption: '可与文本选用不同供应商；点选模型即保存。',
+            _ImageChannelEditor(
               endpoint: ai.image,
               catalog: catalog,
               onPickKind: () async {
-                final kind = await _pickKind(ai.image.kind);
+                final kind = await _pickProvider<AiImageProviderKind>(
+                  current: ai.image.kind,
+                  options: AiImageProviderKind.values,
+                  labelOf: (k) => k.label,
+                  urlOf: (k) => k.defaultBaseUrl,
+                );
                 if (kind == null || !mounted) return;
                 await _persist(ai.switchImageKind(kind));
               },
-              onChanged: (endpoint) async {
-                await _persist(ai.withImage(endpoint));
-              },
+              onChanged: (endpoint) => _persist(ai.withImage(endpoint)),
             ),
-            if (_status != null) ...[
-              const SizedBox(height: AppTheme.spaceMd),
-              AppText(_status!, role: AppTextRole.caption),
-            ],
           ],
         );
       },
@@ -119,32 +118,27 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
   }
 }
 
-class _ChannelEditor extends StatefulWidget {
-  const _ChannelEditor({
-    required this.title,
-    required this.caption,
+class _TextChannelEditor extends StatefulWidget {
+  const _TextChannelEditor({
     required this.endpoint,
     required this.catalog,
     required this.onPickKind,
     required this.onChanged,
   });
 
-  final String title;
-  final String caption;
-  final AiEndpointConfig endpoint;
+  final AiTextEndpoint endpoint;
   final AiModelCatalog catalog;
   final VoidCallback onPickKind;
-  final ValueChanged<AiEndpointConfig> onChanged;
+  final ValueChanged<AiTextEndpoint> onChanged;
 
   @override
-  State<_ChannelEditor> createState() => _ChannelEditorState();
+  State<_TextChannelEditor> createState() => _TextChannelEditorState();
 }
 
-class _ChannelEditorState extends State<_ChannelEditor> {
+class _TextChannelEditorState extends State<_TextChannelEditor> {
   late final TextEditingController _baseUrl;
   late final TextEditingController _apiKey;
-  AiProviderKind? _boundKind;
-
+  AiTextProviderKind? _boundKind;
   List<String> _models = const [];
   bool _probing = false;
   String? _probeStatus;
@@ -161,7 +155,7 @@ class _ChannelEditorState extends State<_ChannelEditor> {
   }
 
   @override
-  void didUpdateWidget(covariant _ChannelEditor oldWidget) {
+  void didUpdateWidget(covariant _TextChannelEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.endpoint.kind != _boundKind) {
       _boundKind = widget.endpoint.kind;
@@ -171,15 +165,6 @@ class _ChannelEditorState extends State<_ChannelEditor> {
       _probeStatus = null;
       _lastProbedSignature = null;
       _scheduleAutoProbe(immediate: true);
-      return;
-    }
-    if (widget.endpoint.baseUrl != oldWidget.endpoint.baseUrl &&
-        _baseUrl.text.trim() != widget.endpoint.baseUrl) {
-      _baseUrl.text = widget.endpoint.baseUrl;
-    }
-    if (widget.endpoint.apiKey != oldWidget.endpoint.apiKey &&
-        _apiKey.text.trim() != widget.endpoint.apiKey) {
-      _apiKey.text = widget.endpoint.apiKey;
     }
   }
 
@@ -191,7 +176,7 @@ class _ChannelEditorState extends State<_ChannelEditor> {
     super.dispose();
   }
 
-  AiEndpointConfig get _draft => widget.endpoint.copyWith(
+  AiTextEndpoint get _draft => widget.endpoint.copyWith(
         baseUrl: _baseUrl.text.trim(),
         apiKey: _apiKey.text.trim(),
       );
@@ -207,13 +192,11 @@ class _ChannelEditorState extends State<_ChannelEditor> {
     final base =
         (d.baseUrl.isEmpty ? d.kind.defaultBaseUrl : d.baseUrl).trim();
     if (base.isEmpty) return false;
-    if (d.kind.needsApiKey && d.apiKey.isEmpty) return false;
+    if (d.needsApiKey && d.apiKey.isEmpty) return false;
     return true;
   }
 
-  void _commitFields() {
-    widget.onChanged(_draft);
-  }
+  void _commitFields() => widget.onChanged(_draft);
 
   void _scheduleAutoProbe({bool immediate = false}) {
     _probeDebounce?.cancel();
@@ -230,7 +213,7 @@ class _ChannelEditorState extends State<_ChannelEditor> {
   Future<void> _probeModels({bool force = false}) async {
     if (!_canProbe) {
       setState(() {
-        _probeStatus = widget.endpoint.kind.needsApiKey
+        _probeStatus = widget.endpoint.needsApiKey
             ? '填写 Base URL 与 API Key 后自动探测'
             : '填写 Base URL 后自动探测';
       });
@@ -245,7 +228,8 @@ class _ChannelEditorState extends State<_ChannelEditor> {
       _probeStatus = '正在探测可用模型…';
     });
     try {
-      final models = await widget.catalog.listModels(_draft);
+      final models =
+          await widget.catalog.listModels(AiEndpointConfig.fromText(_draft));
       if (!mounted) return;
       final shouldPickDefault =
           widget.endpoint.model.trim().isEmpty && models.isNotEmpty;
@@ -274,39 +258,10 @@ class _ChannelEditorState extends State<_ChannelEditor> {
       await _probeModels(force: true);
     }
     if (!mounted || _models.isEmpty) return;
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.sizeOf(context).height * 0.55,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.pagePadding,
-                AppTheme.spaceSm,
-                AppTheme.pagePadding,
-                AppTheme.spaceLg,
-              ),
-              children: [
-                const AppSectionHeader('选择模型'),
-                const SizedBox(height: AppTheme.spaceMd),
-                for (final id in _models) ...[
-                  AppListTile(
-                    title: id,
-                    onTap: () => Navigator.of(context).pop(id),
-                    trailing: id == widget.endpoint.model
-                        ? const AppText('当前', role: AppTextRole.caption)
-                        : null,
-                  ),
-                  const SizedBox(height: AppTheme.spaceSm),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
+    final selected = await _showModelSheet(
+      context,
+      models: _models,
+      current: widget.endpoint.model,
     );
     if (selected == null || !mounted) return;
     widget.onChanged(_draft.copyWith(model: selected));
@@ -314,74 +269,376 @@ class _ChannelEditorState extends State<_ChannelEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final endpoint = widget.endpoint;
-    final modelHint = endpoint.model.trim().isEmpty
-        ? (_probing
-            ? '探测中…'
-            : (_models.isEmpty ? '点此选择或先探测' : '已探测 ${_models.length} 个'))
-        : null;
+    return _ChannelScaffold(
+      title: '文本 AI',
+      caption: '文本供应商列表（参考 NativeTavern LLM）；点选模型即保存。',
+      providerLabel: widget.endpoint.kind.label,
+      onPickKind: widget.onPickKind,
+      baseUrl: _baseUrl,
+      apiKey: _apiKey,
+      defaultBaseUrl: widget.endpoint.kind.defaultBaseUrl,
+      needsApiKey: widget.endpoint.needsApiKey,
+      model: widget.endpoint.model,
+      modelHint: _modelHint(widget.endpoint.model, _probing, _models),
+      probing: _probing,
+      probeStatus: _probeStatus,
+      onBaseChanged: (_) => _scheduleAutoProbe(),
+      onBaseComplete: () {
+        _commitFields();
+        _scheduleAutoProbe(immediate: true);
+      },
+      onKeyChanged: (_) => _scheduleAutoProbe(),
+      onKeyComplete: () {
+        _commitFields();
+        _scheduleAutoProbe(immediate: true);
+      },
+      onPickModel: _probing ? null : _pickModel,
+      onProbe: _probing ? null : () => _probeModels(force: true),
+    );
+  }
+}
 
+class _ImageChannelEditor extends StatefulWidget {
+  const _ImageChannelEditor({
+    required this.endpoint,
+    required this.catalog,
+    required this.onPickKind,
+    required this.onChanged,
+  });
+
+  final AiImageEndpoint endpoint;
+  final AiModelCatalog catalog;
+  final VoidCallback onPickKind;
+  final ValueChanged<AiImageEndpoint> onChanged;
+
+  @override
+  State<_ImageChannelEditor> createState() => _ImageChannelEditorState();
+}
+
+class _ImageChannelEditorState extends State<_ImageChannelEditor> {
+  late final TextEditingController _baseUrl;
+  late final TextEditingController _apiKey;
+  AiImageProviderKind? _boundKind;
+  List<String> _models = const [];
+  bool _probing = false;
+  String? _probeStatus;
+  Timer? _probeDebounce;
+  String? _lastProbedSignature;
+
+  @override
+  void initState() {
+    super.initState();
+    _baseUrl = TextEditingController(text: widget.endpoint.baseUrl);
+    _apiKey = TextEditingController(text: widget.endpoint.apiKey);
+    _boundKind = widget.endpoint.kind;
+    _scheduleAutoProbe(immediate: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ImageChannelEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.endpoint.kind != _boundKind) {
+      _boundKind = widget.endpoint.kind;
+      _baseUrl.text = widget.endpoint.baseUrl;
+      _apiKey.text = widget.endpoint.apiKey;
+      _models = const [];
+      _probeStatus = null;
+      _lastProbedSignature = null;
+      _scheduleAutoProbe(immediate: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _probeDebounce?.cancel();
+    _baseUrl.dispose();
+    _apiKey.dispose();
+    super.dispose();
+  }
+
+  AiImageEndpoint get _draft => widget.endpoint.copyWith(
+        baseUrl: _baseUrl.text.trim(),
+        apiKey: _apiKey.text.trim(),
+      );
+
+  String get _probeSignature {
+    final d = _draft;
+    final base = d.baseUrl.isEmpty ? d.kind.defaultBaseUrl : d.baseUrl;
+    return '${d.kind.name}|$base|${d.apiKey}';
+  }
+
+  bool get _canProbe {
+    final d = _draft;
+    final base =
+        (d.baseUrl.isEmpty ? d.kind.defaultBaseUrl : d.baseUrl).trim();
+    if (d.kind.supportsModelProbe) {
+      if (base.isEmpty) return false;
+      if (d.needsApiKey && d.apiKey.isEmpty) return false;
+      return true;
+    }
+    return d.kind.fallbackModels.isNotEmpty;
+  }
+
+  void _commitFields() => widget.onChanged(_draft);
+
+  void _scheduleAutoProbe({bool immediate = false}) {
+    _probeDebounce?.cancel();
+    if (!_canProbe) return;
+    if (immediate) {
+      unawaited(_probeModels());
+      return;
+    }
+    _probeDebounce = Timer(const Duration(milliseconds: 700), () {
+      unawaited(_probeModels());
+    });
+  }
+
+  Future<void> _probeModels({bool force = false}) async {
+    if (!_canProbe) {
+      setState(() {
+        _probeStatus = widget.endpoint.needsApiKey
+            ? '填写 Base URL 与 API Key 后自动探测'
+            : '该供应商请手动填写模型，或点探测使用内置列表';
+      });
+      return;
+    }
+    final signature = _probeSignature;
+    if (!force && signature == _lastProbedSignature && _models.isNotEmpty) {
+      return;
+    }
+    setState(() {
+      _probing = true;
+      _probeStatus = '正在探测可用模型…';
+    });
+    try {
+      List<String> models;
+      if (widget.endpoint.supportsModelProbe) {
+        models =
+            await widget.catalog.listModels(AiEndpointConfig.fromImage(_draft));
+      } else {
+        models = List<String>.from(widget.endpoint.kind.fallbackModels);
+      }
+      if (!mounted) return;
+      final shouldPickDefault =
+          widget.endpoint.model.trim().isEmpty && models.isNotEmpty;
+      setState(() {
+        _models = models;
+        _probing = false;
+        _lastProbedSignature = signature;
+        _probeStatus = '已探测到 ${models.length} 个模型';
+      });
+      if (shouldPickDefault) {
+        widget.onChanged(_draft.copyWith(model: models.first));
+      }
+    } catch (error) {
+      if (!mounted) return;
+      final fallback = widget.endpoint.kind.fallbackModels;
+      if (fallback.isNotEmpty) {
+        setState(() {
+          _models = fallback;
+          _probing = false;
+          _lastProbedSignature = signature;
+          _probeStatus = '接口探测失败，已使用内置模型列表';
+        });
+        return;
+      }
+      setState(() {
+        _probing = false;
+        _probeStatus = error is AiModelCatalogException
+            ? error.message
+            : '探测失败：$error';
+      });
+    }
+  }
+
+  Future<void> _pickModel() async {
+    if (_models.isEmpty && !_probing) {
+      await _probeModels(force: true);
+    }
+    if (!mounted || _models.isEmpty) return;
+    final selected = await _showModelSheet(
+      context,
+      models: _models,
+      current: widget.endpoint.model,
+    );
+    if (selected == null || !mounted) return;
+    widget.onChanged(_draft.copyWith(model: selected));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ChannelScaffold(
+      title: '生图 AI',
+      caption: '生图供应商列表（参考 NativeTavern ImageGen，与文本不同）；点选模型即保存。',
+      providerLabel: widget.endpoint.kind.label,
+      onPickKind: widget.onPickKind,
+      baseUrl: _baseUrl,
+      apiKey: _apiKey,
+      defaultBaseUrl: widget.endpoint.kind.defaultBaseUrl,
+      needsApiKey: widget.endpoint.needsApiKey,
+      model: widget.endpoint.model,
+      modelHint: _modelHint(widget.endpoint.model, _probing, _models),
+      probing: _probing,
+      probeStatus: _probeStatus,
+      onBaseChanged: (_) => _scheduleAutoProbe(),
+      onBaseComplete: () {
+        _commitFields();
+        _scheduleAutoProbe(immediate: true);
+      },
+      onKeyChanged: (_) => _scheduleAutoProbe(),
+      onKeyComplete: () {
+        _commitFields();
+        _scheduleAutoProbe(immediate: true);
+      },
+      onPickModel: _probing ? null : _pickModel,
+      onProbe: _probing ? null : () => _probeModels(force: true),
+    );
+  }
+}
+
+class _ChannelScaffold extends StatelessWidget {
+  const _ChannelScaffold({
+    required this.title,
+    required this.caption,
+    required this.providerLabel,
+    required this.onPickKind,
+    required this.baseUrl,
+    required this.apiKey,
+    required this.defaultBaseUrl,
+    required this.needsApiKey,
+    required this.model,
+    required this.modelHint,
+    required this.probing,
+    required this.probeStatus,
+    required this.onBaseChanged,
+    required this.onBaseComplete,
+    required this.onKeyChanged,
+    required this.onKeyComplete,
+    required this.onPickModel,
+    required this.onProbe,
+  });
+
+  final String title;
+  final String caption;
+  final String providerLabel;
+  final VoidCallback onPickKind;
+  final TextEditingController baseUrl;
+  final TextEditingController apiKey;
+  final String defaultBaseUrl;
+  final bool needsApiKey;
+  final String model;
+  final String? modelHint;
+  final bool probing;
+  final String? probeStatus;
+  final ValueChanged<String> onBaseChanged;
+  final VoidCallback onBaseComplete;
+  final ValueChanged<String> onKeyChanged;
+  final VoidCallback onKeyComplete;
+  final VoidCallback? onPickModel;
+  final VoidCallback? onProbe;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppSectionHeader(widget.title),
-        AppText(widget.caption, role: AppTextRole.caption),
+        AppSectionHeader(title),
+        AppText(caption, role: AppTextRole.caption),
         const SizedBox(height: AppTheme.spaceMd),
         AppListTile(
-          title: '供应商',
-          subtitle: endpoint.kind.label,
-          onTap: widget.onPickKind,
+          title: providerLabel,
+          subtitle: '供应商',
+          onTap: onPickKind,
           trailing: const AppText('更换', role: AppTextRole.caption),
         ),
         const SizedBox(height: AppTheme.spaceMd),
         AppTextField(
           label: 'Base URL',
-          controller: _baseUrl,
-          hint: endpoint.kind.defaultBaseUrl,
+          controller: baseUrl,
+          hint: defaultBaseUrl,
           keyboardType: TextInputType.url,
           textInputAction: TextInputAction.next,
-          onChanged: (_) => _scheduleAutoProbe(),
-          onEditingComplete: () {
-            _commitFields();
-            _scheduleAutoProbe(immediate: true);
-          },
+          onChanged: onBaseChanged,
+          onEditingComplete: onBaseComplete,
         ),
         const SizedBox(height: AppTheme.spaceSm),
-        if (endpoint.kind.needsApiKey) ...[
+        if (needsApiKey) ...[
           AppTextField(
             label: 'API Key',
-            controller: _apiKey,
+            controller: apiKey,
             obscureText: true,
             hint: 'sk-…',
             textInputAction: TextInputAction.done,
-            onChanged: (_) => _scheduleAutoProbe(),
-            onEditingComplete: () {
-              _commitFields();
-              _scheduleAutoProbe(immediate: true);
-            },
-            onSubmitted: (_) {
-              _commitFields();
-              _scheduleAutoProbe(immediate: true);
-            },
+            onChanged: onKeyChanged,
+            onEditingComplete: onKeyComplete,
+            onSubmitted: (_) => onKeyComplete(),
           ),
           const SizedBox(height: AppTheme.spaceSm),
         ],
         AppSelectField(
           label: '模型',
-          value: endpoint.model,
+          value: model,
           hint: modelHint,
-          onTap: _probing ? null : _pickModel,
+          onTap: onPickModel,
           trailing: AppButton(
-            label: _probing ? '探测中' : '探测模型',
+            label: probing ? '探测中' : '探测模型',
             variant: AppButtonVariant.secondary,
-            onPressed: _probing ? null : () => _probeModels(force: true),
+            onPressed: onProbe,
           ),
         ),
-        if (_probeStatus != null) ...[
+        if (probeStatus != null) ...[
           const SizedBox(height: AppTheme.spaceXs),
-          AppText(_probeStatus!, role: AppTextRole.caption),
+          AppText(probeStatus!, role: AppTextRole.caption),
         ],
       ],
     );
   }
+}
+
+String? _modelHint(String model, bool probing, List<String> models) {
+  if (model.trim().isNotEmpty) return null;
+  if (probing) return '探测中…';
+  if (models.isEmpty) return '点此选择或先探测';
+  return '已探测 ${models.length} 个';
+}
+
+Future<String?> _showModelSheet(
+  BuildContext context, {
+  required List<String> models,
+  required String current,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) {
+      return SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.55,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+              AppTheme.pagePadding,
+              AppTheme.spaceLg,
+            ),
+            children: [
+              const AppSectionHeader('选择模型'),
+              const SizedBox(height: AppTheme.spaceMd),
+              for (final id in models) ...[
+                AppListTile(
+                  title: id,
+                  onTap: () => Navigator.of(context).pop(id),
+                  trailing: id == current
+                      ? const AppText('当前', role: AppTextRole.caption)
+                      : null,
+                ),
+                const SizedBox(height: AppTheme.spaceSm),
+              ],
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
