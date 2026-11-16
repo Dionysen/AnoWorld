@@ -125,7 +125,6 @@ class _MainGraphPageState extends State<MainGraphPage> {
           fromId: edge.from,
           toId: edge.to,
           fromPortId: edge.id,
-          emphasized: edge.kind == EdgeKind.branch,
         ),
     ];
   }

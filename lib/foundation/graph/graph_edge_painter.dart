@@ -36,11 +36,7 @@ class GraphEdgePainter extends CustomPainter {
       if (fromNode == null || toNode == null) continue;
       final selected = edge.id == selectedEdgeId;
       paint
-        ..color = selected
-            ? emphasisColor
-            : (edge.emphasized
-                ? emphasisColor.withValues(alpha: 0.75)
-                : strokeColor)
+        ..color = selected ? emphasisColor : strokeColor
         ..strokeWidth = selected ? 3.5 : 2.25;
       final a = GraphEdgeGeometry.outputPort(
         fromNode,
