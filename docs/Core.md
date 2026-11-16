@@ -76,7 +76,8 @@ Project
 - **节点（大情节单元）**：里程碑式「这一步故事要发生什么」；`synopsis` = 本站必须达成或抵达的剧情目标（运行时 AI 的收敛锚点）。节点之间的流向（顺序、分支、汇合）在**主线节点编辑器**表达。
 - **粒度**：节点是情节级大站，不是每一句对白一个节点；句段级内容落在 Beat。
 - **分支与结局**：用 `edges` / 节点出口表达多路线；玩家选择最终应对齐到某条合法边或 `end`，从而可能达成不同结局。
-- **编辑 UX**：全端同一套节点画布；底栏「画布 / 卡片」切换聚焦相机；走向全览用节点 PNG 缩略图（`assets/graph_nodes/{nodeId}.png`，创建/改文案后重渲；拖动改布局只即时改坐标并防抖落盘，不重渲缩略图）。验收见 [UX.md](./UX.md)。
+- **编辑 UX**：全端同一套节点画布；底栏「画布 / 卡片」切换聚焦相机；走向全览用节点 PNG 缩略图（`assets/graph_nodes/{nodeId}.png`，创建/改文案后重渲；拖动改布局只即时改坐标并防抖落盘，不重渲缩略图）；结构编辑走通用 [`UndoStack`](../lib/foundation/history/undo_stack.dart)（整图快照，拖节点在松手时合并为一步）。验收见 [UX.md](./UX.md)。
+- **序列化**：作品包内完整 `Main` 仍用 [`MainStory.toJson`](../lib/domain/models/main_story.dart)；供 AI 生成 / 作提示词的紧凑图用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)（`anoworld.main_graph.skeleton` v1：`summary` + 站 + 边，可无 `beats` / `layout`）。反序列化可吃 skeleton 或完整 Main map。
 - **预写 Beat（可选）**：作者或创作 AI 可预写某节点内的开场钩子；**默认允许节点在创作结束时 Beat 仍为空**，交给游玩时 AI 填（校验规则见 MainBeat）。
 
 ### 区间 AI（游玩）

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/data/project/graph_node_thumbnail_files.dart';
@@ -17,8 +16,10 @@ import 'package:anoworld/foundation/graph/graph_node_thumbnail.dart';
 import 'package:anoworld/foundation/graph/graph_overview_map.dart';
 import 'package:anoworld/foundation/graph/graph_viewport.dart';
 import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
+import 'package:anoworld/foundation/history/undo_stack.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
@@ -27,9 +28,11 @@ import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_docked_panel.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
+import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Main skeleton editor: canvas (UX A) + focus camera for small screens (UX B).
 class MainGraphPage extends StatefulWidget {
@@ -49,18 +52,33 @@ class _MainGraphPageState extends State<MainGraphPage> {
   bool _loading = true;
   bool _cardMode = false;
   bool _overviewOpen = false;
+  bool _showGrid = false;
   String? _selectedId;
   String? _selectedEdgeId;
   final Map<String, Uint8List> _nodeThumbnails = {};
   final _viewportCamera = GraphViewportController();
   final _overviewPanelKey = GlobalKey<AppDockedPanelState>();
+  final _history = UndoStack();
   Timer? _saveDebounce;
+  MainStory? _dragOriginMain;
+
+  @override
+  void initState() {
+    super.initState();
+    _history.addListener(_onHistoryChanged);
+  }
 
   @override
   void dispose() {
     _saveDebounce?.cancel();
+    _history.removeListener(_onHistoryChanged);
+    _history.dispose();
     _viewportCamera.dispose();
     super.dispose();
+  }
+
+  void _onHistoryChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -80,6 +98,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
       final project =
           await AppScope.projectsOf(context).open(widget.projectId);
       if (!mounted) return;
+      _history.clear();
+      _dragOriginMain = null;
       setState(() {
         _project = project;
         _selectedId = project.main.startNodeId;
@@ -99,9 +119,9 @@ class _MainGraphPageState extends State<MainGraphPage> {
     }
   }
 
-  Future<void> _persist(
+  Future<void> _applyMain(
     MainStory main, {
-    bool refreshThumbnails = true,
+    required bool refreshThumbnails,
   }) async {
     final project = _project;
     if (project == null) return;
@@ -118,10 +138,32 @@ class _MainGraphPageState extends State<MainGraphPage> {
     }
   }
 
+  Future<void> _persist(
+    MainStory main, {
+    bool refreshThumbnails = true,
+  }) async {
+    final project = _project;
+    if (project == null) return;
+    final before = project.main;
+    if (!_history.isReplaying && !identical(before, main)) {
+      _history.addSwap<MainStory>(
+        before: before,
+        after: main,
+        apply: (snapshot) {
+          // ignore: unawaited_futures
+          _applyMain(snapshot, refreshThumbnails: true);
+        },
+      );
+    }
+    await _applyMain(main, refreshThumbnails: refreshThumbnails);
+  }
+
   /// Layout drag: update UI immediately, debounce disk write, skip thumbnails.
+  /// One undo step is recorded on [GraphViewport.onNodeDragEnd].
   void _moveNodeLocal(String id, double x, double y) {
     final project = _project;
     if (project == null) return;
+    _dragOriginMain ??= project.main;
     final main = _ops.moveNode(project.main, id, NodeLayout(x: x, y: y));
     setState(() {
       _project = project.copyWith(
@@ -135,6 +177,70 @@ class _MainGraphPageState extends State<MainGraphPage> {
       if (latest == null || !mounted) return;
       await AppScope.projectsOf(context).save(latest);
     });
+  }
+
+  void _onNodeDragEnd() {
+    final origin = _dragOriginMain;
+    final project = _project;
+    _dragOriginMain = null;
+    if (origin == null || project == null) return;
+    if (identical(origin, project.main)) return;
+    _history.addSwap<MainStory>(
+      before: origin,
+      after: project.main,
+      apply: (snapshot) {
+        // ignore: unawaited_futures
+        _applyMain(snapshot, refreshThumbnails: false);
+      },
+    );
+  }
+
+  void _undo() => _history.undo();
+
+  void _redo() => _history.redo();
+
+  Future<void> _openMoreMenu() async {
+    await showAppSheet<void>(
+      context: context,
+      size: AppSheetSize.compact,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                AppTheme.spaceMd,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const AppSectionHeader('画布'),
+                  AppListTile(
+                    title: '显示网格',
+                    subtitle: '缩放时自动调整间距',
+                    icon: Icons.grid_on_outlined,
+                    trailing: AppSwitch(
+                      value: _showGrid,
+                      onChanged: (value) {
+                        setState(() => _showGrid = value);
+                        setSheetState(() {});
+                      },
+                    ),
+                    onTap: () {
+                      setState(() => _showGrid = !_showGrid);
+                      setSheetState(() {});
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _loadThumbnailsFromDisk() async {
@@ -306,8 +412,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
               const AppSectionHeader('删除这一站？'),
               AppText(
                 title.trim().isEmpty
-                    ? '连到它的线也会一起去掉，去掉后不能恢复。'
-                    : '「$title」和连到它的线都会去掉，去掉后不能恢复。',
+                    ? '连到它的线也会一起去掉'
+                    : '「$title」和连到它的线都会去掉',
                 role: AppTextRole.body,
               ),
               const SizedBox(height: AppTheme.spaceMd),
@@ -588,6 +694,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                 if (id != null) _selectedId = null;
               }),
       onMove: _moveNodeLocal,
+      onNodeDragEnd: _onNodeDragEnd,
       onConnect: _connect,
       onOpenOutput: (_, portId) => _openEdgeEditor(portId),
       onAddOutput: (_) => _tipAddOutput(),
@@ -596,6 +703,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
       onDeleteNode: main.nodes.length <= 1 ? null : _deleteNode,
       onAddNode: _addNode,
       onArrange: _autoLayout,
+      showGrid: _showGrid,
     );
   }
 
@@ -674,31 +782,51 @@ class _MainGraphPageState extends State<MainGraphPage> {
   }
 
   Widget _buildEditor(Project project) {
-    return AppNavShell(
-      destinations: mainGraphViewNavItems,
-      selectedIndex: _cardMode ? 1 : 0,
-      onDestinationSelected: (index) => _setViewMode(index, project),
-      forceCompact: true,
-      railTopInset: 0,
-      bottomNavExtra: AppBottomNavExtraCapsule(
-        icon: Icons.map_outlined,
-        selectedIcon: Icons.map,
-        label: '全图',
-        enabled: !_cardMode,
-        selected: _overviewOpen,
-        onPressed: _toggleOverview,
-      ),
-      bottomPanel: _buildOverviewPanel(project.main),
-      onBottomPanelBarrierTap:
-          _overviewOpen ? _requestCloseOverview : null,
-      body: Builder(
-        builder: (context) {
-          final bottom = MediaQuery.paddingOf(context).bottom;
-          return Padding(
-            padding: EdgeInsets.only(bottom: bottom),
-            child: _buildCanvas(project.main),
-          );
-        },
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          meta: true,
+          shift: true,
+        ): _redo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ): _redo,
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
+      },
+      child: Focus(
+        autofocus: true,
+        child: AppNavShell(
+          destinations: mainGraphViewNavItems,
+          selectedIndex: _cardMode ? 1 : 0,
+          onDestinationSelected: (index) => _setViewMode(index, project),
+          forceCompact: true,
+          railTopInset: 0,
+          bottomNavExtra: AppBottomNavExtraCapsule(
+            icon: Icons.map_outlined,
+            selectedIcon: Icons.map,
+            label: '全图',
+            enabled: !_cardMode,
+            selected: _overviewOpen,
+            onPressed: _toggleOverview,
+          ),
+          bottomPanel: _buildOverviewPanel(project.main),
+          onBottomPanelBarrierTap:
+              _overviewOpen ? _requestCloseOverview : null,
+          body: Builder(
+            builder: (context) {
+              final bottom = MediaQuery.paddingOf(context).bottom;
+              return Padding(
+                padding: EdgeInsets.only(bottom: bottom),
+                child: _buildCanvas(project.main),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -706,9 +834,29 @@ class _MainGraphPageState extends State<MainGraphPage> {
   @override
   Widget build(BuildContext context) {
     final project = _project;
+    final editorReady = !_loading && _error == null && project != null;
     return AppPage(
       title: '情节走向',
       onBack: () => Navigator.of(context).maybePop(),
+      actions: [
+        AppCircleButton(
+          icon: Icons.undo,
+          tooltip: '撤销',
+          onPressed: editorReady && _history.canUndo ? _undo : null,
+        ),
+        const SizedBox(width: AppTheme.spaceSm),
+        AppCircleButton(
+          icon: Icons.redo,
+          tooltip: '重做',
+          onPressed: editorReady && _history.canRedo ? _redo : null,
+        ),
+        const SizedBox(width: AppTheme.spaceSm),
+        AppCircleButton(
+          icon: Icons.more_horiz,
+          tooltip: '更多',
+          onPressed: editorReady ? _openMoreMenu : null,
+        ),
+      ],
       body: _loading
           ? const AppPageBody(
               children: [AppText('加载中…', role: AppTextRole.caption)],

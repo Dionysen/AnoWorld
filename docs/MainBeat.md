@@ -220,8 +220,24 @@ BridgeSession {
 | 点进节点（本阶段浮层） | 改 `title` / `synopsis` / 出边；预写 `Beat` 表单未做，过程戏靠区间 AI |
 | Beat 内选项 | `Choice`；若选项跳到其他节点，可同时建议创作器维护/提示对应 `Edge`（可自动补 `branch` 边，MVP 可选） |
 | 开场 | `startNodeId` |
+| 撤销 / 重做 | 编辑会话内整图快照（不改 schema） |
 
 移动端：改的是同一 schema；交互只影响如何改 `nodes/edges/layout`，不改变运行语义。
+
+### 6.1 AI 读写用的骨架 JSON
+
+作品包落盘仍是完整 `Main`（含 `beats`）。给模型生成走向、或把当前图塞进提示词时，用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)：
+
+| 字段 | 说明 |
+| --- | --- |
+| `format` | 固定 `anoworld.main_graph.skeleton` |
+| `version` | `1` |
+| `summary` / `startNodeId` | 同 Main |
+| `nodes[]` | `id` / `title` / 可选 `synopsis` / `tags` / 可选 `layout`；**无** `beatIds` |
+| `edges[]` | 与 Main 边 JSON 相同 |
+| （无 `beats`） | 解码后 `beats` 为空；站上 `beatIds` 默认 `[]` |
+
+`encode` / `decode` 走完整 Main；`encodeSkeleton` / `decodeSkeleton`（及 `*Json`）走上表。`decodeSkeleton` 若见到完整 Main map（含 `beats`）则按完整解码。
 
 ---
 

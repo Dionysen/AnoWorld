@@ -6,14 +6,13 @@ import 'package:flutter/material.dart';
 import '../frame/immersive_frame.dart';
 import '../theme/app_theme.dart';
 import 'app_circle_button.dart';
-import 'app_icon_button.dart';
 import 'app_text.dart';
 
 /// Page shell. Business screens compose this instead of a scaffold or app bar.
 ///
 /// On desktop, [title] sits below the chrome band (24 / pageTitle) with [onBack]
-/// on its left; the band keeps actions only. On phone and tablet, title and
-/// back stay in the band.
+/// on its left and [actions] on its right (same row as the title). On phone and
+/// tablet, title, back, and [actions] stay in the band.
 class AppPage extends StatelessWidget {
   const AppPage({
     super.key,
@@ -25,6 +24,9 @@ class AppPage extends StatelessWidget {
 
   final String title;
   final Widget body;
+
+  /// Trailing controls aligned with the page title (large-title row on desktop,
+  /// chrome band on phone/tablet).
   final List<Widget> actions;
   final VoidCallback? onBack;
 
@@ -85,9 +87,12 @@ class AppPage extends StatelessWidget {
               metrics.trailingInset +
               (showBarBack ? 36.0 : 0.0) +
               48;
-          final showActions = actions.isNotEmpty &&
+          final showBarActions = !showLargeTitle &&
+              actions.isNotEmpty &&
               rowWidth >= 48 &&
               constraints.maxWidth >= titleReserve;
+          final showTitleActions =
+              showLargeTitle && actions.isNotEmpty && constraints.maxWidth >= 120;
           final showTitleBack = showLargeTitle &&
               onBack != null &&
               constraints.maxWidth >= 72;
@@ -121,6 +126,7 @@ class AppPage extends StatelessWidget {
                           maxLines: 1,
                         ),
                       ),
+                      if (showTitleActions) ...actions,
                     ],
                   ),
                 ),
@@ -169,7 +175,7 @@ class AppPage extends StatelessWidget {
                                   )
                                 else
                                   const Spacer(),
-                                if (showActions) ...actions,
+                                if (showBarActions) ...actions,
                               ],
                             ),
                           )

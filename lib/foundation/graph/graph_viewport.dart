@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_edge_painter.dart';
+import 'package:anoworld/foundation/graph/graph_grid_painter.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_chip.dart';
 import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
@@ -28,6 +29,8 @@ class GraphViewport extends StatefulWidget {
     this.onDeleteNode,
     this.onAddNode,
     this.onArrange,
+    this.onNodeDragEnd,
+    this.showGrid = false,
     this.focusSelected = false,
     this.minScale = 0.4,
     this.maxScale = 2.5,
@@ -55,6 +58,10 @@ class GraphViewport extends StatefulWidget {
   /// Floating actions (canvas bottom-right, outside the pan/zoom layer).
   final VoidCallback? onAddNode;
   final VoidCallback? onArrange;
+  final VoidCallback? onNodeDragEnd;
+
+  /// Scene-aligned background grid with LOD spacing.
+  final bool showGrid;
 
   /// When true, camera locks onto [selectedId] (centered + zoomed). Same graph.
   final bool focusSelected;
@@ -305,12 +312,28 @@ class _GraphViewportState extends State<GraphViewport>
         final selected = widget.selectedId == null
             ? null
             : byId[widget.selectedId!];
-        final showCornerActions =
+        final showEndActions =
             widget.onAddNode != null || widget.onArrange != null;
 
         return Stack(
           fit: StackFit.expand,
           children: [
+            if (widget.showGrid)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ListenableBuilder(
+                    listenable: _transform,
+                    builder: (context, _) {
+                      return CustomPaint(
+                        painter: GraphGridPainter(
+                          transform: _transform.value,
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapUp: _onCanvasTapUp,
@@ -373,8 +396,12 @@ class _GraphViewportState extends State<GraphViewport>
                                 );
                               },
                               onPanEnd: (_) {
+                                final wasDragging = _draggingNode;
                                 if (_draggingNode) {
                                   setState(() => _draggingNode = false);
+                                }
+                                if (wasDragging) {
+                                  widget.onNodeDragEnd?.call();
                                 }
                                 if (widget.focusSelected &&
                                     node.id == widget.selectedId) {
@@ -420,7 +447,7 @@ class _GraphViewportState extends State<GraphViewport>
                   ),
                 ),
               ),
-              if (showCornerActions)
+              if (showEndActions)
                 Positioned(
                   right: AppTheme.spaceMd,
                   bottom: AppTheme.spaceMd,
