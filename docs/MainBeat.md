@@ -18,16 +18,19 @@ Main
 
 | 层 | 粒度 | 谁编辑 | 运行时角色 |
 | --- | --- | --- | --- |
-| **Node** | 情节单元 / 场景块 | 主线节点画布 | 图上的位置；分组 Beats；默认出口 |
-| **Edge** | 节点 → 节点 | 画布连线 | 无选项时的默认流向；汇合/分支骨架 |
-| **Beat** | 可播放最小单元 | 点进节点后的详情 | 真正演出：场景、对白、选项 |
+| **Node** | 大情节站 / 里程碑（`synopsis` = 本站目标） | 创作时定骨架（画布） | 当前位置；合法区间的锚点；分组 Beats |
+| **Edge** | 节点 → 节点（含分支） | 创作时定骨架 | **封闭的下一站集合**；区间收敛出口；无选项时的默认流向 |
+| **Beat** | 可播放最小单元 | 创作预写 **或** 游玩时区间 AI 生成 | 真正演出：场景、对白、选项 |
+
+产品语义见 [Core.md](./Core.md)「脉络骨架 + 区间内 AI」。本文管字段与推进。
 
 **硬规则**
 
 1. 一句对白 ≠ 一个 Node；对白落在 Beat 的 `lines`。
-2. 分支优先：Beat 上的 `choices` 决定跳转；无 choices 时才走「下一 Beat → 节点默认 Edge」。
+2. 分支优先：Beat 上的 `choices` 决定跳转；无 choices 时才走「下一 Beat → 节点默认 Edge / 收敛出口」。
 3. `choices.target` 可以指向 Beat 或 Node（见 Transition）；禁止只写散文式「后果摘要」而无目标（摘要可放 `note`，不能代替跳转）。
-4. Side 支线日后可复用同一 Beat / Transition 形状；本文只定 Main。
+4. **运行时不得增删 `nodes` / `edges`**；区间 AI 只能生成挂在当前节点下的 Beats，以及指向**已有** `nodeId` / `end` 的 Transition。
+5. Side 支线日后可复用同一 Beat / Transition 形状；本文只定 Main。
 
 ---
 
@@ -61,7 +64,8 @@ NodeLayout { x: number, y: number }
 ```
 
 - 删除节点：同时删除其 `beatIds` 对应 Beats，并删除所有相关 `edges`。
-- 允许 `beatIds` 为空（占位节点）；运行若落到空节点，视为内容错误或自动沿默认 Edge 跳出（实现选一种并固定；**建议 MVP：视为错误，创作器校验拦截导出**）。
+- 允许 `beatIds` 为空（骨架占位）：表示「本站内容交给游玩时区间 AI」。**开玩前校验不再把「空 beatIds」一律当错误**；但必须仍有合法出边或结局出口，且 `synopsis` 建议非空（作为 AI 收敛锚点）。
+- 若作品关闭区间 AI 且节点仍无 Beat，则导出/开玩报错（纯静态包模式）。
 
 ### 2.3 Edge（节点边）
 
@@ -141,9 +145,11 @@ Transition {
 
 ## 3. 运行时推进规则（双模式共用）
 
-状态：`{ nodeId, beatId, lineIndex }`（`lineIndex` 仅 UI 用，存档可只存前两者）。
+状态：`{ nodeId, beatId, lineIndex }`（`lineIndex` 仅 UI 用）。开启区间 AI 时，另有本局会话态（见 §5）。
 
-1. **进入节点**：若未指定 Beat，取 `node.beatIds[0]`。
+### 3.1 静态推进（预写 Beat）
+
+1. **进入节点**：若未指定 Beat，且 `beatIds` 非空，取 `node.beatIds[0]`。
 2. **播放 Beat**：展示 `scene`、`appearances`；按序展示 `lines`（VN 一句句点；聊天可作连续气泡）。
 3. **Beat 结束时**  
    - 若 `choices.length > 0`：等待玩家选择 → 执行 `target`。  
@@ -152,7 +158,26 @@ Transition {
    - 否则 → `end`（或创作器校验要求必须有出口）。
 4. **场景继承（MVP 建议）**：若某 Beat 的 `backgroundAssetId` 为空，沿用本节点内上一 Beat 的背景；跨节点不自动继承（避免错景）。立绘不自动继承，缺省即清场或仅保留 `appearances` 明示者（实现二选一，**建议：不自动继承立绘**）。
 
-聊天模式：同一套指针与 `choices`；续写若开启，仍绑定当前 `nodeId`（及允许的设定注入），不得暗中写另一套剧情树。续写结果若要固化，应写回为新 Beat/Line（创作动作），不在本文展开。
+### 3.2 区间 AI 推进（目标形态）
+
+适用于：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥，或聊天式续写。
+
+1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + **出边列表**（每条边的 `to` 节点标题/`synopsis`，或 end）+ 近期会话摘要。
+2. **生成一拍**：模型输出符合 Beat JSON（可经候选解码）；`choices` 的 `target` **只能**是：  
+   - `type: beat`（继续本区间，目标为会话内新建的 beat id），或  
+   - `type: node` 且 `nodeId` ∈ 当前节点出边的 `to`，或  
+   - `type: end`（仅当骨架允许在此结束）。  
+   非法目标整拍丢弃并重试 / 换保底拍。
+3. **收敛压力**：  
+   - 注入「你必须在有限步数内让玩家能选择进入下列下一站之一：…」；  
+   - 建议 `maxBridgeBeats`（每节点上限，产品可配置，默认如 3～6）；触顶后只生成带合法 `node`/`end` 选项的收敛拍；  
+   - UI 始终可提供「前往：{下一站标题}」保底按钮，直接 `Transition` 到对应出边（不依赖模型听话）。
+4. **入下一站**：执行合法 `node` Transition 后清空本区间会话拍（或写入存档附件），进入新节点并重复。
+5. **VN 与聊天**：同一套区间状态机；聊天「续写」调用同一生成器，不得另开无出口的闲聊树。
+
+### 3.3 双模式
+
+聊天与 VN **共用**指针、区间会话与 `choices`；只换呈现。
 
 ---
 
@@ -160,9 +185,10 @@ Transition {
 
 | 级别 | 规则 |
 | --- | --- |
-| 错误 | `startNodeId` 不存在；`beatIds` 与 `nodeId` 不一致；悬空 Id；`choices` 的 Transition 目标不存在；空 `beatIds` 仍被 start 或唯一 default 指入且无法出口 |
-| 错误 | 某节点播放路径结束时既无下一 Beat、又无 `default` Edge、当前 Beat 也无 `choices`/`end` |
-| 警告 | 孤立节点（从 start 不可达）；`branch` 边无任何 Choice 指向对应 `to`；节点无 Beat |
+| 错误 | `startNodeId` 不存在；`beatIds` 与 `nodeId` 不一致；悬空 Id；预写 `choices` 的 Transition 目标不存在 |
+| 错误 | 某节点既无预写出口（下一 Beat / choices / end），又无任何出边，且不允许在此 `end` |
+| 错误 | 静态包模式（关闭区间 AI）下节点 `beatIds` 为空 |
+| 警告 | 孤立节点（从 start 不可达）；`branch` 边无任何 Choice 指向对应 `to`；节点 `synopsis` 为空（区间 AI 难收敛）；节点无预写 Beat（依赖区间 AI） |
 
 ---
 
@@ -171,13 +197,21 @@ Transition {
 ```text
 MainSavePointer {
   nodeId: Id
-  beatId: Id
+  beatId: Id            // 预写拍；若在区间会话中可为 session beat id
   // lineIndex?: number
-  // flags?: map  // 日后变量；MVP 可省略
+  // flags?: map         // 日后变量；MVP 可省略
+}
+
+// 开启区间 AI 时附加（本局，不进作品包）：
+BridgeSession {
+  nodeId: Id
+  generatedBeats: Beat[]   // 本区间已生成拍
+  turnCount: number        // 用于收敛触顶
+  summary?: string         // 压缩后的区间摘要，供下一跳上下文
 }
 ```
 
-资源与文本以项目内容为准；存档只存指针（及日后变量），不复制 Beat 正文。
+作品包仍以骨架（+ 可选预写 Beat）为准；存档存指针 + 本局区间会话，不要求把 AI 发挥写回 `project.json`（作者可另做「固化本场」创作动作）。
 
 ---
 
