@@ -163,8 +163,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Scene coords match layout when InteractiveViewer is at identity.
-    await tester.tapAt(mid);
+    // Child space is layout + [GraphViewport.sceneTopInset] on Y.
+    await tester.tapAt(
+      Offset(mid.dx, mid.dy + GraphViewport.sceneTopInset),
+    );
     await tester.pump();
     expect(selectedEdge, 'e1');
     expect(selectedNode, isNull);

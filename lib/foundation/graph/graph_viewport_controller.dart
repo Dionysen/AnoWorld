@@ -13,6 +13,10 @@ class GraphViewportController {
   final TransformationController transform = TransformationController();
   Size viewportSize = Size.zero;
 
+  /// Extra top padding inside the InteractiveViewer child so selection
+  /// actions can sit above a node at layout y=0 without leaving the scene.
+  double sceneTopInset = 0;
+
   VoidCallback? _listener;
 
   void addListener(VoidCallback listener) {
@@ -40,28 +44,38 @@ class GraphViewportController {
     final w = viewportSize.width / s;
     final h = viewportSize.height / s;
     final tl = transform.toScene(Offset.zero);
-    return Rect.fromLTWH(tl.dx, tl.dy, w, h);
+    return Rect.fromLTWH(
+      tl.dx,
+      tl.dy - sceneTopInset,
+      w,
+      h,
+    );
   }
 
   double get scale => transform.value.getMaxScaleOnAxis();
+
+  Offset _toChild(Offset layoutPoint) =>
+      Offset(layoutPoint.dx, layoutPoint.dy + sceneTopInset);
 
   /// Pans so [topLeft] becomes the visible top-left corner (keeps zoom).
   void setVisibleSceneTopLeft(Offset topLeft) {
     final s = scale.clamp(0.001, 100.0);
     // Keep the current matrix's scale block; only rewrite translation so
     // InteractiveViewer pinch-zoom is not normalized away.
+    final child = _toChild(topLeft);
     final m = Matrix4.copy(transform.value);
-    m.setTranslationRaw(-topLeft.dx * s, -topLeft.dy * s, 0);
+    m.setTranslationRaw(-child.dx * s, -child.dy * s, 0);
     transform.value = m;
   }
 
   /// Centers [scenePoint] in the viewport (keeps zoom).
   void centerOnScenePoint(Offset scenePoint) {
     final s = scale.clamp(0.001, 100.0);
+    final child = _toChild(scenePoint);
     final m = Matrix4.copy(transform.value);
     m.setTranslationRaw(
-      viewportSize.width / 2 - scenePoint.dx * s,
-      viewportSize.height / 2 - scenePoint.dy * s,
+      viewportSize.width / 2 - child.dx * s,
+      viewportSize.height / 2 - child.dy * s,
       0,
     );
     transform.value = m;

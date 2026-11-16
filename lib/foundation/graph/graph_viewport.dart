@@ -71,6 +71,10 @@ class GraphViewport extends StatefulWidget {
   /// When set, pan/zoom state is owned here (for overview navigator sync).
   final GraphViewportController? camera;
 
+  /// Space above layout y=0 for the selection action bar (child-space inset).
+  static double get sceneTopInset =>
+      AppCircleButton.diameter + AppTheme.spaceXs;
+
   @override
   State<GraphViewport> createState() => _GraphViewportState();
 }
@@ -133,7 +137,8 @@ class _GraphViewportState extends State<GraphViewport>
   Offset? _scenePoint(Offset global) {
     final box = _viewerKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return null;
-    return _transform.toScene(box.globalToLocal(global));
+    final child = _transform.toScene(box.globalToLocal(global));
+    return Offset(child.dx, child.dy - GraphViewport.sceneTopInset);
   }
 
   Map<String, GraphNodeData> get _byId => {
@@ -242,7 +247,7 @@ class _GraphViewportState extends State<GraphViewport>
         .min(viewport.width * 0.72 / nw, viewport.height * 0.55 / nh)
         .clamp(widget.minScale, widget.maxScale);
     final cx = node.x + nw / 2;
-    final cy = node.y + nh / 2;
+    final cy = node.y + nh / 2 + GraphViewport.sceneTopInset;
     final tx = viewport.width / 2 - cx * scale;
     final ty = viewport.height / 2 - cy * scale;
     return Matrix4.identity()
@@ -309,11 +314,14 @@ class _GraphViewportState extends State<GraphViewport>
             });
           }
         }
-        final selected = widget.selectedId == null
-            ? null
-            : byId[widget.selectedId!];
+        final camera = widget.camera;
+        if (camera != null &&
+            camera.sceneTopInset != GraphViewport.sceneTopInset) {
+          camera.sceneTopInset = GraphViewport.sceneTopInset;
+        }
         final showEndActions =
             widget.onAddNode != null || widget.onArrange != null;
+        final inset = GraphViewport.sceneTopInset;
 
         return Stack(
           fit: StackFit.expand,
@@ -348,11 +356,15 @@ class _GraphViewportState extends State<GraphViewport>
                 boundaryMargin: const EdgeInsets.all(800),
                 child: SizedBox(
                     width: width + 1200,
-                    height: height + 1200,
+                    height: height + 1200 + inset,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Positioned.fill(
+                        Positioned(
+                          left: 0,
+                          top: inset,
+                          width: width + 1200,
+                          height: height + 1200,
                           child: CustomPaint(
                             painter: GraphEdgePainter(
                               nodes: byId,
@@ -368,7 +380,7 @@ class _GraphViewportState extends State<GraphViewport>
                         for (final node in widget.nodes)
                           Positioned(
                             left: node.x - GraphNodeChip.horizontalPad,
-                            top: node.y,
+                            top: node.y + inset,
                             child: GraphNodeChip(
                               data: node,
                               selected: node.id == widget.selectedId ||
@@ -423,30 +435,45 @@ class _GraphViewportState extends State<GraphViewport>
                                   : () => widget.onAddOutput!(node.id),
                             ),
                           ),
-                        if (selected != null &&
-                            (widget.onOpenNode != null ||
-                                widget.onCopyNode != null ||
-                                widget.onDeleteNode != null))
-                          Positioned(
-                            left: selected.x,
-                            top: math.max(
-                              0,
-                              selected.y -
-                                  AppCircleButton.diameter -
-                                  AppTheme.spaceXs,
-                            ),
-                            child: _SelectionActionBar(
-                              nodeId: selected.id,
-                              onOpen: widget.onOpenNode,
-                              onCopy: widget.onCopyNode,
-                              onDelete: widget.onDeleteNode,
-                            ),
-                          ),
                       ],
                     ),
                   ),
                 ),
               ),
+              if (widget.selectedId != null &&
+                  (widget.onOpenNode != null ||
+                      widget.onCopyNode != null ||
+                      widget.onDeleteNode != null))
+                ListenableBuilder(
+                  listenable: _transform,
+                  builder: (context, _) {
+                    final node = byId[widget.selectedId!];
+                    if (node == null) return const SizedBox.shrink();
+                    // Child-space top-left of the bar (layout y, above the
+                    // inset-shifted chip by [inset]).
+                    final childOrigin = Offset(node.x, node.y);
+                    final screen = MatrixUtils.transformPoint(
+                      _transform.value,
+                      childOrigin,
+                    );
+                    final scale =
+                        _transform.value.getMaxScaleOnAxis().clamp(0.001, 100.0);
+                    return Positioned(
+                      left: screen.dx,
+                      top: screen.dy,
+                      child: Transform.scale(
+                        alignment: Alignment.topLeft,
+                        scale: scale,
+                        child: _SelectionActionBar(
+                          nodeId: node.id,
+                          onOpen: widget.onOpenNode,
+                          onCopy: widget.onCopyNode,
+                          onDelete: widget.onDeleteNode,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               if (showEndActions)
                 Positioned(
                   right: AppTheme.spaceMd,
