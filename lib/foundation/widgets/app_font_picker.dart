@@ -57,7 +57,7 @@ class AppFontPickerRow extends StatelessWidget {
     try {
       await showAppSheet<void>(
         context: context,
-        heightFactor: AppTheme.sheetHeightFactor,
+        size: AppSheetSize.half,
         builder: (context) {
           return Column(
             children: [

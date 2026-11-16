@@ -140,50 +140,54 @@ void main() {
     expect(find.byIcon(Icons.chevron_right), findsOneWidget);
   });
 
-  testWidgets('showAppSheet is inset and narrower than the screen', (
+  testWidgets('showAppSheet is inset and respects half vs full height', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    const screen = Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = screen;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.data,
-        home: Builder(
-          builder: (context) {
-            return Scaffold(
-              body: AppButton(
-                label: '打开',
-                onPressed: () {
-                  showAppSheet<void>(
-                    context: context,
-                    heightFactor: AppTheme.sheetHeightFactor,
-                    builder: (_) => const Center(child: Text('抽屉内容')),
-                  );
-                },
-              ),
-            );
-          },
+    Future<Size> openAndMeasure(AppSheetSize size) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.data,
+          home: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: AppButton(
+                  label: '打开',
+                  onPressed: () {
+                    showAppSheet<void>(
+                      context: context,
+                      size: size,
+                      builder: (_) => const Center(child: Text('抽屉内容')),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
         ),
-      ),
-    );
+      );
+      await tester.tap(find.text('打开'));
+      await tester.pumpAndSettle();
+      final card = tester.getSize(find.byKey(const ValueKey('app_sheet_card')));
+      expect(card.width, lessThan(screen.width));
+      expect(card.width, lessThanOrEqualTo(AppTheme.sheetMaxWidth));
+      await tester.tapAt(const Offset(8, 40));
+      await tester.pumpAndSettle();
+      return card;
+    }
 
-    await tester.tap(find.text('打开'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('抽屉内容'), findsOneWidget);
-    final sheetLeft = tester.getTopLeft(find.text('抽屉内容')).dx;
-    expect(sheetLeft, greaterThan(AppTheme.sheetInset));
-    final card = tester.getRect(
-      find
-          .ancestor(
-            of: find.text('抽屉内容'),
-            matching: find.byType(Material),
-          )
-          .first,
-    );
-    expect(card.width, lessThan(390));
-    expect(card.width, lessThanOrEqualTo(AppTheme.sheetMaxWidth));
+    final half = await openAndMeasure(AppSheetSize.half);
+    final full = await openAndMeasure(AppSheetSize.full);
+    expect(half.height, closeTo(screen.height * AppTheme.sheetHalfHeightFactor, 1));
+    expect(full.height, closeTo(screen.height * AppTheme.sheetFullHeightFactor, 1));
+    expect(full.height, greaterThan(half.height));
   });
 
   testWidgets('AppButton variants share the same height', (tester) async {

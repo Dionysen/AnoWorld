@@ -1,21 +1,37 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 
+/// Default open height for [showAppSheet].
+enum AppSheetSize {
+  /// Shrink-wrap to content (menus, confirms). Capped at
+  /// [AppTheme.sheetFullHeightFactor].
+  compact,
+
+  /// About half the screen.
+  half,
+
+  /// Nearly fill the screen (long lists).
+  full,
+}
+
 /// App modal sheet — inset floating card used for every drawer.
 ///
-/// Pass [heightFactor] for scrollable lists (fixed fraction of screen height).
-/// Omit it for compact menus / confirms (shrink-wrap, capped at
-/// [AppTheme.sheetMaxHeightFactor]).
+/// Use [size] for the initial height: [AppSheetSize.half] / [AppSheetSize.full]
+/// for fixed panes, [AppSheetSize.compact] for content-sized menus.
 Future<T?> showAppSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
-  double? heightFactor,
+  AppSheetSize size = AppSheetSize.compact,
 }) {
-  assert(
-    heightFactor == null || (heightFactor > 0 && heightFactor <= 1),
-  );
+  final heightFactor = switch (size) {
+    AppSheetSize.compact => null,
+    AppSheetSize.half => AppTheme.sheetHalfHeightFactor,
+    AppSheetSize.full => AppTheme.sheetFullHeightFactor,
+  };
 
   return showModalBottomSheet<T>(
     context: context,
@@ -29,21 +45,30 @@ Future<T?> showAppSheet<T>({
       final bottomPad = media.padding.bottom +
           AppTheme.sheetInset +
           media.viewInsets.bottom;
-      final maxHeight = media.size.height *
-          (heightFactor ?? AppTheme.sheetMaxHeightFactor);
-      final fixedHeight =
-          heightFactor == null ? null : media.size.height * heightFactor;
+      final screenH = media.size.height;
+      final screenW = media.size.width;
+      final cardWidth = math.min(
+        AppTheme.sheetMaxWidth,
+        screenW - AppTheme.sheetInset * 2,
+      );
+      final cardHeight = heightFactor == null
+          ? null
+          : screenH * heightFactor;
 
       final card = Material(
+        key: const ValueKey('app_sheet_card'),
         color: theme.colorScheme.surfaceContainerHigh,
         elevation: 0,
         shape: tokens.shape(
           side: BorderSide(color: theme.colorScheme.outline),
         ),
         clipBehavior: Clip.antiAlias,
-        child: fixedHeight == null
+        child: cardHeight == null
             ? ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: maxHeight),
+                constraints: BoxConstraints(
+                  maxHeight: screenH * AppTheme.sheetFullHeightFactor,
+                  maxWidth: cardWidth,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -54,8 +79,8 @@ Future<T?> showAppSheet<T>({
                 ),
               )
             : SizedBox(
-                height: fixedHeight,
-                width: double.infinity,
+                width: cardWidth,
+                height: cardHeight,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -66,35 +91,33 @@ Future<T?> showAppSheet<T>({
               ),
       );
 
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.pop(sheetContext),
-            child: const SizedBox.expand(),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppTheme.sheetInset,
-              0,
-              AppTheme.sheetInset,
-              bottomPad,
+      // Explicit full-screen host so half/full card heights are not collapsed
+      // by the modal sheet's intrinsic sizing.
+      return SizedBox(
+        width: screenW,
+        height: screenH,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.pop(sheetContext),
+              ),
             ),
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: AppTheme.sheetMaxWidth,
-                ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: bottomPad,
+              child: Align(
+                alignment: Alignment.bottomCenter,
                 child: GestureDetector(
                   onTap: () {},
                   child: card,
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     },
   );

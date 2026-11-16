@@ -78,11 +78,11 @@ abstract final class AppTheme {
   /// Max width so sheets stay a clear layer on wide windows.
   static const double sheetMaxWidth = 400;
 
-  /// Default height fraction for scrollable list sheets.
-  static const double sheetHeightFactor = 0.78;
+  /// [AppSheetSize.half] — about half the screen.
+  static const double sheetHalfHeightFactor = 0.5;
 
-  /// Max height fraction when a sheet shrink-wraps to content.
-  static const double sheetMaxHeightFactor = 0.9;
+  /// [AppSheetSize.full] — nearly fill the screen; also caps compact sheets.
+  static const double sheetFullHeightFactor = 0.9;
 
   static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
     horizontal: 12,

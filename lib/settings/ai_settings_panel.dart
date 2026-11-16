@@ -33,35 +33,48 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
   }) {
     return showAppSheet<T>(
       context: context,
+      size: AppSheetSize.half,
       builder: (context) {
-        return ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            AppTheme.spaceXs,
-            AppTheme.pagePadding,
-            AppTheme.spaceMd,
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppSectionHeader('选择供应商'),
-            const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '写故事与生图请分开选择',
-              role: AppTextRole.caption,
-            ),
-            const SizedBox(height: AppTheme.spaceGroup),
-            for (final option in options) ...[
-              AppListTile(
-                title: labelOf(option),
-                subtitle: urlOf(option),
-                icon: Icons.dns_outlined,
-                onTap: () => Navigator.of(context).pop(option),
-                trailing: option == current
-                    ? const AppText('当前', role: AppTextRole.caption)
-                    : null,
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                0,
               ),
-              const SizedBox(height: AppTheme.spaceGroup),
-            ],
+              child: AppSectionHeader(
+                '选择供应商',
+                subtitle: '写故事与生图请分开选择',
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.pagePadding,
+                  0,
+                  AppTheme.pagePadding,
+                  AppTheme.spaceMd,
+                ),
+                itemCount: options.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppTheme.spaceGroup),
+                itemBuilder: (context, index) {
+                  final option = options[index];
+                  return AppListTile(
+                    title: labelOf(option),
+                    subtitle: urlOf(option),
+                    icon: Icons.dns_outlined,
+                    onTap: () => Navigator.of(context).pop(option),
+                    trailing: option == current
+                        ? const AppText('当前', role: AppTextRole.caption)
+                        : null,
+                  );
+                },
+              ),
+            ),
           ],
         );
       },
@@ -609,29 +622,44 @@ Future<String?> _showModelSheet(
 }) {
   return showAppSheet<String>(
     context: context,
-    heightFactor: 0.55,
+    size: AppSheetSize.half,
     builder: (context) {
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceXs,
-          AppTheme.pagePadding,
-          AppTheme.spaceMd,
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AppSectionHeader('选择模型'),
-          const SizedBox(height: AppTheme.spaceGroup),
-          for (final id in models) ...[
-            AppListTile(
-              title: id,
-              icon: Icons.smart_toy_outlined,
-              onTap: () => Navigator.of(context).pop(id),
-              trailing: id == current
-                  ? const AppText('当前', role: AppTextRole.caption)
-                  : null,
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceXs,
+              AppTheme.pagePadding,
+              AppTheme.spaceXs,
             ),
-            const SizedBox(height: AppTheme.spaceGroup),
-          ],
+            child: AppSectionHeader('选择模型'),
+          ),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceGroup,
+                AppTheme.pagePadding,
+                AppTheme.spaceMd,
+              ),
+              itemCount: models.length,
+              separatorBuilder: (_, _) =>
+                  const SizedBox(height: AppTheme.spaceGroup),
+              itemBuilder: (context, index) {
+                final id = models[index];
+                return AppListTile(
+                  title: id,
+                  icon: Icons.smart_toy_outlined,
+                  onTap: () => Navigator.of(context).pop(id),
+                  trailing: id == current
+                      ? const AppText('当前', role: AppTextRole.caption)
+                      : null,
+                );
+              },
+            ),
+          ),
         ],
       );
     },

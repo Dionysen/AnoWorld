@@ -55,7 +55,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
   Future<void> _openThemePackSheet(SettingsController controller) async {
     await showAppSheet<void>(
       context: context,
-      heightFactor: AppTheme.sheetHeightFactor,
+      size: AppSheetSize.half,
       builder: (sheetContext) {
         return ListenableBuilder(
           listenable: controller,
@@ -133,7 +133,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
   Future<void> _openCustomColorsSheet(SettingsController controller) async {
     await showAppSheet<void>(
       context: context,
-      heightFactor: AppTheme.sheetHeightFactor,
+      size: AppSheetSize.half,
       builder: (sheetContext) {
         return ListenableBuilder(
           listenable: controller,
