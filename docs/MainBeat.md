@@ -57,7 +57,7 @@ Main
 | `synopsis` | `string` | 否 | 本节点目标/摘要（给作者与 AI，玩家可不直接看到） |
 | `beatIds` | `Id[]` | 是 | 有序；必须都在 `Main.beats` 且 `beat.nodeId == this.id` |
 | `layout` | `NodeLayout` | 否 | **仅编辑器**：画布坐标；不参与运行逻辑 |
-| `tags` | `string[]` | 否 | 含站种类：`opening` / `scene` / `turning` / `ending`（画布色条；`ending` 仍参与校验/运行） |
+| `tags` | `string[]` | 否 | 含站种类：`opening` / `scene` / `turning` / `ending`（画布标题栏色 + 种类芯片；色见 `StoryNodeKindStyle`；`ending` 仍参与校验/运行） |
 
 ```text
 NodeLayout { x: number, y: number }

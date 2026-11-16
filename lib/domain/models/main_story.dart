@@ -165,6 +165,25 @@ class StoryEdge {
   final String? label;
   final int priority;
 
+  StoryEdge copyWith({
+    String? id,
+    String? from,
+    String? to,
+    EdgeKind? kind,
+    String? label,
+    int? priority,
+    bool clearLabel = false,
+  }) {
+    return StoryEdge(
+      id: id ?? this.id,
+      from: from ?? this.from,
+      to: to ?? this.to,
+      kind: kind ?? this.kind,
+      label: clearLabel ? null : (label ?? this.label),
+      priority: priority ?? this.priority,
+    );
+  }
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'from': from,

@@ -1,9 +1,10 @@
 import 'dart:ui' show Offset;
 
+import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:flutter/material.dart';
 
-/// Draws straight edges with optional labels between node centers.
+/// Draws smooth cubic wires (UE5-style) between node ports — no line arrows.
 class GraphEdgePainter extends CustomPainter {
   GraphEdgePainter({
     required this.nodes,
@@ -27,49 +28,44 @@ class GraphEdgePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
+      ..strokeWidth = 2.25
       ..strokeCap = StrokeCap.round;
 
     for (final edge in edges) {
-      final from = nodes[edge.fromId];
-      final to = nodes[edge.toId];
-      if (from == null || to == null) continue;
+      final fromNode = nodes[edge.fromId];
+      final toNode = nodes[edge.toId];
+      if (fromNode == null || toNode == null) continue;
       paint.color = edge.emphasized ? emphasisColor : strokeColor;
-      final a = from.center;
-      final b = to.center;
-      canvas.drawLine(a, b, paint);
-      _drawArrow(canvas, a, b, paint.color);
+      final a = GraphEdgeGeometry.outputPort(
+        fromNode,
+        portId: edge.fromPortId ?? edge.id,
+      );
+      final b = GraphEdgeGeometry.inputPort(toNode);
+      canvas.drawPath(GraphEdgeGeometry.cubicPath(a, b), paint);
       final label = edge.label;
       if (label != null && label.isNotEmpty) {
-        final mid = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2 - 10);
+        final c1 = GraphEdgeGeometry.controlOut(a, b);
+        final c2 = GraphEdgeGeometry.controlIn(a, b);
+        final mid = GraphEdgeGeometry.pointOnCubic(a, c1, c2, b, 0.5);
         final tp = TextPainter(
           text: TextSpan(text: label, style: labelStyle),
           textDirection: TextDirection.ltr,
           maxLines: 1,
         )..layout(maxWidth: 120);
-        tp.paint(canvas, Offset(mid.dx - tp.width / 2, mid.dy - tp.height / 2));
+        tp.paint(
+          canvas,
+          Offset(mid.dx - tp.width / 2, mid.dy - tp.height - 6),
+        );
       }
     }
 
     if (draftFrom != null && draftTo != null) {
       paint.color = emphasisColor.withValues(alpha: 0.7);
-      canvas.drawLine(draftFrom!, draftTo!, paint);
+      canvas.drawPath(
+        GraphEdgeGeometry.cubicPath(draftFrom!, draftTo!),
+        paint,
+      );
     }
-  }
-
-  void _drawArrow(Canvas canvas, Offset a, Offset b, Color color) {
-    final direction = (b - a);
-    final distance = direction.distance;
-    if (distance < 1) return;
-    final unit = direction / distance;
-    final tip = b - unit * 28;
-    final ortho = Offset(-unit.dy, unit.dx);
-    final path = Path()
-      ..moveTo(tip.dx + unit.dx * 8, tip.dy + unit.dy * 8)
-      ..lineTo(tip.dx - ortho.dx * 5, tip.dy - ortho.dy * 5)
-      ..lineTo(tip.dx + ortho.dx * 5, tip.dy + ortho.dy * 5)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
   }
 
   @override

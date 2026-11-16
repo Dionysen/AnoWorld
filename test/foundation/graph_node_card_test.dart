@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('shows badge bar and title', (tester) async {
+  testWidgets('header shows title and kind chip', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.data,
@@ -16,6 +16,7 @@ void main() {
               badgeLabel: '开场',
               badgeColor: Colors.teal,
               elevated: true,
+              subtitleMaxLines: 4,
             ),
           ),
         ),
@@ -33,5 +34,37 @@ void main() {
       ),
     );
     expect(material.elevation, AppTheme.surfaceElevation);
+  });
+
+  testWidgets('body child places port labels under header title', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const Scaffold(
+          body: Center(
+            child: GraphNodeCard(
+              title: '分岔口',
+              badgeLabel: '转折',
+              badgeColor: Colors.orange,
+              body: SizedBox(
+                height: 56,
+                child: Row(
+                  children: [
+                    Text('进入'),
+                    Spacer(),
+                    Text('继续'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('分岔口'), findsOneWidget);
+    expect(find.text('转折'), findsOneWidget);
+    expect(find.text('进入'), findsOneWidget);
+    expect(find.text('继续'), findsOneWidget);
   });
 }

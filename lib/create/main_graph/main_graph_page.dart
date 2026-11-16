@@ -82,7 +82,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
     setState(() => _project = next);
   }
 
-  List<GraphNodeData> _graphNodes(MainStory main, BuildContext context) {
+  List<GraphNodeData> _graphNodes(MainStory main) {
     return [
       for (final node in main.nodes)
         GraphNodeData(
@@ -91,11 +91,25 @@ class _MainGraphPageState extends State<MainGraphPage> {
           subtitle: node.synopsis,
           badgeLabel: StoryNodeKind.fromTags(node.tags).label,
           badgeColor: StoryNodeKindStyle.color(
-            context,
             StoryNodeKind.fromTags(node.tags),
           ),
+          inputLabel: '进入',
           x: node.layout?.x ?? 40,
           y: node.layout?.y ?? 40,
+          outputs: [
+            for (final edge in _ops.outgoing(main, node.id))
+              GraphOutputPort(
+                id: edge.id,
+                label: edge.label?.trim().isNotEmpty == true
+                    ? edge.label
+                    : (edge.kind == EdgeKind.branch ? '岔路' : '继续'),
+              ),
+            const GraphOutputPort(
+              id: GraphOutputPort.pendingId,
+              pending: true,
+              label: '添加',
+            ),
+          ],
         ),
     ];
   }
@@ -107,6 +121,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
           id: edge.id,
           fromId: edge.from,
           toId: edge.to,
+          fromPortId: edge.id,
           label: edge.label,
           emphasized: edge.kind == EdgeKind.branch,
         ),
@@ -145,25 +160,46 @@ class _MainGraphPageState extends State<MainGraphPage> {
     setState(() => _selectedId = _project?.main.startNodeId);
   }
 
-  Future<void> _connect(String fromId, String toId) async {
+  Future<void> _connect(
+    String fromId,
+    String toId,
+    String fromPortId,
+  ) async {
     final project = _project;
-    if (project == null) return;
+    if (project == null || fromId == toId) return;
     var main = project.main;
     final from = main.nodeById(fromId);
     if (from != null &&
         StoryNodeKind.fromTags(from.tags) == StoryNodeKind.ending) {
       main = _ops.setNodeKind(main, fromId, StoryNodeKind.scene);
     }
-    main = _ops.addEdge(
-      main,
-      StoryEdge(
-        id: MainGraphOps.newEdgeId(main),
-        from: fromId,
-        to: toId,
-        kind: EdgeKind.defaultEdge,
+
+    StoryEdge? existing;
+    for (final edge in main.edges) {
+      if (edge.id == fromPortId) {
+        existing = edge;
+        break;
+      }
+    }
+    if (existing != null) {
+      await _persist(
+        _ops.upsertEdge(main, existing.copyWith(to: toId)),
+      );
+      return;
+    }
+
+    final already = main.edges.any((e) => e.from == fromId);
+    await _persist(
+      _ops.addEdge(
+        main,
+        StoryEdge(
+          id: MainGraphOps.newEdgeId(main),
+          from: fromId,
+          to: toId,
+          kind: already ? EdgeKind.branch : EdgeKind.defaultEdge,
+        ),
       ),
     );
-    await _persist(main);
   }
 
   Future<void> _openNodeEditor(String nodeId) async {
@@ -232,7 +268,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   const SizedBox(height: AppTheme.spaceXs),
                   if (outs.isEmpty)
                     const AppText(
-                      '还没有连线，可在画布上从节点角标拉出',
+                      '还没有连线：从右侧插头拖到下一站左侧',
                       role: AppTextRole.caption,
                     )
                   else
@@ -300,7 +336,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
 
   Widget _buildCanvas(MainStory main) {
     return GraphViewport(
-      nodes: _graphNodes(main, context),
+      nodes: _graphNodes(main),
       edges: _graphEdges(main),
       selectedId: _selectedId,
       onSelect: (id) => setState(() => _selectedId = id),
@@ -408,7 +444,6 @@ class _MainGraphPageState extends State<MainGraphPage> {
                         badgeLabel:
                             StoryNodeKind.fromTags(node.tags).label,
                         badgeColor: StoryNodeKindStyle.color(
-                          context,
                           StoryNodeKind.fromTags(node.tags),
                         ),
                         selected: true,

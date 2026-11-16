@@ -38,7 +38,7 @@ void main() {
     expect(opened.main.nodes.length, greaterThan(sample.main.nodes.length));
   });
 
-  testWidgets('linking two stations adds an edge to main', (tester) async {
+  testWidgets('dragging output port connects two stations', (tester) async {
     final blank = const ProjectFactory().createBlank(
       id: 'p_link',
       title: '连线',
@@ -54,14 +54,14 @@ void main() {
             title: '开场',
             synopsis: '开始',
             beatIds: [],
-            layout: NodeLayout(x: 40, y: 40),
+            layout: NodeLayout(x: 40, y: 80),
           ),
           StoryNode(
             id: 'n_b',
             title: '下一站',
             synopsis: '去别处',
             beatIds: [],
-            layout: NodeLayout(x: 220, y: 40),
+            layout: NodeLayout(x: 260, y: 80),
             tags: ['ending'],
           ),
         ],
@@ -80,15 +80,106 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.south_east).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('下一站'));
+    expect(
+      find.byKey(const ValueKey('graph_port_out_n_a___pending__')),
+      findsOneWidget,
+    );
+    await tester.timedDrag(
+      find.byKey(const ValueKey('graph_port_out_n_a___pending__')),
+      const Offset(60, 0),
+      const Duration(milliseconds: 300),
+    );
     await tester.pumpAndSettle();
 
     final opened = await repo.open(withTwo.meta.id);
     expect(opened.main.edges, isNotEmpty);
     expect(opened.main.edges.first.from, 'n_a');
     expect(opened.main.edges.first.to, 'n_b');
+  });
+
+  testWidgets('pending port can fork to a second station', (tester) async {
+    final blank = const ProjectFactory().createBlank(
+      id: 'p_fork',
+      title: '分叉',
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final withThree = blank.copyWith(
+      main: MainStory(
+        summary: blank.main.summary,
+        startNodeId: 'n_a',
+        nodes: const [
+          StoryNode(
+            id: 'n_a',
+            title: '分岔口',
+            synopsis: '两条路',
+            beatIds: [],
+            layout: NodeLayout(x: 40, y: 100),
+          ),
+          StoryNode(
+            id: 'n_b',
+            title: '左路',
+            synopsis: '向左',
+            beatIds: [],
+            layout: NodeLayout(x: 280, y: 40),
+            tags: ['ending'],
+          ),
+          StoryNode(
+            id: 'n_c',
+            title: '右路',
+            synopsis: '向右',
+            beatIds: [],
+            layout: NodeLayout(x: 280, y: 180),
+            tags: ['ending'],
+          ),
+        ],
+        edges: const [
+          StoryEdge(
+            id: 'e_ab',
+            from: 'n_a',
+            to: 'n_b',
+            kind: EdgeKind.defaultEdge,
+          ),
+        ],
+        beats: const [],
+      ),
+    );
+    final repo = MemoryProjectRepository(
+      seed: {withThree.meta.id: withThree},
+    );
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: MainGraphPage(projectId: withThree.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('graph_port_out_n_a_e_ab')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('graph_port_out_n_a___pending__')),
+      findsOneWidget,
+    );
+
+    await tester.timedDrag(
+      find.byKey(const ValueKey('graph_port_out_n_a___pending__')),
+      const Offset(80, 40),
+      const Duration(milliseconds: 300),
+    );
+    await tester.pumpAndSettle();
+
+    final opened = await repo.open(withThree.meta.id);
+    expect(opened.main.edges.length, 2);
+    expect(
+      opened.main.edges.where((e) => e.from == 'n_a').length,
+      2,
+    );
+    expect(
+      opened.main.edges.any((e) => e.to == 'n_c' && e.kind == EdgeKind.branch),
+      isTrue,
+    );
   });
 
   testWidgets('card mode toggles without losing graph', (tester) async {

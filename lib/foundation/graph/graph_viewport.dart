@@ -1,3 +1,4 @@
+import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_edge_painter.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_chip.dart';
@@ -14,6 +15,7 @@ class GraphViewport extends StatefulWidget {
     required this.onSelect,
     required this.onMove,
     required this.onConnect,
+    this.onAddOutput,
     this.onOpenNode,
     this.minScale = 0.4,
     this.maxScale = 2.5,
@@ -24,7 +26,10 @@ class GraphViewport extends StatefulWidget {
   final String? selectedId;
   final ValueChanged<String?> onSelect;
   final void Function(String id, double x, double y) onMove;
-  final void Function(String fromId, String toId) onConnect;
+
+  /// [fromPortId] is an existing edge id to retarget, or [GraphOutputPort.pendingId].
+  final void Function(String fromId, String toId, String fromPortId) onConnect;
+  final ValueChanged<String>? onAddOutput;
   final ValueChanged<String>? onOpenNode;
   final double minScale;
   final double maxScale;
@@ -35,9 +40,19 @@ class GraphViewport extends StatefulWidget {
 
 class _GraphViewportState extends State<GraphViewport> {
   final _transform = TransformationController();
+  final _viewerKey = GlobalKey();
   String? _linkFromId;
+  String? _linkFromPortId;
   Offset? _draftPointer;
   bool _draggingNode = false;
+
+  static const double _portHitRadius = 48;
+
+  Offset? _scenePoint(Offset global) {
+    final box = _viewerKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return null;
+    return _transform.toScene(box.globalToLocal(global));
+  }
 
   Map<String, GraphNodeData> get _byId => {
         for (final n in widget.nodes) n.id: n,
@@ -46,15 +61,55 @@ class _GraphViewportState extends State<GraphViewport> {
   void _clearLink() {
     setState(() {
       _linkFromId = null;
+      _linkFromPortId = null;
       _draftPointer = null;
     });
   }
 
-  void _startLink(String id) {
+  String? _hitInputPort(Offset canvasPoint) {
+    String? bestId;
+    var bestDist = _portHitRadius;
+    for (final node in widget.nodes) {
+      if (node.id == _linkFromId) continue;
+      final port = GraphEdgeGeometry.inputPort(node);
+      final d = (port - canvasPoint).distance;
+      if (d <= bestDist) {
+        bestDist = d;
+        bestId = node.id;
+      }
+    }
+    return bestId;
+  }
+
+  void _onOutputDragStart(String nodeId, String portId) {
+    final node = _byId[nodeId];
     setState(() {
-      _linkFromId = id;
-      _draftPointer = _byId[id]?.center;
+      _linkFromId = nodeId;
+      _linkFromPortId = portId;
+      _draftPointer = node == null
+          ? null
+          : GraphEdgeGeometry.outputPort(node, portId: portId);
+      widget.onSelect(nodeId);
     });
+  }
+
+  void _onOutputDragUpdate(DragUpdateDetails details) {
+    final scene = _scenePoint(details.globalPosition);
+    if (scene == null) return;
+    setState(() => _draftPointer = scene);
+  }
+
+  void _onOutputDragEnd(DragEndDetails details) {
+    final tip = _draftPointer;
+    final fromId = _linkFromId;
+    final fromPortId = _linkFromPortId;
+    if (fromId != null && fromPortId != null && tip != null) {
+      final toId = _hitInputPort(tip);
+      if (toId != null) {
+        widget.onConnect(fromId, toId, fromPortId);
+      }
+    }
+    _clearLink();
   }
 
   void _onCanvasTap() {
@@ -69,8 +124,16 @@ class _GraphViewportState extends State<GraphViewport> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final byId = _byId;
-    final draftFrom = _linkFromId == null ? null : byId[_linkFromId!]?.center;
+    final draftFromNode =
+        _linkFromId == null ? null : byId[_linkFromId!];
+    final draftFrom = draftFromNode == null
+        ? null
+        : GraphEdgeGeometry.outputPort(
+            draftFromNode,
+            portId: _linkFromPortId,
+          );
     final canvasInteractive = !_draggingNode && _linkFromId == null;
+    final linking = _linkFromId != null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -84,12 +147,8 @@ class _GraphViewportState extends State<GraphViewport> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _onCanvasTap,
-            onPanUpdate: _linkFromId == null
-                ? null
-                : (details) {
-                    setState(() => _draftPointer = details.localPosition);
-                  },
             child: InteractiveViewer(
+              key: _viewerKey,
               transformationController: _transform,
               minScale: widget.minScale,
               maxScale: widget.maxScale,
@@ -101,6 +160,7 @@ class _GraphViewportState extends State<GraphViewport> {
                 width: width + 1200,
                 height: height + 1200,
                 child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
                     Positioned.fill(
                       child: CustomPaint(
@@ -118,23 +178,16 @@ class _GraphViewportState extends State<GraphViewport> {
                     ),
                     for (final node in widget.nodes)
                       Positioned(
-                        left: node.x,
+                        left: node.x - GraphNodeChip.horizontalPad,
                         top: node.y,
                         child: GraphNodeChip(
                           data: node,
                           selected: node.id == widget.selectedId ||
                               node.id == _linkFromId,
-                          onTap: () {
-                            if (_linkFromId != null) {
-                              if (_linkFromId != node.id) {
-                                widget.onConnect(_linkFromId!, node.id);
-                              }
-                              _clearLink();
-                              return;
-                            }
-                            widget.onSelect(node.id);
-                          },
+                          highlightPorts: linking && node.id != _linkFromId,
+                          onTap: () => widget.onSelect(node.id),
                           onPanUpdate: (details) {
+                            if (linking) return;
                             if (!_draggingNode) {
                               setState(() => _draggingNode = true);
                             }
@@ -149,14 +202,20 @@ class _GraphViewportState extends State<GraphViewport> {
                               setState(() => _draggingNode = false);
                             }
                           },
-                          onLinkStart: () => _startLink(node.id),
+                          onOutputDragStart: (portId) =>
+                              _onOutputDragStart(node.id, portId),
+                          onOutputDragUpdate: _onOutputDragUpdate,
+                          onOutputDragEnd: _onOutputDragEnd,
+                          onAddOutput: widget.onAddOutput == null
+                              ? null
+                              : () => widget.onAddOutput!(node.id),
                         ),
                       ),
                     if (widget.selectedId != null && widget.onOpenNode != null)
                       Positioned(
                         left: (byId[widget.selectedId!]?.x ?? 0) + 8,
                         top: (byId[widget.selectedId!]?.y ?? 0) +
-                            (byId[widget.selectedId!]?.height ?? 72) +
+                            (byId[widget.selectedId!]?.resolvedHeight ?? 72) +
                             6,
                         child: AppButton(
                           label: '编辑',

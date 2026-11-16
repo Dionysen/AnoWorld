@@ -1,6 +1,28 @@
 import 'dart:ui' show Color, Offset;
 
+import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_node_card.dart';
+
+/// One output socket on a node (may map to an existing edge, or a pending add).
+class GraphOutputPort {
+  const GraphOutputPort({
+    required this.id,
+    this.label,
+    this.pending = false,
+  });
+
+  /// Stable id: edge id for wired sockets, [pendingId] for the add socket.
+  final String id;
+  final String? label;
+  final bool pending;
+
+  static const String pendingId = '__pending__';
+
+  static const GraphOutputPort pendingPort = GraphOutputPort(
+    id: pendingId,
+    pending: true,
+  );
+}
 
 /// Portable graph node placement (no product/business fields).
 class GraphNodeData {
@@ -12,8 +34,10 @@ class GraphNodeData {
     this.subtitle,
     this.badgeLabel,
     this.badgeColor,
+    this.inputLabel,
     this.width = GraphNodeCard.defaultWidth,
-    this.height = 104,
+    this.height,
+    this.outputs = const [GraphOutputPort.pendingPort],
   });
 
   final String id;
@@ -21,22 +45,40 @@ class GraphNodeData {
   final String? subtitle;
   final String? badgeLabel;
   final Color? badgeColor;
+
+  /// Label for the left input pin (shown in the first content row).
+  final String? inputLabel;
   final double x;
   final double y;
   final double width;
-  final double height;
+  final List<GraphOutputPort> outputs;
 
-  Offset get center => Offset(x + width / 2, y + height / 2);
+  /// Explicit height, or derived from [outputs] count.
+  final double? height;
+
+  bool get hasHeaderSubtitle =>
+      subtitle != null && subtitle!.trim().isNotEmpty;
+
+  double get resolvedHeight =>
+      height ??
+      GraphEdgeGeometry.heightForOutputCount(
+        outputs.length,
+        headerSubtitle: hasHeaderSubtitle,
+      );
+
+  Offset get center => Offset(x + width / 2, y + resolvedHeight / 2);
 
   GraphNodeData copyWith({
     String? label,
     String? subtitle,
     String? badgeLabel,
     Color? badgeColor,
+    String? inputLabel,
     double? x,
     double? y,
     double? width,
     double? height,
+    List<GraphOutputPort>? outputs,
     bool clearBadge = false,
   }) {
     return GraphNodeData(
@@ -45,10 +87,12 @@ class GraphNodeData {
       subtitle: subtitle ?? this.subtitle,
       badgeLabel: clearBadge ? null : (badgeLabel ?? this.badgeLabel),
       badgeColor: clearBadge ? null : (badgeColor ?? this.badgeColor),
+      inputLabel: inputLabel ?? this.inputLabel,
       x: x ?? this.x,
       y: y ?? this.y,
       width: width ?? this.width,
       height: height ?? this.height,
+      outputs: outputs ?? this.outputs,
     );
   }
 }
@@ -59,6 +103,7 @@ class GraphEdgeData {
     required this.id,
     required this.fromId,
     required this.toId,
+    this.fromPortId,
     this.label,
     this.emphasized = false,
   });
@@ -66,6 +111,9 @@ class GraphEdgeData {
   final String id;
   final String fromId;
   final String toId;
+
+  /// Which output socket on [fromId]; defaults to first / single port.
+  final String? fromPortId;
   final String? label;
   final bool emphasized;
 }
