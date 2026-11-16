@@ -325,7 +325,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('编辑选中'));
+    await tester.ensureVisible(find.byIcon(Icons.edit_outlined));
+    await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
 
     expect(find.text('这一站'), findsOneWidget);

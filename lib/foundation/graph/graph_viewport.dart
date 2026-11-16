@@ -5,7 +5,8 @@ import 'package:anoworld/foundation/graph/graph_edge_painter.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_chip.dart';
 import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
-import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:flutter/material.dart';
 
 /// Pan/zoom canvas hosting [GraphNodeChip]s and painted edges.
@@ -23,6 +24,8 @@ class GraphViewport extends StatefulWidget {
     this.onAddOutput,
     this.onOpenOutput,
     this.onOpenNode,
+    this.onAddNode,
+    this.onArrange,
     this.focusSelected = false,
     this.minScale = 0.4,
     this.maxScale = 2.5,
@@ -44,6 +47,10 @@ class GraphViewport extends StatefulWidget {
   /// Open editor for a wired output port (edge id).
   final void Function(String nodeId, String portId)? onOpenOutput;
   final ValueChanged<String>? onOpenNode;
+
+  /// Floating actions (canvas bottom-right, outside the pan/zoom layer).
+  final VoidCallback? onAddNode;
+  final VoidCallback? onArrange;
 
   /// When true, camera locks onto [selectedId] (centered + zoomed). Same graph.
   final bool focusSelected;
@@ -291,107 +298,153 @@ class _GraphViewportState extends State<GraphViewport>
             });
           }
         }
-        return ClipRect(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapUp: _onCanvasTapUp,
-            child: InteractiveViewer(
-              key: _viewerKey,
-              transformationController: _transform,
-              minScale: widget.minScale,
-              maxScale: widget.maxScale,
-              panEnabled: canvasInteractive,
-              scaleEnabled: canvasInteractive,
-              constrained: false,
-              boundaryMargin: const EdgeInsets.all(800),
-              child: SizedBox(
-                width: width + 1200,
-                height: height + 1200,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: GraphEdgePainter(
-                          nodes: byId,
-                          edges: widget.edges,
-                          strokeColor: theme.colorScheme.outline,
-                          emphasisColor: theme.colorScheme.primary,
-                          selectedEdgeId: widget.selectedEdgeId,
-                          draftFrom: draftFrom,
-                          draftTo: _draftPointer,
+        final selected = widget.selectedId == null
+            ? null
+            : byId[widget.selectedId!];
+        final showCornerActions =
+            widget.onAddNode != null || widget.onArrange != null;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapUp: _onCanvasTapUp,
+              child: InteractiveViewer(
+                key: _viewerKey,
+                transformationController: _transform,
+                minScale: widget.minScale,
+                maxScale: widget.maxScale,
+                panEnabled: canvasInteractive,
+                scaleEnabled: canvasInteractive,
+                constrained: false,
+                boundaryMargin: const EdgeInsets.all(800),
+                child: SizedBox(
+                    width: width + 1200,
+                    height: height + 1200,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: GraphEdgePainter(
+                              nodes: byId,
+                              edges: widget.edges,
+                              strokeColor: theme.colorScheme.outline,
+                              emphasisColor: theme.colorScheme.primary,
+                              selectedEdgeId: widget.selectedEdgeId,
+                              draftFrom: draftFrom,
+                              draftTo: _draftPointer,
+                            ),
+                          ),
                         ),
-                      ),
+                        for (final node in widget.nodes)
+                          Positioned(
+                            left: node.x - GraphNodeChip.horizontalPad,
+                            top: node.y,
+                            child: GraphNodeChip(
+                              data: node,
+                              selected: node.id == widget.selectedId ||
+                                  node.id == _linkFromId,
+                              highlightPorts:
+                                  linking && node.id != _linkFromId,
+                              highlightInput:
+                                  selectedEdge?.toId == node.id,
+                              highlightOutputPortId:
+                                  selectedEdge?.fromId == node.id
+                                      ? (selectedEdge!.fromPortId ??
+                                          selectedEdge.id)
+                                      : null,
+                              onTap: () => _selectNode(node.id),
+                              onPanUpdate: (details) {
+                                if (linking) return;
+                                if (!_draggingNode) {
+                                  setState(() => _draggingNode = true);
+                                }
+                                // Deltas are in the chip's local (scene) space.
+                                widget.onMove(
+                                  node.id,
+                                  node.x + details.delta.dx,
+                                  node.y + details.delta.dy,
+                                );
+                              },
+                              onPanEnd: (_) {
+                                if (_draggingNode) {
+                                  setState(() => _draggingNode = false);
+                                }
+                                if (widget.focusSelected &&
+                                    node.id == widget.selectedId) {
+                                  _focusCamera(animate: true);
+                                }
+                              },
+                              onOutputDragStart: (portId) =>
+                                  _onOutputDragStart(node.id, portId),
+                              onOutputDragUpdate: _onOutputDragUpdate,
+                              onOutputDragEnd: _onOutputDragEnd,
+                              onOutputTap: widget.onOpenOutput == null
+                                  ? null
+                                  : (portId) => widget.onOpenOutput!(
+                                        node.id,
+                                        portId,
+                                      ),
+                              onAddOutput: widget.onAddOutput == null
+                                  ? null
+                                  : () => widget.onAddOutput!(node.id),
+                            ),
+                          ),
+                        if (selected != null && widget.onOpenNode != null)
+                          Positioned(
+                            left: selected.x +
+                                selected.resolvedWidth / 2 -
+                                AppCircleButton.diameter / 2,
+                            top: math.max(
+                              0,
+                              selected.y -
+                                  AppCircleButton.diameter -
+                                  AppTheme.spaceXs,
+                            ),
+                            child: AppCircleButton(
+                              icon: Icons.edit_outlined,
+                              tooltip: '编辑',
+                              variant: AppCircleButtonVariant.tonal,
+                              onPressed: () =>
+                                  widget.onOpenNode!(selected.id),
+                            ),
+                          ),
+                      ],
                     ),
-                    for (final node in widget.nodes)
-                      Positioned(
-                        left: node.x - GraphNodeChip.horizontalPad,
-                        top: node.y,
-                        child: GraphNodeChip(
-                          data: node,
-                          selected: node.id == widget.selectedId ||
-                              node.id == _linkFromId,
-                          highlightPorts: linking && node.id != _linkFromId,
-                          highlightInput: selectedEdge?.toId == node.id,
-                          highlightOutputPortId:
-                              selectedEdge?.fromId == node.id
-                                  ? (selectedEdge!.fromPortId ??
-                                      selectedEdge.id)
-                                  : null,
-                          onTap: () => _selectNode(node.id),
-                          onPanUpdate: (details) {
-                            if (linking) return;
-                            if (!_draggingNode) {
-                              setState(() => _draggingNode = true);
-                            }
-                            // Deltas are in the chip's local (scene) space.
-                            widget.onMove(
-                              node.id,
-                              node.x + details.delta.dx,
-                              node.y + details.delta.dy,
-                            );
-                          },
-                          onPanEnd: (_) {
-                            if (_draggingNode) {
-                              setState(() => _draggingNode = false);
-                            }
-                            if (widget.focusSelected &&
-                                node.id == widget.selectedId) {
-                              _focusCamera(animate: true);
-                            }
-                          },
-                          onOutputDragStart: (portId) =>
-                              _onOutputDragStart(node.id, portId),
-                          onOutputDragUpdate: _onOutputDragUpdate,
-                          onOutputDragEnd: _onOutputDragEnd,
-                          onOutputTap: widget.onOpenOutput == null
-                              ? null
-                              : (portId) =>
-                                  widget.onOpenOutput!(node.id, portId),
-                          onAddOutput: widget.onAddOutput == null
-                              ? null
-                              : () => widget.onAddOutput!(node.id),
-                        ),
-                      ),
-                    if (widget.selectedId != null && widget.onOpenNode != null)
-                      Positioned(
-                        left: (byId[widget.selectedId!]?.x ?? 0) + 8,
-                        top: (byId[widget.selectedId!]?.y ?? 0) +
-                            (byId[widget.selectedId!]?.resolvedHeight ?? 72) +
-                            6,
-                        child: AppButton(
-                          label: '编辑',
-                          variant: AppButtonVariant.secondary,
-                          onPressed: () =>
-                              widget.onOpenNode!(widget.selectedId!),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-        );
+              if (showCornerActions)
+                Positioned(
+                  right: AppTheme.spaceMd,
+                  bottom: AppTheme.spaceMd,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.onArrange != null) ...[
+                        AppCircleButton(
+                          icon: Icons.dashboard_customize_outlined,
+                          tooltip: '整理排版',
+                          variant: AppCircleButtonVariant.tonal,
+                          onPressed: widget.onArrange,
+                        ),
+                        if (widget.onAddNode != null)
+                          const SizedBox(width: AppTheme.spaceSm),
+                      ],
+                      if (widget.onAddNode != null)
+                        AppCircleButton(
+                          icon: Icons.add,
+                          tooltip: '加一站',
+                          variant: AppCircleButtonVariant.tonal,
+                          onPressed: widget.onAddNode,
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          );
       },
     );
   }

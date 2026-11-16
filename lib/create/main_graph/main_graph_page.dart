@@ -19,7 +19,6 @@ import 'package:anoworld/foundation/graph/graph_viewport.dart';
 import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
-import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
@@ -275,27 +274,6 @@ class _MainGraphPageState extends State<MainGraphPage> {
     });
   }
 
-  Future<void> _deleteSelected() async {
-    final project = _project;
-    if (project == null) return;
-    final edgeId = _selectedEdgeId;
-    if (edgeId != null) {
-      await _persist(_ops.removeEdge(project.main, edgeId));
-      if (!mounted) return;
-      setState(() => _selectedEdgeId = null);
-      return;
-    }
-    final id = _selectedId;
-    if (id == null) return;
-    if (project.main.nodes.length <= 1) return;
-    await _persist(_ops.removeNode(project.main, id));
-    if (!mounted) return;
-    setState(() {
-      _selectedId = _project?.main.startNodeId;
-      _selectedEdgeId = null;
-    });
-  }
-
   Future<void> _connect(
     String fromId,
     String toId,
@@ -534,6 +512,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
       onOpenOutput: (_, portId) => _openEdgeEditor(portId),
       onAddOutput: (_) => _tipAddOutput(),
       onOpenNode: _openNodeEditor,
+      onAddNode: _addNode,
+      onArrange: _autoLayout,
     );
   }
 
@@ -634,56 +614,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
           final bottom = MediaQuery.paddingOf(context).bottom;
           return Padding(
             padding: EdgeInsets.only(bottom: bottom),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.spaceMd,
-                    AppTheme.spaceSm,
-                    AppTheme.spaceMd,
-                    0,
-                  ),
-                  child: Row(
-                    children: [
-                      AppCircleButton(
-                        icon: Icons.add,
-                        tooltip: '加一站',
-                        variant: AppCircleButtonVariant.ghost,
-                        onPressed: _addNode,
-                      ),
-                      const SizedBox(width: AppTheme.spaceSm),
-                      AppCircleButton(
-                        icon: Icons.dashboard_customize_outlined,
-                        tooltip: '整理排版',
-                        variant: AppCircleButtonVariant.ghost,
-                        onPressed: _autoLayout,
-                      ),
-                      const SizedBox(width: AppTheme.spaceSm),
-                      AppCircleButton(
-                        icon: Icons.edit_outlined,
-                        tooltip: '编辑选中',
-                        variant: AppCircleButtonVariant.ghost,
-                        onPressed: _selectedId == null
-                            ? null
-                            : () => _openNodeEditor(_selectedId!),
-                      ),
-                      const SizedBox(width: AppTheme.spaceSm),
-                      AppCircleButton(
-                        icon: Icons.delete_outline,
-                        tooltip: '删除选中',
-                        variant: AppCircleButtonVariant.ghost,
-                        onPressed: _selectedId == null &&
-                                _selectedEdgeId == null
-                            ? null
-                            : _deleteSelected,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spaceSm),
-                Expanded(child: _buildCanvas(project.main)),
-              ],
-            ),
+            child: _buildCanvas(project.main),
           );
         },
       ),
