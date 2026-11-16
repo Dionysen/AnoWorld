@@ -55,6 +55,7 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
                 AppListTile(
                   title: labelOf(option),
                   subtitle: urlOf(option),
+                  icon: Icons.dns_outlined,
                   onTap: () => Navigator.of(context).pop(option),
                   trailing: option == current
                       ? const AppText('当前', role: AppTextRole.caption)
@@ -548,6 +549,7 @@ class _ChannelScaffold extends StatelessWidget {
         AppListTile(
           title: providerLabel,
           subtitle: '供应商',
+          icon: Icons.cloud_outlined,
           onTap: onPickKind,
           trailing: const AppText('更换', role: AppTextRole.caption),
         ),
@@ -628,6 +630,7 @@ Future<String?> _showModelSheet(
               for (final id in models) ...[
                 AppListTile(
                   title: id,
+                  icon: Icons.smart_toy_outlined,
                   onTap: () => Navigator.of(context).pop(id),
                   trailing: id == current
                       ? const AppText('当前', role: AppTextRole.caption)

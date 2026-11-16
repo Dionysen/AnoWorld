@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
+import 'app_list_tile.dart';
 import 'app_text.dart';
 
 /// Labeled stepped slider. Business code must not use [Slider] directly.
@@ -17,11 +18,13 @@ class AppSlider extends StatelessWidget {
     required this.max,
     required this.step,
     required this.onChanged,
+    this.icon,
     this.valueText,
   }) : assert(step > 0),
        assert(max >= min);
 
   final String label;
+  final IconData? icon;
   final double value;
   final double min;
   final double max;
@@ -78,6 +81,14 @@ class AppSlider extends StatelessWidget {
           children: [
             Row(
               children: [
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    size: AppListTile.iconSize,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppTheme.spaceInline),
+                ],
                 Expanded(
                   child: AppText(
                     label,

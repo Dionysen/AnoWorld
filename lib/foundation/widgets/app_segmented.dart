@@ -5,10 +5,15 @@ import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 
 class AppSegmentOption<T> {
-  const AppSegmentOption({required this.value, required this.label});
+  const AppSegmentOption({
+    required this.value,
+    required this.label,
+    this.icon,
+  });
 
   final T value;
   final String label;
+  final IconData? icon;
 }
 
 /// Compact two/three-way mode switch.
@@ -39,6 +44,7 @@ class AppSegmented<T> extends StatelessWidget {
             Expanded(
               child: _Segment(
                 label: option.label,
+                icon: option.icon,
                 selected: option.value == value,
                 radius: tokens.radius,
                 onTap: () => onChanged(option.value),
@@ -56,9 +62,11 @@ class _Segment extends StatelessWidget {
     required this.selected,
     required this.radius,
     required this.onTap,
+    this.icon,
   });
 
   final String label;
+  final IconData? icon;
   final bool selected;
   final double radius;
   final VoidCallback onTap;
@@ -69,6 +77,9 @@ class _Segment extends StatelessWidget {
     final shape = AppShapes.continuous(
       radius: (radius - 1).clamp(0.0, radius),
     );
+    final color = selected
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurface;
     return Material(
       color: selected ? theme.colorScheme.primary : Colors.transparent,
       shape: shape,
@@ -81,16 +92,23 @@ class _Segment extends StatelessWidget {
             vertical: AppTheme.spaceSm,
             horizontal: AppTheme.spaceXs,
           ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: selected
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurface,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: AppTheme.spaceXs),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(color: color),
+                ),
+              ),
+            ],
           ),
         ),
       ),

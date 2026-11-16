@@ -22,11 +22,13 @@ class AppFontPickerRow extends StatelessWidget {
     required this.isLoading,
     required this.onSelected,
     required this.onImportPath,
+    this.icon = Icons.text_fields,
     this.onDeleteFont,
   });
 
   final String label;
   final String description;
+  final IconData icon;
   final List<SystemFont> fonts;
   final String? selectedPath;
   final String selectedLabel;
@@ -125,6 +127,7 @@ class AppFontPickerRow extends StatelessWidget {
                             children: [
                               AppListTile(
                                 title: '系统默认',
+                                icon: Icons.phone_android_outlined,
                                 onTap: () {
                                   onSelected(null);
                                   Navigator.pop(context);
@@ -141,6 +144,9 @@ class AppFontPickerRow extends StatelessWidget {
                                 AppListTile(
                                   title: font.family,
                                   subtitle: font.imported ? '已导入' : null,
+                                  icon: font.imported
+                                      ? Icons.font_download_outlined
+                                      : Icons.text_fields,
                                   onTap: () {
                                     onSelected(font);
                                     Navigator.pop(context);
@@ -262,6 +268,7 @@ class AppFontPickerRow extends StatelessWidget {
     return AppListTile(
       title: label,
       subtitle: description,
+      icon: icon,
       onTap: () => _openPicker(context),
       trailing: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 140),

@@ -151,17 +151,20 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 AppSectionHeader(pack.name),
                 AppListTile(
                   title: '重命名',
+                  icon: Icons.drive_file_rename_outline,
                   onTap: () =>
                       Navigator.pop(context, _PackMenuAction.rename),
                 ),
                 const SizedBox(height: AppTheme.spaceSm),
                 AppListTile(
                   title: '复制',
+                  icon: Icons.copy_outlined,
                   onTap: () => Navigator.pop(context, _PackMenuAction.copy),
                 ),
                 const SizedBox(height: AppTheme.spaceSm),
                 AppListTile(
                   title: '删除',
+                  icon: Icons.delete_outline,
                   onTap: () =>
                       Navigator.pop(context, _PackMenuAction.delete),
                 ),
@@ -259,7 +262,11 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               onChanged: controller.setThemeMode,
               options: [
                 for (final mode in AppThemeModeSetting.values)
-                  AppSegmentOption(value: mode, label: mode.label),
+                  AppSegmentOption(
+                    value: mode,
+                    label: mode.label,
+                    icon: mode.icon,
+                  ),
               ],
             ),
             const SizedBox(height: AppTheme.spaceLg),
@@ -269,6 +276,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             AppListTile(
               title: '主题预设',
               subtitle: '亮色/暗色各自记住一套；点选立即切换当前外观。',
+              icon: Icons.style_outlined,
               onTap: () => setState(() => _presetsExpanded = !_presetsExpanded),
               trailing: AppDisclosureIcon(expanded: _presetsExpanded),
             ),
@@ -278,6 +286,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 if (i > 0) const SizedBox(height: AppTheme.spaceGroup),
                 AppListTile(
                   title: _packTitle(packs[i]),
+                  icon: _packIcon(packs[i]),
                   onTap: () => controller.applyPack(packs[i].id),
                   trailing: _PackTrailing(
                     packId: packs[i].id,
@@ -306,6 +315,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             AppListTile(
               title: '自定义颜色',
               subtitle: '调整当前外观下的各项颜色，修改后立即生效。',
+              icon: Icons.colorize_outlined,
               onTap: () => setState(
                 () => _customColorsExpanded = !_customColorsExpanded,
               ),
@@ -317,6 +327,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 AppListTile(
                   title: token.label,
                   subtitle: token.description,
+                  icon: token.icon,
                   onTap: () => _pickToken(controller, token),
                   trailing: _ColorSwatch(
                     color: Color(controller.activeTokens.valueOf(token)),
@@ -350,6 +361,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             AppFontPickerRow(
               label: '字体',
               description: '点按选择字体；电脑会列出本机已安装的字体，手机可导入字体文件。',
+              icon: Icons.text_fields,
               fonts: controller.fontCatalog,
               selectedPath: current.fontPath,
               selectedLabel: controller.selectedFontLabel(),
@@ -361,6 +373,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
               label: '字体大小',
+              icon: Icons.format_size,
               value: current.fontSize,
               min: AppearanceUiRange.fontSizeMin,
               max: AppearanceUiRange.fontSizeMax,
@@ -376,6 +389,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
               label: '圆角大小',
+              icon: Icons.rounded_corner,
               value: current.cornerRadius,
               min: AppearanceUiRange.cornerRadiusMin,
               max: AppearanceUiRange.cornerRadiusMax,
@@ -400,6 +414,12 @@ String _packTitle(ThemeColorPack pack) {
   final preset = pack.builtInPreset;
   if (preset != null) return preset.label;
   return pack.name;
+}
+
+IconData _packIcon(ThemeColorPack pack) {
+  final preset = pack.builtInPreset;
+  if (preset != null) return preset.icon;
+  return Icons.bookmark_outline;
 }
 
 class _PackTrailing extends StatelessWidget {

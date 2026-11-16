@@ -33,6 +33,7 @@ void main() {
           body: AppListTile(
             title: '雨夜投宿',
             subtitle: '更新 2026-01-01',
+            icon: Icons.menu_book_outlined,
           ),
         ),
       ),
@@ -40,6 +41,7 @@ void main() {
 
     expect(find.text('雨夜投宿'), findsOneWidget);
     expect(find.text('更新 2026-01-01'), findsOneWidget);
+    expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
   });
 
   testWidgets('AppSelectField labels outside like text field', (tester) async {

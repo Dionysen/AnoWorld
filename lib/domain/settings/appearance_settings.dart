@@ -12,6 +12,12 @@ extension AppThemeModeSettingX on AppThemeModeSetting {
         AppThemeModeSetting.dark => '深色',
       };
 
+  IconData get icon => switch (this) {
+        AppThemeModeSetting.system => Icons.brightness_auto_outlined,
+        AppThemeModeSetting.light => Icons.light_mode_outlined,
+        AppThemeModeSetting.dark => Icons.dark_mode_outlined,
+      };
+
   ThemeMode get material => switch (this) {
         AppThemeModeSetting.system => ThemeMode.system,
         AppThemeModeSetting.light => ThemeMode.light,

@@ -10,14 +10,18 @@ class AppListTile extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.icon,
     this.onTap,
     this.trailing,
   });
 
   final String title;
   final String? subtitle;
+  final IconData? icon;
   final VoidCallback? onTap;
   final Widget? trailing;
+
+  static const double iconSize = 20;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +41,14 @@ class AppListTile extends StatelessWidget {
           ),
           child: Row(
             children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: iconSize,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppTheme.spaceInline),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

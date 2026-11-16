@@ -125,10 +125,12 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                     AppSegmentOption(
                       value: PlayViewMode.visualNovel,
                       label: '视觉小说',
+                      icon: Icons.auto_stories_outlined,
                     ),
                     AppSegmentOption(
                       value: PlayViewMode.chat,
                       label: '聊天',
+                      icon: Icons.chat_bubble_outline,
                     ),
                   ],
                 ),

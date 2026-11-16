@@ -226,6 +226,7 @@ class _HomePageState extends State<HomePage> {
               AppListTile(
                 title: _projects[i].title,
                 subtitle: _formatUpdated(_projects[i].updatedAt),
+                icon: Icons.menu_book_outlined,
                 onTap: () => _openProject(_projects[i].id),
               ),
             ],
