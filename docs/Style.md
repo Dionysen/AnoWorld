@@ -9,13 +9,13 @@
 | 项 | 选项 | 落点 |
 | --- | --- | --- |
 | 主题模式 | 跟随系统 / 浅色 / 深色 | `AppearanceSettings.mode` → `MaterialApp.themeMode` |
-| 主题颜色 | NT 内置预设 + 用户保存包；亮/暗分槽 | `lightTokens`/`darkTokens` + `lightPackId`/`darkPackId`/`customPacks` |
-| 自定义颜色 | 逐项 token（背景/文字/强调色三档/气泡等） | 改当前有效槽的 `ThemeTokens`；`AppColorPicker` |
-| 字体 | 系统默认，或本机/导入字体文件（对齐 NativeTavern） | `AppearanceSettings.fontFamily` + `fontPath`；`foundation/fonts/` + `AppFontPickerRow` |
+| 主题预设 | 底部抽屉选 NT 内置 + 用户包；亮/暗分槽；行尾显示当前包名 | `AppearanceSettingsPanel` + `showModalBottomSheet`；`lightTokens`/`darkTokens` + `lightPackId`/`darkPackId`/`customPacks` |
+| 自定义颜色 | 行内可展开；逐项 token（背景/文字/强调色三档/气泡等） | 改当前有效槽的 `ThemeTokens`；`AppColorPicker`；`AppDisclosureIcon` |
+| 字体 | 底部抽屉；系统默认 / 本机 / 导入（对齐 NativeTavern） | `AppearanceSettings.fontFamily` + `fontPath`；`foundation/fonts/` + `AppFontPickerRow` |
 | 字体大小 | 滑块 **12–20 px**，步长 **0.5 px**（默认 15） | `AppearanceSettings.fontSize` → body 字号；其它角色按相对 15px 比例缩放 |
 | 圆角大小 | 滑块 0–24 px，步长 1（默认 10）；**曲率连续**（超椭圆） | `AppearanceSettings.cornerRadius` → `AppUiTokens.radius` / `AppShapes.continuous` |
 
-`AppTheme.light|dark` 分别取亮/暗槽 tokens，经 `AppColorTokens` 映射到 Material `ColorScheme`（对齐 NativeTavern）：`accent` → `primary`，`secondaryAccent` → `secondary`，`tertiaryAccent` → `tertiary`；选中底用 accent 叠在侧栏色上（`secondaryContainer`）；光标/`textSelection`、开关选中轨、splash/highlight 也跟 accent。大小类控件统一用 `AppSlider`（标题、数值与滑轨同处一块 `surfaceContainerHighest` 表面内，与 `AppListTile` 视觉对齐；块内上下边距 `spaceMd`，标题与滑轨间距 `spaceSm`）；圆角一律走 `RoundedSuperellipseBorder`。输入框内边距默认 `12×12`（`AppTheme.fieldPadding`）。间距：`AppTheme.spaceXs/Sm/Group/Inline/Md/Lg`；同一分区内相邻控件用 `spaceGroup`（6），分区间仍用 `spaceLg`。`AppButton` 三档（primary / secondary / ghost）共用高度 `AppTheme.buttonHeight`（36）与同一套内边距；对话框取消用 secondary、确定用 primary，二者同高同垫。组件在 `lib/foundation/theme/`、`lib/foundation/widgets/`；业务页只用封装控件（`AppButton`、`AppTextField`、`AppSelectField`、`AppSlider`、`AppSegmented`、`AppOptionGroup`、`AppListTile`、`AppDisclosureIcon`、`AppFontPickerRow`、`AppColorPicker`、`AppSurface` 等）。可折叠行尾标用上下箭头（`AppDisclosureIcon`），不用「展开/收起」文案。列表行 / 滑块 / 字体行带 leading `icon`（对齐 NativeTavern settings tile）。`AppListTile` 尾标按内容宽度占位，标题/副标题吃满中间剩余宽度，副标题最多两行，写不下才省略。`AppSegmented` 选项可带 `icon`（在文字左侧；主题模式：跟随系统 / 浅色 / 深色），行高与纯文字时一致。
+`AppTheme.light|dark` 分别取亮/暗槽 tokens，经 `AppColorTokens` 映射到 Material `ColorScheme`（对齐 NativeTavern）：`accent` → `primary`，`secondaryAccent` → `secondary`，`tertiaryAccent` → `tertiary`；选中底用 accent 叠在侧栏色上（`secondaryContainer`）；光标/`textSelection`、开关选中轨、splash/highlight 也跟 accent。大小类控件统一用 `AppSlider`（标题、数值与滑轨同处一块 `surfaceContainerHighest` 表面内，与 `AppListTile` 视觉对齐；块内上下边距 `spaceMd`，标题与滑轨间距 `spaceSm`）；圆角一律走 `RoundedSuperellipseBorder`。输入框内边距默认 `12×12`（`AppTheme.fieldPadding`）。间距：`AppTheme.spaceXs/Sm/Group/Inline/Md/Lg`；同一分区内相邻控件用 `spaceGroup`（6），分区间仍用 `spaceLg`。`AppButton` 三档（primary / secondary / ghost）共用高度 `AppTheme.buttonHeight`（36）与同一套内边距；对话框取消用 secondary、确定用 primary，二者同高同垫。组件在 `lib/foundation/theme/`、`lib/foundation/widgets/`；业务页只用封装控件（`AppButton`、`AppTextField`、`AppSelectField`、`AppSlider`、`AppSegmented`、`AppOptionGroup`、`AppListTile`、`AppDisclosureIcon`、`AppFontPickerRow`、`AppColorPicker`、`AppSurface` 等）。主题预设与字体用底部抽屉选择（对齐 `AppFontPickerRow`）；自定义颜色等可折叠行尾标用上下箭头（`AppDisclosureIcon`），不用「展开/收起」文案。列表行 / 滑块 / 字体行带 leading `icon`（对齐 NativeTavern settings tile）。`AppListTile` 尾标按内容宽度占位，标题/副标题吃满中间剩余宽度，副标题最多两行，写不下才省略。`AppSegmented` 选项可带 `icon`（在文字左侧；主题模式：跟随系统 / 浅色 / 深色），行高与纯文字时一致。
 
 ## 布局与窗口
 

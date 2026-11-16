@@ -10,6 +10,7 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_color_picker.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_font_picker.dart';
+import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
@@ -27,7 +28,6 @@ class AppearanceSettingsPanel extends StatefulWidget {
 }
 
 class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
-  var _presetsExpanded = false;
   var _customColorsExpanded = false;
 
   @override
@@ -50,6 +50,96 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
     );
     if (next == null || !mounted) return;
     await controller.updateToken(token, next.toARGB32());
+  }
+
+  Future<void> _openThemePackSheet(SettingsController controller) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.72,
+          minChildSize: 0.4,
+          maxChildSize: 0.92,
+          builder: (context, scrollController) {
+            return SafeArea(
+              child: ListenableBuilder(
+                listenable: controller,
+                builder: (context, _) {
+                  final appearance = controller.appearance;
+                  final packs = appearance.colorPacks;
+                  final activePack = controller.activePack;
+                  final activeMatches = activePack != null &&
+                      activePack.tokens == controller.activeTokens;
+                  return Column(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          AppTheme.pagePadding,
+                          0,
+                          AppTheme.pagePadding,
+                          AppTheme.spaceSm,
+                        ),
+                        child: AppSectionHeader('主题预设'),
+                      ),
+                      Expanded(
+                        child: ListView.separated(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(
+                            AppTheme.pagePadding,
+                            AppTheme.spaceSm,
+                            AppTheme.pagePadding,
+                            AppTheme.spaceLg,
+                          ),
+                          itemCount: packs.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: AppTheme.spaceGroup),
+                          itemBuilder: (context, index) {
+                            final pack = packs[index];
+                            final isActive = activeMatches &&
+                                pack.id == controller.activePackId;
+                            return AppListTile(
+                              title: _packTitle(pack),
+                              icon: _packIcon(pack),
+                              onTap: () async {
+                                await controller.applyPack(pack.id);
+                                if (sheetContext.mounted) {
+                                  Navigator.pop(sheetContext);
+                                }
+                              },
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _PackTrailing(
+                                    packId: pack.id,
+                                    lightPackId: appearance.lightPackId,
+                                    darkPackId: appearance.darkPackId,
+                                    isActive: isActive,
+                                  ),
+                                  if (!pack.isBuiltIn)
+                                    AppIconButton(
+                                      icon: Icons.more_horiz,
+                                      tooltip: '管理',
+                                      onPressed: () =>
+                                          _customPackMenu(controller, pack),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _saveAsTheme(SettingsController controller) async {
@@ -245,13 +335,12 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
       listenable: controller,
       builder: (context, _) {
         final current = controller.appearance;
-        final packs = current.colorPacks;
         final activePack = controller.activePack;
         final activeMatches =
             activePack != null && activePack.tokens == controller.activeTokens;
-        final currentLabel = activeMatches
-            ? '当前：${_packTitle(activePack)}'
-            : '当前：自定义';
+        final presetTrailing = activePack != null && activeMatches
+            ? _packTitle(activePack)
+            : '自定义';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -271,46 +360,23 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             ),
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader('主题颜色'),
-            AppText(currentLabel, role: AppTextRole.caption),
             const SizedBox(height: AppTheme.spaceGroup),
             AppListTile(
               title: '主题预设',
               subtitle: '浅色与深色各记一套',
               icon: Icons.style_outlined,
-              onTap: () => setState(() => _presetsExpanded = !_presetsExpanded),
-              trailing: AppDisclosureIcon(expanded: _presetsExpanded),
-            ),
-            if (_presetsExpanded) ...[
-              const SizedBox(height: AppTheme.spaceGroup),
-              for (var i = 0; i < packs.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppTheme.spaceGroup),
-                AppListTile(
-                  title: _packTitle(packs[i]),
-                  icon: _packIcon(packs[i]),
-                  onTap: () => controller.applyPack(packs[i].id),
-                  trailing: _PackTrailing(
-                    packId: packs[i].id,
-                    lightPackId: current.lightPackId,
-                    darkPackId: current.darkPackId,
-                    isActive: activeMatches &&
-                        packs[i].id == controller.activePackId,
-                  ),
+              onTap: () => _openThemePackSheet(controller),
+              trailing: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: AppText(
+                  presetTrailing,
+                  role: AppTextRole.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
                 ),
-                if (!packs[i].isBuiltIn)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppTheme.spaceXs),
-                    child: Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: AppButton(
-                        label: '管理',
-                        variant: AppButtonVariant.ghost,
-                        onPressed: () =>
-                            _customPackMenu(controller, packs[i]),
-                      ),
-                    ),
-                  ),
-              ],
-            ],
+              ),
+            ),
             const SizedBox(height: AppTheme.spaceGroup),
             AppListTile(
               title: '自定义颜色',

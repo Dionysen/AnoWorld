@@ -62,12 +62,20 @@ void main() {
 
     await tester.tap(find.text('主题预设'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Cursor 深色'));
+    final cursorDark = find.text('Cursor 深色');
+    await tester.scrollUntilVisible(
+      cursorDark,
+      200,
+      scrollable: find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('Cursor 深色'), findsOneWidget);
-    await tester.tap(find.text('Cursor 深色'));
+    expect(cursorDark, findsOneWidget);
+    await tester.tap(cursorDark);
     await tester.pumpAndSettle();
-    expect(find.text('使用中'), findsWidgets);
+    expect(find.text('Cursor 深色'), findsWidgets);
 
     expect(find.textContaining('系统字体或导入文件'), findsOneWidget);
 
