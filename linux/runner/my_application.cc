@@ -83,6 +83,19 @@ static void window_method_cb(FlMethodChannel* /*channel*/,
   }
 }
 
+static void set_window_icon(GtkWindow* window) {
+  g_autofree gchar* exe = g_file_read_link("/proc/self/exe", nullptr);
+  if (exe == nullptr) {
+    return;
+  }
+  g_autofree gchar* dir = g_path_get_dirname(exe);
+  g_autofree gchar* icon = g_build_filename(dir, "data", "app_icon.png", nullptr);
+  GError* error = nullptr;
+  if (!gtk_window_set_icon_from_file(window, icon, &error)) {
+    g_clear_error(&error);
+  }
+}
+
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
@@ -95,6 +108,7 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_set_size_request(title_bar, -1, 0);
   gtk_window_set_titlebar(window, title_bar);
   gtk_window_set_title(window, "anoworld");
+  set_window_icon(window);
 
   gtk_window_set_default_size(window, 1280, 720);
   g_signal_connect(window, "notify::is-maximized",
