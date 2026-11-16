@@ -50,7 +50,7 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
                 '文本与生图供应商列表不同；Base URL 仍可手改。',
                 role: AppTextRole.caption,
               ),
-              const SizedBox(height: AppTheme.spaceMd),
+              const SizedBox(height: AppTheme.spaceGroup),
               for (final option in options) ...[
                 AppListTile(
                   title: labelOf(option),
@@ -60,7 +60,7 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
                       ? const AppText('当前', role: AppTextRole.caption)
                       : null,
                 ),
-                const SizedBox(height: AppTheme.spaceSm),
+                const SizedBox(height: AppTheme.spaceGroup),
               ],
             ],
           ),
@@ -544,14 +544,14 @@ class _ChannelScaffold extends StatelessWidget {
       children: [
         AppSectionHeader(title),
         AppText(caption, role: AppTextRole.caption),
-        const SizedBox(height: AppTheme.spaceMd),
+        const SizedBox(height: AppTheme.spaceGroup),
         AppListTile(
           title: providerLabel,
           subtitle: '供应商',
           onTap: onPickKind,
           trailing: const AppText('更换', role: AppTextRole.caption),
         ),
-        const SizedBox(height: AppTheme.spaceMd),
+        const SizedBox(height: AppTheme.spaceGroup),
         AppTextField(
           label: 'Base URL',
           controller: baseUrl,
@@ -561,7 +561,7 @@ class _ChannelScaffold extends StatelessWidget {
           onChanged: onBaseChanged,
           onEditingComplete: onBaseComplete,
         ),
-        const SizedBox(height: AppTheme.spaceSm),
+        const SizedBox(height: AppTheme.spaceGroup),
         if (needsApiKey) ...[
           AppTextField(
             label: 'API Key',
@@ -573,7 +573,7 @@ class _ChannelScaffold extends StatelessWidget {
             onEditingComplete: onKeyComplete,
             onSubmitted: (_) => onKeyComplete(),
           ),
-          const SizedBox(height: AppTheme.spaceSm),
+          const SizedBox(height: AppTheme.spaceGroup),
         ],
         AppSelectField(
           label: '模型',
@@ -624,7 +624,7 @@ Future<String?> _showModelSheet(
             ),
             children: [
               const AppSectionHeader('选择模型'),
-              const SizedBox(height: AppTheme.spaceMd),
+              const SizedBox(height: AppTheme.spaceGroup),
               for (final id in models) ...[
                 AppListTile(
                   title: id,
@@ -633,7 +633,7 @@ Future<String?> _showModelSheet(
                       ? const AppText('当前', role: AppTextRole.caption)
                       : null,
                 ),
-                const SizedBox(height: AppTheme.spaceSm),
+                const SizedBox(height: AppTheme.spaceGroup),
               ],
             ],
           ),

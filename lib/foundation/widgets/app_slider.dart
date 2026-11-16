@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/app_ui_tokens.dart';
 import 'app_text.dart';
 
 /// Labeled stepped slider. Business code must not use [Slider] directly.
 ///
 /// [step] snaps the value; divisions are derived as `(max - min) / step`.
+/// Label, value, and track sit inside one themed surface block.
 class AppSlider extends StatelessWidget {
   const AppSlider({
     super.key,
@@ -56,42 +58,63 @@ class AppSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final shape = AppUiTokens.of(context).shape();
     final display = snap(value: value, min: min, max: max, step: step);
     final readout = valueText?.call(display) ?? _defaultValueText(display);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.spaceMd,
+          AppTheme.spaceSm + 2,
+          AppTheme.spaceMd,
+          AppTheme.spaceSm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: AppText(label, role: AppTextRole.caption),
+            Row(
+              children: [
+                Expanded(
+                  child: AppText(
+                    label,
+                    role: AppTextRole.subtitle,
+                    maxLines: 1,
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spaceSm),
+                AppText(readout, role: AppTextRole.caption),
+              ],
             ),
-            AppText(readout, role: AppTextRole.caption),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                activeTrackColor: theme.colorScheme.primary,
+                inactiveTrackColor: theme.colorScheme.outline,
+                thumbColor: theme.colorScheme.primary,
+                overlayColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+                valueIndicatorColor: theme.colorScheme.primary,
+                // Keep the track inside the block; Material's default side
+                // padding would otherwise eat into the surface edges.
+                padding: EdgeInsets.zero,
+              ),
+              child: Slider(
+                value: display,
+                min: min,
+                max: max,
+                divisions: _divisions,
+                label: readout,
+                onChanged: (next) {
+                  onChanged(snap(value: next, min: min, max: max, step: step));
+                },
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: AppTheme.spaceXs),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            activeTrackColor: theme.colorScheme.primary,
-            inactiveTrackColor: theme.colorScheme.outline,
-            thumbColor: theme.colorScheme.primary,
-            overlayColor: theme.colorScheme.primary.withValues(alpha: 0.12),
-            valueIndicatorColor: theme.colorScheme.primary,
-          ),
-          child: Slider(
-            value: display,
-            min: min,
-            max: max,
-            divisions: _divisions,
-            label: readout,
-            onChanged: (next) {
-              onChanged(snap(value: next, min: min, max: max, step: step));
-            },
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

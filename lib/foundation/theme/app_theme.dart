@@ -63,6 +63,8 @@ abstract final class AppTheme {
 
   static const double spaceXs = 4;
   static const double spaceSm = 8;
+  /// Vertical gap between stacked controls in the same section/group.
+  static const double spaceGroup = 6;
   static const double spaceInline = 12;
   static const double spaceMd = 16;
   static const double spaceLg = 24;

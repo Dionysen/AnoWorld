@@ -43,4 +43,45 @@ void main() {
     expect(values.last, inInclusiveRange(0, 24));
     expect(values.last, equals(values.last.roundToDouble()));
   });
+
+  testWidgets('AppSlider keeps label and value inside the surface block', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const Scaffold(
+          body: Padding(
+            padding: EdgeInsets.all(16),
+            child: AppSlider(
+              label: '字体大小',
+              value: 15,
+              min: 12,
+              max: 20,
+              step: 0.5,
+              valueText: _px,
+              onChanged: _noop,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final block = tester.getRect(find.byType(Material).last);
+    final label = tester.getRect(find.text('字体大小'));
+    final value = tester.getRect(find.text('15 px'));
+    final track = tester.getRect(find.byType(Slider));
+
+    expect(block.contains(label.topLeft), isTrue);
+    expect(block.contains(label.bottomRight), isTrue);
+    expect(block.contains(value.topLeft), isTrue);
+    expect(block.contains(value.bottomRight), isTrue);
+    expect(block.contains(track.center), isTrue);
+  });
 }
+
+String _px(double v) =>
+    '${v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1)} px';
+
+void _noop(double _) {}
+

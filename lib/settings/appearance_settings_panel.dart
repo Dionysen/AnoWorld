@@ -265,7 +265,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader('主题颜色'),
             AppText(currentLabel, role: AppTextRole.caption),
-            const SizedBox(height: AppTheme.spaceSm),
+            const SizedBox(height: AppTheme.spaceGroup),
             AppListTile(
               title: '主题预设',
               subtitle: '亮色/暗色各自记住一套；点选立即切换当前外观。',
@@ -273,9 +273,9 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               trailing: AppDisclosureIcon(expanded: _presetsExpanded),
             ),
             if (_presetsExpanded) ...[
-              const SizedBox(height: AppTheme.spaceSm),
+              const SizedBox(height: AppTheme.spaceGroup),
               for (var i = 0; i < packs.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppTheme.spaceSm),
+                if (i > 0) const SizedBox(height: AppTheme.spaceGroup),
                 AppListTile(
                   title: _packTitle(packs[i]),
                   onTap: () => controller.applyPack(packs[i].id),
@@ -302,7 +302,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                   ),
               ],
             ],
-            const SizedBox(height: AppTheme.spaceMd),
+            const SizedBox(height: AppTheme.spaceGroup),
             AppListTile(
               title: '自定义颜色',
               subtitle: '调整当前外观下的各项颜色，修改后立即生效。',
@@ -312,7 +312,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               trailing: AppDisclosureIcon(expanded: _customColorsExpanded),
             ),
             if (_customColorsExpanded) ...[
-              const SizedBox(height: AppTheme.spaceSm),
+              const SizedBox(height: AppTheme.spaceGroup),
               for (final token in ThemeToken.values) ...[
                 AppListTile(
                   title: token.label,
@@ -323,7 +323,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                     onTap: () => _pickToken(controller, token),
                   ),
                 ),
-                const SizedBox(height: AppTheme.spaceSm),
+                const SizedBox(height: AppTheme.spaceGroup),
               ],
               Row(
                 children: [
@@ -358,7 +358,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               onImportPath: controller.importFontFromPath,
               onDeleteFont: controller.deleteImportedFont,
             ),
-            const SizedBox(height: AppTheme.spaceMd),
+            const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
               label: '字体大小',
               value: current.fontSize,
@@ -373,7 +373,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 );
               },
             ),
-            const SizedBox(height: AppTheme.spaceMd),
+            const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
               label: '圆角大小',
               value: current.cornerRadius,
