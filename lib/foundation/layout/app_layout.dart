@@ -17,6 +17,11 @@ abstract final class AppLayout {
 
   static const double paneDividerWidth = 1;
 
+  /// Compact bottom nav: floating capsule (iOS-style), not edge-flush.
+  static const double bottomNavHeight = 56;
+  static const double bottomNavHorizontalInset = 16;
+  static const double bottomNavBottomInset = 10;
+
   /// Content width (after rail) needed for secondary + detail.
   static double get threePaneContentMinWidth =>
       secondaryPaneWidth + paneDividerWidth + detailPaneMinWidth;

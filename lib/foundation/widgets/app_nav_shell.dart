@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../frame/immersive_frame.dart';
 import '../layout/app_layout.dart';
+import '../theme/app_shapes.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 
@@ -60,13 +61,29 @@ class AppNavShell extends StatelessWidget {
         );
 
         if (mode.isCompact) {
-          return Column(
+          // Overlay the capsule so margins stay transparent over [body].
+          final media = MediaQuery.of(context);
+          const barClearance = AppLayout.bottomNavHeight +
+              AppLayout.bottomNavBottomInset +
+              AppTheme.spaceSm;
+          return Stack(
+            fit: StackFit.expand,
             children: [
-              Expanded(child: body),
-              _BottomNav(
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onDestinationSelected: onDestinationSelected,
+              MediaQuery(
+                data: media.copyWith(
+                  padding: media.padding.copyWith(
+                    bottom: media.padding.bottom + barClearance,
+                  ),
+                ),
+                child: body,
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: _BottomNav(
+                  destinations: destinations,
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: onDestinationSelected,
+                ),
               ),
             ],
           );
@@ -338,36 +355,44 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bottom = MediaQuery.paddingOf(context).bottom;
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Divider(
-            height: AppLayout.paneDividerWidth,
-            thickness: AppLayout.paneDividerWidth,
-            color: theme.dividerColor,
+    // viewPadding: ignore body MediaQuery padding inflation from the shell.
+    final bottom = MediaQuery.viewPaddingOf(context).bottom;
+    const height = AppLayout.bottomNavHeight;
+    // Capsule ends: radius = half height (independent of control corner slider).
+    final capsule = AppShapes.continuous(
+      radius: height / 2,
+      side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.55)),
+    );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppLayout.bottomNavHorizontalInset,
+        AppTheme.spaceSm,
+        AppLayout.bottomNavHorizontalInset,
+        bottom + AppLayout.bottomNavBottomInset,
+      ),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHighest,
+        elevation: 10,
+        shadowColor: Colors.black.withValues(alpha: 0.45),
+        surfaceTintColor: Colors.transparent,
+        shape: capsule,
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          height: height,
+          child: Row(
+            children: [
+              for (var i = 0; i < destinations.length; i++)
+                Expanded(
+                  child: _BottomNavButton(
+                    item: destinations[i],
+                    selected: i == selectedIndex,
+                    onTap: () => onDestinationSelected(i),
+                  ),
+                ),
+            ],
           ),
-          Padding(
-            padding: EdgeInsets.only(bottom: bottom),
-            child: SizedBox(
-              height: 56,
-              child: Row(
-                children: [
-                  for (var i = 0; i < destinations.length; i++)
-                    Expanded(
-                      child: _BottomNavButton(
-                        item: destinations[i],
-                        selected: i == selectedIndex,
-                        onTap: () => onDestinationSelected(i),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -390,28 +415,43 @@ class _BottomNavButton extends StatelessWidget {
     final color = selected
         ? theme.colorScheme.primary
         : theme.colorScheme.onSurfaceVariant;
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            selected ? (item.selectedIcon ?? item.icon) : item.icon,
-            size: 22,
-            color: color,
+    final pill = AppShapes.continuous(radius: AppLayout.bottomNavHeight / 2);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spaceXs,
+        vertical: AppTheme.spaceXs,
+      ),
+      child: Material(
+        color: selected
+            ? theme.colorScheme.primary.withValues(alpha: 0.14)
+            : Colors.transparent,
+        shape: pill,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: pill,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                selected ? (item.selectedIcon ?? item.icon) : item.icon,
+                size: 22,
+                color: color,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
-          Text(
-            item.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: color,
-              fontSize: 11,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

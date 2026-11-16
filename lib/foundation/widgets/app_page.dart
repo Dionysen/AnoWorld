@@ -113,10 +113,11 @@ class AppPage extends StatelessWidget {
                 ),
               Expanded(
                 child: Padding(
+                  // Bottom inset stays in MediaQuery so floating chrome
+                  // (capsule nav) can overlay while scroll bodies pad themselves.
                   padding: EdgeInsets.only(
                     left: media.padding.left,
                     right: media.padding.right,
-                    bottom: media.padding.bottom,
                   ),
                   child: body,
                 ),
@@ -142,10 +143,14 @@ class AppPageBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mediaBottom = MediaQuery.paddingOf(context).bottom;
     return LayoutBuilder(
       builder: (context, constraints) {
+        final resolved = padding.resolve(Directionality.of(context));
         return SingleChildScrollView(
-          padding: padding,
+          padding: resolved.copyWith(
+            bottom: resolved.bottom + mediaBottom,
+          ),
           child: ConstrainedBox(
             constraints: BoxConstraints(minWidth: constraints.maxWidth),
             child: Column(
