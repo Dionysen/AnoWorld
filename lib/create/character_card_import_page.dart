@@ -18,6 +18,7 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 /// One picked card file (path and/or bytes).
@@ -113,6 +114,12 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
         _busy = false;
         _status = error.message;
       });
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _status = _platformReadError(error);
+      });
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -120,6 +127,15 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
         _status = '读卡失败：$error';
       });
     }
+  }
+
+  static String _platformReadError(PlatformException error) {
+    final code = error.code.toUpperCase();
+    if (code.contains('ENTITLEMENT') ||
+        (error.message ?? '').toUpperCase().contains('ENTITLEMENT')) {
+      return '无法读取所选文件，请完全退出应用后重开再试';
+    }
+    return '读卡失败：${error.message ?? error.code}';
   }
 
   Future<StCharacterCard> _parseFile(PickedCharacterCardFile file) async {

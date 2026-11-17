@@ -77,7 +77,7 @@
 
 **用户想要的感觉**：选一个卡 → 看软件读懂了什么 → 勾选留下 → 写入故事再改。
 
-**当前实现**：故事页加号「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。
+**当前实现**：故事页加号「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
 
 ### 用户做的事
 
