@@ -15,22 +15,55 @@ class AppChatDialogueText extends StatelessWidget {
     super.key,
     required this.text,
     this.isUser = false,
+    this.lineHeight = AppChatChrome.defaultLineHeight,
+    this.paragraphSpacing = AppChatChrome.defaultParagraphSpacing,
   });
 
   final String text;
   final bool isUser;
+  final double lineHeight;
+  final double paragraphSpacing;
 
   @override
   Widget build(BuildContext context) {
-    final base = AppChatChrome.bubbleBodyStyle(context);
+    final base = AppChatChrome.bubbleBodyStyle(
+      context,
+      lineHeight: lineHeight,
+    );
     final dialogue = base.copyWith(
       color: AppChatChrome.dialogueTextColor(context),
       fontWeight: AppChatChrome.dialogueFontWeight,
     );
-    return Text.rich(
-      TextSpan(children: _spans(text, base, dialogue)),
-      textAlign: isUser ? TextAlign.start : TextAlign.start,
+    final paragraphs = _paragraphs(text);
+    if (paragraphs.length <= 1) {
+      return Text.rich(
+        TextSpan(children: _spans(paragraphs.firstOrNull ?? '', base, dialogue)),
+        textAlign: TextAlign.start,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < paragraphs.length; i++) ...[
+          if (i > 0) SizedBox(height: paragraphSpacing),
+          Text.rich(
+            TextSpan(children: _spans(paragraphs[i], base, dialogue)),
+            textAlign: TextAlign.start,
+          ),
+        ],
+      ],
     );
+  }
+
+  /// Blank-line separated paragraphs; single newlines stay inside a block.
+  static List<String> _paragraphs(String source) {
+    final trimmed = source.replaceAll('\r\n', '\n');
+    if (trimmed.trim().isEmpty) return const [''];
+    return trimmed
+        .split(RegExp(r'\n\s*\n'))
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
   }
 
   static List<InlineSpan> _spans(

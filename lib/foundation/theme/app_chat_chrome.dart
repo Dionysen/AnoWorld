@@ -14,6 +14,18 @@ abstract final class AppChatChrome {
   /// Content column max width on wide screens.
   static const double contentMaxWidth = 900;
 
+  /// Bubble body line height (NT `chatLineHeight` default).
+  static const double defaultLineHeight = 1.4;
+  static const double minLineHeight = 1.0;
+  static const double maxLineHeight = 2.5;
+  static const double lineHeightStep = 0.05;
+
+  /// Gap between blank-line paragraphs inside a bubble (NT default 8).
+  static const double defaultParagraphSpacing = 8;
+  static const double minParagraphSpacing = 0;
+  static const double maxParagraphSpacing = 24;
+  static const double paragraphSpacingStep = 1;
+
   static Color composerFill(ColorScheme scheme, Brightness brightness) {
     return brightness == Brightness.dark
         ? Color.lerp(Colors.black, scheme.surface, 0.1)!
@@ -185,21 +197,29 @@ abstract final class AppChatChrome {
   static double messageFontSize(BuildContext context) =>
       Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14;
 
-  static TextStyle messageInputStyle(BuildContext context, {Color? color}) {
+  static TextStyle messageInputStyle(
+    BuildContext context, {
+    Color? color,
+    double lineHeight = defaultLineHeight,
+  }) {
     final theme = Theme.of(context);
     final base = theme.textTheme.bodyMedium;
-    const lineHeight = 1.4;
-    return (base ?? const TextStyle(fontSize: 14, height: lineHeight)).copyWith(
+    final height = lineHeight.clamp(minLineHeight, maxLineHeight);
+    return (base ?? TextStyle(fontSize: 14, height: height)).copyWith(
       color: color ?? theme.colorScheme.onSurface,
       fontSize: messageFontSize(context),
-      height: lineHeight,
+      height: height,
     );
   }
 
-  static TextStyle bubbleBodyStyle(BuildContext context) {
+  static TextStyle bubbleBodyStyle(
+    BuildContext context, {
+    double lineHeight = defaultLineHeight,
+  }) {
     return messageInputStyle(
       context,
       color: bubbleTextColor(context),
+      lineHeight: lineHeight,
     );
   }
 

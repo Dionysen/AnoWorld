@@ -1,3 +1,5 @@
+import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/foundation/theme/app_chat_chrome.dart';
 import 'package:anoworld/foundation/theme/app_chat_colors.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -136,6 +138,16 @@ class _PlayChatViewState extends State<PlayChatView> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = AppScope.settingsOf(context);
+    return ListenableBuilder(
+      listenable: settings,
+      builder: (context, _) {
+        return _buildShell(context, settings.chatUi);
+      },
+    );
+  }
+
+  Widget _buildShell(BuildContext context, ChatUiSettings chatUi) {
     final chat = AppChatColors.of(context);
     final empty = widget.messages.isEmpty &&
         !widget.isGenerating &&
@@ -178,6 +190,8 @@ class _PlayChatViewState extends State<PlayChatView> {
                                       ? AppChatBubbleRole.user
                                       : AppChatBubbleRole.character,
                                   avatarLabel: msg.avatarLabel,
+                                  lineHeight: chatUi.lineHeight,
+                                  paragraphSpacing: chatUi.paragraphSpacing,
                                 );
                               }
                               if (widget.isGenerating) {
@@ -251,7 +265,7 @@ class _PlayChatViewState extends State<PlayChatView> {
                             ),
                             AppChatComposerIconButton(
                               icon: Icons.settings_outlined,
-                              tooltip: '设置',
+                              tooltip: '聊天设置',
                               onPressed: widget.onOpenSettings,
                             ),
                           ],

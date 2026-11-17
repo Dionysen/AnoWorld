@@ -19,8 +19,8 @@ import 'package:anoworld/foundation/widgets/app_surface.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/play/play_chat_message.dart';
 import 'package:anoworld/play/play_chat_view.dart';
+import 'package:anoworld/play/chat_settings_page.dart';
 import 'package:anoworld/settings/ai_model_picker.dart';
-import 'package:anoworld/settings/settings_page.dart';
 import 'package:flutter/material.dart';
 
 export 'package:anoworld/domain/runtime/play_view_mode.dart' show PlayViewMode;
@@ -354,7 +354,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   void _openChatSettings() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => const SettingsPage(),
+        builder: (_) => const ChatSettingsPage(),
       ),
     );
   }

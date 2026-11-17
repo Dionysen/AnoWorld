@@ -27,6 +27,8 @@ class AppChatBubble extends StatelessWidget {
     this.showAvatar = true,
     this.isTyping = false,
     this.onLongPress,
+    this.lineHeight = AppChatChrome.defaultLineHeight,
+    this.paragraphSpacing = AppChatChrome.defaultParagraphSpacing,
   });
 
   final String text;
@@ -37,6 +39,8 @@ class AppChatBubble extends StatelessWidget {
   final bool showAvatar;
   final bool isTyping;
   final VoidCallback? onLongPress;
+  final double lineHeight;
+  final double paragraphSpacing;
 
   static const double _avatarRadius = 16;
   static const double _narrationMaxWidth = 420;
@@ -66,7 +70,12 @@ class AppChatBubble extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTheme.spaceXs),
               ],
-              AppChatDialogueText(text: text, isUser: _isUser),
+              AppChatDialogueText(
+                text: text,
+                isUser: _isUser,
+                lineHeight: lineHeight,
+                paragraphSpacing: paragraphSpacing,
+              ),
             ],
           );
     final bubble = DecoratedBox(

@@ -2,6 +2,7 @@ import 'package:anoworld/domain/repositories/settings_repository.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/ai_preset_state.dart';
+import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
 
 class MemorySettingsRepository implements SettingsRepository {
@@ -10,15 +11,18 @@ class MemorySettingsRepository implements SettingsRepository {
     AppearanceSettings? appearance,
     PersonaSettings? personas,
     AiPresetCatalog? aiPresets,
+    ChatUiSettings? chatUi,
   })  : _ai = ai ?? const AiSettings(),
         _appearance = appearance ?? AppearanceSettings(),
         _personas = personas ?? const PersonaSettings().ensureDefault(),
-        _aiPresets = aiPresets ?? AiPresetCatalog();
+        _aiPresets = aiPresets ?? AiPresetCatalog(),
+        _chatUi = chatUi ?? const ChatUiSettings();
 
   AiSettings _ai;
   AppearanceSettings _appearance;
   PersonaSettings _personas;
   AiPresetCatalog _aiPresets;
+  ChatUiSettings _chatUi;
 
   @override
   Future<AiSettings> loadAi() async => _ai;
@@ -50,5 +54,13 @@ class MemorySettingsRepository implements SettingsRepository {
   @override
   Future<void> saveAiPresets(AiPresetCatalog catalog) async {
     _aiPresets = catalog;
+  }
+
+  @override
+  Future<ChatUiSettings> loadChatUi() async => _chatUi;
+
+  @override
+  Future<void> saveChatUi(ChatUiSettings settings) async {
+    _chatUi = settings;
   }
 }

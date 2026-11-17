@@ -87,7 +87,7 @@ void main() {
     expect(find.text('输入消息'), findsOneWidget);
     expect(find.byIcon(Icons.send_rounded), findsOneWidget);
     expect(find.byTooltip('选择模型'), findsOneWidget);
-    expect(find.byTooltip('设置'), findsOneWidget);
+    expect(find.byTooltip('聊天设置'), findsOneWidget);
     expect(find.byTooltip('重新开始'), findsNothing);
     expect(find.text(sample.meta.title), findsWidgets);
     expect(find.text('该走了。'), findsNothing);

@@ -5,6 +5,7 @@ import 'package:anoworld/domain/repositories/settings_repository.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/ai_preset_state.dart';
+import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,6 +16,7 @@ class PrefsSettingsRepository implements SettingsRepository {
   static const appearanceKey = 'anoworld.appearance.v1';
   static const personasKey = 'anoworld.personas.v1';
   static const aiPresetsKey = 'anoworld.ai_presets.v1';
+  static const chatUiKey = 'anoworld.chat_ui.v1';
 
   SharedPreferences? preferences;
 
@@ -81,5 +83,18 @@ class PrefsSettingsRepository implements SettingsRepository {
       aiPresetsKey,
       jsonEncode(catalog.toJson()),
     );
+  }
+
+  @override
+  Future<ChatUiSettings> loadChatUi() async {
+    final raw = (await _prefs()).getString(chatUiKey);
+    if (raw == null || raw.isEmpty) return const ChatUiSettings();
+    final map = asJsonMap(jsonDecode(raw), path: chatUiKey);
+    return ChatUiSettings.fromJson(map);
+  }
+
+  @override
+  Future<void> saveChatUi(ChatUiSettings settings) async {
+    await (await _prefs()).setString(chatUiKey, jsonEncode(settings.toJson()));
   }
 }
