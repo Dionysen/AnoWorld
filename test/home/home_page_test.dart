@@ -4,6 +4,7 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -91,15 +92,19 @@ void main() {
     expect(find.text('开始游玩'), findsOneWidget);
   });
 
-  testWidgets('settings action opens settings with section nav', (tester) async {
+  testWidgets('settings capsule opens settings with section nav', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('设置'), findsNothing);
-    await tester.tap(find.byTooltip('设置'));
+    // Bottom extra capsule (not a top-bar icon).
+    expect(find.byTooltip('设置'), findsNothing);
+    await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
-    expect(find.text('设置'), findsOneWidget);
+    expect(find.text('设置'), findsWidgets);
     expect(find.text('通用'), findsWidgets);
     expect(find.text('外观'), findsWidgets);
     expect(find.text('AI'), findsWidgets);

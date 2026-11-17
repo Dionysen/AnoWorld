@@ -122,6 +122,41 @@ void main() {
     final labelBottom = tester.getBottomLeft(find.text('通用')).dy;
     expect(labelBottom, greaterThan(720 - 120));
   });
+
+  testWidgets('bottomNavExtra renders a second capsule beside the main bar', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    var tapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: AppNavShell(
+            destinations: _items,
+            selectedIndex: 0,
+            onDestinationSelected: _noop,
+            bottomNavExtra: AppBottomNavExtraCapsule(
+              icon: Icons.settings_outlined,
+              selectedIcon: Icons.settings,
+              label: '设置',
+              onPressed: () => tapped = true,
+            ),
+            body: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(BackdropFilter), findsNWidgets(2));
+    expect(find.text('设置'), findsOneWidget);
+    await tester.tap(find.text('设置'));
+    await tester.pump();
+    expect(tapped, isTrue);
+  });
 }
 
 void _noop(int _) {}

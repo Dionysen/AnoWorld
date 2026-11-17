@@ -311,11 +311,6 @@ class _HomePageState extends State<HomePage> {
           tooltip: '作品选项',
           onPressed: _showWorksMore,
         ),
-        AppIconButton(
-          icon: Icons.settings,
-          tooltip: '设置',
-          onPressed: () => _openRoute(const SettingsPage()),
-        ),
       ];
     } else {
       actions = [
@@ -326,11 +321,6 @@ class _HomePageState extends State<HomePage> {
             _savesSelection.enter(null);
             setState(() {});
           },
-        ),
-        AppIconButton(
-          icon: Icons.settings,
-          tooltip: '设置',
-          onPressed: () => _openRoute(const SettingsPage()),
         ),
       ];
     }
@@ -400,6 +390,12 @@ class _HomePageState extends State<HomePage> {
           selectedIndex: _tab.tabIndex,
           onDestinationSelected: _selectTab,
           railTopInset: 0,
+          bottomNavExtra: AppBottomNavExtraCapsule(
+            icon: Icons.settings_outlined,
+            selectedIcon: Icons.settings,
+            label: '设置',
+            onPressed: () => _openRoute(const SettingsPage()),
+          ),
           body: IndexedStack(
             index: _tab.tabIndex,
             children: [

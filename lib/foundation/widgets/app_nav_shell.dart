@@ -165,6 +165,7 @@ class AppNavShell extends StatelessWidget {
               selectedIndex: selectedIndex,
               onDestinationSelected: onDestinationSelected,
               topInset: topInset,
+              extra: bottomNavExtra,
             ),
             VerticalDivider(
               width: AppLayout.paneDividerWidth,
@@ -304,12 +305,14 @@ class _SideRail extends StatelessWidget {
     required this.selectedIndex,
     required this.onDestinationSelected,
     required this.topInset,
+    this.extra,
   });
 
   final List<AppNavItem> destinations;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final double topInset;
+  final AppBottomNavExtraCapsule? extra;
 
   @override
   Widget build(BuildContext context) {
@@ -338,6 +341,20 @@ class _SideRail extends StatelessWidget {
                 },
               ),
             ),
+            if (extra != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
+                child: _RailButton(
+                  item: AppNavItem(
+                    id: 'extra',
+                    label: extra!.label,
+                    icon: extra!.icon,
+                    selectedIcon: extra!.selectedIcon,
+                  ),
+                  selected: extra!.selected,
+                  onTap: extra!.enabled ? extra!.onPressed : null,
+                ),
+              ),
           ],
         ),
       ),
@@ -354,14 +371,17 @@ class _RailButton extends StatelessWidget {
 
   final AppNavItem item;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = selected
-        ? theme.colorScheme.primary
-        : theme.colorScheme.onSurfaceVariant;
+    final enabled = onTap != null;
+    final color = !enabled
+        ? theme.disabledColor
+        : selected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spaceXs,
