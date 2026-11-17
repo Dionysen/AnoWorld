@@ -60,13 +60,14 @@
 
 ## 设置（从首页导航旁进入）
 
-设置内另有分区导航（窄屏悬浮胶囊底栏 / 宽屏侧栏）：**通用** / **外观** / **AI** / **关于**。
+设置内另有分区导航（窄屏悬浮胶囊底栏 / 宽屏侧栏）：**通用** / **外观** / **预设** / **AI** / **关于**。
 
 - **外观**：主题模式（跟随系统/浅/深）；主题预设 / 自定义颜色 / 字体等均用同一套浮层抽屉（两侧内缩、限宽，列表类默认半屏）；主题预设行尾显示当前包名；自定义颜色含「保存为主题」「恢复默认」；字体可选系统默认 / 本机 / 导入；字体大小/圆角滑块。各项列表与滑块左侧有图标。改完立即作用到全局封装控件。视觉约定见 [Style.md](./Style.md)。
 - **AI**：写故事与生图分开选服务商（半屏浮层抽屉，标题与说明固定不随列表滚）。各自填写服务地址、密钥；切换服务商会记住上次内容。能自动查找模型的，填好后会拉出列表；点模型即可选用，也可点「查找模型」。
-- **AI · 预设**（[`AiSettingsPanel`](../lib/settings/ai_settings_panel.dart) → [`AiPresetsSettingsPage`](../lib/settings/ai_presets_settings_page.dart) / [`AiPresetPanel`](../lib/settings/ai_preset_panel.dart)）：选用内置/自定义 **酒馆兼容预设**；导入/导出 ST JSON；**套用**后改写采样（`AiSettings.generation`）与提示词管理（`AiPresetCatalog.promptManager`）；[`PromptManagerPage`](../lib/settings/prompt_manager_page.dart) 可开关分段并编辑可改文案。写故事/游玩/分步创建走全局 [`AiPromptContext`](../lib/domain/ai/ai_prompt_context.dart)（含 Persona 宏与故事背景作世界书）。
+- **预设**（[`AiPresetPanel`](../lib/settings/ai_preset_panel.dart)，[`SettingsSection.presets`](../lib/settings/settings_sections.dart)）：选用内置/自定义 **酒馆兼容预设**；导入/导出 ST JSON；**套用**后改写采样（`AiSettings.generation`）与提示词管理（`AiPresetCatalog.promptManager`）；[`PromptManagerPage`](../lib/settings/prompt_manager_page.dart) 可开关分段并编辑可改文案。
+- **AI**（[`AiSettingsPanel`](../lib/settings/ai_settings_panel.dart)）：仅文本/生图 **服务地址、密钥、模型**；写故事/游玩/分步创建走全局 [`AiPromptContext`](../lib/domain/ai/ai_prompt_context.dart)（预设 + 通用里的 Persona + 故事背景）。
 - **AI · 提示词管理**：与 ST 相同的段类型与 `prompt_order`；游玩与创作拼装时把 **背景设定** 当世界书、**角色**当卡字段注入对应段（实现渐进对齐）。
-- **玩家身份（Persona）**：与酒馆相同——可建多套、选当前一套；名字与描述参与 `{{user}}` 等宏；入口放在设置（通用或 AI 分区，与 NT 一致）。
+- **玩家身份（Persona）**（[`PersonaSettingsPanel`](../lib/settings/persona_settings_panel.dart)，**通用** 分区）：与酒馆相同——可建多套、选当前一套；名字与描述参与 `{{user}}` 等宏。
 - **宏 / 变量**：预设与世界书、角色、对白模板里的 `{{…}}` 按酒馆规则展开（含常用宏与变量语法，实现对照 NT）。
 - **关于**：应用图标与一句话说明。
 
@@ -96,7 +97,7 @@
 | `name` / `description` / `personality` / `mes_example` | 角色 |
 | `system_prompt` / `post_history_instructions` | 不写入故事包；导入后可提示粘贴到设置 → 提示词 |
 | 正则、插件 | 不导入 |
-| 酒馆 preset 文件 | 设置 → AI → 预设 单独导入 |
+| 酒馆 preset 文件 | 设置 → 预设 导入 |
 
 ### 体验要点
 
@@ -184,7 +185,7 @@
 | 这一站目标不对 / 分支不对 | 创作截面 → 情节走向 | nodes / edges / synopsis |
 | 过程戏这段不对 | 游玩中「重来这一段」或创作里预写钩子 | 区间会话 / 可选预写 Beats |
 | 想多一个结局或岔路 | 创作截面 → 情节走向 | nodes / edges |
-| 输出不对 | 设置 → AI → 预设 / 提示词 | 全局 AiPreset |
+| 输出不对 | 设置 → 预设（提示词分段） | 全局 AiPreset |
 | 图不好看 | 图片：再生或换自己的 | 资源槽 |
 
 全端同一套节点编辑器；底栏可切「画布 / 卡片」，见下一节。

@@ -31,9 +31,14 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('通用'), findsWidgets);
     expect(find.text('外观'), findsWidgets);
+    expect(find.text('预设'), findsWidgets);
     expect(find.text('AI'), findsWidgets);
     expect(find.text('关于'), findsWidgets);
     expect(find.text('玩家身份'), findsWidgets);
+
+    await tester.tap(find.text('预设').last);
+    await tester.pumpAndSettle();
+    expect(find.text('内置'), findsOneWidget);
 
     await tester.tap(find.text('AI').last);
     await tester.pumpAndSettle();

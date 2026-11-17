@@ -151,8 +151,8 @@ class AiPresetPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const AppSectionHeader(
-              'AI 预设',
-              subtitle: '全局套用采样与提示词，与酒馆预设兼容',
+              '采样与提示词',
+              subtitle: '全局套用，兼容酒馆 JSON',
             ),
             if (active != null)
               AppText(
