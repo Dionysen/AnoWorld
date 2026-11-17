@@ -1,0 +1,112 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:anoworld/domain/card_import/st_character_card_parser.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  const parser = StCharacterCardParser();
+
+  test('parses chara_card_v3 json', () {
+    final card = parser.parseJsonString('''
+{
+  "spec": "chara_card_v3",
+  "spec_version": "3.0",
+  "data": {
+    "name": "掌柜",
+    "description": "客栈老板",
+    "personality": "精明",
+    "scenario": "雨夜客栈",
+    "first_mes": "哟，投宿？",
+    "mes_example": "{{user}}: 有空房吗\\n{{char}}: 有，靠窗那间。",
+    "system_prompt": "少系统腔",
+    "character_book": {
+      "entries": [
+        {
+          "name": "客栈规矩",
+          "content": "雨夜只收现银",
+          "keys": ["客栈", "规矩"],
+          "constant": false,
+          "enabled": true
+        },
+        {
+          "keys": ["废弃"],
+          "content": "不该出现",
+          "enabled": false
+        }
+      ]
+    }
+  }
+}
+''');
+    expect(card.name, '掌柜');
+    expect(card.scenario, '雨夜客栈');
+    expect(card.bookEntries, hasLength(2));
+    expect(card.bookEntries.first.keys, ['客栈', '规矩']);
+  });
+
+  test('parses legacy flat json', () {
+    final card = parser.parseJsonMap({
+      'char_name': '少年',
+      'char_persona': '旅人',
+      'world_scenario': '边城',
+      'char_greeting': '……',
+    });
+    expect(card.name, '少年');
+    expect(card.description, '旅人');
+    expect(card.scenario, '边城');
+    expect(card.firstMes, '……');
+  });
+
+  test('parses png chara chunk', () {
+    final json = jsonEncode({
+      'spec': 'chara_card_v2',
+      'data': {
+        'name': 'PNG角色',
+        'description': '从图片来',
+        'scenario': '城门',
+      },
+    });
+    final payload = base64Encode(utf8.encode(json));
+    final png = _minimalPngWithText('chara', payload);
+    final card = parser.parsePngBytes(png);
+    expect(card.name, 'PNG角色');
+    expect(card.scenario, '城门');
+  });
+}
+
+/// Tiny valid-enough PNG (signature + IHDR + tEXt + IEND) for unit tests.
+Uint8List _minimalPngWithText(String keyword, String value) {
+  // Use embed via hand-built chunks: IHDR 1x1 + tEXt + IEND.
+  // Simpler approach: build raw bytes with signature and only tEXt that
+  // extractPngTextChunk can walk — IHDR not strictly required by our reader.
+  const signature = <int>[137, 80, 78, 71, 13, 10, 26, 10];
+  final keywordBytes = latin1.encode(keyword);
+  final valueBytes = latin1.encode(value);
+  final data = [...keywordBytes, 0, ...valueBytes];
+  final type = ascii.encode('tEXt');
+  final length = data.length;
+  final iendType = ascii.encode('IEND');
+  return Uint8List.fromList([
+    ...signature,
+    (length >> 24) & 0xFF,
+    (length >> 16) & 0xFF,
+    (length >> 8) & 0xFF,
+    length & 0xFF,
+    ...type,
+    ...data,
+    0,
+    0,
+    0,
+    0, // crc ignored by reader
+    0,
+    0,
+    0,
+    0,
+    ...iendType,
+    0,
+    0,
+    0,
+    0,
+  ]);
+}

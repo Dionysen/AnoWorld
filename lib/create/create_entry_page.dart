@@ -1,3 +1,4 @@
+import 'package:anoworld/create/character_card_import_page.dart';
 import 'package:anoworld/create/staged_create_page.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -15,7 +16,7 @@ extension CreateEntryKindLabels on CreateEntryKind {
       };
 
   String get blurb => switch (this) {
-        CreateEntryKind.characterCard => '导入角色卡，生成短开场',
+        CreateEntryKind.characterCard => '导入角色卡，填入设定与角色',
         CreateEntryKind.novel => '粘贴剧情，拆成可玩内容',
         CreateEntryKind.stagedPrompts => '按世界 → 人物 → 走向逐步填写',
       };
@@ -32,6 +33,9 @@ class CreateEntryPage extends StatelessWidget {
     if (kind == CreateEntryKind.stagedPrompts) {
       return const StagedCreatePage();
     }
+    if (kind == CreateEntryKind.characterCard) {
+      return const CharacterCardImportPage();
+    }
 
     return AppPage(
       title: kind.title,
@@ -42,7 +46,7 @@ class CreateEntryPage extends StatelessWidget {
           AppText(kind.blurb, role: AppTextRole.body),
           const AppEmptyState(
             message: '这条创作路径马上就好',
-            detail: '可先用分阶段提示词，或打开已有作品',
+            detail: '可先导入角色卡或用分阶段提示词',
           ),
         ],
       ),
