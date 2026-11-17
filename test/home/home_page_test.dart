@@ -45,8 +45,11 @@ void main() {
     await tester.tap(find.text('雨夜投宿'));
     await tester.pumpAndSettle();
 
-    expect(find.text('开始游玩'), findsOneWidget);
-    expect(find.text('少年离家，雨夜投宿。'), findsOneWidget);
+    expect(find.byTooltip('开始游玩'), findsOneWidget);
+    expect(find.byTooltip('继续创作'), findsOneWidget);
+    expect(find.text('少年离家，雨夜投宿。'), findsWidgets);
+    expect(find.text('背景设定'), findsOneWidget);
+    expect(find.text('情节走向'), findsOneWidget);
   });
 
   testWidgets('works more can switch display mode', (tester) async {
@@ -89,7 +92,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('未命名故事'), findsWidgets);
-    expect(find.text('开始游玩'), findsOneWidget);
+    expect(find.byTooltip('开始游玩'), findsOneWidget);
   });
 
   testWidgets('settings capsule opens settings with section nav', (tester) async {
@@ -99,9 +102,8 @@ void main() {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    // Bottom extra capsule (not a top-bar icon).
-    expect(find.byTooltip('设置'), findsNothing);
-    await tester.tap(find.text('设置'));
+  expect(find.byTooltip('设置'), findsNothing);
+    await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
 
     expect(find.text('设置'), findsWidgets);
@@ -148,7 +150,7 @@ void main() {
     expect(find.text('雨夜投宿'), findsWidgets);
     await tester.tap(find.text('雨夜投宿').first);
     await tester.pumpAndSettle();
-    expect(find.textContaining('继续'), findsWidgets);
+    expect(find.byTooltip('继续创作'), findsOneWidget);
   });
 
   testWidgets('hub start play opens runtime', (tester) async {
@@ -164,7 +166,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('雨夜投宿'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('开始游玩'));
+    await tester.tap(find.byTooltip('开始游玩'));
     await tester.pumpAndSettle();
 
     expect(find.text('视觉小说'), findsOneWidget);

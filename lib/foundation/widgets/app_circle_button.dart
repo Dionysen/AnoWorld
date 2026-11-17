@@ -19,8 +19,30 @@ class AppCircleButton extends StatelessWidget {
     this.variant = AppCircleButtonVariant.tonal,
   });
 
-  /// Default hit target diameter (logical px).
+  /// Default hit target — top chrome [AppPage.actions], tool rows, etc.
   static const double diameter = 40;
+
+  /// Bottom-right floating circle (Scaffold FAB, graph corner chrome).
+  static const double fabDiameter = 54;
+
+  /// Icon size paired with [fabDiameter].
+  static const double fabIconSize = 30;
+
+  const AppCircleButton.fab({
+    Key? key,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    String? tooltip,
+    AppCircleButtonVariant variant = AppCircleButtonVariant.filled,
+  }) : this(
+          key: key,
+          icon: icon,
+          onPressed: onPressed,
+          tooltip: tooltip,
+          variant: variant,
+          size: fabDiameter,
+          iconSize: fabIconSize,
+        );
 
   final IconData icon;
   final VoidCallback? onPressed;

@@ -537,7 +537,7 @@ class _GraphViewportState extends State<GraphViewport>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (widget.onArrange != null) ...[
-                        AppCircleButton(
+                        AppCircleButton.fab(
                           icon: Icons.dashboard_customize_outlined,
                           tooltip: '整理排版',
                           variant: AppCircleButtonVariant.tonal,
@@ -547,7 +547,7 @@ class _GraphViewportState extends State<GraphViewport>
                           const SizedBox(width: AppTheme.spaceSm),
                       ],
                       if (widget.onAddNode != null)
-                        AppCircleButton(
+                        AppCircleButton.fab(
                           icon: Icons.add,
                           tooltip: '加一站',
                           variant: AppCircleButtonVariant.tonal,

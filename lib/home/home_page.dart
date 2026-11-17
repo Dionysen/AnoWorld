@@ -4,6 +4,7 @@ import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
+import 'package:anoworld/foundation/widgets/app_fab_location.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
@@ -322,7 +323,10 @@ class _HomePageState extends State<HomePage> {
           setState(() {});
         }
       },
-      child: AppPage(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactNav = !AppLayout.useRail(constraints.maxWidth);
+          return AppPage(
         title: titleText,
         titleWidget: _titleSwitcher(titleText),
         onBack: selectionMode
@@ -339,31 +343,23 @@ class _HomePageState extends State<HomePage> {
         actions: actions,
         floatingActionButton: selectionMode
             ? null
-            : Builder(
-                builder: (context) {
-                  final wide =
-                      AppLayout.useRail(MediaQuery.sizeOf(context).width);
-                  final bottomPad = wide
-                      ? 0.0
-                      : AppLayout.bottomNavHeight +
-                          AppLayout.bottomNavBottomInset;
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: bottomPad),
-                    child: AppCircleButton(
-                      icon: Icons.add,
-                      tooltip: _tab == HomeTab.saves ? '去故事列表' : '开始创作',
-                      variant: AppCircleButtonVariant.filled,
-                      onPressed: () {
-                        if (_tab == HomeTab.saves) {
-                          _selectTab(HomeTab.works.tabIndex);
-                        } else {
-                          _showCreateSheet();
-                        }
-                      },
-                    ),
-                  );
-                },
+            : SizedBox.square(
+                dimension: AppCircleButton.fabDiameter,
+                child: AppCircleButton.fab(
+                  icon: Icons.add,
+                  tooltip: _tab == HomeTab.saves ? '去故事列表' : '开始创作',
+                  onPressed: () {
+                    if (_tab == HomeTab.saves) {
+                      _selectTab(HomeTab.works.tabIndex);
+                    } else {
+                      _showCreateSheet();
+                    }
+                  },
+                ),
               ),
+        floatingActionButtonLocation: selectionMode || !compactNav
+            ? null
+            : AppFabLocation.aboveCompactBottomNav,
         body: AppNavShell(
           destinations: homeNavItems,
           selectedIndex: _tab.tabIndex,
@@ -394,6 +390,8 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
+          );
+        },
       ),
     );
   }

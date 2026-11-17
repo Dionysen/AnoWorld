@@ -53,6 +53,30 @@ void main() {
     expect(tester.getSize(find.byType(IconButton)), const Size(40, 40));
   });
 
+  testWidgets('fab constructor uses larger hit target', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: AppCircleButton.fab(
+            icon: Icons.play_arrow_rounded,
+            tooltip: '开始游玩',
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.getSize(find.byType(IconButton)),
+      const Size(
+        AppCircleButton.fabDiameter,
+        AppCircleButton.fabDiameter,
+      ),
+    );
+  });
+
   testWidgets('invokes onPressed', (tester) async {
     var pressed = false;
     await tester.pumpWidget(

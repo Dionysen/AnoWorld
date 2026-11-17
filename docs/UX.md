@@ -153,9 +153,13 @@
 
 ---
 
+## 故事详情（点进一个故事）
+
+从故事库点一个故事进入 [`ProjectHubPage`](../lib/project/project_hub_page.dart)：上方为**封面**（首字占位，后续可绑图），一行概要；下方分块展示 **背景设定**、**角色**、**情节走向**、**文风**。每块先简略预览，过长可**展开**，右侧**编辑**直接进入对应编辑页。右上角 **继续创作** 与顶栏一致用默认圆形按钮；右下角 **开始游玩** 用 [`AppCircleButton.fab`](../lib/foundation/widgets/app_circle_button.dart)（首页加号、情节图右下角操作等同理）。
+
 ## 创作截面（故事内）
 
-故事页点「继续创作」进入 [`CreateHubPage`](../lib/create/create_hub_page.dart)：四条入口，点进各自编辑页。
+故事详情点「继续创作」，或创作流程中直接进入 [`CreateHubPage`](../lib/create/create_hub_page.dart)：四条入口，点进各自编辑页。
 
 | 入口 | 用户在改什么 | 编辑页 |
 | --- | --- | --- |

@@ -22,6 +22,7 @@ class AppPage extends StatelessWidget {
     this.actions = const [],
     this.onBack,
     this.floatingActionButton,
+    this.floatingActionButtonLocation,
   });
 
   final String title;
@@ -35,6 +36,7 @@ class AppPage extends StatelessWidget {
   final List<Widget> actions;
   final VoidCallback? onBack;
   final Widget? floatingActionButton;
+  final FloatingActionButtonLocation? floatingActionButtonLocation;
 
   static bool get _desktopLargeTitle {
     if (kIsWeb) return false;
@@ -81,6 +83,9 @@ class AppPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       floatingActionButton: floatingActionButton,
+      floatingActionButtonLocation:
+          floatingActionButtonLocation ??
+              FloatingActionButtonLocation.endFloat,
       body: LayoutBuilder(
         builder: (context, constraints) {
           // Never force a taller band than the viewport; shrink or hide instead
