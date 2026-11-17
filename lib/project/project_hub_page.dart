@@ -97,7 +97,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   Widget build(BuildContext context) {
     final project = _project;
     return AppPage(
-      title: project?.meta.title ?? '作品',
+      title: project?.meta.title ?? '故事',
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody(
         children: [
@@ -105,7 +105,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             const AppText('加载中…', role: AppTextRole.caption)
           else if (_error != null)
             AppEmptyState(
-              message: '无法打开作品',
+              message: '无法打开故事',
               detail: _error.toString(),
               action: AppButton(
                 label: '重试',

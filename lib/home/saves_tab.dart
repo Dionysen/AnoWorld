@@ -130,7 +130,7 @@ class SavesTabState extends State<SavesTab> {
             const AppText('删除这些存档？', role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceXs),
             const AppText(
-              '只清掉进度，作品本身还在',
+              '只清掉进度，故事本身还在',
               role: AppTextRole.caption,
             ),
             const SizedBox(height: AppTheme.spaceMd),
@@ -183,7 +183,7 @@ class SavesTabState extends State<SavesTab> {
             const AppText('删除这个存档？', role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceXs),
             const AppText(
-              '只清掉进度，作品本身还在',
+              '只清掉进度，故事本身还在',
               role: AppTextRole.caption,
             ),
             const SizedBox(height: AppTheme.spaceMd),
@@ -290,11 +290,11 @@ class SavesTabState extends State<SavesTab> {
                                   ? '还没有存档'
                                   : '没有匹配的存档',
                               detail: _query.trim().isEmpty
-                                  ? '在作品里开始游玩后会出现在这里'
+                                  ? '在故事里开始游玩后会出现在这里'
                                   : '换个关键词试试',
                               action: _query.trim().isEmpty
                                   ? AppButton(
-                                      label: '去作品列表',
+                                      label: '去故事列表',
                                       onPressed: widget.onBrowseWorks,
                                       variant: AppButtonVariant.secondary,
                                     )
@@ -348,7 +348,7 @@ class SavesTabState extends State<SavesTab> {
                                                     CrossAxisAlignment.stretch,
                                                 children: [
                                                   AppButton(
-                                                    label: '打开作品',
+                                                    label: '打开故事',
                                                     expanded: true,
                                                     onPressed: () =>
                                                         Navigator.of(ctx)

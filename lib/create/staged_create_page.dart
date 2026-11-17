@@ -56,7 +56,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
   Future<void> _boot() async {
     try {
       final project =
-          await AppScope.projectsOf(context).create(title: '未命名作品');
+          await AppScope.projectsOf(context).create(title: '未命名故事');
       if (!mounted) return;
       setState(() {
         _project = project;
@@ -68,7 +68,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
       if (!mounted) return;
       setState(() {
         _booting = false;
-        _status = '创建作品失败：$error';
+        _status = '创建故事失败：$error';
       });
     }
   }
@@ -343,7 +343,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
       body: AppPageBody(
         children: [
           if (_booting)
-            const AppText('正在准备作品…', role: AppTextRole.caption)
+            const AppText('正在准备故事…', role: AppTextRole.caption)
           else ...[
             AppSegmented<_Stage>(
               value: _stage,

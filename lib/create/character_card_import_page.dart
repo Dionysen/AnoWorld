@@ -231,7 +231,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
           ),
           const SizedBox(height: AppTheme.spaceSm),
           const AppText(
-            '可选多张：第一张作主角与作品名，其余当配角',
+            '可选多张：第一张作主角与故事名，其余当配角',
             role: AppTextRole.caption,
           ),
           if (_status != null) ...[
@@ -252,7 +252,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
           if (draft != null) ...[
             const SizedBox(height: AppTheme.spaceLg),
             AppTextField(
-              label: '作品名',
+              label: '故事名',
               controller: _title,
             ),
             const SizedBox(height: AppTheme.spaceLg),
@@ -322,7 +322,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
             ],
             const SizedBox(height: AppTheme.spaceLg),
             AppButton(
-              label: '写入作品',
+              label: '写入故事',
               onPressed: _busy ? null : _writeProject,
               expanded: true,
             ),

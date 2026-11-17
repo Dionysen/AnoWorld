@@ -74,7 +74,7 @@ class StCardImportDraft {
     final stamp = now ?? DateTime.now().toUtc();
     final blank = factory.createBlank(
       id: id,
-      title: title.trim().isEmpty ? '未命名作品' : title.trim(),
+      title: title.trim().isEmpty ? '未命名故事' : title.trim(),
       now: stamp,
     );
     final cast = castItems

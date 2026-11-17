@@ -198,7 +198,7 @@ class WorksTabState extends State<WorksTab> {
     final folders = AppScope.foldersOf(context);
     final folderId = browseFolderId;
     try {
-      final project = await projects.create(title: '未命名作品');
+      final project = await projects.create(title: '未命名故事');
       if (folderId != null) {
         await folders.moveProjects(
           projectIds: [project.meta.id],
@@ -273,7 +273,7 @@ class WorksTabState extends State<WorksTab> {
   }
 
   static Future<String?> _defaultPickDirectory() {
-    return FilePicker.getDirectoryPath(dialogTitle: '选择 AnoWorld 作品包文件夹');
+    return FilePicker.getDirectoryPath(dialogTitle: '选择 AnoWorld 故事包文件夹');
   }
 
   Future<void> openCreateEntry(CreateEntryKind kind) {
@@ -386,7 +386,7 @@ class WorksTabState extends State<WorksTab> {
             AppText('删除「${folder.name}」？', role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceXs),
             const AppText(
-              '里面的作品会回到上一层',
+              '里面的故事会回到上一层',
               role: AppTextRole.caption,
             ),
             const SizedBox(height: AppTheme.spaceMd),
@@ -502,7 +502,7 @@ class WorksTabState extends State<WorksTab> {
             AppText('删除这 ${ids.length} 项？', role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceXs),
             const AppText(
-              '作品会彻底删掉，文件夹里的作品会回到上一层',
+              '故事会彻底删掉，文件夹里的故事会回到上一层',
               role: AppTextRole.caption,
             ),
             const SizedBox(height: AppTheme.spaceMd),
@@ -576,7 +576,7 @@ class WorksTabState extends State<WorksTab> {
           const AppText('移到…', role: AppTextRole.subtitle),
           const SizedBox(height: AppTheme.spaceMd),
           AppListTile(
-            title: '作品根目录',
+            title: '全部故事',
             icon: Icons.home_outlined,
             onTap: () => Navigator.of(ctx).pop('__root__'),
           ),
@@ -647,10 +647,10 @@ class WorksTabState extends State<WorksTab> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppText('删除这个作品？', role: AppTextRole.subtitle),
+            const AppText('删除这个故事？', role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceXs),
             const AppText(
-              '作品和对应存档都会删掉',
+              '故事和对应存档都会删掉',
               role: AppTextRole.caption,
             ),
             const SizedBox(height: AppTheme.spaceMd),
@@ -772,7 +772,7 @@ class WorksTabState extends State<WorksTab> {
             ),
             const SizedBox(height: AppTheme.spaceSm),
             AppButton(
-              label: '删除作品',
+              label: '删除故事',
               variant: AppButtonVariant.secondary,
               expanded: true,
               onPressed: () => Navigator.of(ctx).pop('delete'),
@@ -878,7 +878,7 @@ class WorksTabState extends State<WorksTab> {
         child: Padding(
           padding: const EdgeInsets.all(AppTheme.pagePadding),
           child: AppEmptyState(
-            message: _query.trim().isEmpty ? '还没有作品' : '没有匹配的作品',
+            message: _query.trim().isEmpty ? '还没有故事' : '没有匹配的故事',
             detail: _query.trim().isEmpty
                 ? '导入、粘贴故事，或试用内置样例'
                 : '换个关键词试试',
@@ -893,7 +893,7 @@ class WorksTabState extends State<WorksTab> {
                       ),
                       const SizedBox(height: AppTheme.spaceSm),
                       AppButton(
-                        label: '新建空白作品',
+                        label: '新建空白故事',
                         onPressed: createBlank,
                         variant: AppButtonVariant.ghost,
                       ),
@@ -941,7 +941,7 @@ class WorksTabState extends State<WorksTab> {
             onCrumb: jumpBreadcrumb,
           ),
         AppSearchField(
-          hint: '搜索作品',
+          hint: '搜索故事',
           controller: _searchController,
           onChanged: (value) {
             _searchDebounce?.cancel();
@@ -1037,7 +1037,7 @@ class _WorksBreadcrumb extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _BreadcrumbChip(
-              label: '作品',
+              label: '故事',
               style: atRoot ? active : muted,
               filled: true,
               height: _chipHeight,

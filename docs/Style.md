@@ -31,13 +31,13 @@
 
 | 页面 | 条件 | 导航 |
 | --- | --- | --- |
-| 首页 | 宽度 `< 600` | **主胶囊**存档 / 作品 + **右侧独立胶囊**设置（`AppBottomNavExtraCapsule`） |
-| 首页 | 宽度 `≥ 600` | **左侧导航栏**（存档 / 作品）+ 侧栏底部设置 |
+| 首页 | 宽度 `< 600` | **主胶囊**存档 / 故事 + **右侧独立胶囊**设置（`AppBottomNavExtraCapsule`） |
+| 首页 | 宽度 `≥ 600` | **左侧导航栏**（存档 / 故事）+ 侧栏底部设置 |
 | 设置 | 宽度 `< 600` | **悬浮胶囊底栏**（通用 / 外观 / AI / 关于） |
 | 设置 | 宽度 `≥ 600` | **左侧导航栏**（同上分区） |
 | 情节走向 | 任意宽度（`forceCompact: true`） | **主胶囊**画布 / 卡片 + **右侧独立胶囊**全图（`AppBottomNavExtraCapsule`，仅画布可用） |
 
-作品库进入/退出文件夹时，列表用约 280ms 的水平滑动 + 淡入淡出（`AnimatedSwitcher` + `SlideTransition`）。首页大标题仅在文案变化时淡入淡出（进出文件夹标题仍为「作品」时不重播，避免闪一下）。作品库四种布局（详细列表 / 简洁列表 / 网格 / 紧凑网格）与列表头像形状（圆 / 方 / 竖矩）见 [`LibraryDisplayController`](../lib/home/library_display_prefs.dart)；网格卡用 [`AppCoverTile`](../lib/foundation/widgets/app_cover_tile.dart)，头像用 [`AppShapedAvatar`](../lib/foundation/widgets/app_shaped_avatar.dart)。
+故事库进入/退出文件夹时，列表用约 280ms 的水平滑动 + 淡入淡出（`AnimatedSwitcher` + `SlideTransition`）。首页大标题仅在文案变化时淡入淡出（进出文件夹标题仍为「故事」时不重播，避免闪一下）。故事库四种布局（详细列表 / 简洁列表 / 网格 / 紧凑网格）与列表头像形状（圆 / 方 / 竖矩）见 [`LibraryDisplayController`](../lib/home/library_display_prefs.dart)；网格卡用 [`AppCoverTile`](../lib/foundation/widgets/app_cover_tile.dart)，头像用 [`AppShapedAvatar`](../lib/foundation/widgets/app_shaped_avatar.dart)。
 
 窄屏底栏尺寸见 `AppLayout.bottomNavHeight` / `bottomNavHorizontalInset` / `bottomNavBottomInset` / `bottomNavBlurSigma`；胶囊圆角固定为高度一半，不跟控件圆角滑块走。胶囊以 `Stack` 叠在内容之上，四周留白透明；本体为半透明表面 + `BackdropFilter` 毛玻璃模糊（对齐新版 iOS 胶囊质感）。`AppPage` 不预扣底边，`AppPageBody` 与情节图画布读 `MediaQuery.padding.bottom`（壳层会加上胶囊高度）以免内容被挡。
 

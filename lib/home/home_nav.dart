@@ -12,7 +12,7 @@ const List<AppNavItem> homeNavItems = [
   ),
   AppNavItem(
     id: 'works',
-    label: '作品',
+    label: '故事',
     icon: Icons.menu_book_outlined,
     selectedIcon: Icons.menu_book,
   ),

@@ -54,7 +54,7 @@ class LibraryBrowseViews extends StatelessWidget {
   String _folderSubtitle(ProjectFolder folder) {
     final parts = [
       if (folder.childFolderCount > 0) '${folder.childFolderCount} 个文件夹',
-      if (folder.projectCount > 0) '${folder.projectCount} 个作品',
+      if (folder.projectCount > 0) '${folder.projectCount} 个故事',
     ];
     return parts.isEmpty ? '空文件夹' : parts.join(' · ');
   }

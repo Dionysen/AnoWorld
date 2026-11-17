@@ -39,7 +39,7 @@ Project
 ## Background（背景）
 
 - **是什么**：最宏大也最基础的设定——时代、势力、规则、基调、不可轻易打破的事实。
-- **形态**：作品内 **设定条目**列表（[`BackgroundEntry`](../lib/domain/models/background.dart)），不是独立酒馆 lorebook 库。
+- **形态**：故事内 **设定条目**列表（[`BackgroundEntry`](../lib/domain/models/background.dart)），不是独立酒馆 lorebook 库。
   - `alwaysOn`：常驻注入（基调 / 硬规则）。
   - `keys`：明文关键词；区间 AI 时可按当前站与近文唤起（实现可渐进）。
   - 正文须自洽；标题 / 关键词不进模型。
@@ -61,7 +61,7 @@ Project
 
 | 层 | 何时定 | 是什么 | 不是什么 |
 | --- | --- | --- | --- |
-| **脉络骨架** | **创作时**生成/编辑并固化进作品包 | `summary`、大节点（标题 + 本站目标 `synopsis`）、`edges`（顺序 / 分支 / 汇合）、通往各结局的出口 | 不是逐句剧本；不是玩家当场发明新的主节点 |
+| **脉络骨架** | **创作时**生成/编辑并固化进故事包 | `summary`、大节点（标题 + 本站目标 `synopsis`）、`edges`（顺序 / 分支 / 汇合）、通往各结局的出口 | 不是逐句剧本；不是玩家当场发明新的主节点 |
 | **区间发挥** | **游玩时**在「当前主节点 → 下一合法主节点」之间实时生成 | 若干 Beat：场景感、对白、过程选项；文风受 Preset 约束 | 不得改写骨架上的节点集合；不得把故事写到无法接续任一合法下一节点 |
 
 ```text
@@ -78,8 +78,8 @@ Project
 - **节点（大情节单元）**：里程碑式「这一步故事要发生什么」；`synopsis` = 本站必须达成或抵达的剧情目标（运行时 AI 的收敛锚点）。节点之间的流向（顺序、分支、汇合）在**主线节点编辑器**表达。
 - **粒度**：节点是情节级大站，不是每一句对白一个节点；句段级内容落在 Beat。
 - **分支与结局**：用 `edges` / 节点出口表达多路线；玩家选择最终应对齐到某条合法边或 `end`，从而可能达成不同结局。
-- **编辑 UX**：作品内先进入创作截面（文风 / 设定 / 角色 / 情节），情节再进全端节点画布；底栏「画布 / 卡片」切换聚焦相机；走向全览用节点 PNG 缩略图（`assets/graph_nodes/{nodeId}.png`，创建/改文案后重渲；拖动改布局只即时改坐标并防抖落盘，不重渲缩略图）；结构编辑走通用 [`UndoStack`](../lib/foundation/history/undo_stack.dart)（整图快照，拖节点在松手时合并为一步）。验收见 [UX.md](./UX.md)。
-- **序列化**：作品包内完整 `Main` 仍用 [`MainStory.toJson`](../lib/domain/models/main_story.dart)；供 AI 生成 / 作提示词的紧凑图用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)（`anoworld.main_graph.skeleton` v1：`summary` + 站 + 边，可无 `beats` / `layout`）。反序列化可吃 skeleton 或完整 Main map。
+- **编辑 UX**：故事内先进入创作截面（文风 / 设定 / 角色 / 情节），情节再进全端节点画布；底栏「画布 / 卡片」切换聚焦相机；走向全览用节点 PNG 缩略图（`assets/graph_nodes/{nodeId}.png`，创建/改文案后重渲；拖动改布局只即时改坐标并防抖落盘，不重渲缩略图）；结构编辑走通用 [`UndoStack`](../lib/foundation/history/undo_stack.dart)（整图快照，拖节点在松手时合并为一步）。验收见 [UX.md](./UX.md)。
+- **序列化**：故事包内完整 `Main` 仍用 [`MainStory.toJson`](../lib/domain/models/main_story.dart)；供 AI 生成 / 作提示词的紧凑图用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)（`anoworld.main_graph.skeleton` v1：`summary` + 站 + 边，可无 `beats` / `layout`）。反序列化可吃 skeleton 或完整 Main map。
 - **预写 Beat（可选）**：作者或创作 AI 可预写某节点内的开场钩子；**默认允许节点在创作结束时 Beat 仍为空**，交给游玩时 AI 填（校验规则见 MainBeat）。
 
 ### 区间 AI（游玩）
@@ -100,11 +100,13 @@ Project
 
 字段级推进与存档见 [MainBeat.md](./MainBeat.md)。资源：场景图等仍以生图或导入挂槽；无图可先玩。
 
-## 作品库与存档落点
+## 故事库与存档落点
 
-- **作品包**：`{library}/projects/{id}/`（manifest + project.json + assets）。
-- **游玩存档**：`{library}/saves/{projectId}.json`（每作品一槽；[`SaveRepository`](../lib/domain/repositories/save_repository.dart)）。
-- **库内文件夹**：`{library}/folders.json`（文件夹树 + 作品归属；[`ProjectFolder`](../lib/domain/models/project_folder.dart)）。文件夹只组织库浏览，不进作品包内容。
+对用户叫**故事**（代码类型仍是 `Project`）：一份可玩的故事包 = 设定 + 角色 + 情节脉络等，不是酒馆「角色卡」。
+
+- **故事包**：`{library}/projects/{id}/`（manifest + project.json + assets）。
+- **游玩存档**：`{library}/saves/{projectId}.json`（每故事一槽；[`SaveRepository`](../lib/domain/repositories/save_repository.dart)）。
+- **库内文件夹**：`{library}/folders.json`（文件夹树 + 故事归属；[`ProjectFolder`](../lib/domain/models/project_folder.dart)）。文件夹只组织库浏览，不进故事包内容。
 
 ## Side（支线）
 
@@ -115,7 +117,7 @@ Project
 
 ## Beat / Scene（可运行单元）
 
-双模式共用的最小播放单位。来源可以是**创作预写**或**游玩时 AI 写入（可只进存档会话，不必改作品包）**。字段与推进以 [MainBeat.md](./MainBeat.md) 为准；摘要如下：
+双模式共用的最小播放单位。来源可以是**创作预写**或**游玩时 AI 写入（可只进存档会话，不必改故事包）**。字段与推进以 [MainBeat.md](./MainBeat.md) 为准；摘要如下：
 
 | 概念 | 说明 |
 | --- | --- |

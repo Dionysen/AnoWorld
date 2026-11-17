@@ -87,7 +87,7 @@ class _HomePageState extends State<HomePage> {
             const AppText('开始创作', role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceMd),
             AppButton(
-              label: '新建空白作品',
+              label: '新建空白故事',
               expanded: true,
               onPressed: () => Navigator.of(ctx).pop('blank'),
             ),
@@ -165,7 +165,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppButton(
-              label: '导入作品包',
+              label: '导入故事包',
               expanded: true,
               onPressed: () => Navigator.of(ctx).pop('import'),
             ),
@@ -220,8 +220,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _titleSwitcher(String text) {
-    // Key by visible text only — folder enter/exit keeps「作品」and must not
-    // remount / flash. Real title changes (存档↔作品、多选计数) fade.
+    // Key by visible text only — folder enter/exit keeps「故事」and must not
+    // remount / flash. Real title changes (存档↔故事、多选计数) fade.
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 180),
       switchInCurve: Curves.easeOut,
@@ -247,7 +247,7 @@ class _HomePageState extends State<HomePage> {
         ? (selection.selectedCount == 0
             ? '选择项目'
             : '已选 ${selection.selectedCount} 项')
-        : (_tab == HomeTab.saves ? '存档' : '作品');
+        : (_tab == HomeTab.saves ? '存档' : '故事');
 
     final List<Widget> actions;
     if (selectionMode) {
@@ -286,12 +286,12 @@ class _HomePageState extends State<HomePage> {
       actions = [
         AppIconButton(
           icon: Icons.folder_open,
-          tooltip: '导入作品包',
+          tooltip: '导入故事包',
           onPressed: () => _worksKey.currentState?.importPack(),
         ),
         AppIconButton(
           icon: Icons.more_vert,
-          tooltip: '作品选项',
+          tooltip: '故事选项',
           onPressed: _showWorksMore,
         ),
       ];
@@ -351,7 +351,7 @@ class _HomePageState extends State<HomePage> {
                     padding: EdgeInsets.only(bottom: bottomPad),
                     child: AppCircleButton(
                       icon: Icons.add,
-                      tooltip: _tab == HomeTab.saves ? '去作品列表' : '开始创作',
+                      tooltip: _tab == HomeTab.saves ? '去故事列表' : '开始创作',
                       variant: AppCircleButtonVariant.filled,
                       onPressed: () {
                         if (_tab == HomeTab.saves) {

@@ -56,7 +56,7 @@ void main() {
     expect(find.text('开场素材'), findsOneWidget);
     expect(find.text('规矩'), findsOneWidget);
 
-    final write = find.text('写入作品');
+    final write = find.text('写入故事');
     await tester.ensureVisible(write);
     await tester.pumpAndSettle();
     await tester.tap(write);

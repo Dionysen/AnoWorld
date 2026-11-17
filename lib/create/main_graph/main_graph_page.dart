@@ -875,7 +875,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                 )
               : project == null
                   ? const AppPageBody(
-                      children: [AppEmptyState(message: '没有作品')],
+                      children: [AppEmptyState(message: '没有故事')],
                     )
                   : _buildEditor(project),
     );

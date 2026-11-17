@@ -22,7 +22,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('存档'), findsWidgets);
-    expect(find.text('作品'), findsWidgets);
+    expect(find.text('故事'), findsWidgets);
     expect(find.text('还没有存档'), findsOneWidget);
   });
 
@@ -38,7 +38,7 @@ void main() {
     await tester.pumpWidget(testApp(projects: repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('作品').last);
+    await tester.tap(find.text('故事').last);
     await tester.pumpAndSettle();
 
     expect(find.text('雨夜投宿'), findsOneWidget);
@@ -60,9 +60,9 @@ void main() {
     await tester.pumpWidget(testApp(projects: repo, libraryDisplay: display));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('作品').last);
+    await tester.tap(find.text('故事').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('作品选项'));
+    await tester.tap(find.byTooltip('故事选项'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('显示方式'));
     await tester.pumpAndSettle();
@@ -80,15 +80,15 @@ void main() {
     await tester.pumpWidget(testApp(projects: repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('作品').last);
+    await tester.tap(find.text('故事').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('开始创作'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('新建空白作品').last);
+    await tester.tap(find.text('新建空白故事').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('未命名作品'), findsWidgets);
+    expect(find.text('未命名故事'), findsWidgets);
     expect(find.text('开始游玩'), findsOneWidget);
   });
 
@@ -115,7 +115,7 @@ void main() {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('作品').last);
+    await tester.tap(find.text('故事').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('开始创作'));
     await tester.pumpAndSettle();
@@ -160,7 +160,7 @@ void main() {
     );
     await tester.pumpWidget(testApp(projects: repo));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('作品').last);
+    await tester.tap(find.text('故事').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('雨夜投宿'));
     await tester.pumpAndSettle();

@@ -65,7 +65,7 @@ NodeLayout { x: number, y: number }
 
 - 删除节点：同时删除其 `beatIds` 对应 Beats，并删除所有相关 `edges`。
 - 允许 `beatIds` 为空（骨架占位）：表示「本站内容交给游玩时区间 AI」。**开玩前校验不再把「空 beatIds」一律当错误**；但必须仍有合法出边或结局出口，且 `synopsis` 建议非空（作为 AI 收敛锚点）。
-- 若作品关闭区间 AI 且节点仍无 Beat，则导出/开玩报错（纯静态包模式）。
+- 若故事关闭区间 AI 且节点仍无 Beat，则导出/开玩报错（纯静态包模式）。
 
 ### 2.3 Edge（节点边）
 
@@ -168,7 +168,7 @@ Transition {
 3. **收敛压力**：  
    - `maxBridgeBeats` 默认 4（`BridgeSession.defaultMaxBeats`）；触顶后禁止 stay，必须给出合法 `node`/`end`。  
    - UI 始终可提供「前往：{下一站标题}」保底按钮；文案服务未配或生成失败时，合成保底拍（`fallbackChoices`）。
-4. **入下一站**：合法 `node` Transition 后换新 `BridgeSession`；会话写入存档附件，**不写回**作品包。
+4. **入下一站**：合法 `node` Transition 后换新 `BridgeSession`；会话写入存档附件，**不写回**故事包。
 5. **VN 与聊天**：同一套区间状态机；聊天不另开无出口闲聊树。
 
 ### 3.3 双模式
@@ -198,7 +198,7 @@ MainSavePointer {
   // flags?: map         // 日后变量；MVP 可省略
 }
 
-// 开启区间 AI 时附加（本局，不进作品包）：
+// 开启区间 AI 时附加（本局，不进故事包）：
 BridgeSession {
   nodeId: Id
   generatedBeats: Beat[]   // 本区间已生成拍
@@ -207,7 +207,7 @@ BridgeSession {
 }
 ```
 
-作品包仍以骨架（+ 可选预写 Beat）为准；存档存指针 + 本局区间会话，不要求把 AI 发挥写回 `project.json`（作者可另做「固化本场」创作动作）。
+故事包仍以骨架（+ 可选预写 Beat）为准；存档存指针 + 本局区间会话，不要求把 AI 发挥写回 `project.json`（作者可另做「固化本场」创作动作）。
 
 ---
 
@@ -226,7 +226,7 @@ BridgeSession {
 
 ### 6.1 AI 读写用的骨架 JSON
 
-作品包落盘仍是完整 `Main`（含 `beats`）。给模型生成走向、或把当前图塞进提示词时，用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)：
+故事包落盘仍是完整 `Main`（含 `beats`）。给模型生成走向、或把当前图塞进提示词时，用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)：
 
 | 字段 | 说明 |
 | --- | --- |
