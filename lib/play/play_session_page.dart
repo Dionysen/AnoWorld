@@ -13,7 +13,6 @@ import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
-import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_surface.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -214,7 +213,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     ];
   }
 
-  Future<void> _persist({bool announce = false}) async {
+  Future<void> _persist() async {
     if (!mounted) return;
     await AppScope.savesOf(context).save(
       slotId: _slotId,
@@ -226,26 +225,19 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       replyChoices:
           _isChat ? List<String>.unmodifiable(_replyChoices) : const [],
     );
-    if (!mounted || !announce) return;
-    setState(() => _status = '进度已保存');
-  }
-
-  Future<void> _save() => _persist(announce: true);
-
-  Future<void> _autosaveChat() async {
-    if (!_isChat || !mounted) return;
-    await _persist();
   }
 
   void _advance() {
     if (!_runtime.canAdvance) return;
     setState(() => _runtime.advance());
+    _persist();
     _ensureBridge();
   }
 
   void _choose(Choice choice) {
     setState(() => _runtime.choose(choice.id));
     _syncBridgeNode();
+    _persist();
     _ensureBridge();
   }
 
@@ -273,7 +265,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _replyChoices = const [];
       _status = null;
     });
-    await _autosaveChat();
+    await _persist();
     await _generateAssistantTurn(refreshChoices: true);
   }
 
@@ -281,11 +273,11 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     if (!_isChat || !mounted || _chatLocked) return;
     if (_chat.isNotEmpty) {
       // Exact restore: do not regenerate choices when already saved.
-      await _autosaveChat();
+      await _persist();
       return;
     }
     // First open: create a slot immediately, then write opening.
-    await _autosaveChat();
+    await _persist();
     await _generateAssistantTurn(refreshChoices: true);
   }
 
@@ -319,7 +311,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _assistantBusy = false;
         _status = null;
       });
-      await _autosaveChat();
+      await _persist();
       if (refreshChoices) {
         await _refreshReplyChoices();
       }
@@ -329,14 +321,14 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _assistantBusy = false;
         _status = error.message;
       });
-      await _autosaveChat();
+      await _persist();
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _assistantBusy = false;
         _status = '这一轮暂时写不出来，请稍后再试';
       });
-      await _autosaveChat();
+      await _persist();
     }
   }
 
@@ -360,14 +352,14 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _replyChoices = choices;
         _choicesBusy = false;
       });
-      await _autosaveChat();
+      await _persist();
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _replyChoices = const [];
         _choicesBusy = false;
       });
-      await _autosaveChat();
+      await _persist();
     }
   }
 
@@ -387,10 +379,11 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _status = '已从头开始';
     });
     if (_isChat) {
-      _autosaveChat().then((_) {
+      _persist().then((_) {
         if (mounted) _ensureChatOpening();
       });
     } else {
+      _persist();
       _ensureBridge();
     }
   }
@@ -404,6 +397,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
     if (node.tags.contains('ending')) {
       setState(_runtime.endStory);
+      await _persist();
       return;
     }
 
@@ -440,6 +434,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _busy = false;
         _status = null;
       });
+      await _persist();
     } on AiTextException catch (error) {
       if (!mounted) return;
       final choices = BridgeGenerateAction.fallbackChoices(
@@ -469,6 +464,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _busy = false;
         _status = '用稳妥出口继续';
       });
+      await _persist();
     } catch (_) {
       if (!mounted) return;
       final choices = BridgeGenerateAction.fallbackChoices(
@@ -498,6 +494,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _busy = false;
         _status = '用稳妥出口继续';
       });
+      await _persist();
     }
   }
 
@@ -516,6 +513,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                 : () {
                     setState(() => _runtime.jumpToNode(edge.to));
                     _syncBridgeNode();
+                    _persist();
                     _ensureBridge();
                   },
             variant: AppButtonVariant.ghost,
@@ -525,24 +523,21 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     ];
   }
 
-  String get _modeTitle {
-    final kind = widget.mode == PlayViewMode.chat ? '聊天' : '视觉小说';
-    return '$kind · ${widget.project.meta.title}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final chatMode = _isChat;
+    final title = widget.project.meta.title;
     return AppPage(
-      title: _modeTitle,
+      title: title,
+      // Chat keeps a quieter header than other large page titles.
+      titleWidget: chatMode
+          ? AppText(
+              title,
+              role: AppTextRole.subtitle,
+              maxLines: 1,
+            )
+          : null,
       onBack: () => Navigator.of(context).maybePop(),
-      actions: [
-        AppIconButton(
-          icon: Icons.save_outlined,
-          tooltip: '保存进度',
-          onPressed: (!chatMode && _runtime.pointer.isEnded) ? null : _save,
-        ),
-      ],
       body: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 420;

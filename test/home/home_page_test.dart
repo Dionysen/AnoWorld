@@ -153,8 +153,8 @@ void main() {
     expect(find.text('雨夜投宿'), findsWidgets);
     await tester.tap(find.text('雨夜投宿').first);
     await tester.pumpAndSettle();
-    expect(find.textContaining('视觉小说'), findsWidgets);
-    expect(find.byTooltip('保存进度'), findsOneWidget);
+    expect(find.text('雨夜投宿'), findsWidgets);
+    expect(find.byTooltip('保存进度'), findsNothing);
   });
 
   testWidgets('hub start play opens runtime', (tester) async {
@@ -176,6 +176,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('该走了。'), findsOneWidget);
-    expect(find.byTooltip('保存进度'), findsOneWidget);
+    expect(find.byTooltip('保存进度'), findsNothing);
   });
 }

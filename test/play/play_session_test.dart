@@ -86,11 +86,11 @@ void main() {
 
     expect(find.text('输入消息'), findsOneWidget);
     expect(find.byIcon(Icons.send_rounded), findsOneWidget);
-    expect(find.textContaining('聊天'), findsWidgets);
+    expect(find.text(sample.meta.title), findsWidgets);
     expect(find.text('该走了。'), findsNothing);
   });
 
-  testWidgets('save writes an auto slot with mode', (tester) async {
+  testWidgets('chat opening autosaves a slot with mode', (tester) async {
     final saves = MemorySaveRepository();
     await tester.pumpWidget(
       testScoped(
@@ -103,9 +103,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('保存进度'));
-    await tester.pumpAndSettle();
 
+    expect(find.byTooltip('保存进度'), findsNothing);
     final slots = await saves.listForProject(sample.meta.id);
     expect(slots, isNotEmpty);
     expect(slots.first.mode, PlayViewMode.chat);
