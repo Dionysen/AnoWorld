@@ -403,7 +403,7 @@ class _GraphViewportState extends State<GraphViewport>
                       return CustomPaint(
                         painter: GraphGridPainter(
                           transform: _transform.value,
-                          color: theme.colorScheme.outlineVariant,
+                          color: theme.colorScheme.outline,
                         ),
                       );
                     },
@@ -443,7 +443,8 @@ class _GraphViewportState extends State<GraphViewport>
                             painter: GraphEdgePainter(
                               nodes: byId,
                               edges: widget.edges,
-                              strokeColor: theme.colorScheme.outline,
+                              strokeColor: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.55),
                               emphasisColor: theme.colorScheme.primary,
                               selectedEdgeId: widget.selectedEdgeId,
                               draftFrom: draftFrom,

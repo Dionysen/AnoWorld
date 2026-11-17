@@ -177,7 +177,8 @@ class _GraphOverviewMapState extends State<GraphOverviewMap> {
                               painter: GraphEdgePainter(
                                 nodes: byId,
                                 edges: widget.edges,
-                                strokeColor: theme.colorScheme.outline,
+                                strokeColor: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.55),
                                 emphasisColor: theme.colorScheme.primary,
                                 selectedEdgeId: null,
                               ),

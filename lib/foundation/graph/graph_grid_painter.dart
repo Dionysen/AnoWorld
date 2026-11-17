@@ -8,8 +8,8 @@ class GraphGridPainter extends CustomPainter {
   GraphGridPainter({
     required this.transform,
     required this.color,
-    this.minorOpacity = 0.22,
-    this.majorOpacity = 0.4,
+    this.minorOpacity = 0.38,
+    this.majorOpacity = 0.62,
   });
 
   final Matrix4 transform;
