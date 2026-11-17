@@ -18,6 +18,7 @@ class AppTextField extends StatelessWidget {
     this.textInputAction,
     this.minLines,
     this.maxLines = 1,
+    this.autofocus = false,
   });
 
   final String label;
@@ -31,28 +32,32 @@ class AppTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final int? minLines;
   final int? maxLines;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
+    final field = TextField(
+      controller: controller,
+      onChanged: onChanged,
+      onEditingComplete: onEditingComplete,
+      onSubmitted: onSubmitted,
+      obscureText: obscureText,
+      keyboardType: keyboardType ??
+          (maxLines != 1 ? TextInputType.multiline : null),
+      textInputAction: textInputAction,
+      minLines: minLines,
+      maxLines: maxLines,
+      autofocus: autofocus,
+      style: Theme.of(context).textTheme.bodyLarge,
+      decoration: InputDecoration(hintText: hint),
+    );
+    if (label.isEmpty) return field;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppText(label, role: AppTextRole.caption),
         const SizedBox(height: AppTheme.spaceXs),
-        TextField(
-          controller: controller,
-          onChanged: onChanged,
-          onEditingComplete: onEditingComplete,
-          onSubmitted: onSubmitted,
-          obscureText: obscureText,
-          keyboardType: keyboardType ??
-              (maxLines != 1 ? TextInputType.multiline : null),
-          textInputAction: textInputAction,
-          minLines: minLines,
-          maxLines: maxLines,
-          style: Theme.of(context).textTheme.bodyLarge,
-          decoration: InputDecoration(hintText: hint),
-        ),
+        field,
       ],
     );
   }

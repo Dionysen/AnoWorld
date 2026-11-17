@@ -4,14 +4,13 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/ai/ai_model_catalog.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
-import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
-import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
-import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
 import 'package:flutter/material.dart';
 
 class AiSettingsPanel extends StatefulWidget {
@@ -148,8 +147,6 @@ class _TextChannelEditor extends StatefulWidget {
 }
 
 class _TextChannelEditorState extends State<_TextChannelEditor> {
-  late final TextEditingController _baseUrl;
-  late final TextEditingController _apiKey;
   AiTextProviderKind? _boundKind;
   List<String> _models = const [];
   bool _probing = false;
@@ -160,8 +157,6 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
   @override
   void initState() {
     super.initState();
-    _baseUrl = TextEditingController(text: widget.endpoint.baseUrl);
-    _apiKey = TextEditingController(text: widget.endpoint.apiKey);
     _boundKind = widget.endpoint.kind;
     _scheduleAutoProbe(immediate: true);
   }
@@ -171,11 +166,12 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
     super.didUpdateWidget(oldWidget);
     if (widget.endpoint.kind != _boundKind) {
       _boundKind = widget.endpoint.kind;
-      _baseUrl.text = widget.endpoint.baseUrl;
-      _apiKey.text = widget.endpoint.apiKey;
       _models = const [];
       _probeStatus = null;
       _lastProbedSignature = null;
+      _scheduleAutoProbe(immediate: true);
+    } else if (widget.endpoint.baseUrl != oldWidget.endpoint.baseUrl ||
+        widget.endpoint.apiKey != oldWidget.endpoint.apiKey) {
       _scheduleAutoProbe(immediate: true);
     }
   }
@@ -183,32 +179,25 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
   @override
   void dispose() {
     _probeDebounce?.cancel();
-    _baseUrl.dispose();
-    _apiKey.dispose();
     super.dispose();
   }
 
-  AiTextEndpoint get _draft => widget.endpoint.copyWith(
-        baseUrl: _baseUrl.text.trim(),
-        apiKey: _apiKey.text.trim(),
-      );
+  AiTextEndpoint get _endpoint => widget.endpoint;
 
   String get _probeSignature {
-    final d = _draft;
+    final d = _endpoint;
     final base = d.baseUrl.isEmpty ? d.kind.defaultBaseUrl : d.baseUrl;
     return '${d.kind.name}|$base|${d.apiKey}';
   }
 
   bool get _canProbe {
-    final d = _draft;
+    final d = _endpoint;
     final base =
         (d.baseUrl.isEmpty ? d.kind.defaultBaseUrl : d.baseUrl).trim();
     if (base.isEmpty) return false;
     if (d.needsApiKey && d.apiKey.isEmpty) return false;
     return true;
   }
-
-  void _commitFields() => widget.onChanged(_draft);
 
   void _scheduleAutoProbe({bool immediate = false}) {
     _probeDebounce?.cancel();
@@ -240,8 +229,8 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
       _probeStatus = '正在查找可用模型…';
     });
     try {
-      final models =
-          await widget.catalog.listModels(AiEndpointConfig.fromText(_draft));
+      final models = await widget.catalog
+          .listModels(AiEndpointConfig.fromText(_endpoint));
       if (!mounted) return;
       final shouldPickDefault =
           widget.endpoint.model.trim().isEmpty && models.isNotEmpty;
@@ -252,7 +241,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
         _probeStatus = '找到 ${models.length} 个可用模型';
       });
       if (shouldPickDefault) {
-        widget.onChanged(_draft.copyWith(model: models.first));
+        widget.onChanged(_endpoint.copyWith(model: models.first));
       }
     } catch (error) {
       if (!mounted) return;
@@ -276,7 +265,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
       current: widget.endpoint.model,
     );
     if (selected == null || !mounted) return;
-    widget.onChanged(_draft.copyWith(model: selected));
+    widget.onChanged(_endpoint.copyWith(model: selected));
   }
 
   @override
@@ -286,23 +275,19 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
       caption: '写对白与剧情',
       providerLabel: widget.endpoint.kind.label,
       onPickKind: widget.onPickKind,
-      baseUrl: _baseUrl,
-      apiKey: _apiKey,
+      baseUrl: widget.endpoint.baseUrl,
+      apiKey: widget.endpoint.apiKey,
       defaultBaseUrl: widget.endpoint.kind.defaultBaseUrl,
       needsApiKey: widget.endpoint.needsApiKey,
       model: widget.endpoint.model,
       modelHint: _modelHint(widget.endpoint.model, _probing, _models),
       probing: _probing,
       probeStatus: _probeStatus,
-      onBaseChanged: (_) => _scheduleAutoProbe(),
-      onBaseComplete: () {
-        _commitFields();
-        _scheduleAutoProbe(immediate: true);
+      onBaseSubmitted: (value) {
+        widget.onChanged(_endpoint.copyWith(baseUrl: value));
       },
-      onKeyChanged: (_) => _scheduleAutoProbe(),
-      onKeyComplete: () {
-        _commitFields();
-        _scheduleAutoProbe(immediate: true);
+      onKeySubmitted: (value) {
+        widget.onChanged(_endpoint.copyWith(apiKey: value));
       },
       onPickModel: _probing ? null : _pickModel,
       onProbe: _probing ? null : () => _probeModels(force: true),
@@ -328,8 +313,6 @@ class _ImageChannelEditor extends StatefulWidget {
 }
 
 class _ImageChannelEditorState extends State<_ImageChannelEditor> {
-  late final TextEditingController _baseUrl;
-  late final TextEditingController _apiKey;
   AiImageProviderKind? _boundKind;
   List<String> _models = const [];
   bool _probing = false;
@@ -340,8 +323,6 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
   @override
   void initState() {
     super.initState();
-    _baseUrl = TextEditingController(text: widget.endpoint.baseUrl);
-    _apiKey = TextEditingController(text: widget.endpoint.apiKey);
     _boundKind = widget.endpoint.kind;
     _scheduleAutoProbe(immediate: true);
   }
@@ -351,11 +332,12 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     super.didUpdateWidget(oldWidget);
     if (widget.endpoint.kind != _boundKind) {
       _boundKind = widget.endpoint.kind;
-      _baseUrl.text = widget.endpoint.baseUrl;
-      _apiKey.text = widget.endpoint.apiKey;
       _models = const [];
       _probeStatus = null;
       _lastProbedSignature = null;
+      _scheduleAutoProbe(immediate: true);
+    } else if (widget.endpoint.baseUrl != oldWidget.endpoint.baseUrl ||
+        widget.endpoint.apiKey != oldWidget.endpoint.apiKey) {
       _scheduleAutoProbe(immediate: true);
     }
   }
@@ -363,24 +345,19 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
   @override
   void dispose() {
     _probeDebounce?.cancel();
-    _baseUrl.dispose();
-    _apiKey.dispose();
     super.dispose();
   }
 
-  AiImageEndpoint get _draft => widget.endpoint.copyWith(
-        baseUrl: _baseUrl.text.trim(),
-        apiKey: _apiKey.text.trim(),
-      );
+  AiImageEndpoint get _endpoint => widget.endpoint;
 
   String get _probeSignature {
-    final d = _draft;
+    final d = _endpoint;
     final base = d.baseUrl.isEmpty ? d.kind.defaultBaseUrl : d.baseUrl;
     return '${d.kind.name}|$base|${d.apiKey}';
   }
 
   bool get _canProbe {
-    final d = _draft;
+    final d = _endpoint;
     final base =
         (d.baseUrl.isEmpty ? d.kind.defaultBaseUrl : d.baseUrl).trim();
     if (d.kind.supportsModelProbe) {
@@ -390,8 +367,6 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     }
     return d.kind.fallbackModels.isNotEmpty;
   }
-
-  void _commitFields() => widget.onChanged(_draft);
 
   void _scheduleAutoProbe({bool immediate = false}) {
     _probeDebounce?.cancel();
@@ -425,8 +400,8 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     try {
       List<String> models;
       if (widget.endpoint.supportsModelProbe) {
-        models =
-            await widget.catalog.listModels(AiEndpointConfig.fromImage(_draft));
+        models = await widget.catalog
+            .listModels(AiEndpointConfig.fromImage(_endpoint));
       } else {
         models = List<String>.from(widget.endpoint.kind.fallbackModels);
       }
@@ -440,7 +415,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
         _probeStatus = '找到 ${models.length} 个可用模型';
       });
       if (shouldPickDefault) {
-        widget.onChanged(_draft.copyWith(model: models.first));
+        widget.onChanged(_endpoint.copyWith(model: models.first));
       }
     } catch (error) {
       if (!mounted) return;
@@ -474,7 +449,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
       current: widget.endpoint.model,
     );
     if (selected == null || !mounted) return;
-    widget.onChanged(_draft.copyWith(model: selected));
+    widget.onChanged(_endpoint.copyWith(model: selected));
   }
 
   @override
@@ -484,23 +459,19 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
       caption: '生成插画，与文本分开',
       providerLabel: widget.endpoint.kind.label,
       onPickKind: widget.onPickKind,
-      baseUrl: _baseUrl,
-      apiKey: _apiKey,
+      baseUrl: widget.endpoint.baseUrl,
+      apiKey: widget.endpoint.apiKey,
       defaultBaseUrl: widget.endpoint.kind.defaultBaseUrl,
       needsApiKey: widget.endpoint.needsApiKey,
       model: widget.endpoint.model,
       modelHint: _modelHint(widget.endpoint.model, _probing, _models),
       probing: _probing,
       probeStatus: _probeStatus,
-      onBaseChanged: (_) => _scheduleAutoProbe(),
-      onBaseComplete: () {
-        _commitFields();
-        _scheduleAutoProbe(immediate: true);
+      onBaseSubmitted: (value) {
+        widget.onChanged(_endpoint.copyWith(baseUrl: value));
       },
-      onKeyChanged: (_) => _scheduleAutoProbe(),
-      onKeyComplete: () {
-        _commitFields();
-        _scheduleAutoProbe(immediate: true);
+      onKeySubmitted: (value) {
+        widget.onChanged(_endpoint.copyWith(apiKey: value));
       },
       onPickModel: _probing ? null : _pickModel,
       onProbe: _probing ? null : () => _probeModels(force: true),
@@ -522,10 +493,8 @@ class _ChannelScaffold extends StatelessWidget {
     required this.modelHint,
     required this.probing,
     required this.probeStatus,
-    required this.onBaseChanged,
-    required this.onBaseComplete,
-    required this.onKeyChanged,
-    required this.onKeyComplete,
+    required this.onBaseSubmitted,
+    required this.onKeySubmitted,
     required this.onPickModel,
     required this.onProbe,
   });
@@ -534,23 +503,24 @@ class _ChannelScaffold extends StatelessWidget {
   final String caption;
   final String providerLabel;
   final VoidCallback onPickKind;
-  final TextEditingController baseUrl;
-  final TextEditingController apiKey;
+  final String baseUrl;
+  final String apiKey;
   final String defaultBaseUrl;
   final bool needsApiKey;
   final String model;
   final String? modelHint;
   final bool probing;
   final String? probeStatus;
-  final ValueChanged<String> onBaseChanged;
-  final VoidCallback onBaseComplete;
-  final ValueChanged<String> onKeyChanged;
-  final VoidCallback onKeyComplete;
+  final ValueChanged<String> onBaseSubmitted;
+  final ValueChanged<String> onKeySubmitted;
   final VoidCallback? onPickModel;
   final VoidCallback? onProbe;
 
   @override
   Widget build(BuildContext context) {
+    final modelTrailing = model.trim().isEmpty
+        ? (modelHint ?? '未选择')
+        : model.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -566,51 +536,55 @@ class _ChannelScaffold extends StatelessWidget {
           onTap: onPickKind,
           trailing: const AppText('更换', role: AppTextRole.caption),
         ),
-        const SizedBox(height: AppTheme.spaceMd),
-        AppPageGutter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        AppTextEditTile(
+          title: '服务地址',
+          subtitle: '接口根地址',
+          icon: Icons.link_outlined,
+          value: baseUrl,
+          hint: defaultBaseUrl,
+          emptyLabel: defaultBaseUrl.isEmpty ? '未填写' : defaultBaseUrl,
+          keyboardType: TextInputType.url,
+          onSubmitted: onBaseSubmitted,
+        ),
+        if (needsApiKey)
+          AppTextEditTile(
+            title: '密钥',
+            subtitle: '访问服务用',
+            icon: Icons.key_outlined,
+            value: apiKey,
+            hint: 'sk-…',
+            obscureText: true,
+            onSubmitted: onKeySubmitted,
+          ),
+        AppListTile(
+          title: '模型',
+          subtitle: probing ? '正在查找…' : '点这里选择',
+          icon: Icons.smart_toy_outlined,
+          onTap: onPickModel,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              AppTextField(
-                label: '服务地址',
-                controller: baseUrl,
-                hint: defaultBaseUrl,
-                keyboardType: TextInputType.url,
-                textInputAction: TextInputAction.next,
-                onChanged: onBaseChanged,
-                onEditingComplete: onBaseComplete,
-              ),
-              const SizedBox(height: AppTheme.spaceGroup),
-              if (needsApiKey) ...[
-                AppTextField(
-                  label: '密钥',
-                  controller: apiKey,
-                  obscureText: true,
-                  hint: 'sk-…',
-                  textInputAction: TextInputAction.done,
-                  onChanged: onKeyChanged,
-                  onEditingComplete: onKeyComplete,
-                  onSubmitted: (_) => onKeyComplete(),
-                ),
-                const SizedBox(height: AppTheme.spaceGroup),
-              ],
-              AppSelectField(
-                label: '模型',
-                value: model,
-                hint: modelHint,
-                onTap: onPickModel,
-                trailing: AppButton(
-                  label: probing ? '查找中' : '查找模型',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: onProbe,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 120),
+                child: AppText(
+                  modelTrailing,
+                  role: AppTextRole.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
                 ),
               ),
-              if (probeStatus != null) ...[
-                const SizedBox(height: AppTheme.spaceXs),
-                AppText(probeStatus!, role: AppTextRole.caption),
-              ],
+              const SizedBox(width: AppTheme.spaceXs),
+              const AppForwardIcon(),
             ],
           ),
+        ),
+        AppListTile(
+          title: probing ? '正在查找模型' : '查找模型',
+          subtitle: probeStatus ?? '重新拉取可用列表',
+          icon: Icons.refresh_outlined,
+          onTap: onProbe,
+          showDivider: false,
         ),
       ],
     );
