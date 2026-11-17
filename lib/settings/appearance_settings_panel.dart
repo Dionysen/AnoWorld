@@ -12,9 +12,7 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_font_picker.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
-import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
-import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -53,6 +51,52 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
     await controller.updateToken(token, next.toARGB32());
   }
 
+  Future<void> _openThemeModeSheet(SettingsController controller) async {
+    await showAppSheet<void>(
+      context: context,
+      size: AppSheetSize.compact,
+      builder: (sheetContext) {
+        return ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final current = controller.appearance.mode;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
+                    AppTheme.spaceXs,
+                    AppTheme.pagePadding,
+                    AppTheme.spaceSm,
+                  ),
+                  child: AppSectionHeader('主题模式'),
+                ),
+                for (final mode in AppThemeModeSetting.values)
+                  AppListTile(
+                    title: mode.label,
+                    icon: mode.icon,
+                    selected: mode == current,
+                    trailing: mode == current
+                        ? const AppText('当前', role: AppTextRole.caption)
+                        : null,
+                    onTap: () async {
+                      await controller.setThemeMode(mode);
+                      if (sheetContext.mounted) {
+                        Navigator.pop(sheetContext);
+                      }
+                    },
+                  ),
+                const SizedBox(height: AppTheme.spaceMd),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _openThemePackSheet(SettingsController controller) async {
     await showAppSheet<void>(
       context: context,
@@ -75,7 +119,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                     AppTheme.pagePadding,
                     AppTheme.spaceSm,
                   ),
-                  child: AppSectionHeader('主题预设'),
+                  child: AppSectionHeader('主题颜色'),
                 ),
                 Expanded(
                   child: ListView.separated(
@@ -402,25 +446,25 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppSectionHeader('主题模式', gutter: true),
-            AppPageGutter(
-              child: AppSegmented<AppThemeModeSetting>(
-                value: current.mode,
-                onChanged: controller.setThemeMode,
-                options: [
-                  for (final mode in AppThemeModeSetting.values)
-                    AppSegmentOption(
-                      value: mode,
-                      label: mode.label,
-                      icon: mode.icon,
-                    ),
-                ],
+            const AppSectionHeader('主题', gutter: true),
+            AppListTile(
+              title: '主题模式',
+              subtitle: '跟随系统、浅色或深色',
+              icon: current.mode.icon,
+              onTap: () => _openThemeModeSheet(controller),
+              trailing: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: AppText(
+                  current.mode.label,
+                  role: AppTextRole.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                ),
               ),
             ),
-            const SizedBox(height: AppTheme.spaceLg),
-            const AppSectionHeader('主题颜色', gutter: true),
             AppListTile(
-              title: '主题预设',
+              title: '主题颜色',
               subtitle: '浅色与深色各记一套',
               icon: Icons.style_outlined,
               onTap: () => _openThemePackSheet(controller),

@@ -71,9 +71,9 @@ void main() {
     await tester.tap(find.text('外观').last);
     await tester.pumpAndSettle();
 
+    expect(find.text('主题'), findsOneWidget);
     expect(find.text('主题模式'), findsOneWidget);
-    expect(find.text('主题颜色'), findsOneWidget);
-    expect(find.text('主题预设'), findsOneWidget);
+    expect(find.text('主题颜色'), findsWidgets);
     expect(find.text('自定义颜色'), findsOneWidget);
     expect(find.byIcon(Icons.chevron_right), findsWidgets);
 
@@ -91,7 +91,7 @@ void main() {
     expect(find.text('字体大小'), findsOneWidget);
     expect(find.text('圆角大小'), findsOneWidget);
 
-    await tester.tap(find.text('主题预设'));
+    await tester.tap(find.text('主题颜色').first);
     await tester.pumpAndSettle();
     final cursorDark = find.text('Cursor 深色');
     await tester.scrollUntilVisible(
