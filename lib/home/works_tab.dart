@@ -566,29 +566,27 @@ class WorksTabState extends State<WorksTab> {
       context: context,
       size: AppSheetSize.half,
       builder: (ctx) => ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
+        padding: const EdgeInsets.only(
+          top: AppTheme.spaceSm,
+          bottom: AppTheme.pagePadding,
         ),
         children: [
-          const AppText('移到…', role: AppTextRole.subtitle),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppTheme.pagePadding),
+            child: AppText('移到…', role: AppTextRole.subtitle),
+          ),
           const SizedBox(height: AppTheme.spaceMd),
           AppListTile(
             title: '全部故事',
             icon: Icons.home_outlined,
             onTap: () => Navigator.of(ctx).pop('__root__'),
           ),
-          const SizedBox(height: AppTheme.spaceSm),
-          for (final folder in allFolders) ...[
+          for (final folder in allFolders)
             AppListTile(
               title: folder.name,
               icon: Icons.folder_outlined,
               onTap: () => Navigator.of(ctx).pop(folder.id),
             ),
-            const SizedBox(height: AppTheme.spaceSm),
-          ],
         ],
       ),
     );
@@ -796,33 +794,31 @@ class WorksTabState extends State<WorksTab> {
     final scheme = Theme.of(context).colorScheme;
     final selected = await showAppSheet<LibraryViewMode>(
       context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppText('显示方式', role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceMd),
-            for (final mode in LibraryViewMode.values) ...[
-              AppListTile(
-                title: mode.label,
-                icon: mode.icon,
-                selected: mode == current,
-                trailing: mode == current
-                    ? Icon(Icons.check, color: scheme.primary)
-                    : null,
-                onTap: () => Navigator.of(ctx).pop(mode),
-              ),
-              const SizedBox(height: AppTheme.spaceSm),
-            ],
-          ],
-        ),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+              AppTheme.pagePadding,
+              AppTheme.spaceMd,
+            ),
+            child: AppText('显示方式', role: AppTextRole.subtitle),
+          ),
+          for (final mode in LibraryViewMode.values)
+            AppListTile(
+              title: mode.label,
+              icon: mode.icon,
+              selected: mode == current,
+              trailing: mode == current
+                  ? Icon(Icons.check, color: scheme.primary)
+                  : null,
+              onTap: () => Navigator.of(ctx).pop(mode),
+            ),
+          const SizedBox(height: AppTheme.pagePadding),
+        ],
       ),
     );
     if (selected == null || !mounted) return;
@@ -835,33 +831,31 @@ class WorksTabState extends State<WorksTab> {
     final scheme = Theme.of(context).colorScheme;
     final selected = await showAppSheet<LibraryAvatarShape>(
       context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppText('头像形状', role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceMd),
-            for (final shape in LibraryAvatarShape.values) ...[
-              AppListTile(
-                title: shape.label,
-                icon: shape.icon,
-                selected: shape == current,
-                trailing: shape == current
-                    ? Icon(Icons.check, color: scheme.primary)
-                    : null,
-                onTap: () => Navigator.of(ctx).pop(shape),
-              ),
-              const SizedBox(height: AppTheme.spaceSm),
-            ],
-          ],
-        ),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+              AppTheme.pagePadding,
+              AppTheme.spaceMd,
+            ),
+            child: AppText('头像形状', role: AppTextRole.subtitle),
+          ),
+          for (final shape in LibraryAvatarShape.values)
+            AppListTile(
+              title: shape.label,
+              icon: shape.icon,
+              selected: shape == current,
+              trailing: shape == current
+                  ? Icon(Icons.check, color: scheme.primary)
+                  : null,
+              onTap: () => Navigator.of(ctx).pop(shape),
+            ),
+          const SizedBox(height: AppTheme.pagePadding),
+        ],
       ),
     );
     if (selected == null || !mounted) return;

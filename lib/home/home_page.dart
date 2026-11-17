@@ -154,52 +154,63 @@ class _HomePageState extends State<HomePage> {
     final display = AppScope.libraryDisplayOf(context).prefs;
     final action = await showAppSheet<String>(
       context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppButton(
-              label: '导入故事包',
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('import'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
             ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '新建文件夹',
-              variant: AppButtonVariant.secondary,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('folder'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppButton(
+                  label: '导入故事包',
+                  expanded: true,
+                  onPressed: () => Navigator.of(ctx).pop('import'),
+                ),
+                const SizedBox(height: AppTheme.spaceSm),
+                AppButton(
+                  label: '新建文件夹',
+                  variant: AppButtonVariant.secondary,
+                  expanded: true,
+                  onPressed: () => Navigator.of(ctx).pop('folder'),
+                ),
+              ],
             ),
-            const SizedBox(height: AppTheme.spaceSm),
+          ),
+          AppListTile(
+            title: '显示方式',
+            subtitle: display.viewMode.label,
+            icon: display.viewMode.icon,
+            onTap: () => Navigator.of(ctx).pop('view_mode'),
+          ),
+          if (display.viewMode == LibraryViewMode.list)
             AppListTile(
-              title: '显示方式',
-              subtitle: display.viewMode.label,
-              icon: display.viewMode.icon,
-              onTap: () => Navigator.of(ctx).pop('view_mode'),
+              title: '头像形状',
+              subtitle: display.avatarShape.label,
+              icon: display.avatarShape.icon,
+              onTap: () => Navigator.of(ctx).pop('avatar_shape'),
             ),
-            if (display.viewMode == LibraryViewMode.list)
-              AppListTile(
-                title: '头像形状',
-                subtitle: display.avatarShape.label,
-                icon: display.avatarShape.icon,
-                onTap: () => Navigator.of(ctx).pop('avatar_shape'),
-              ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+              AppTheme.pagePadding,
+              AppTheme.pagePadding,
+            ),
+            child: AppButton(
               label: '多选',
               variant: AppButtonVariant.ghost,
               expanded: true,
               onPressed: () => Navigator.of(ctx).pop('select'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
     if (!mounted || action == null) return;

@@ -206,36 +206,37 @@ class _MainGraphPageState extends State<MainGraphPage> {
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (sheetContext, setSheetState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.pagePadding,
-                AppTheme.spaceXs,
-                AppTheme.pagePadding,
-                AppTheme.spaceMd,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const AppSectionHeader('画布'),
-                  AppListTile(
-                    title: '显示网格',
-                    subtitle: '缩放时自动调整间距',
-                    icon: Icons.grid_on_outlined,
-                    trailing: AppSwitch(
-                      value: _showGrid,
-                      onChanged: (value) {
-                        setState(() => _showGrid = value);
-                        setSheetState(() {});
-                      },
-                    ),
-                    onTap: () {
-                      setState(() => _showGrid = !_showGrid);
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
+                    AppTheme.spaceXs,
+                    AppTheme.pagePadding,
+                    0,
+                  ),
+                  child: AppSectionHeader('画布'),
+                ),
+                AppListTile(
+                  title: '显示网格',
+                  subtitle: '缩放时自动调整间距',
+                  icon: Icons.grid_on_outlined,
+                  trailing: AppSwitch(
+                    value: _showGrid,
+                    onChanged: (value) {
+                      setState(() => _showGrid = value);
                       setSheetState(() {});
                     },
                   ),
-                ],
-              ),
+                  onTap: () {
+                    setState(() => _showGrid = !_showGrid);
+                    setSheetState(() {});
+                  },
+                ),
+                const SizedBox(height: AppTheme.spaceMd),
+              ],
             );
           },
         );
@@ -540,19 +541,18 @@ class _MainGraphPageState extends State<MainGraphPage> {
                         context: ctx,
                         size: AppSheetSize.compact,
                         builder: (pickCtx) {
-                          return Padding(
-                            padding: const EdgeInsets.all(AppTheme.spaceMd),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (final k in StoryNodeKind.values)
-                                  AppListTile(
-                                    title: k.label,
-                                    onTap: () =>
-                                        Navigator.of(pickCtx).pop(k),
-                                  ),
-                              ],
-                            ),
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final k in StoryNodeKind.values)
+                                AppListTile(
+                                  title: k.label,
+                                  onTap: () =>
+                                      Navigator.of(pickCtx).pop(k),
+                                ),
+                              const SizedBox(height: AppTheme.spaceMd),
+                            ],
                           );
                         },
                       );

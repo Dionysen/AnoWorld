@@ -291,35 +291,36 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
     final action = await showAppSheet<_PackMenuAction>(
       context: context,
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            AppTheme.spaceXs,
-            AppTheme.pagePadding,
-            AppTheme.spaceMd,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppSectionHeader(pack.name),
-              AppListTile(
-                title: '重命名',
-                icon: Icons.drive_file_rename_outline,
-                onTap: () => Navigator.pop(context, _PackMenuAction.rename),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                AppTheme.spaceSm,
               ),
-              AppListTile(
-                title: '复制',
-                icon: Icons.copy_outlined,
-                onTap: () => Navigator.pop(context, _PackMenuAction.copy),
-              ),
-              AppListTile(
-                title: '删除',
-                icon: Icons.delete_outline,
-                onTap: () => Navigator.pop(context, _PackMenuAction.delete),
-              ),
-            ],
-          ),
+              child: AppSectionHeader(pack.name),
+            ),
+            AppListTile(
+              title: '重命名',
+              icon: Icons.drive_file_rename_outline,
+              onTap: () => Navigator.pop(context, _PackMenuAction.rename),
+            ),
+            AppListTile(
+              title: '复制',
+              icon: Icons.copy_outlined,
+              onTap: () => Navigator.pop(context, _PackMenuAction.copy),
+            ),
+            AppListTile(
+              title: '删除',
+              icon: Icons.delete_outline,
+              onTap: () => Navigator.pop(context, _PackMenuAction.delete),
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+          ],
         );
       },
     );

@@ -121,108 +121,131 @@ class _CastEditorPageState extends State<CastEditorPage> {
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheet) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            AppTheme.spaceXs,
-            AppTheme.pagePadding,
-            AppTheme.spaceMd,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppText(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                0,
+              ),
+              child: AppText(
                 existing == null ? '新角色' : '编辑角色',
                 role: AppTextRole.subtitle,
               ),
-              const SizedBox(height: AppTheme.spaceMd),
-              Expanded(
-                child: ListView(
-                  children: [
-                    AppTextField(
-                      label: '名字',
-                      controller: name,
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.pagePadding,
                     ),
-                    const SizedBox(height: AppTheme.spaceMd),
-                    AppTextField(
-                      label: '简介',
-                      controller: summary,
-                      minLines: 2,
-                      maxLines: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AppTextField(
+                          label: '名字',
+                          controller: name,
+                        ),
+                        const SizedBox(height: AppTheme.spaceMd),
+                        AppTextField(
+                          label: '简介',
+                          controller: summary,
+                          minLines: 2,
+                          maxLines: 4,
+                        ),
+                        const SizedBox(height: AppTheme.spaceMd),
+                        AppTextField(
+                          label: '性格',
+                          controller: personality,
+                          minLines: 2,
+                          maxLines: 4,
+                        ),
+                        const SizedBox(height: AppTheme.spaceMd),
+                        AppTextField(
+                          label: '说话方式',
+                          controller: speech,
+                          minLines: 2,
+                          maxLines: 4,
+                        ),
+                        const SizedBox(height: AppTheme.spaceMd),
+                        AppTextField(
+                          label: '示例对白',
+                          controller: examples,
+                          minLines: 3,
+                          maxLines: 6,
+                          hint: '一行一句',
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: AppTheme.spaceMd),
-                    AppTextField(
-                      label: '性格',
-                      controller: personality,
-                      minLines: 2,
-                      maxLines: 4,
+                  ),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  AppListTile(
+                    title: '主角',
+                    subtitle: '酒馆里「当前角色」的名字与设定来源',
+                    icon: Icons.star_outline,
+                    trailing: AppSwitch(
+                      value: isProtagonist,
+                      onChanged: (value) =>
+                          setSheet(() => isProtagonist = value),
                     ),
-                    const SizedBox(height: AppTheme.spaceMd),
-                    AppTextField(
-                      label: '说话方式',
-                      controller: speech,
-                      minLines: 2,
-                      maxLines: 4,
-                    ),
-                    const SizedBox(height: AppTheme.spaceMd),
-                    AppTextField(
-                      label: '示例对白',
-                      controller: examples,
-                      minLines: 3,
-                      maxLines: 6,
-                      hint: '一行一句',
-                    ),
-                    const SizedBox(height: AppTheme.spaceMd),
-                    AppListTile(
-                      title: '主角',
-                      subtitle: '酒馆里「当前角色」的名字与设定来源',
-                      icon: Icons.star_outline,
-                      trailing: AppSwitch(
-                        value: isProtagonist,
-                        onChanged: (value) =>
-                            setSheet(() => isProtagonist = value),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceMd,
+                AppTheme.pagePadding,
+                AppTheme.spaceMd,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppButton(
+                    label: '保存',
+                    expanded: true,
+                    onPressed: () {
+                      final nextName = name.text.trim();
+                      Navigator.of(sheetContext).pop(
+                        _CastSheetResult.save(
+                          draft.copyWith(
+                            name: nextName.isEmpty ? '未命名角色' : nextName,
+                            summary: summary.text.trim(),
+                            personality: personality.text.trim(),
+                            speechStyle: speech.text.trim(),
+                            exampleLines: examples.text
+                                .split(RegExp(r'[\r\n]+'))
+                                .map((s) => s.trim())
+                                .where((s) => s.isNotEmpty)
+                                .toList(growable: false),
+                            isProtagonist: isProtagonist,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  if (existing != null) ...[
+                    const SizedBox(height: AppTheme.spaceSm),
+                    AppButton(
+                      label: '删除这个角色',
+                      expanded: true,
+                      variant: AppButtonVariant.ghost,
+                      onPressed: () => Navigator.of(sheetContext).pop(
+                        const _CastSheetResult.delete(),
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(height: AppTheme.spaceMd),
-              AppButton(
-                label: '保存',
-                expanded: true,
-                onPressed: () {
-                  final nextName = name.text.trim();
-                  Navigator.of(sheetContext).pop(
-                    _CastSheetResult.save(
-                      draft.copyWith(
-                        name: nextName.isEmpty ? '未命名角色' : nextName,
-                        summary: summary.text.trim(),
-                        personality: personality.text.trim(),
-                        speechStyle: speech.text.trim(),
-                        exampleLines: examples.text
-                            .split(RegExp(r'[\r\n]+'))
-                            .map((s) => s.trim())
-                            .where((s) => s.isNotEmpty)
-                            .toList(growable: false),
-                        isProtagonist: isProtagonist,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              if (existing != null) ...[
-                const SizedBox(height: AppTheme.spaceSm),
-                AppButton(
-                  label: '删除这个角色',
-                  expanded: true,
-                  variant: AppButtonVariant.ghost,
-                  onPressed: () => Navigator.of(sheetContext).pop(
-                    const _CastSheetResult.delete(),
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         );
           },
         );

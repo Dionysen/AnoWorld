@@ -196,11 +196,9 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
       size: AppSheetSize.half,
       builder: (ctx) {
         return ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            AppTheme.spaceSm,
-            AppTheme.pagePadding,
-            AppTheme.spaceMd,
+          padding: const EdgeInsets.only(
+            top: AppTheme.spaceSm,
+            bottom: AppTheme.spaceMd,
           ),
           children: [
             AppListTile(

@@ -110,11 +110,9 @@ class AppFontPickerRow extends StatelessWidget {
                             )
                             .toList();
                     return ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppTheme.pagePadding,
-                        AppTheme.spaceSm,
-                        AppTheme.pagePadding,
-                        AppTheme.spaceLg,
+                      padding: const EdgeInsets.only(
+                        top: AppTheme.spaceSm,
+                        bottom: AppTheme.spaceLg,
                       ),
                       children: [
                         AppListTile(
@@ -131,8 +129,7 @@ class AppFontPickerRow extends StatelessWidget {
                                 )
                               : null,
                         ),
-                        const SizedBox(height: AppTheme.spaceSm),
-                        for (final font in filtered) ...[
+                        for (final font in filtered)
                           AppListTile(
                             title: font.family,
                             subtitle: font.imported ? '已导入' : null,
@@ -184,8 +181,6 @@ class AppFontPickerRow extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(height: AppTheme.spaceSm),
-                        ],
                       ],
                     );
                   },
