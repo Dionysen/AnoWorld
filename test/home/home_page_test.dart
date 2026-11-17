@@ -3,6 +3,7 @@ import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
+import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -127,7 +128,7 @@ void main() {
     expect(find.text('这条创作路径马上就好'), findsOneWidget);
   });
 
-  testWidgets('saves tab lists progress and opens hub', (tester) async {
+  testWidgets('saves tab lists progress and resumes play', (tester) async {
     final sample = const ProjectFactory().createRainNightSample(
       now: DateTime.utc(2026, 1, 1),
     );
@@ -136,10 +137,12 @@ void main() {
     );
     final saves = MemorySaveRepository(
       seed: {
-        sample.meta.id: SaveSlot(
+        'slot_resume': SaveSlot(
+          id: 'slot_resume',
           projectId: sample.meta.id,
           pointer: const MainSavePointer(nodeId: 'n1', beatId: 'b1'),
           savedAt: DateTime.utc(2026, 1, 2),
+          mode: PlayViewMode.visualNovel,
         ),
       },
     );
@@ -150,7 +153,8 @@ void main() {
     expect(find.text('雨夜投宿'), findsWidgets);
     await tester.tap(find.text('雨夜投宿').first);
     await tester.pumpAndSettle();
-    expect(find.byTooltip('继续创作'), findsOneWidget);
+    expect(find.textContaining('视觉小说'), findsWidgets);
+    expect(find.byTooltip('保存进度'), findsOneWidget);
   });
 
   testWidgets('hub start play opens runtime', (tester) async {
@@ -168,8 +172,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('开始游玩'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('视觉小说'));
+    await tester.pumpAndSettle();
 
-    expect(find.text('视觉小说'), findsOneWidget);
     expect(find.text('该走了。'), findsOneWidget);
+    expect(find.byTooltip('保存进度'), findsOneWidget);
   });
 }

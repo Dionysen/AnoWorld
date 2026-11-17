@@ -122,7 +122,7 @@ App 全局（设置，与酒馆同类）
 对用户叫**故事**（代码类型仍是 `Project`）：一份可玩的故事包 = 设定 + 角色 + 情节脉络等，不是酒馆「角色卡」。
 
 - **故事包**：`{library}/projects/{id}/`（manifest + project.json + assets）。
-- **游玩存档**：`{library}/saves/{projectId}.json`（每故事一槽；[`SaveRepository`](../lib/domain/repositories/save_repository.dart)）。聊天槽含 `mode`、`chat[]`、`replyChoices[]`；开聊与每轮对话后自动写回。
+- **游玩存档**：`{library}/saves/{slotId}.json`（每故事可多槽；[`SaveRepository`](../lib/domain/repositories/save_repository.dart)）。字段含 `id`、`projectId`、`mode`，聊天另有 `chat[]` / `replyChoices[]`。故事详情「开始游玩」新建槽；开玩与每轮后写回该槽；删故事时 `clearForProject`。
 - **库内文件夹**：`{library}/folders.json`（文件夹树 + 故事归属；[`ProjectFolder`](../lib/domain/models/project_folder.dart)）。文件夹只组织库浏览，不进故事包内容。
 
 ## Side（支线）

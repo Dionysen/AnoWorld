@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:anoworld/data/project/project_paths.dart';
+import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/main_story.dart';
-import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
@@ -23,14 +23,15 @@ class FileSaveRepository implements SaveRepository {
     return root;
   }
 
-  Future<File> _slotFile(String projectId) async {
-    final safe = projectId.replaceAll(RegExp(r'[^\w\-.]'), '_');
-    return File(p.join(await _savesRoot(), '$safe.json'));
+  String _safeName(String id) => id.replaceAll(RegExp(r'[^\w\-.]'), '_');
+
+  Future<File> _slotFile(String slotId) async {
+    return File(p.join(await _savesRoot(), '${_safeName(slotId)}.json'));
   }
 
   @override
-  Future<SaveSlot?> load(String projectId) async {
-    final file = await _slotFile(projectId);
+  Future<SaveSlot?> load(String slotId) async {
+    final file = await _slotFile(slotId);
     if (!await file.exists()) return null;
     return _readSlot(file);
   }
@@ -52,6 +53,14 @@ class FileSaveRepository implements SaveRepository {
     return slots;
   }
 
+  @override
+  Future<List<SaveSlot>> listForProject(String projectId) async {
+    final all = await listAll();
+    return all
+        .where((s) => s.projectId == projectId)
+        .toList(growable: false);
+  }
+
   Future<SaveSlot> _readSlot(File file) async {
     final map = asJsonMap(
       jsonDecode(await file.readAsString()),
@@ -60,8 +69,13 @@ class FileSaveRepository implements SaveRepository {
     final bridgeMap = map.optionalMap('bridge');
     final chatRaw = map.optionalList('chat');
     final choicesRaw = map.optionalList('replyChoices');
+    final projectId = map.requireString('projectId');
+    // Legacy one-file-per-project used the project id as the filename.
+    final id = map.optionalString('id') ??
+        p.basenameWithoutExtension(file.path);
     return SaveSlot(
-      projectId: map.requireString('projectId'),
+      id: id,
+      projectId: projectId,
       pointer: MainSavePointer.fromJson(map.requireMap('pointer')),
       savedAt: DateTime.parse(map.requireString('savedAt')),
       bridge: bridgeMap == null ? null : BridgeSession.fromJson(bridgeMap),
@@ -82,6 +96,7 @@ class FileSaveRepository implements SaveRepository {
 
   @override
   Future<void> save({
+    required String slotId,
     required String projectId,
     required MainSavePointer pointer,
     BridgeSession? bridge,
@@ -89,8 +104,9 @@ class FileSaveRepository implements SaveRepository {
     List<TavernChatMessage> chat = const <TavernChatMessage>[],
     List<String> replyChoices = const <String>[],
   }) async {
-    final file = await _slotFile(projectId);
+    final file = await _slotFile(slotId);
     final payload = <String, dynamic>{
+      'id': slotId,
       'projectId': projectId,
       'pointer': pointer.toJson(),
       'savedAt': DateTime.now().toUtc().toIso8601String(),
@@ -106,8 +122,16 @@ class FileSaveRepository implements SaveRepository {
   }
 
   @override
-  Future<void> clear(String projectId) async {
-    final file = await _slotFile(projectId);
+  Future<void> clear(String slotId) async {
+    final file = await _slotFile(slotId);
     if (await file.exists()) await file.delete();
+  }
+
+  @override
+  Future<void> clearForProject(String projectId) async {
+    final slots = await listForProject(projectId);
+    for (final slot in slots) {
+      await clear(slot.id);
+    }
   }
 }

@@ -187,6 +187,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
         pageBuilder: (_, _, _) => PlaySessionPage(
           project: project,
           mode: mode,
+          resumeSave: false,
         ),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);

@@ -537,7 +537,7 @@ class WorksTabState extends State<WorksTab> {
       if (folderIds.contains(id)) {
         await folders.deleteFolder(id);
       } else {
-        await saves.clear(id);
+        await saves.clearForProject(id);
         await folders.removeProjectMembership(id);
         await projects.delete(id);
       }
@@ -678,7 +678,7 @@ class WorksTabState extends State<WorksTab> {
     final saves = AppScope.savesOf(context);
     final folders = AppScope.foldersOf(context);
     final projects = AppScope.projectsOf(context);
-    await saves.clear(projectId);
+    await saves.clearForProject(projectId);
     await folders.removeProjectMembership(projectId);
     await projects.delete(projectId);
     await reload();

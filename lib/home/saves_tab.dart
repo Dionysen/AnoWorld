@@ -117,6 +117,7 @@ class SavesTabState extends State<SavesTab> {
         PlaySessionPage(
           project: project,
           mode: row.slot.mode,
+          slotId: row.slot.id,
           resumeSave: true,
         ),
       );
@@ -187,7 +188,7 @@ class SavesTabState extends State<SavesTab> {
     await reload();
   }
 
-  Future<void> _deleteOne(String projectId) async {
+  Future<void> _deleteOne(String slotId) async {
     widget.selection.exit();
     final confirmed = await showAppSheet<bool>(
       context: context,
@@ -232,7 +233,7 @@ class SavesTabState extends State<SavesTab> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await AppScope.savesOf(context).clear(projectId);
+    await AppScope.savesOf(context).clear(slotId);
     await reload();
   }
 
@@ -340,7 +341,7 @@ class SavesTabState extends State<SavesTab> {
                             itemBuilder: (context, index) {
                               final row = visible[index];
                               final selected =
-                                  widget.selection.isSelected(row.project.id);
+                                  widget.selection.isSelected(row.slot.id);
                               return AppListTile(
                                 title: row.project.title,
                                 subtitle: _subtitle(row),
@@ -411,19 +412,19 @@ class SavesTabState extends State<SavesTab> {
                                           } else if (action == 'story') {
                                             await _openStory(row);
                                           } else if (action == 'delete') {
-                                            await _deleteOne(row.project.id);
+                                            await _deleteOne(row.slot.id);
                                           }
                                         },
                                       ),
                                 onTap: () {
                                   if (selectionMode) {
-                                    widget.selection.toggle(row.project.id);
+                                    widget.selection.toggle(row.slot.id);
                                   } else {
                                     _resumePlay(row);
                                   }
                                 },
                                 onLongPress: () =>
-                                    widget.selection.toggle(row.project.id),
+                                    widget.selection.toggle(row.slot.id),
                               );
                             },
                           ),

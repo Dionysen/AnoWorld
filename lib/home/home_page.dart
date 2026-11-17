@@ -69,6 +69,9 @@ class _HomePageState extends State<HomePage> {
     _savesSelection.exit();
     _worksSelection.exit();
     setState(() => _tab = next);
+    if (next == HomeTab.saves) {
+      _savesKey.currentState?.reload();
+    }
   }
 
   Future<void> _showCreateSheet() async {
@@ -413,7 +416,7 @@ class _HomePageState extends State<HomePage> {
     final known = {for (final p in projects) p.id};
     final ids = slots
         .where((slot) => known.contains(slot.projectId))
-        .map((slot) => slot.projectId)
+        .map((slot) => slot.id)
         .toList(growable: false);
     if (!mounted) return;
     _savesSelection.toggleSelectAll(ids);

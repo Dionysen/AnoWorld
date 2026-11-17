@@ -180,7 +180,7 @@ Transition {
 | 模式 | 推进 | 存档 |
 | --- | --- | --- |
 | 视觉小说 | §3.1–3.2 指针 + 区间 AI | `pointer` + 可选 `bridge` |
-| 聊天 | 酒馆交替：[`TavernChatGenerateAction`](../lib/domain/chat/tavern_chat_generate_action.dart) 一轮助手；用户输入或 [`TavernReplyChoiceAction`](../lib/domain/chat/tavern_reply_choice_action.dart) 选项；UI [`PlayChatView`](../lib/play/play_chat_view.dart) | `mode` + `chat[]` + `replyChoices[]`；开聊与每轮后自动写回；同模式再进原样恢复 |
+| 聊天 | 酒馆交替：[`TavernChatGenerateAction`](../lib/domain/chat/tavern_chat_generate_action.dart) 一轮助手；用户输入或 [`TavernReplyChoiceAction`](../lib/domain/chat/tavern_reply_choice_action.dart) 选项；UI [`PlayChatView`](../lib/play/play_chat_view.dart) | 独立 `slotId`：`mode` + `chat[]` + `replyChoices[]`；故事详情开玩新建槽；存档页按槽续玩 |
 
 ---
 

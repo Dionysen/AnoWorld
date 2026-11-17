@@ -81,13 +81,13 @@ void main() {
     expect(find.text('本段结束'), findsOneWidget);
   });
 
-  testWidgets('chat mode reveals the same opening line', (tester) async {
+  testWidgets('chat mode shows tavern composer shell', (tester) async {
     await pumpPlay(tester, mode: PlayViewMode.chat);
 
-    expect(find.text('该走了。'), findsOneWidget);
     expect(find.text('输入消息'), findsOneWidget);
     expect(find.byIcon(Icons.send_rounded), findsOneWidget);
-    expect(find.text('视觉小说'), findsNothing);
+    expect(find.textContaining('聊天'), findsWidgets);
+    expect(find.text('该走了。'), findsNothing);
   });
 
   testWidgets('save writes an auto slot with mode', (tester) async {
@@ -106,10 +106,10 @@ void main() {
     await tester.tap(find.byTooltip('保存进度'));
     await tester.pumpAndSettle();
 
-    final slot = await saves.load(sample.meta.id);
-    expect(slot, isNotNull);
-    expect(slot!.pointer.beatId, 'b1');
-    expect(slot.mode, PlayViewMode.chat);
+    final slots = await saves.listForProject(sample.meta.id);
+    expect(slots, isNotEmpty);
+    expect(slots.first.mode, PlayViewMode.chat);
+    expect(slots.first.pointer.beatId, 'b1');
   });
 
   testWidgets('empty skeleton still offers guaranteed next station',

@@ -5,6 +5,7 @@ import 'package:anoworld/domain/runtime/play_view_mode.dart';
 
 class SaveSlot {
   const SaveSlot({
+    required this.id,
     required this.projectId,
     required this.pointer,
     required this.savedAt,
@@ -14,6 +15,8 @@ class SaveSlot {
     this.replyChoices = const <String>[],
   });
 
+  /// Unique slot id (one project may have many slots).
+  final String id;
   final String projectId;
   final MainSavePointer pointer;
   final DateTime savedAt;
@@ -29,14 +32,17 @@ class SaveSlot {
   final List<String> replyChoices;
 }
 
-/// Per-project play progress (MVP: one auto slot).
+/// Per-story play progress: many slots per [SaveSlot.projectId].
 abstract interface class SaveRepository {
-  Future<SaveSlot?> load(String projectId);
+  Future<SaveSlot?> load(String slotId);
 
   /// All slots, newest [SaveSlot.savedAt] first.
   Future<List<SaveSlot>> listAll();
 
+  Future<List<SaveSlot>> listForProject(String projectId);
+
   Future<void> save({
+    required String slotId,
     required String projectId,
     required MainSavePointer pointer,
     BridgeSession? bridge,
@@ -45,5 +51,8 @@ abstract interface class SaveRepository {
     List<String> replyChoices = const <String>[],
   });
 
-  Future<void> clear(String projectId);
+  Future<void> clear(String slotId);
+
+  /// Removes every slot belonging to [projectId].
+  Future<void> clearForProject(String projectId);
 }

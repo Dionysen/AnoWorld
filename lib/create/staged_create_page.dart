@@ -329,6 +329,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
             pageBuilder: (_, _, _) => PlaySessionPage(
               project: latest,
               mode: mode,
+              resumeSave: false,
             ),
             transitionsBuilder: (_, animation, _, child) {
               return FadeTransition(opacity: animation, child: child);

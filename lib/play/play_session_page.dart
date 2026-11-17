@@ -24,17 +24,24 @@ import 'package:flutter/material.dart';
 export 'package:anoworld/domain/runtime/play_view_mode.dart' show PlayViewMode;
 
 /// Play session locked to one [mode] (chosen before open; not switchable here).
+///
+/// Pass [slotId] to resume an existing save. Omit it (and set [resumeSave] false)
+/// to start a **new** slot — e.g. story hub「开始游玩」.
 class PlaySessionPage extends StatefulWidget {
   const PlaySessionPage({
     super.key,
     required this.project,
     required this.mode,
+    this.slotId,
     this.resumeSave = true,
     this.initialSave,
   });
 
   final Project project;
   final PlayViewMode mode;
+
+  /// Existing save slot to resume; null means allocate a new id.
+  final String? slotId;
   final bool resumeSave;
   final MainSavePointer? initialSave;
 
@@ -44,6 +51,7 @@ class PlaySessionPage extends StatefulWidget {
 
 class _PlaySessionPageState extends State<PlaySessionPage> {
   late MainRuntime _runtime;
+  late String _slotId;
   BridgeSession? _bridge;
   String? _status;
   bool _bootstrapped = false;
@@ -63,6 +71,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   MainStory get _baseMain =>
       ProjectFactory.ensurePlayableMain(widget.project.main);
+
+  String _newSlotId() => 'save_${DateTime.now().microsecondsSinceEpoch}';
 
   String get _userLabel {
     final name =
@@ -99,21 +109,28 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     super.didChangeDependencies();
     if (_bootstrapped) return;
     _bootstrapped = true;
+    _slotId = widget.slotId ?? _newSlotId();
     _runtime = MainRuntime(_baseMain, save: widget.initialSave);
-    if (widget.resumeSave && widget.initialSave == null) {
-      _maybeLoadAutoSave();
+    final resume = widget.resumeSave &&
+        widget.slotId != null &&
+        widget.initialSave == null;
+    if (resume) {
+      _loadSlot(widget.slotId!);
     } else if (_isChat) {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _ensureChatOpening());
     } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _ensureBridge());
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _persist();
+        await _ensureBridge();
+      });
     }
   }
 
-  Future<void> _maybeLoadAutoSave() async {
-    final slot = await AppScope.savesOf(context).load(widget.project.meta.id);
+  Future<void> _loadSlot(String slotId) async {
+    final slot = await AppScope.savesOf(context).load(slotId);
     if (!mounted) return;
-    if (slot != null && slot.mode == widget.mode) {
+    if (slot != null) {
       if (_isChat) {
         _chat
           ..clear()
@@ -200,12 +217,14 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   Future<void> _persist({bool announce = false}) async {
     if (!mounted) return;
     await AppScope.savesOf(context).save(
+      slotId: _slotId,
       projectId: widget.project.meta.id,
       pointer: _runtime.toSave(),
       bridge: _isChat ? null : _bridge,
       mode: widget.mode,
       chat: _isChat ? List<TavernChatMessage>.unmodifiable(_chat) : const [],
-      replyChoices: _isChat ? List<String>.unmodifiable(_replyChoices) : const [],
+      replyChoices:
+          _isChat ? List<String>.unmodifiable(_replyChoices) : const [],
     );
     if (!mounted || !announce) return;
     setState(() => _status = '进度已保存');

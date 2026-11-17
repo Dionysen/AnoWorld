@@ -11,7 +11,7 @@ class MemorySaveRepository implements SaveRepository {
   final Map<String, SaveSlot> _slots;
 
   @override
-  Future<SaveSlot?> load(String projectId) async => _slots[projectId];
+  Future<SaveSlot?> load(String slotId) async => _slots[slotId];
 
   @override
   Future<List<SaveSlot>> listAll() async {
@@ -20,7 +20,16 @@ class MemorySaveRepository implements SaveRepository {
   }
 
   @override
+  Future<List<SaveSlot>> listForProject(String projectId) async {
+    final list = _slots.values
+        .where((s) => s.projectId == projectId)
+        .toList(growable: false);
+    return list..sort((a, b) => b.savedAt.compareTo(a.savedAt));
+  }
+
+  @override
   Future<void> save({
+    required String slotId,
     required String projectId,
     required MainSavePointer pointer,
     BridgeSession? bridge,
@@ -28,7 +37,8 @@ class MemorySaveRepository implements SaveRepository {
     List<TavernChatMessage> chat = const <TavernChatMessage>[],
     List<String> replyChoices = const <String>[],
   }) async {
-    _slots[projectId] = SaveSlot(
+    _slots[slotId] = SaveSlot(
+      id: slotId,
       projectId: projectId,
       pointer: pointer,
       savedAt: DateTime.now().toUtc(),
@@ -40,7 +50,12 @@ class MemorySaveRepository implements SaveRepository {
   }
 
   @override
-  Future<void> clear(String projectId) async {
-    _slots.remove(projectId);
+  Future<void> clear(String slotId) async {
+    _slots.remove(slotId);
+  }
+
+  @override
+  Future<void> clearForProject(String projectId) async {
+    _slots.removeWhere((_, slot) => slot.projectId == projectId);
   }
 }
