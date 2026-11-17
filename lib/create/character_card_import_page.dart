@@ -298,11 +298,11 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
                 draft.preset.outputPreferences.isNotEmpty) ...[
               const SizedBox(height: AppTheme.spaceLg),
               const AppSectionHeader(
-                '文风提示',
+                '预设',
                 subtitle: '来自卡内系统说明，可关掉',
               ),
               AppListTile(
-                title: '带上文风说明',
+                title: '带上预设说明',
                 subtitle: draft.preset.styleNotes.trim().isEmpty
                     ? '仅输出偏好'
                     : draft.preset.styleNotes

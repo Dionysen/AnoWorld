@@ -160,7 +160,7 @@ class _PresetEditorPageState extends State<PresetEditorPage> {
   Widget build(BuildContext context) {
     final project = _project;
     return AppPage(
-      title: '文风预设',
+      title: '预设',
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody(
         children: [
@@ -211,7 +211,7 @@ class _PresetEditorPageState extends State<PresetEditorPage> {
             ),
             const SizedBox(height: AppTheme.spaceMd),
             AppTextField(
-              label: '文风说明',
+              label: '预设说明',
               controller: _style,
               minLines: 3,
               maxLines: 6,

@@ -207,7 +207,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     if (notes.isNotEmpty) {
       rows.add(
         AppDetailEntry(
-          title: '文风说明',
+          title: '预设说明',
           tags: <String>[preset.name],
           body: notes,
         ),
@@ -364,10 +364,10 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             ),
             const SizedBox(height: AppTheme.spaceSm),
             AppDetailSectionCard(
-              title: '文风',
+              title: '预设',
               icon: Icons.tune_outlined,
               entries: _presetEntries(project),
-              emptyHint: '使用默认文风，${project.activePreset.name}',
+              emptyHint: '使用默认预设，${project.activePreset.name}',
               onEdit: () => _openEditor(
                 PresetEditorPage(projectId: widget.projectId),
               ),

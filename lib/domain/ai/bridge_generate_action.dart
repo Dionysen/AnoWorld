@@ -129,7 +129,7 @@ $exitLines
         ? '必须给 1～3 个 choices，且每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。'
         : '可给过程选项；若继续本站用 {"type":"beat","beatId":"__stay__"}；导向下一站必须用合法 nodeId。';
     return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
-文风：${preset.styleNotes}
+预设说明：${preset.styleNotes}
 输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白","text":"..."}],"choices":[{"text":"...","target":{...}}]}
 $converge
 禁止发明不在合法下一站列表里的 nodeId。''';

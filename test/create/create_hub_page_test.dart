@@ -26,7 +26,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('文风预设'), findsOneWidget);
+    expect(find.text('预设'), findsOneWidget);
     expect(find.text('背景设定'), findsOneWidget);
     expect(find.text('角色'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);
@@ -54,7 +54,7 @@ void main() {
       expect(find.byType(CreateHubPage), findsOneWidget);
     }
 
-    await openAndBack('文风预设', PresetEditorPage);
+    await openAndBack('预设', PresetEditorPage);
     await openAndBack('背景设定', BackgroundEditorPage);
     await openAndBack('角色', CastEditorPage);
 

@@ -132,10 +132,10 @@ class _CreateHubPageState extends State<CreateHubPage> {
           else if (project != null) ...[
             AppSectionHeader(
               project.meta.title,
-              subtitle: '先定文风、设定、角色与情节走向',
+              subtitle: '先定预设、设定、角色与情节走向',
             ),
             AppListTile(
-              title: '文风预设',
+              title: '预设',
               subtitle: _presetSubtitle(project),
               icon: Icons.tune_outlined,
               trailing: const AppForwardIcon(),

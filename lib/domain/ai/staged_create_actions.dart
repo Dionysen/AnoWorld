@@ -149,7 +149,7 @@ class StagedCreateActions {
         ? ''
         : '偏好：${preset.outputPreferences.join('；')}\n';
     return '你是视觉小说创作助手。只输出 JSON，不要 markdown，不要解释。\n'
-        '文风：${preset.styleNotes}\n'
+        '预设说明：${preset.styleNotes}\n'
         '$bans$prefs';
   }
 

@@ -93,7 +93,7 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 
 设置项：文本与生图使用**不同供应商列表**（对齐 NativeTavern：`LLMProvider` vs `ImageGenProvider`）。文本侧：OpenAI / DeepSeek / OpenRouter / 通义 / 硅基流动 / Moonshot / 智谱 / MiniMax / Ollama / 自定义；生图侧：OpenAI Images / OAI Chat 生图 / 硅基流动 / Pollinations / NovelAI / A1111 / ComfyUI / 自定义。各自一份 Base URL、Key、Model；支持探测的渠道在输入密钥后可拉 `/models`。参考实现见同级仓库 `NativeTavern`，规则见 `.cursor/rules/nativetavern-reference.mdc`。
 
-**当前实现**：文本侧已接通 OpenAI 兼容 `chat/completions`；路径 1 可导入酒馆 JSON/PNG 角色卡并映射到 Preset / Background 条目 / Cast，写入后进创作截面；路径 3 分阶段生成设定/角色，阶段 3「走向」只出脉络骨架（空 `beats` 可玩）；创作截面进文风 / 设定 / 角色 / 情节（[`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart)）；游玩侧 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart) + 保底「前往：下一站」，存档可附带本局 `BridgeSession`。路径 2、生图调用、路径 1 自动生成脉络尚未落地。
+**当前实现**：文本侧已接通 OpenAI 兼容 `chat/completions`；路径 1 可导入酒馆 JSON/PNG 角色卡并映射到 Preset / Background 条目 / Cast，写入后进创作截面；路径 3 分阶段生成设定/角色，阶段 3「走向」只出脉络骨架（空 `beats` 可玩）；创作截面进预设 / 设定 / 角色 / 情节（[`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart)）；游玩侧 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart) + 保底「前往：下一站」，存档可附带本局 `BridgeSession`。路径 2、生图调用、路径 1 自动生成脉络尚未落地。
 
 ## 图片资源
 
@@ -110,7 +110,7 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 
 ## 编辑器取向
 
-- **故事内创作截面**先选文风 / 设定 / 角色 / 情节；**Main** 再用节点编辑器：节点 = 关键情节单元及其流向。手机、平板、桌面是同一套编辑器，交互一致。
+- **故事内创作截面**先选预设 / 设定 / 角色 / 情节；**Main** 再用节点编辑器：节点 = 关键情节单元及其流向。手机、平板、桌面是同一套编辑器，交互一致。
 - **画布 / 卡片**用编辑器底部胶囊导航切换（默认画布）：卡片仍是同一张画布，相机把当前选中站居中放大；切回画布恢复自由平移/缩放。细则与验收见 [docs/UX.md](../docs/UX.md)。
 - 两种视角读写同一张图，不另起一套 UI。支线 / 对白详情用列表或表单；节点图只服务主线骨架。
 
@@ -139,7 +139,7 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 | 块 | 最小形态 |
 | --- | --- |
 | 项目 | 新建、打开、本地导出/导入包 |
-| Preset | 一套可编辑的文风/禁用/偏好；创作与区间 AI 均生效 |
+| Preset | 一套可编辑的说明/禁用/偏好；创作与区间 AI 均生效 |
 | Background / Cast | 设定条目（常驻/关键词）+ 角色编辑页；ST 卡选择性摘取 |
 | Main 脉络 | 创作截面进入；生成/可编大节点与分支；全端节点编辑器 + 小屏卡片（验收见 UX） |
 | 区间 AI | 游玩时在站间生成过程戏；合法出边封闭；拍数上限 + UI 保底前往下一站 |
