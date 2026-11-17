@@ -64,9 +64,9 @@
 
 - **外观**：主题模式（跟随系统/浅/深）；主题预设 / 自定义颜色 / 字体等均用同一套浮层抽屉（两侧内缩、限宽，列表类默认半屏）；主题预设行尾显示当前包名；自定义颜色含「保存为主题」「恢复默认」；字体可选系统默认 / 本机 / 导入；字体大小/圆角滑块。各项列表与滑块左侧有图标。改完立即作用到全局封装控件。视觉约定见 [Style.md](./Style.md)。
 - **AI**：写故事与生图分开选服务商（半屏浮层抽屉，标题与说明固定不随列表滚）。服务地址、密钥为整行列表项（左标题/说明，右显示当前值；密钥打码），点开抽屉编辑后保存；切换服务商会记住上次内容。能自动查找模型的，填好后会拉出列表；点「模型」选用，也可点「查找模型」。
-- **预设**（[`AiPresetPanel`](../lib/settings/ai_preset_panel.dart)）：首行点选当前预设（内置/自定义/导入）；下方直接列出生成项（单次输出、上下文、温度、Top P、流式）；**高级采样**点进子页（[`AdvancedSamplingPage`](../lib/settings/advanced_sampling_page.dart)）；**提示词管理**仍可展开（[`PromptManagerPanel`](../lib/settings/prompt_manager_panel.dart)）。套用预设会写入 `AiSettings.generation` 与 `AiPresetCatalog.promptManager`，在面板内改动即为当前生效值。
+- **预设**（[`AiPresetPanel`](../lib/settings/ai_preset_panel.dart)）：**采样**分组：点选当前预设（内置/自定义/导入），下方直接列出生成项（单次输出、上下文、温度、Top P、流式），**高级采样**点进子页（[`AdvancedSamplingPage`](../lib/settings/advanced_sampling_page.dart)）；**提示词管理**为独立分组，段列表直接全部显示（[`PromptManagerPanel`](../lib/settings/prompt_manager_panel.dart)）。套用预设会写入 `AiSettings.generation` 与 `AiPresetCatalog.promptManager`，在面板内改动即为当前生效值。
 - **AI**（[`AiSettingsPanel`](../lib/settings/ai_settings_panel.dart)）：仅文本/生图 **服务地址、密钥、模型**（[`AppTextEditTile`](../lib/foundation/widgets/app_text_edit_tile.dart) / 列表行）；写故事/游玩/分步创建走全局 [`AiPromptContext`](../lib/domain/ai/ai_prompt_context.dart)（预设 + 通用里的 Persona + 故事背景）。
-- **AI · 提示词管理**：与 ST 相同的段类型与 `prompt_order`；游玩与创作拼装时把 **背景设定** 当世界书、**角色**当卡字段注入对应段（实现渐进对齐）。
+- **预设 · 提示词管理**：与 ST 相同的段类型与 `prompt_order`；游玩与创作拼装时把 **背景设定** 当世界书、**角色**当卡字段注入对应段（实现渐进对齐）。
 - **玩家身份（Persona）**（[`PersonaSettingsPanel`](../lib/settings/persona_settings_panel.dart)，**通用** 分区）：与酒馆相同——可建多套、选当前一套；名字与描述参与 `{{user}}` 等宏。
 - **宏 / 变量**：预设与世界书、角色、对白模板里的 `{{…}}` 按酒馆规则展开（含常用宏与变量语法，实现对照 NT）。
 - **关于**：应用图标与一句话说明。

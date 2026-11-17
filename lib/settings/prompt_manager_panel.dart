@@ -9,7 +9,7 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 
-/// Inline prompt section list (embedded under preset settings).
+/// Root-level prompt section list under the preset settings group.
 class PromptManagerPanel extends StatelessWidget {
   const PromptManagerPanel({super.key});
 
@@ -40,25 +40,15 @@ class PromptManagerPanel extends StatelessWidget {
       builder: (context, _) {
         final config = controller.aiPresets.promptManager;
         final sections = config.sortedSections;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        return AppSettingsNestedColumn(
           children: [
-            const AppText(
-              '按顺序拼进系统提示，故事设定来自背景',
-              role: AppTextRole.caption,
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppSettingsNestedColumn(
-              children: [
-                for (var i = 0; i < sections.length; i++)
-                  _SectionRow(
-                    index: i,
-                    section: sections[i],
-                    label: sectionLabel(sections[i]),
-                    config: config,
-                  ),
-              ],
-            ),
+            for (var i = 0; i < sections.length; i++)
+              _SectionRow(
+                index: i,
+                section: sections[i],
+                label: sectionLabel(sections[i]),
+                config: config,
+              ),
           ],
         );
       },
@@ -125,7 +115,6 @@ class _SectionRow extends StatelessWidget {
     final controller = AppScope.settingsOf(context);
     final editable = section.isEditable;
     return AppListTile(
-      nested: true,
       title: '${index + 1}. $label',
       subtitle: section.isCharacterOwned
           ? '内容由当前故事角色填充'

@@ -9,7 +9,6 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
-import 'package:anoworld/foundation/widgets/app_settings_expand_tile.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
@@ -18,9 +17,7 @@ import 'package:anoworld/settings/prompt_manager_panel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-enum _PresetSubPanel { none, prompts }
-
-/// Global AI preset: picker + root generation controls + expandable prompts.
+/// Global AI preset: picker + root generation controls + prompt sections.
 class AiPresetPanel extends StatefulWidget {
   const AiPresetPanel({super.key});
 
@@ -56,14 +53,6 @@ class AiPresetPanel extends StatefulWidget {
 }
 
 class _AiPresetPanelState extends State<AiPresetPanel> {
-  _PresetSubPanel _expanded = _PresetSubPanel.none;
-
-  void _toggle(_PresetSubPanel panel) {
-    setState(() {
-      _expanded = _expanded == panel ? _PresetSubPanel.none : panel;
-    });
-  }
-
   void _toast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -345,13 +334,11 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
             ? '点一下选一套'
             : (AiPresetPanel.displaySubtitle(active) ??
                 '温度 ${controller.ai.generation.temperature.toStringAsFixed(1)}');
-        final promptsOpen = _expanded == _PresetSubPanel.prompts;
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const AppSectionHeader(
-              '采样与提示词',
+              '采样',
               subtitle: '与酒馆预设兼容，套用后写故事生效',
               gutter: true,
             ),
@@ -363,14 +350,12 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
               onTap: _openPresetPicker,
             ),
             const AiGenerationSettingsPanel(),
-            AppSettingsExpandTile(
-              title: '提示词管理',
-              subtitle: '分段顺序与文案',
-              icon: Icons.reorder_outlined,
-              expanded: promptsOpen,
-              onToggle: () => _toggle(_PresetSubPanel.prompts),
-              child: const PromptManagerPanel(),
+            const AppSectionHeader(
+              '提示词管理',
+              subtitle: '按顺序拼进系统提示，故事设定来自背景',
+              gutter: true,
             ),
+            const PromptManagerPanel(),
           ],
         );
       },
