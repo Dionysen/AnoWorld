@@ -7,7 +7,7 @@ import 'app_text.dart';
 
 /// Labeled stepped slider. Business code must not use [Slider] directly.
 ///
-/// [step] snaps the value; divisions are derived as `(max - min) / step`.
+/// [step] snaps the value on change; the track stays continuous (no tick marks).
 /// Full-width flat row (same language as [AppListTile]), not an island card.
 class AppSlider extends StatelessWidget {
   const AppSlider({
@@ -52,11 +52,6 @@ class AppSlider extends StatelessWidget {
     final steps = ((clamped - min) / step).round();
     final snapped = min + steps * step;
     return double.parse(snapped.clamp(min, max).toStringAsFixed(6));
-  }
-
-  int get _divisions {
-    final count = ((max - min) / step).round();
-    return count < 1 ? 1 : count;
   }
 
   String _defaultValueText(double v) {
@@ -126,7 +121,6 @@ class AppSlider extends StatelessWidget {
                 value: display,
                 min: min,
                 max: max,
-                divisions: _divisions,
                 label: readout,
                 onChanged: (next) {
                   onChanged(snap(value: next, min: min, max: max, step: step));
