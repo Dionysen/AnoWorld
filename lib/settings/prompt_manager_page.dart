@@ -1,168 +1,26 @@
-import 'package:anoworld/app/app_scope.dart';
-import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
-import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
-import 'package:anoworld/foundation/widgets/app_switch.dart';
-import 'package:anoworld/foundation/widgets/app_text.dart';
-import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/settings/prompt_manager_panel.dart';
 import 'package:flutter/material.dart';
 
+/// Full-page prompt manager (legacy route; preset tab embeds [PromptManagerPanel]).
 class PromptManagerPage extends StatelessWidget {
   const PromptManagerPage({super.key});
 
-  static String _sectionLabel(PromptSection section) {
-    return switch (section.type) {
-      PromptSectionType.systemPrompt => '系统提示',
-      PromptSectionType.persona => '玩家身份',
-      PromptSectionType.characterDescription => '角色描述',
-      PromptSectionType.characterPersonality => '角色性格',
-      PromptSectionType.characterScenario => '场景',
-      PromptSectionType.exampleMessages => '示例对白',
-      PromptSectionType.worldInfo => '设定（前）',
-      PromptSectionType.worldInfoAfter => '设定（后）',
-      PromptSectionType.authorNote => '作者备注',
-      PromptSectionType.postHistoryInstructions => '历史后指令',
-      PromptSectionType.nsfw => '成人向提示',
-      PromptSectionType.chatHistory => '对话历史',
-      PromptSectionType.enhanceDefinitions => '强化定义',
-      PromptSectionType.custom => section.name,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
-    final controller = AppScope.settingsOf(context);
     return AppPage(
       title: '提示词分段',
       onBack: () => Navigator.of(context).maybePop(),
-      body: ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) {
-          final config = controller.aiPresets.promptManager;
-          final sections = config.sortedSections;
-          return AppPageBody(
-            children: [
-              const AppSectionHeader(
-                '顺序与开关',
-                subtitle: '写故事时按序拼进系统提示，设定来自故事的背景',
-              ),
-              for (var i = 0; i < sections.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-                _SectionRow(
-                  index: i,
-                  section: sections[i],
-                  label: _sectionLabel(sections[i]),
-                  onToggle: (_) async {
-                    final next = config.toggleSectionByIndex(i);
-                    await controller.updatePromptManager(next);
-                  },
-                  onEdit: sections[i].isEditable
-                      ? () => _editSection(context, i, sections[i])
-                      : null,
-                ),
-              ],
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _editSection(
-    BuildContext context,
-    int index,
-    PromptSection section,
-  ) async {
-    final controller = AppScope.settingsOf(context);
-    final draft = TextEditingController(text: section.content ?? '');
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (context) {
-          return AppPage(
-            title: _sectionLabel(section),
-            onBack: () => Navigator.of(context).pop(false),
-            body: AppPageBody(
-              children: [
-                AppTextField(
-                  label: '内容',
-                  controller: draft,
-                  minLines: 6,
-                  maxLines: 24,
-                ),
-                const SizedBox(height: AppTheme.spaceMd),
-                Builder(
-                  builder: (context) {
-                    return ListenableBuilder(
-                      listenable: draft,
-                      builder: (context, _) {
-                        return AppListTile(
-                          title: '保存',
-                          icon: Icons.check_outlined,
-                          onTap: () => Navigator.of(context).pop(true),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-    if (saved != true || !context.mounted) return;
-    final config = controller.aiPresets.promptManager;
-    final updated = section.copyWith(content: draft.text);
-    await controller.updatePromptManager(
-      config.updateSectionByIndex(index, updated),
-    );
-  }
-}
-
-class _SectionRow extends StatelessWidget {
-  const _SectionRow({
-    required this.index,
-    required this.section,
-    required this.label,
-    required this.onToggle,
-    this.onEdit,
-  });
-
-  final int index;
-  final PromptSection section;
-  final String label;
-  final ValueChanged<bool> onToggle;
-  final VoidCallback? onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    final editable = onEdit != null;
-    return AppListTile(
-      title: '${index + 1}. $label',
-      subtitle: section.isCharacterOwned
-          ? '内容由当前故事角色填充'
-          : (editable ? '点按编辑文案' : null),
-      icon: Icons.article_outlined,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+      body: const AppPageBody(
         children: [
-          if (editable)
-            Padding(
-              padding: const EdgeInsets.only(right: AppTheme.spaceSm),
-              child: AppText(
-                '编辑',
-                role: AppTextRole.caption,
-              ),
-            ),
-          AppSwitch(
-            value: section.enabled,
-            onChanged: onToggle,
+          AppSectionHeader(
+            '顺序与开关',
+            subtitle: '写故事时按序拼进系统提示',
           ),
+          PromptManagerPanel(),
         ],
       ),
-      onTap: onEdit,
     );
   }
 }

@@ -6,17 +6,21 @@ import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
-import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/foundation/widgets/app_settings_expand_tile.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
-import 'package:anoworld/settings/prompt_manager_page.dart';
+import 'package:anoworld/settings/ai_generation_settings_panel.dart';
+import 'package:anoworld/settings/prompt_manager_panel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-class AiPresetPanel extends StatelessWidget {
+enum _PresetSubPanel { none, generation, prompts }
+
+/// Global AI preset: picker + expandable generation / prompt blocks (NT-style).
+class AiPresetPanel extends StatefulWidget {
   const AiPresetPanel({super.key});
 
   static String displayName(AIPreset preset) {
@@ -33,11 +37,6 @@ class AiPresetPanel extends StatelessWidget {
   }
 
   static String? displaySubtitle(AIPreset preset) {
-    final desc = preset.description?.trim();
-    if (desc == null || desc.isEmpty) {
-      final g = preset.generationSettings;
-      return '温度 ${g.temperature} · 最长 ${g.maxTokens} token';
-    }
     return switch (preset.id) {
       'default' => '日常写故事',
       'creative' => '想象力更大胆',
@@ -45,11 +44,210 @@ class AiPresetPanel extends StatelessWidget {
       'deterministic' => '同样输入更接近同样结果',
       'longform' => '单次输出可以更长',
       'mirostat' => '按 Mirostat 调随机性',
-      _ => desc,
+      _ => preset.description?.trim().isNotEmpty == true
+          ? preset.description!.trim()
+          : null,
     };
   }
 
-  Future<void> _import(BuildContext context) async {
+  @override
+  State<AiPresetPanel> createState() => _AiPresetPanelState();
+}
+
+class _AiPresetPanelState extends State<AiPresetPanel> {
+  _PresetSubPanel _expanded = _PresetSubPanel.none;
+
+  void _toggle(_PresetSubPanel panel) {
+    setState(() {
+      _expanded = _expanded == panel ? _PresetSubPanel.none : panel;
+    });
+  }
+
+  void _toast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _openPresetPicker() async {
+    final controller = AppScope.settingsOf(context);
+    await showAppSheet<void>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (sheetContext) {
+        return ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final catalog = controller.aiPresets;
+            final activeId = catalog.activePresetId;
+            final builtIn =
+                catalog.allPresets.where((p) => p.isBuiltIn).toList();
+            final custom = catalog.customPresets;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
+                    AppTheme.spaceXs,
+                    AppTheme.pagePadding,
+                    AppTheme.spaceSm,
+                  ),
+                  child: AppSectionHeader(
+                    '选择预设',
+                    subtitle: '内置或已导入的自定义',
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTheme.pagePadding,
+                      0,
+                      AppTheme.pagePadding,
+                      AppTheme.spaceMd,
+                    ),
+                    children: [
+                      const AppText('内置', role: AppTextRole.caption),
+                      const SizedBox(height: AppTheme.spaceSm),
+                      for (final preset in builtIn)
+                        _PresetPickRow(
+                          title: AiPresetPanel.displayName(preset),
+                          subtitle: AiPresetPanel.displaySubtitle(preset),
+                          active: preset.id == activeId,
+                          onTap: () async {
+                            await controller.applyAiPreset(preset);
+                            if (sheetContext.mounted) {
+                              Navigator.pop(sheetContext);
+                            }
+                            if (mounted) {
+                              _toast('已套用：${AiPresetPanel.displayName(preset)}');
+                            }
+                          },
+                        ),
+                      if (custom.isNotEmpty) ...[
+                        const SizedBox(height: AppTheme.spaceMd),
+                        const AppText('我的', role: AppTextRole.caption),
+                        const SizedBox(height: AppTheme.spaceSm),
+                        for (final preset in custom)
+                          _PresetPickRow(
+                            title: preset.name,
+                            subtitle: AiPresetPanel.displaySubtitle(preset),
+                            active: preset.id == activeId,
+                            onTap: () async {
+                              await controller.applyAiPreset(preset);
+                              if (sheetContext.mounted) {
+                                Navigator.pop(sheetContext);
+                              }
+                              if (mounted) {
+                                _toast('已套用：${preset.name}');
+                              }
+                            },
+                            onLongPress: () => _presetActionsSheet(
+                              sheetContext,
+                              preset,
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
+                    0,
+                    AppTheme.pagePadding,
+                    AppTheme.spaceMd,
+                  ),
+                  child: Wrap(
+                    spacing: AppTheme.spaceSm,
+                    runSpacing: AppTheme.spaceSm,
+                    children: [
+                      AppButton(
+                        label: '导入',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () async {
+                          Navigator.pop(sheetContext);
+                          await _import();
+                        },
+                      ),
+                      AppButton(
+                        label: '存为预设',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () async {
+                          final name = await _askName(
+                            sheetContext,
+                            title: '存为预设',
+                            initial: '我的预设',
+                          );
+                          if (name == null || name.isEmpty) return;
+                          await controller.saveCurrentAsAiPreset(name);
+                          if (mounted) _toast('已保存：$name');
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _presetActionsSheet(BuildContext context, AIPreset preset) async {
+    final controller = AppScope.settingsOf(context);
+    await showAppSheet<void>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (ctx) {
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            AppTheme.spaceSm,
+            AppTheme.pagePadding,
+            AppTheme.spaceMd,
+          ),
+          children: [
+            AppListTile(
+              title: '导出 JSON',
+              icon: Icons.upload_outlined,
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _export(preset);
+              },
+            ),
+            AppListTile(
+              title: '重命名',
+              icon: Icons.drive_file_rename_outline,
+              onTap: () async {
+                Navigator.pop(ctx);
+                final name = await _askName(
+                  context,
+                  title: '重命名',
+                  initial: preset.name,
+                );
+                if (name == null || name.isEmpty || name == preset.name) return;
+                await controller.renameCustomAiPreset(preset.id, name);
+                if (mounted) _toast('已改名');
+              },
+            ),
+            AppListTile(
+              title: '删除',
+              icon: Icons.delete_outline,
+              onTap: () async {
+                Navigator.pop(ctx);
+                await controller.deleteCustomAiPreset(preset.id);
+                if (mounted) _toast('已删除');
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _import() async {
     final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['json'],
@@ -60,21 +258,21 @@ class AiPresetPanel extends StatelessWidget {
       final bytes = await file.readAsBytes();
       final decoded = jsonDecode(utf8.decode(bytes));
       if (decoded is! Map<String, dynamic>) {
-        _toast(context, '不是合法的预设文件');
+        if (mounted) _toast('不是合法的预设文件');
         return;
       }
-      if (!context.mounted) return;
+      if (!mounted) return;
       final preset =
           await AppScope.settingsOf(context).importAiPreset(decoded);
-      if (!context.mounted) return;
-      _toast(context, '已导入并套用：${preset.name}');
+      if (!mounted) return;
+      _toast('已导入并套用：${preset.name}');
     } catch (error) {
-      if (!context.mounted) return;
-      _toast(context, '导入失败：$error');
+      if (!mounted) return;
+      _toast('导入失败：$error');
     }
   }
 
-  Future<void> _export(BuildContext context, AIPreset preset) async {
+  Future<void> _export(AIPreset preset) async {
     final json = preset.toExportJson();
     final data = Uint8List.fromList(
       utf8.encode(const JsonEncoder.withIndent('  ').convert(json)),
@@ -128,156 +326,55 @@ class AiPresetPanel extends StatelessWidget {
     );
   }
 
-  void _toast(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        final catalog = controller.aiPresets;
-        final activeId = catalog.activePresetId;
-        final builtIn =
-            catalog.allPresets.where((p) => p.isBuiltIn).toList(growable: false);
-        final custom = catalog.customPresets;
-        final active = catalog.activePreset;
+        final active = controller.aiPresets.activePreset;
+        final title = active == null
+            ? '尚未选用'
+            : AiPresetPanel.displayName(active);
+        final sub = active == null
+            ? '点一下选一套'
+            : (AiPresetPanel.displaySubtitle(active) ??
+                '温度 ${controller.ai.generation.temperature.toStringAsFixed(1)}');
+        final genOpen = _expanded == _PresetSubPanel.generation;
+        final promptsOpen = _expanded == _PresetSubPanel.prompts;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const AppSectionHeader(
               '采样与提示词',
-              subtitle: '全局套用，兼容酒馆 JSON',
+              subtitle: '与酒馆预设兼容，套用后写故事生效',
             ),
-            if (active != null)
-              AppText(
-                '当前：${displayName(active)}',
-                role: AppTextRole.caption,
-              ),
-            const SizedBox(height: AppTheme.spaceSm),
             AppListTile(
-              title: '提示词分段',
-              subtitle: '开关与编辑各段内容',
-              icon: Icons.reorder_outlined,
+              title: title,
+              subtitle: sub,
+              icon: Icons.auto_awesome_outlined,
               trailing: const AppForwardIcon(),
-              onTap: () => Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => const PromptManagerPage(),
-                ),
-              ),
+              onTap: _openPresetPicker,
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            AppSettingsExpandTile(
+              title: '生成相关',
+              subtitle: '温度、长度与高级采样',
+              icon: Icons.tune_outlined,
+              expanded: genOpen,
+              onToggle: () => _toggle(_PresetSubPanel.generation),
+              child: const AiGenerationSettingsPanel(),
             ),
             const SizedBox(height: AppTheme.spaceSm),
-            Wrap(
-              spacing: AppTheme.spaceSm,
-              runSpacing: AppTheme.spaceSm,
-              children: [
-                AppButton(
-                  label: '导入',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: () => _import(context),
-                ),
-                AppButton(
-                  label: '存为预设',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: () async {
-                    final name = await _askName(
-                      context,
-                      title: '存为预设',
-                      initial: '我的预设',
-                    );
-                    if (name == null || name.isEmpty || !context.mounted) return;
-                    try {
-                      await controller.saveCurrentAsAiPreset(name);
-                      if (!context.mounted) return;
-                      _toast(context, '已保存：$name');
-                    } catch (error) {
-                      if (!context.mounted) return;
-                      _toast(context, '$error');
-                    }
-                  },
-                ),
-              ],
+            AppSettingsExpandTile(
+              title: '提示词管理',
+              subtitle: '分段顺序与文案',
+              icon: Icons.reorder_outlined,
+              expanded: promptsOpen,
+              onToggle: () => _toggle(_PresetSubPanel.prompts),
+              child: const PromptManagerPanel(),
             ),
-            const SizedBox(height: AppTheme.spaceMd),
-            const AppSectionHeader('内置'),
-            for (var i = 0; i < builtIn.length; i++) ...[
-              if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-              _PresetTile(
-                title: displayName(builtIn[i]),
-                subtitle: displaySubtitle(builtIn[i]),
-                active: builtIn[i].id == activeId,
-                onApply: () async {
-                  await controller.applyAiPreset(builtIn[i]);
-                  if (!context.mounted) return;
-                  _toast(context, '已套用：${displayName(builtIn[i])}');
-                },
-                onCopy: () async {
-                  final name = await _askName(
-                    context,
-                    title: '复制为自定义',
-                    initial: '${displayName(builtIn[i])} 副本',
-                  );
-                  if (name == null || name.isEmpty || !context.mounted) return;
-                  final copy = await controller.copyAiPresetToCustom(
-                    builtIn[i],
-                    name: name,
-                  );
-                  await controller.applyAiPreset(copy);
-                  if (!context.mounted) return;
-                  _toast(context, '已创建：$name');
-                },
-              ),
-            ],
-            if (custom.isNotEmpty) ...[
-              const SizedBox(height: AppTheme.spaceLg),
-              const AppSectionHeader('我的'),
-              for (var i = 0; i < custom.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-                _PresetTile(
-                  title: custom[i].name,
-                  subtitle: displaySubtitle(custom[i]),
-                  active: custom[i].id == activeId,
-                  onApply: () async {
-                    await controller.applyAiPreset(custom[i]);
-                    if (!context.mounted) return;
-                    _toast(context, '已套用：${custom[i].name}');
-                  },
-                  onExport: () => _export(context, custom[i]),
-                  onRename: () async {
-                    final name = await _askName(
-                      context,
-                      title: '重命名',
-                      initial: custom[i].name,
-                    );
-                    if (name == null ||
-                        name.isEmpty ||
-                        name == custom[i].name ||
-                        !context.mounted) {
-                      return;
-                    }
-                    await controller.renameCustomAiPreset(custom[i].id, name);
-                    if (!context.mounted) return;
-                    _toast(context, '已改名');
-                  },
-                  onDelete: () async {
-                    await controller.deleteCustomAiPreset(custom[i].id);
-                    if (!context.mounted) return;
-                    _toast(context, '已删除');
-                  },
-                ),
-              ],
-            ] else ...[
-              const SizedBox(height: AppTheme.spaceMd),
-              const AppEmptyState(
-                message: '还没有自定义预设',
-                detail: '可从内置复制，或导入酒馆 JSON',
-              ),
-            ],
           ],
         );
       },
@@ -285,95 +382,35 @@ class AiPresetPanel extends StatelessWidget {
   }
 }
 
-class _PresetTile extends StatelessWidget {
-  const _PresetTile({
+class _PresetPickRow extends StatelessWidget {
+  const _PresetPickRow({
     required this.title,
-    required this.subtitle,
+    required this.onTap,
     required this.active,
-    required this.onApply,
-    this.onCopy,
-    this.onExport,
-    this.onRename,
-    this.onDelete,
+    this.subtitle,
+    this.onLongPress,
   });
 
   final String title;
   final String? subtitle;
   final bool active;
-  final VoidCallback onApply;
-  final VoidCallback? onCopy;
-  final VoidCallback? onExport;
-  final VoidCallback? onRename;
-  final VoidCallback? onDelete;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    return AppListTile(
-      title: title,
-      subtitle: subtitle,
-      icon: Icons.tune_outlined,
-      trailing: active
-          ? const AppText('当前', role: AppTextRole.caption)
-          : const AppText('套用', role: AppTextRole.caption),
-      onTap: onApply,
-      onLongPress: (onCopy ?? onExport ?? onRename ?? onDelete) == null
-          ? null
-          : () => _showActions(context),
-    );
-  }
-
-  Future<void> _showActions(BuildContext context) async {
-    await showAppSheet<void>(
-      context: context,
-      size: AppSheetSize.half,
-      builder: (context) {
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            AppTheme.spaceSm,
-            AppTheme.pagePadding,
-            AppTheme.spaceMd,
-          ),
-          children: [
-            if (onCopy != null)
-              AppListTile(
-                title: '复制为自定义',
-                icon: Icons.content_copy_outlined,
-                onTap: () {
-                  Navigator.pop(context);
-                  onCopy!();
-                },
-              ),
-            if (onExport != null)
-              AppListTile(
-                title: '导出 JSON',
-                icon: Icons.upload_outlined,
-                onTap: () {
-                  Navigator.pop(context);
-                  onExport!();
-                },
-              ),
-            if (onRename != null)
-              AppListTile(
-                title: '重命名',
-                icon: Icons.drive_file_rename_outline,
-                onTap: () {
-                  Navigator.pop(context);
-                  onRename!();
-                },
-              ),
-            if (onDelete != null)
-              AppListTile(
-                title: '删除',
-                icon: Icons.delete_outline,
-                onTap: () {
-                  Navigator.pop(context);
-                  onDelete!();
-                },
-              ),
-          ],
-        );
-      },
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
+      child: AppListTile(
+        title: title,
+        subtitle: subtitle,
+        icon: Icons.bookmark_outline,
+        trailing: active
+            ? const AppText('当前', role: AppTextRole.caption)
+            : null,
+        onTap: onTap,
+        onLongPress: onLongPress,
+      ),
     );
   }
 }

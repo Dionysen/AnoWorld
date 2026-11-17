@@ -83,6 +83,10 @@ class SettingsController extends ChangeNotifier {
     await updateAiPresets(aiPresets.copyWith(promptManager: config));
   }
 
+  Future<void> updateGeneration(GenerationPreset generation) async {
+    await updateAi(ai.copyWith(generation: generation));
+  }
+
   Future<void> applyAiPreset(AIPreset preset) async {
     final gen = preset.generationSettings;
     await updateAi(
