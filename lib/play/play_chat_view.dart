@@ -1,8 +1,8 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/foundation/theme/app_chat_chrome.dart';
-import 'package:anoworld/foundation/theme/app_chat_colors.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_chat_background.dart';
 import 'package:anoworld/foundation/widgets/app_chat_bubble.dart';
 import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
 import 'package:anoworld/foundation/widgets/app_shaped_avatar.dart';
@@ -148,13 +148,12 @@ class _PlayChatViewState extends State<PlayChatView> {
   }
 
   Widget _buildShell(BuildContext context, ChatUiSettings chatUi) {
-    final chat = AppChatColors.of(context);
     final empty = widget.messages.isEmpty &&
         !widget.isGenerating &&
         !_showChoices;
 
-    return ColoredBox(
-      color: chat.background,
+    return AppChatBackgroundLayer(
+      background: chatUi.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width =
@@ -184,22 +183,37 @@ class _PlayChatViewState extends State<PlayChatView> {
                             itemBuilder: (context, index) {
                               if (index < widget.messages.length) {
                                 final msg = widget.messages[index];
+                                final showOwn = msg.isUser
+                                    ? chatUi.showUserAvatar
+                                    : chatUi.showCharacterAvatar;
+                                final reserveOpposite = msg.isUser
+                                    ? chatUi.showCharacterAvatar
+                                    : chatUi.showUserAvatar;
                                 return AppChatBubble(
                                   text: msg.text,
                                   role: msg.isUser
                                       ? AppChatBubbleRole.user
                                       : AppChatBubbleRole.character,
                                   avatarLabel: msg.avatarLabel,
+                                  showAvatar: showOwn,
+                                  reserveOppositeAvatar: reserveOpposite,
+                                  avatarAboveBubble: chatUi.avatarAboveBubble,
                                   lineHeight: chatUi.lineHeight,
                                   paragraphSpacing: chatUi.paragraphSpacing,
+                                  cornerRadius: chatUi.bubbleCornerRadius,
+                                  reasoning: msg.reasoning,
+                                  showReasoning: chatUi.showReasoning,
                                 );
                               }
                               if (widget.isGenerating) {
-                                return const AppChatBubble(
+                                return AppChatBubble(
                                   text: '',
                                   role: AppChatBubbleRole.character,
                                   isTyping: true,
-                                  showAvatar: false,
+                                  showAvatar: chatUi.showCharacterAvatar,
+                                  reserveOppositeAvatar: chatUi.showUserAvatar,
+                                  avatarAboveBubble: chatUi.avatarAboveBubble,
+                                  cornerRadius: chatUi.bubbleCornerRadius,
                                 );
                               }
                               return _ReplyChoicesBlock(

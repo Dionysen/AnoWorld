@@ -10,6 +10,9 @@ abstract final class AppChatChrome {
 
   /// Default continuous bubble corner (NT default ~30).
   static const double bubbleCornerRadius = 30;
+  static const double minBubbleCornerRadius = 0;
+  static const double maxBubbleCornerRadius = 50;
+  static const double bubbleCornerRadiusStep = 1;
 
   /// Content column max width on wide screens.
   static const double contentMaxWidth = 900;
@@ -157,6 +160,7 @@ abstract final class AppChatChrome {
     BuildContext context, {
     required bool isUser,
     bool narration = false,
+    double radius = bubbleCornerRadius,
   }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -181,6 +185,7 @@ abstract final class AppChatChrome {
         borderRadius: bubbleBorderRadius(
           isUser: isUser,
           narration: narration,
+          radius: radius,
         ),
       ),
     );

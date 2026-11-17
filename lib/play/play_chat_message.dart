@@ -9,12 +9,14 @@ class PlayChatMessage {
     required this.text,
     required this.isUser,
     this.avatarLabel,
+    this.reasoning,
   });
 
   final String id;
   final String text;
   final bool isUser;
   final String? avatarLabel;
+  final String? reasoning;
 
   factory PlayChatMessage.fromTavern(
     TavernChatMessage message, {
@@ -27,6 +29,7 @@ class PlayChatMessage {
       text: message.content,
       isUser: isUser,
       avatarLabel: isUser ? (userLabel ?? '我') : (assistantLabel ?? '角色'),
+      reasoning: isUser ? null : message.reasoning,
     );
   }
 }

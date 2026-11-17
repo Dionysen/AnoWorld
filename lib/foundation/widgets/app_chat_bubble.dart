@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_chat_chrome.dart';
 import '../theme/app_theme.dart';
 import 'app_chat_dialogue_text.dart';
+import 'app_chat_reasoning.dart';
 import 'app_shaped_avatar.dart';
 
 /// Chat bubble alignment / chrome role.
@@ -25,10 +26,15 @@ class AppChatBubble extends StatelessWidget {
     this.role = AppChatBubbleRole.character,
     this.avatarLabel,
     this.showAvatar = true,
+    this.reserveOppositeAvatar = false,
+    this.avatarAboveBubble = true,
     this.isTyping = false,
     this.onLongPress,
     this.lineHeight = AppChatChrome.defaultLineHeight,
     this.paragraphSpacing = AppChatChrome.defaultParagraphSpacing,
+    this.cornerRadius = AppChatChrome.bubbleCornerRadius,
+    this.reasoning,
+    this.showReasoning = false,
   });
 
   final String text;
@@ -37,12 +43,22 @@ class AppChatBubble extends StatelessWidget {
   /// Display name (shown inside the bubble) and avatar initial source.
   final String? avatarLabel;
   final bool showAvatar;
+
+  /// When side-by-side, keep a blank column so bubbles stay clear of the
+  /// opposite side's avatar (NT layout).
+  final bool reserveOppositeAvatar;
+  final bool avatarAboveBubble;
   final bool isTyping;
   final VoidCallback? onLongPress;
   final double lineHeight;
   final double paragraphSpacing;
+  final double cornerRadius;
+  final String? reasoning;
+  final bool showReasoning;
 
   static const double _avatarRadius = 16;
+  static const double _avatarGap = 8;
+  static const double _avatarColumnWidth = _avatarRadius * 2 + _avatarGap;
   static const double _narrationMaxWidth = 420;
 
   bool get _isUser => role == AppChatBubbleRole.user;
@@ -52,12 +68,18 @@ class AppChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final name = avatarLabel?.trim();
+    final showReasoningBlock = showReasoning &&
+        !_isUser &&
+        !_isNarration &&
+        (reasoning?.trim().isNotEmpty ?? false);
     final bubbleBody = isTyping
         ? const _AppChatTypingDots()
         : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (showReasoningBlock)
+                AppChatReasoning(reasoning: reasoning!.trim()),
               if (name != null && name.isNotEmpty && !_isNarration) ...[
                 Text(
                   name,
@@ -83,6 +105,7 @@ class AppChatBubble extends StatelessWidget {
         context,
         isUser: _isUser,
         narration: _isNarration,
+        radius: cornerRadius,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -106,50 +129,80 @@ class AppChatBubble extends StatelessWidget {
       );
     }
 
-    final cross =
-        _isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: cross,
-        children: [
-          if (showAvatar) ...[
-            AppShapedAvatar(
-              width: _avatarRadius * 2,
-              height: _avatarRadius * 2,
-              backgroundColor: _isUser
-                  ? AppChatChrome.userAvatarFill(scheme)
-                  : scheme.primary.withValues(alpha: 0.18),
-              child: _isUser
-                  ? Icon(
-                      Icons.person,
-                      size: 18,
-                      color: scheme.primary,
-                    )
-                  : Text(
-                      _initial(avatarLabel),
-                      style: TextStyle(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 6),
-          ],
-          GestureDetector(
-            onLongPress: onLongPress,
-            child: SizedBox(
+    final bubbleTap = GestureDetector(
+      onLongPress: onLongPress,
+      child: bubble,
+    );
+
+    if (avatarAboveBubble) {
+      final cross =
+          _isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: cross,
+          children: [
+            if (showAvatar) ...[
+              _avatar(scheme),
+              const SizedBox(height: 6),
+            ],
+            SizedBox(
               width: double.infinity,
               child: Align(
                 alignment:
                     _isUser ? Alignment.centerRight : Alignment.centerLeft,
-                child: bubble,
+                child: bubbleTap,
               ),
             ),
-          ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment:
+            _isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!_isUser && showAvatar) ...[
+            _avatar(scheme),
+            const SizedBox(width: _avatarGap),
+          ] else if (_isUser && reserveOppositeAvatar)
+            const SizedBox(width: _avatarColumnWidth),
+          Flexible(child: bubbleTap),
+          if (_isUser && showAvatar) ...[
+            const SizedBox(width: _avatarGap),
+            _avatar(scheme),
+          ] else if (!_isUser && reserveOppositeAvatar)
+            const SizedBox(width: _avatarColumnWidth),
         ],
       ),
+    );
+  }
+
+  Widget _avatar(ColorScheme scheme) {
+    return AppShapedAvatar(
+      width: _avatarRadius * 2,
+      height: _avatarRadius * 2,
+      backgroundColor: _isUser
+          ? AppChatChrome.userAvatarFill(scheme)
+          : scheme.primary.withValues(alpha: 0.18),
+      child: _isUser
+          ? Icon(
+              Icons.person,
+              size: 18,
+              color: scheme.primary,
+            )
+          : Text(
+              _initial(avatarLabel),
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
     );
   }
 

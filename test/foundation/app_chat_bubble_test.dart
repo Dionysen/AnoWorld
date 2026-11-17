@@ -51,6 +51,39 @@ void main() {
     expect(find.text('会。'), findsOneWidget);
   });
 
+  testWidgets('reasoning appears when enabled', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const AppChatBubble(
+          text: '你好',
+          role: AppChatBubbleRole.character,
+          avatarLabel: '瑞希',
+          reasoning: '先打招呼',
+          showReasoning: true,
+        ),
+      ),
+    );
+    expect(find.text('思考过程'), findsOneWidget);
+    await tester.tap(find.text('思考过程'));
+    await tester.pumpAndSettle();
+    expect(find.text('先打招呼'), findsOneWidget);
+  });
+
+  testWidgets('side avatar layout uses a row', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const AppChatBubble(
+          text: '并排',
+          role: AppChatBubbleRole.character,
+          avatarLabel: '瑞希',
+          avatarAboveBubble: false,
+        ),
+      ),
+    );
+    expect(find.byType(Row), findsWidgets);
+    expect(find.text('并排'), findsOneWidget);
+  });
+
   testWidgets('AppChatComposer send tap fires onSend', (tester) async {
     final controller = TextEditingController(text: '你好');
     var sent = false;
