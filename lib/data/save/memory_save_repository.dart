@@ -26,6 +26,7 @@ class MemorySaveRepository implements SaveRepository {
     BridgeSession? bridge,
     PlayViewMode mode = PlayViewMode.visualNovel,
     List<TavernChatMessage> chat = const <TavernChatMessage>[],
+    List<String> replyChoices = const <String>[],
   }) async {
     _slots[projectId] = SaveSlot(
       projectId: projectId,
@@ -34,6 +35,7 @@ class MemorySaveRepository implements SaveRepository {
       bridge: bridge,
       mode: mode,
       chat: List<TavernChatMessage>.unmodifiable(chat),
+      replyChoices: List<String>.unmodifiable(replyChoices),
     );
   }
 

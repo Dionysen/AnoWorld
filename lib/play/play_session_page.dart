@@ -113,14 +113,14 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   Future<void> _maybeLoadAutoSave() async {
     final slot = await AppScope.savesOf(context).load(widget.project.meta.id);
     if (!mounted) return;
-    if (slot != null) {
+    if (slot != null && slot.mode == widget.mode) {
       if (_isChat) {
         _chat
           ..clear()
           ..addAll(slot.chat);
-        _replyChoices = const [];
+        _replyChoices = List<String>.unmodifiable(slot.replyChoices);
         _runtime = MainRuntime(_baseMain, save: slot.pointer);
-        setState(() => _status = '已读取进度');
+        setState(() => _status = null);
       } else {
         var main = _baseMain;
         final bridge = slot.bridge;
@@ -197,16 +197,25 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     ];
   }
 
-  Future<void> _save() async {
+  Future<void> _persist({bool announce = false}) async {
+    if (!mounted) return;
     await AppScope.savesOf(context).save(
       projectId: widget.project.meta.id,
       pointer: _runtime.toSave(),
       bridge: _isChat ? null : _bridge,
       mode: widget.mode,
       chat: _isChat ? List<TavernChatMessage>.unmodifiable(_chat) : const [],
+      replyChoices: _isChat ? List<String>.unmodifiable(_replyChoices) : const [],
     );
-    if (!mounted) return;
+    if (!mounted || !announce) return;
     setState(() => _status = '进度已保存');
+  }
+
+  Future<void> _save() => _persist(announce: true);
+
+  Future<void> _autosaveChat() async {
+    if (!_isChat || !mounted) return;
+    await _persist();
   }
 
   void _advance() {
@@ -245,18 +254,19 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _replyChoices = const [];
       _status = null;
     });
+    await _autosaveChat();
     await _generateAssistantTurn(refreshChoices: true);
   }
 
   Future<void> _ensureChatOpening() async {
     if (!_isChat || !mounted || _chatLocked) return;
     if (_chat.isNotEmpty) {
-      if (_replyChoices.isEmpty &&
-          _chat.last.role == TavernChatRole.assistant) {
-        await _refreshReplyChoices();
-      }
+      // Exact restore: do not regenerate choices when already saved.
+      await _autosaveChat();
       return;
     }
+    // First open: create a slot immediately, then write opening.
+    await _autosaveChat();
     await _generateAssistantTurn(refreshChoices: true);
   }
 
@@ -290,6 +300,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _assistantBusy = false;
         _status = null;
       });
+      await _autosaveChat();
       if (refreshChoices) {
         await _refreshReplyChoices();
       }
@@ -299,12 +310,14 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _assistantBusy = false;
         _status = error.message;
       });
+      await _autosaveChat();
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _assistantBusy = false;
         _status = '这一轮暂时写不出来，请稍后再试';
       });
+      await _autosaveChat();
     }
   }
 
@@ -328,12 +341,14 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _replyChoices = choices;
         _choicesBusy = false;
       });
+      await _autosaveChat();
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _replyChoices = const [];
         _choicesBusy = false;
       });
+      await _autosaveChat();
     }
   }
 
@@ -353,7 +368,9 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _status = '已从头开始';
     });
     if (_isChat) {
-      _ensureChatOpening();
+      _autosaveChat().then((_) {
+        if (mounted) _ensureChatOpening();
+      });
     } else {
       _ensureBridge();
     }

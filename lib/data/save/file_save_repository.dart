@@ -59,6 +59,7 @@ class FileSaveRepository implements SaveRepository {
     );
     final bridgeMap = map.optionalMap('bridge');
     final chatRaw = map.optionalList('chat');
+    final choicesRaw = map.optionalList('replyChoices');
     return SaveSlot(
       projectId: map.requireString('projectId'),
       pointer: MainSavePointer.fromJson(map.requireMap('pointer')),
@@ -72,6 +73,10 @@ class FileSaveRepository implements SaveRepository {
             ),
           )
           .toList(growable: false),
+      replyChoices: choicesRaw
+          .map((item) => '$item'.trim())
+          .where((s) => s.isNotEmpty)
+          .toList(growable: false),
     );
   }
 
@@ -82,6 +87,7 @@ class FileSaveRepository implements SaveRepository {
     BridgeSession? bridge,
     PlayViewMode mode = PlayViewMode.visualNovel,
     List<TavernChatMessage> chat = const <TavernChatMessage>[],
+    List<String> replyChoices = const <String>[],
   }) async {
     final file = await _slotFile(projectId);
     final payload = <String, dynamic>{
@@ -92,6 +98,7 @@ class FileSaveRepository implements SaveRepository {
       if (bridge != null) 'bridge': bridge.toJson(),
       if (chat.isNotEmpty)
         'chat': chat.map((m) => m.toJson()).toList(growable: false),
+      if (replyChoices.isNotEmpty) 'replyChoices': replyChoices,
     };
     await file.writeAsString(
       '${const JsonEncoder.withIndent('  ').convert(payload)}\n',

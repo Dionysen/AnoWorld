@@ -11,6 +11,7 @@ class SaveSlot {
     this.bridge,
     this.mode = PlayViewMode.visualNovel,
     this.chat = const <TavernChatMessage>[],
+    this.replyChoices = const <String>[],
   });
 
   final String projectId;
@@ -23,6 +24,9 @@ class SaveSlot {
 
   /// Tavern chat transcript when [mode] is chat.
   final List<TavernChatMessage> chat;
+
+  /// Pending reply chips for chat (restored with transcript).
+  final List<String> replyChoices;
 }
 
 /// Per-project play progress (MVP: one auto slot).
@@ -38,6 +42,7 @@ abstract interface class SaveRepository {
     BridgeSession? bridge,
     PlayViewMode mode = PlayViewMode.visualNovel,
     List<TavernChatMessage> chat = const <TavernChatMessage>[],
+    List<String> replyChoices = const <String>[],
   });
 
   Future<void> clear(String projectId);

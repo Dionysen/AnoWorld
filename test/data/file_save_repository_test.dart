@@ -108,11 +108,13 @@ void main() {
           content: '在吗',
         ),
       ],
+      replyChoices: const ['走近', '先问问'],
     );
     final loaded = await repo.load('proj_chat');
     expect(loaded?.mode, PlayViewMode.chat);
     expect(loaded?.chat, hasLength(2));
     expect(loaded?.chat.first.content, '你好');
     expect(loaded?.chat.last.role, TavernChatRole.user);
+    expect(loaded?.replyChoices, ['走近', '先问问']);
   });
 }

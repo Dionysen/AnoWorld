@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_chat_colors.dart';
+import 'app_ui_tokens.dart';
 
 /// Chat chrome shapes / fills aligned with NativeTavern Zephyr chat.
 abstract final class AppChatChrome {
@@ -199,6 +200,64 @@ abstract final class AppChatChrome {
     return messageInputStyle(
       context,
       color: bubbleTextColor(context),
+    );
+  }
+
+  /// Subtle fill for reply-choice chips (NT Zephyr menuChip).
+  static Color menuChipFill(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.07 : 0.05);
+  }
+
+  static BoxDecoration menuChip(
+    BuildContext context, {
+    bool showBorder = true,
+  }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final radius = AppUiTokens.of(context).radius;
+    return BoxDecoration(
+      color: showBorder ? menuChipFill(context) : Colors.transparent,
+      borderRadius: BorderRadius.circular(radius),
+      border: showBorder
+          ? Border.all(
+              color: scheme.outlineVariant
+                  .withValues(alpha: isDark ? 0.28 : 0.35),
+            )
+          : null,
+    );
+  }
+
+  /// Chip control with Material ink (reply options).
+  static Widget tappableMenuChip(
+    BuildContext context, {
+    required VoidCallback? onTap,
+    required Widget child,
+    EdgeInsetsGeometry? padding,
+    bool showBorder = true,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final borderRadius = BorderRadius.circular(AppUiTokens.of(context).radius);
+    return Material(
+      color: Colors.transparent,
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      borderRadius: borderRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius,
+        splashFactory: InkRipple.splashFactory,
+        splashColor: scheme.primary.withValues(alpha: 0.14),
+        highlightColor: scheme.onSurface.withValues(alpha: 0.06),
+        child: Ink(
+          decoration: menuChip(context, showBorder: showBorder),
+          padding: padding ??
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: child,
+        ),
+      ),
     );
   }
 }

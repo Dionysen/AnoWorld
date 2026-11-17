@@ -10,6 +10,7 @@ import 'package:anoworld/foundation/widgets/app_search_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/home/library_selection.dart';
+import 'package:anoworld/play/play_session_page.dart';
 import 'package:anoworld/project/project_hub_page.dart';
 import 'package:flutter/material.dart';
 
@@ -106,7 +107,28 @@ class SavesTabState extends State<SavesTab> {
     if (mounted) await reload();
   }
 
-  Future<void> _openSave(_SaveRow row) {
+  Future<void> _resumePlay(_SaveRow row) async {
+    widget.selection.exit();
+    try {
+      final project =
+          await AppScope.projectsOf(context).open(row.project.id);
+      if (!mounted) return;
+      await _openRoute(
+        PlaySessionPage(
+          project: project,
+          mode: row.slot.mode,
+          resumeSave: true,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法继续：$error')),
+      );
+    }
+  }
+
+  Future<void> _openStory(_SaveRow row) {
     widget.selection.exit();
     return _openRoute(ProjectHubPage(projectId: row.project.id));
   }
@@ -229,7 +251,9 @@ class SavesTabState extends State<SavesTab> {
   }
 
   String _subtitle(_SaveRow row) {
-    return '上次游玩 ${_formatRelative(row.slot.savedAt)}';
+    final kind =
+        row.slot.mode == PlayViewMode.chat ? '聊天' : '视觉小说';
+    return '$kind · 上次游玩 ${_formatRelative(row.slot.savedAt)}';
   }
 
   Widget _leading({required bool selected, required bool selectionMode}) {
@@ -347,11 +371,23 @@ class SavesTabState extends State<SavesTab> {
                                                     CrossAxisAlignment.stretch,
                                                 children: [
                                                   AppButton(
-                                                    label: '打开故事',
+                                                    label: '继续游玩',
                                                     expanded: true,
                                                     onPressed: () =>
                                                         Navigator.of(ctx)
-                                                            .pop('open'),
+                                                            .pop('resume'),
+                                                  ),
+                                                  const SizedBox(
+                                                    height: AppTheme.spaceSm,
+                                                  ),
+                                                  AppButton(
+                                                    label: '打开故事',
+                                                    variant: AppButtonVariant
+                                                        .secondary,
+                                                    expanded: true,
+                                                    onPressed: () =>
+                                                        Navigator.of(ctx)
+                                                            .pop('story'),
                                                   ),
                                                   const SizedBox(
                                                     height: AppTheme.spaceSm,
@@ -359,7 +395,7 @@ class SavesTabState extends State<SavesTab> {
                                                   AppButton(
                                                     label: '删除存档',
                                                     variant: AppButtonVariant
-                                                        .secondary,
+                                                        .ghost,
                                                     expanded: true,
                                                     onPressed: () =>
                                                         Navigator.of(ctx)
@@ -370,8 +406,10 @@ class SavesTabState extends State<SavesTab> {
                                             ),
                                           );
                                           if (!mounted) return;
-                                          if (action == 'open') {
-                                            await _openSave(row);
+                                          if (action == 'resume') {
+                                            await _resumePlay(row);
+                                          } else if (action == 'story') {
+                                            await _openStory(row);
                                           } else if (action == 'delete') {
                                             await _deleteOne(row.project.id);
                                           }
@@ -381,7 +419,7 @@ class SavesTabState extends State<SavesTab> {
                                   if (selectionMode) {
                                     widget.selection.toggle(row.project.id);
                                   } else {
-                                    _openSave(row);
+                                    _resumePlay(row);
                                   }
                                 },
                                 onLongPress: () =>
