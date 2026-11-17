@@ -1,7 +1,7 @@
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
-import 'package:anoworld/foundation/widgets/app_surface.dart';
+import 'package:anoworld/foundation/widgets/app_nested_settings_group.dart';
 import 'package:flutter/material.dart';
 
 /// Settings row that reveals [child] in an inset surface when expanded.
@@ -14,6 +14,7 @@ class AppSettingsExpandTile extends StatelessWidget {
     required this.child,
     this.subtitle,
     this.icon = Icons.tune_outlined,
+    this.nested = false,
   });
 
   final String title;
@@ -22,6 +23,7 @@ class AppSettingsExpandTile extends StatelessWidget {
   final bool expanded;
   final VoidCallback onToggle;
   final Widget child;
+  final bool nested;
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +34,13 @@ class AppSettingsExpandTile extends StatelessWidget {
           title: title,
           subtitle: subtitle,
           icon: icon,
+          nested: nested,
           onTap: onToggle,
           trailing: AppDisclosureIcon(expanded: expanded),
         ),
         if (expanded) ...[
           const SizedBox(height: AppTheme.spaceSm),
-          AppSurface(
-            child: child,
-          ),
+          AppSettingsNestedGroup(child: child),
         ],
       ],
     );

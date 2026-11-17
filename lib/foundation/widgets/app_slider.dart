@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_list_tile.dart';
+import 'app_nested_settings_style.dart';
 import 'app_text.dart';
 
 /// Labeled stepped slider. Business code must not use [Slider] directly.
@@ -20,6 +21,7 @@ class AppSlider extends StatelessWidget {
     required this.onChanged,
     this.icon,
     this.valueText,
+    this.nested = false,
   }) : assert(step > 0),
        assert(max >= min);
 
@@ -33,6 +35,9 @@ class AppSlider extends StatelessWidget {
 
   /// Optional override for the trailing readout; defaults to a compact number.
   final String Function(double value)? valueText;
+
+  /// Secondary tier inside an expanded settings block.
+  final bool nested;
 
   static double snap({
     required double value,
@@ -61,12 +66,17 @@ class AppSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final shape = AppUiTokens.of(context).shape();
+    final shape = nested
+        ? AppNestedSettingsStyle.itemShape(context)
+        : AppUiTokens.of(context).shape();
     final display = snap(value: value, min: min, max: max, step: step);
     final readout = valueText?.call(display) ?? _defaultValueText(display);
 
+    final scheme = theme.colorScheme;
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: nested
+          ? AppNestedSettingsStyle.fill(scheme)
+          : scheme.surfaceContainerHighest,
       shape: shape,
       clipBehavior: Clip.antiAlias,
       child: Padding(

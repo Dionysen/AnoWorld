@@ -124,6 +124,11 @@ abstract final class AppTheme {
     final base = brightness == Brightness.dark
         ? ColorScheme.dark(surface: tokens.canvas)
         : ColorScheme.light(surface: tokens.canvas);
+    final nestedSurface = Color.lerp(
+      tokens.canvas,
+      tokens.surfaceRaised,
+      brightness == Brightness.dark ? 0.42 : 0.62,
+    )!;
     return base.copyWith(
       primary: tokens.primary,
       onPrimary: Colors.white,
@@ -138,6 +143,7 @@ abstract final class AppTheme {
       surface: tokens.canvas,
       onSurface: tokens.onCanvas,
       surfaceContainerLowest: tokens.sidebar,
+      surfaceContainer: nestedSurface,
       surfaceContainerHighest: tokens.surfaceRaised,
       onSurfaceVariant: tokens.muted,
       outline: tokens.outlineSubtle,

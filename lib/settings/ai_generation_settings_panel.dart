@@ -2,10 +2,11 @@ import 'dart:math' as math;
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_nested_settings_group.dart';
 import 'package:anoworld/foundation/widgets/app_settings_expand_tile.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
+import 'package:anoworld/foundation/widgets/app_surface.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
@@ -34,10 +35,10 @@ class _AiGenerationSettingsPanelState extends State<AiGenerationSettingsPanel> {
       listenable: controller,
       builder: (context, _) {
         final g = controller.ai.generation;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        return AppSettingsNestedColumn(
           children: [
             AppSlider(
+              nested: true,
               label: '单次最长输出',
               icon: Icons.output_outlined,
               value: g.maxTokens.toDouble().clamp(256, 8192),
@@ -48,8 +49,8 @@ class _AiGenerationSettingsPanelState extends State<AiGenerationSettingsPanel> {
               onChanged: (v) =>
                   _patch((prev) => prev.copyWith(maxTokens: v.round())),
             ),
-            const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
+              nested: true,
               label: '上下文长度',
               icon: Icons.memory_outlined,
               value: _contextSlider(g.contextLength),
@@ -61,8 +62,8 @@ class _AiGenerationSettingsPanelState extends State<AiGenerationSettingsPanel> {
                 (prev) => prev.copyWith(contextLength: _contextFromSlider(v)),
               ),
             ),
-            const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
+              nested: true,
               label: '温度',
               icon: Icons.thermostat_outlined,
               value: g.temperature,
@@ -72,8 +73,8 @@ class _AiGenerationSettingsPanelState extends State<AiGenerationSettingsPanel> {
               valueText: (v) => v.toStringAsFixed(2),
               onChanged: (v) => _patch((prev) => prev.copyWith(temperature: v)),
             ),
-            const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
+              nested: true,
               label: 'Top P',
               icon: Icons.pie_chart_outline,
               value: g.topP,
@@ -83,8 +84,8 @@ class _AiGenerationSettingsPanelState extends State<AiGenerationSettingsPanel> {
               valueText: (v) => v.toStringAsFixed(2),
               onChanged: (v) => _patch((prev) => prev.copyWith(topP: v)),
             ),
-            const SizedBox(height: AppTheme.spaceGroup),
             AppListTile(
+              nested: true,
               title: '流式输出',
               subtitle: '边生成边返回',
               icon: Icons.stream_outlined,
@@ -97,8 +98,8 @@ class _AiGenerationSettingsPanelState extends State<AiGenerationSettingsPanel> {
                 (prev) => prev.copyWith(streamEnabled: !prev.streamEnabled),
               ),
             ),
-            const SizedBox(height: AppTheme.spaceMd),
             AppSettingsExpandTile(
+              nested: true,
               title: '高级采样',
               subtitle: 'Top K、惩罚、Mirostat 等',
               icon: Icons.science_outlined,
@@ -183,10 +184,10 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
   Widget build(BuildContext context) {
     final gen = widget.gen;
     final patch = widget.onPatch;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return AppSettingsNestedColumn(
       children: [
         AppSlider(
+          nested: true,
           label: 'Top K',
           value: gen.topK.toDouble(),
           min: 0,
@@ -195,8 +196,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           valueText: (v) => v.round().toString(),
           onChanged: (v) => patch((prev) => prev.copyWith(topK: v.round())),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: 'Min P',
           value: gen.minP,
           min: 0,
@@ -205,8 +206,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           valueText: (v) => v.toStringAsFixed(2),
           onChanged: (v) => patch((prev) => prev.copyWith(minP: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: 'Typical P',
           value: gen.typicalP,
           min: 0,
@@ -215,8 +216,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           valueText: (v) => v.toStringAsFixed(2),
           onChanged: (v) => patch((prev) => prev.copyWith(typicalP: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: 'Top A',
           value: gen.topA,
           min: 0,
@@ -225,8 +226,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           valueText: (v) => v.toStringAsFixed(2),
           onChanged: (v) => patch((prev) => prev.copyWith(topA: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: 'Tail Free',
           value: gen.tailFreeSampling,
           min: 0,
@@ -236,8 +237,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           onChanged: (v) =>
               patch((prev) => prev.copyWith(tailFreeSampling: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: '重复惩罚',
           value: gen.repetitionPenalty,
           min: 1,
@@ -247,8 +248,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           onChanged: (v) =>
               patch((prev) => prev.copyWith(repetitionPenalty: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: '惩罚范围',
           value: gen.repetitionPenaltyRange.toDouble(),
           min: 0,
@@ -259,8 +260,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
             (prev) => prev.copyWith(repetitionPenaltyRange: v.round()),
           ),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: '频率惩罚',
           value: gen.frequencyPenalty,
           min: -2,
@@ -270,8 +271,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           onChanged: (v) =>
               patch((prev) => prev.copyWith(frequencyPenalty: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: '存在惩罚',
           value: gen.presencePenalty,
           min: -2,
@@ -281,8 +282,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           onChanged: (v) =>
               patch((prev) => prev.copyWith(presencePenalty: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: 'Mirostat 模式',
           value: gen.mirostatMode.toDouble(),
           min: 0,
@@ -292,8 +293,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           onChanged: (v) =>
               patch((prev) => prev.copyWith(mirostatMode: v.round())),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: 'Mirostat Tau',
           value: gen.mirostatTau,
           min: 0,
@@ -302,8 +303,8 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           valueText: (v) => v.toStringAsFixed(1),
           onChanged: (v) => patch((prev) => prev.copyWith(mirostatTau: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
         AppSlider(
+          nested: true,
           label: 'Mirostat Eta',
           value: gen.mirostatEta,
           min: 0,
@@ -312,34 +313,38 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           valueText: (v) => v.toStringAsFixed(2),
           onChanged: (v) => patch((prev) => prev.copyWith(mirostatEta: v)),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
-        AppTextField(
-          label: '随机种子',
-          hint: '-1 表示每次随机',
-          keyboardType: TextInputType.number,
-          controller: _seed,
-          onEditingComplete: () {
-            final v = int.tryParse(_seed.text.trim());
-            if (v != null) {
-              patch((prev) => prev.copyWith(seed: v));
-            }
-          },
+        AppSurface(
+          nested: true,
+          child: AppTextField(
+            label: '随机种子',
+            hint: '-1 表示每次随机',
+            keyboardType: TextInputType.number,
+            controller: _seed,
+            onEditingComplete: () {
+              final v = int.tryParse(_seed.text.trim());
+              if (v != null) {
+                patch((prev) => prev.copyWith(seed: v));
+              }
+            },
+          ),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
-        AppTextField(
-          label: '停止序列',
-          hint: '每行一条',
-          minLines: 2,
-          maxLines: 6,
-          controller: _stops,
-          onEditingComplete: () {
-            final lines = _stops.text
-                .split('\n')
-                .map((line) => line.trim())
-                .where((line) => line.isNotEmpty)
-                .toList(growable: false);
-            patch((prev) => prev.copyWith(stopSequences: lines));
-          },
+        AppSurface(
+          nested: true,
+          child: AppTextField(
+            label: '停止序列',
+            hint: '每行一条',
+            minLines: 2,
+            maxLines: 6,
+            controller: _stops,
+            onEditingComplete: () {
+              final lines = _stops.text
+                  .split('\n')
+                  .map((line) => line.trim())
+                  .where((line) => line.isNotEmpty)
+                  .toList(growable: false);
+              patch((prev) => prev.copyWith(stopSequences: lines));
+            },
+          ),
         ),
       ],
     );

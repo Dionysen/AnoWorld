@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
+import 'app_nested_settings_style.dart';
 import 'app_text.dart';
 
 /// Tappable row for lists. Visuals come from theme tokens only.
@@ -16,6 +17,7 @@ class AppListTile extends StatelessWidget {
     this.onLongPress,
     this.trailing,
     this.selected = false,
+    this.nested = false,
   });
 
   final String title;
@@ -29,14 +31,21 @@ class AppListTile extends StatelessWidget {
   final Widget? trailing;
   final bool selected;
 
+  /// Secondary tier inside an expanded settings block.
+  final bool nested;
+
   static const double iconSize = 20;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final shape = AppUiTokens.of(context).shape();
     final scheme = theme.colorScheme;
-    final base = scheme.surfaceContainerHighest;
+    final shape = nested
+        ? AppNestedSettingsStyle.itemShape(context)
+        : AppUiTokens.of(context).shape();
+    final base = nested
+        ? AppNestedSettingsStyle.fill(scheme)
+        : scheme.surfaceContainerHighest;
     final color = selected
         ? Color.alphaBlend(scheme.primary.withValues(alpha: 0.12), base)
         : base;

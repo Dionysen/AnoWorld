@@ -2,6 +2,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_nested_settings_group.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -47,15 +48,17 @@ class PromptManagerPanel extends StatelessWidget {
               role: AppTextRole.caption,
             ),
             const SizedBox(height: AppTheme.spaceSm),
-            for (var i = 0; i < sections.length; i++) ...[
-              if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-              _SectionRow(
-                index: i,
-                section: sections[i],
-                label: sectionLabel(sections[i]),
-                config: config,
-              ),
-            ],
+            AppSettingsNestedColumn(
+              children: [
+                for (var i = 0; i < sections.length; i++)
+                  _SectionRow(
+                    index: i,
+                    section: sections[i],
+                    label: sectionLabel(sections[i]),
+                    config: config,
+                  ),
+              ],
+            ),
           ],
         );
       },
@@ -122,6 +125,7 @@ class _SectionRow extends StatelessWidget {
     final controller = AppScope.settingsOf(context);
     final editable = section.isEditable;
     return AppListTile(
+      nested: true,
       title: '${index + 1}. $label',
       subtitle: section.isCharacterOwned
           ? '内容由当前故事角色填充'
