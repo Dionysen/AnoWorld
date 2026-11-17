@@ -75,6 +75,11 @@ void main() {
       );
       final result = const ProjectValidator().validate(project);
       expect(result.errors, isEmpty);
+      expect(result.isPlayable, isTrue);
+      expect(
+        result.issues.map((e) => e.code),
+        contains('node_open_interval'),
+      );
     });
 
     test('missing start node is an error', () {

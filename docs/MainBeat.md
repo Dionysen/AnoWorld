@@ -64,7 +64,8 @@ NodeLayout { x: number, y: number }
 ```
 
 - 删除节点：同时删除其 `beatIds` 对应 Beats，并删除所有相关 `edges`。
-- 允许 `beatIds` 为空（骨架占位）：表示「本站内容交给游玩时区间 AI」。**开玩前校验不再把「空 beatIds」一律当错误**；但必须仍有合法出边或结局出口，且 `synopsis` 建议非空（作为 AI 收敛锚点）。
+- 允许 `beatIds` 为空（骨架占位）：表示「本站内容交给游玩时区间 AI」。**开玩前校验不再把「空 beatIds」一律当错误**；无出边时进入**开放区间**（自由续写），有出边时 `synopsis` 建议非空（收敛锚点）。
+- `nodes` 为空为警告（非错误）；游玩注入临时开场站，不写回包。
 - 若故事关闭区间 AI 且节点仍无 Beat，则导出/开玩报错（纯静态包模式）。
 
 ### 2.3 Edge（节点边）
@@ -156,20 +157,21 @@ Transition {
    - 若 `choices.length > 0`：等待玩家选择 → 执行 `target`。  
    - 否则若存在下一拍：`beatIds` 中当前下标 +1 → 该 Beat。  
    - 否则若存在从当前节点出发、`kind == default` 的 Edge：取 `priority` 最小者 → `Transition{ type: node, nodeId: edge.to }`。  
-   - 否则 → `end`（或创作器校验要求必须有出口）。
+   - 否则 → `needsBridge`（开放区间或等待分支；显式 `end` choice / `ending` 站才结束）。
 4. **场景继承（MVP 建议）**：若某 Beat 的 `backgroundAssetId` 为空，沿用本节点内上一 Beat 的背景；跨节点不自动继承（避免错景）。立绘不自动继承，缺省即清场或仅保留 `appearances` 明示者（实现二选一，**建议：不自动继承立绘**）。
 
 ### 3.2 区间 AI 推进（当前实现）
 
 适用于：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥，或聊天式续写。落点：[`BridgeSession`](../lib/domain/runtime/bridge_session.dart)、[`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)、[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)（`PlayPhase.needsBridge`）、[`PlaySessionPage`](../lib/play/play_session_page.dart)。
 
-1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + **出边列表**（每条边的 `to` 节点标题/`synopsis`）+ 区间摘要。
-2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。`type: beat` 在非收敛拍表示继续本区间（映射为当前拍 id；再选时若需新拍则再进 `needsBridge`）。
-3. **收敛压力**：  
-   - `maxBridgeBeats` 默认 4（`BridgeSession.defaultMaxBeats`）；触顶后禁止 stay，必须给出合法 `node`/`end`。  
-   - UI 始终可提供「前往：{下一站标题}」保底按钮；文案服务未配或生成失败时，合成保底拍（`fallbackChoices`）。
-4. **入下一站**：合法 `node` Transition 后换新 `BridgeSession`；会话写入存档附件，**不写回**故事包。
-5. **VN 与聊天**：同一套区间状态机；聊天不另开无出口闲聊树。
+1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + 出边列表（可空）+ 区间摘要。进站若已是 `needsBridge`，游玩页自动生成。游玩入口 [`ensurePlayableMain`](../lib/domain/project/project_factory.dart) 会去掉无出边站上「仅结束」的旧占位拍（不写回包），避免空白故事只能点结束。
+2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。`type: beat` + `beatId: __stay__` 表示继续本区间（再选 → `needsBridge`）。
+3. **有出边**：  
+   - `maxBridgeBeats` 默认 4；触顶后禁止 stay，必须合法 `node`/`end`。  
+   - UI 可提供「前往：{下一站}」保底；失败时用 `fallbackChoices`（合法出边）。
+4. **无出边（开放区间）**：不触顶强制收敛；prompt 要求 stay「继续」为主，可 `end`；空 choices 时自动补「继续」；`fallbackChoices` = 「继续」+「告一段落」。
+5. **入下一站**：合法 `node` Transition 后换新 `BridgeSession`；会话写入存档附件，**不写回**故事包。
+6. **VN 与聊天**：同一套区间状态机；聊天不另开无出口闲聊树。
 
 ### 3.3 双模式
 
@@ -182,9 +184,8 @@ Transition {
 | 级别 | 规则 |
 | --- | --- |
 | 错误 | `startNodeId` 不存在；`beatIds` 与 `nodeId` 不一致；悬空 Id；预写 `choices` 的 Transition 目标不存在 |
-| 错误 | 某节点既无预写出口（下一 Beat / choices / end），又无任何出边，且不允许在此 `end` |
 | 错误 | 静态包模式（关闭区间 AI）下节点 `beatIds` 为空 |
-| 警告 | 孤立节点（从 start 不可达）；`branch` 边无任何 Choice 指向对应 `to`；节点 `synopsis` 为空（区间 AI 难收敛）；节点无预写 Beat（依赖区间 AI） |
+| 警告 | `nodes` 为空（游玩注入临时开场）；起点 `beatIds` 为空；孤立节点；`branch` 无 Choice 指向；`synopsis` 为空；无出边的非 ending 站（开放区间） |
 
 ---
 

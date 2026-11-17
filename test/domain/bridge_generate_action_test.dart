@@ -52,7 +52,7 @@ void main() {
     expect(choices.first.text, contains('前往：'));
   });
 
-  test('fallbackChoices without outs return end', () {
+  test('fallbackChoices without outs return continue and soft end', () {
     const main = MainStory(
       summary: 'x',
       startNodeId: 'n1',
@@ -63,8 +63,30 @@ void main() {
       beats: [],
     );
     final choices = BridgeGenerateAction.fallbackChoices(main, 'n1');
-    expect(choices, hasLength(1));
-    expect(choices.first.target.type, TransitionType.end);
+    expect(choices, hasLength(2));
+    expect(choices[0].text, '继续');
+    expect(choices[0].target.type, TransitionType.beat);
+    expect(choices[0].target.beatId, kBridgeStayBeatId);
+    expect(choices[1].text, '告一段落');
+    expect(choices[1].target.type, TransitionType.end);
+  });
+
+  test('open mode fills continue when choices empty', () async {
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient([
+      '{"location":"室内","lines":[{"speaker":"旁白","text":"风停了。"}],"choices":[]}',
+    ]);
+    final action = BridgeGenerateAction(textClient: client);
+    final beat = await action.generate(
+      ctx: ctx(),
+      project: blank,
+      nodeId: blank.main.startNodeId,
+      session: BridgeSession(nodeId: blank.main.startNodeId),
+    );
+    expect(beat.lines.first.text, '风停了。');
+    expect(beat.choices, hasLength(1));
+    expect(beat.choices.single.text, '继续');
+    expect(beat.choices.single.target.beatId, kBridgeStayBeatId);
   });
 
   test('generate drops illegal node targets and keeps legal ones', () async {

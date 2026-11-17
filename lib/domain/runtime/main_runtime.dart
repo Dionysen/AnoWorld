@@ -264,12 +264,9 @@ class MainRuntime {
       _applyTransition(Transition.toNode(defaults.first.to));
       return;
     }
-    // No default edge: ask for more bridge content or end.
-    if (main.edges.any((e) => e.from == node.id)) {
-      pointer = pointer.copyWith(phase: PlayPhase.needsBridge);
-      return;
-    }
-    pointer = pointer.copyWith(phase: PlayPhase.ended);
+    // No default edge: keep bridging (open interval or branch waiting).
+    // Soft-end only via explicit end choice / ending-tagged node.
+    pointer = pointer.copyWith(phase: PlayPhase.needsBridge);
   }
 
   void _applyTransition(Transition transition) {

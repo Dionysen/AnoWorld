@@ -8,15 +8,91 @@ import 'package:anoworld/domain/models/side.dart';
 class ProjectFactory {
   const ProjectFactory();
 
-  /// Empty but structurally valid shell: one node, one beat ending in `end`.
+  static const String openPlayNodeId = 'n_start';
+
+  /// Working Main for play (not written back).
+  ///
+  /// - Empty nodes → inject a temporary opening station.
+  /// - Non-ending nodes with **no outbound edges** drop end-only authored
+  ///   beats (legacy blank「结束」placeholder) so play enters open-interval bridge.
+  static MainStory ensurePlayableMain(MainStory main) {
+    if (main.nodes.isEmpty) {
+      return MainStory(
+        summary: main.summary,
+        startNodeId: openPlayNodeId,
+        nodes: const <StoryNode>[
+          StoryNode(
+            id: openPlayNodeId,
+            title: '开场',
+            beatIds: <String>[],
+            tags: <String>['opening'],
+          ),
+        ],
+        edges: const <StoryEdge>[],
+        beats: const <Beat>[],
+      );
+    }
+    return _stripOpenIntervalDeadEnds(main);
+  }
+
+  /// True when every choice ends the run (legacy blank / soft dead-end).
+  static bool isEndOnlyBeat(Beat beat) {
+    if (beat.choices.isEmpty) return false;
+    return beat.choices.every((c) => c.target.type == TransitionType.end);
+  }
+
+  static MainStory _stripOpenIntervalDeadEnds(MainStory main) {
+    final openNodeIds = <String>{};
+    for (final node in main.nodes) {
+      if (node.tags.contains('ending')) continue;
+      if (main.edges.any((e) => e.from == node.id)) continue;
+      openNodeIds.add(node.id);
+    }
+    if (openNodeIds.isEmpty) return main;
+
+    final dropBeatIds = <String>{};
+    for (final beat in main.beats) {
+      if (!openNodeIds.contains(beat.nodeId)) continue;
+      if (isEndOnlyBeat(beat)) dropBeatIds.add(beat.id);
+    }
+    if (dropBeatIds.isEmpty) return main;
+
+    final nodes = main.nodes
+        .map((n) {
+          if (!openNodeIds.contains(n.id)) return n;
+          final ids =
+              n.beatIds.where((id) => !dropBeatIds.contains(id)).toList();
+          if (ids.length == n.beatIds.length) return n;
+          return StoryNode(
+            id: n.id,
+            title: n.title,
+            synopsis: n.synopsis,
+            beatIds: ids,
+            layout: n.layout,
+            tags: n.tags,
+          );
+        })
+        .toList(growable: false);
+    final beats = main.beats
+        .where((b) => !dropBeatIds.contains(b.id))
+        .toList(growable: false);
+    return MainStory(
+      summary: main.summary,
+      startNodeId: main.startNodeId,
+      nodes: nodes,
+      edges: main.edges,
+      beats: beats,
+    );
+  }
+
+  /// Empty but playable shell: one opening node with no authored beats.
+  /// Play enters needsBridge for open-interval AI.
   Project createBlank({
     required String id,
     required String title,
     DateTime? now,
   }) {
     final stamp = now ?? DateTime.now().toUtc();
-    const nodeId = 'n_start';
-    const beatId = 'b_start';
     return Project(
       meta: ProjectMeta(
         id: id,
@@ -26,40 +102,14 @@ class ProjectFactory {
       ),
       background: const Background(),
       cast: const <CastMember>[],
-      main: MainStory(
-        summary: '',
-        startNodeId: nodeId,
-        nodes: const <StoryNode>[
-          StoryNode(
-            id: nodeId,
-            title: '开场',
-            beatIds: <String>[beatId],
-            tags: <String>['opening'],
-          ),
-        ],
-        edges: const <StoryEdge>[],
-        beats: const <Beat>[
-          Beat(
-            id: beatId,
-            nodeId: nodeId,
-            scene: Scene(),
-            appearances: <Appearance>[],
-            lines: <DialogueLine>[
-              DialogueLine(
-                id: 'l_placeholder',
-                text: '（在这里开始故事）',
-                kind: DialogueKind.narration,
-              ),
-            ],
-            choices: <Choice>[
-              Choice(
-                id: 'ch_end',
-                text: '结束',
-                target: Transition(type: TransitionType.end),
-              ),
-            ],
-          ),
-        ],
+      main: ensurePlayableMain(
+        const MainStory(
+          summary: '',
+          startNodeId: openPlayNodeId,
+          nodes: <StoryNode>[],
+          edges: <StoryEdge>[],
+          beats: <Beat>[],
+        ),
       ),
       side: const SideBundle(),
       assets: const [],

@@ -3,6 +3,7 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/main_runtime.dart';
 import 'package:anoworld/domain/runtime/play_pointer.dart';
@@ -44,12 +45,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   Project get _project => widget.project;
 
+  MainStory get _baseMain =>
+      ProjectFactory.ensurePlayableMain(widget.project.main);
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_bootstrapped) return;
     _bootstrapped = true;
-    _runtime = MainRuntime(widget.project.main, save: widget.initialSave);
+    _runtime = MainRuntime(_baseMain, save: widget.initialSave);
     if (widget.resumeSave && widget.initialSave == null) {
       _maybeLoadAutoSave();
     } else {
@@ -61,7 +65,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     final slot = await AppScope.savesOf(context).load(widget.project.meta.id);
     if (!mounted) return;
     if (slot != null) {
-      var main = widget.project.main;
+      var main = _baseMain;
       final bridge = slot.bridge;
       if (bridge != null && bridge.generatedBeats.isNotEmpty) {
         main = _mergeBeats(main, bridge.generatedBeats);
@@ -152,7 +156,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   void _restart() {
     setState(() {
-      _runtime = MainRuntime(widget.project.main);
+      _runtime = MainRuntime(_baseMain);
       _bridge = null;
       _status = '已从头开始';
     });
@@ -246,7 +250,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         lines: const [
           DialogueLine(
             id: 'bridge_fallback_l0',
-            text: '这一段暂时写不出来，可以先去下一站',
+            text: '这一段暂时写不出来，可以先用下方选项继续',
             kind: DialogueKind.narration,
           ),
         ],

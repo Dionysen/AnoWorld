@@ -39,11 +39,12 @@ class ProjectValidator {
   void _validateMain(Project project, List<ProjectIssue> issues) {
     final main = project.main;
     if (main.nodes.isEmpty) {
+      // Play can inject a temporary opening node; not a hard block.
       issues.add(
         const ProjectIssue(
-          severity: ProjectIssueSeverity.error,
+          severity: ProjectIssueSeverity.warning,
           code: 'nodes_empty',
-          message: 'Main requires at least one node',
+          message: 'Main has no nodes; play will use an open opening station',
           path: r'$.main.nodes',
         ),
       );
@@ -154,12 +155,13 @@ class ProjectValidator {
         final hasOut = main.edges.any((e) => e.from == node.id);
         final isEnding = node.tags.contains('ending');
         if (!hasOut && !isEnding) {
+          // Open-interval play: bridge AI continues with stay choices.
           issues.add(
             ProjectIssue(
-              severity: ProjectIssueSeverity.error,
-              code: 'node_no_exit',
+              severity: ProjectIssueSeverity.warning,
+              code: 'node_open_interval',
               message:
-                  'Node "${node.id}" has no beats and no outbound edge or ending tag',
+                  'Node "${node.id}" has no outbound edges; open-interval AI play',
               path: '\$.main.nodes.${node.id}',
             ),
           );

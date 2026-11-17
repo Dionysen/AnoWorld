@@ -5,6 +5,9 @@ import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 
+/// Sentinel beat id for "stay in interval / generate again".
+const String kBridgeStayBeatId = '__stay__';
+
 /// Generates one bridge Beat for the current main node interval.
 class BridgeGenerateAction {
   BridgeGenerateAction({
@@ -35,29 +38,34 @@ class BridgeGenerateAction {
     final exits = project.main.edges
         .where((e) => e.from == nodeId)
         .toList(growable: false);
+    final openMode = exits.isEmpty;
     final exitLines = exits.map((e) {
       final to = project.main.nodeById(e.to);
       final title = to?.title ?? e.to;
       final syn = to?.synopsis ?? '';
-      final choice = e.label?.trim().isNotEmpty == true ? e.label!.trim() : '（无选项标题）';
+      final choice =
+          e.label?.trim().isNotEmpty == true ? e.label!.trim() : '（无选项标题）';
       final detail = e.detail?.trim().isNotEmpty == true
           ? e.detail!.trim()
           : '（无详细说明）';
       return '- id:${e.to} 下一站:$title 目标:$syn 选项:$choice 说明:$detail';
     }).join('\n');
 
-    final forceConverge = session.turnCount + 1 >= maxBeats;
-    final task = _taskBlock(forceConverge: forceConverge);
+    // Open interval never force-converges to a next node.
+    final forceConverge = !openMode && session.turnCount + 1 >= maxBeats;
+    final task = _taskBlock(forceConverge: forceConverge, openMode: openMode);
     final system = ctx.assembleSystem(project: project, taskSuffix: task);
+    final nextStationBlock = openMode
+        ? '本站没有固定下一站：按设定与角色自由续写，不要发明情节站 id。'
+        : '合法下一站（只能跳到这些 id，或 end）：\n$exitLines';
     final user = '''
 当前站：${node.title}
 本站目标：${node.synopsis ?? ''}
 设定摘要：${project.background.combinedText}
 角色：${project.cast.map((c) => c.name).join('、')}
-合法下一站（只能跳到这些 id，或 end）：
-$exitLines
+$nextStationBlock
 区间摘要：${session.summary}
-已生成拍数：${session.turnCount}/$maxBeats
+已生成拍数：${session.turnCount}/${openMode ? '∞' : maxBeats}
 请生成本站下一小段对白。''';
 
     String? lastError;
@@ -76,6 +84,7 @@ $exitLines
           beatId: 'bridge_${nodeId}_${session.turnCount + 1}',
           legalNodeIds: exits.map((e) => e.to).toSet(),
           forceConverge: forceConverge,
+          openMode: openMode,
         );
       } on BridgeMapException catch (error) {
         lastError = error.message;
@@ -100,10 +109,19 @@ $exitLines
           ),
         ];
       }
+      // Open interval: keep playing or soft-end.
       return [
         const Choice(
+          id: 'fb_continue',
+          text: '继续',
+          target: Transition(
+            type: TransitionType.beat,
+            beatId: kBridgeStayBeatId,
+          ),
+        ),
+        const Choice(
           id: 'fb_end',
-          text: '结束',
+          text: '告一段落',
           target: Transition(type: TransitionType.end),
         ),
       ];
@@ -125,10 +143,19 @@ $exitLines
     return '前往：$dest';
   }
 
-  static String _taskBlock({required bool forceConverge}) {
+  static String _taskBlock({
+    required bool forceConverge,
+    required bool openMode,
+  }) {
+    if (openMode) {
+      return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
+输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白","text":"..."}],"choices":[{"text":"...","target":{...}}]}
+本站开放续写：优先给继续选项 {"type":"beat","beatId":"$kBridgeStayBeatId"}；也可给 {"type":"end"} 告一段落。
+禁止发明情节站 nodeId。''';
+    }
     final converge = forceConverge
         ? '必须给 1～3 个 choices，且每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。'
-        : '可给过程选项；若继续本站用 {"type":"beat","beatId":"__stay__"}；导向下一站必须用合法 nodeId。';
+        : '可给过程选项；若继续本站用 {"type":"beat","beatId":"$kBridgeStayBeatId"}；导向下一站必须用合法 nodeId。';
     return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
 输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白","text":"..."}],"choices":[{"text":"...","target":{...}}]}
 $converge
@@ -141,6 +168,7 @@ $converge
     required String beatId,
     required Set<String> legalNodeIds,
     required bool forceConverge,
+    required bool openMode,
   }) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) {
@@ -195,14 +223,15 @@ $converge
         if (type == 'end') {
           target = Transition.end();
         } else if (type == 'node') {
+          if (openMode) continue;
           final id = '${targetMap['nodeId'] ?? ''}'.trim();
           if (!legalNodeIds.contains(id)) {
             continue;
           }
           target = Transition.toNode(id);
         } else if (type == 'beat' && !forceConverge) {
-          // Stay in interval — placeholder; runtime treats as needs another bridge.
-          target = Transition.toBeat(beatId);
+          // Stay sentinel — runtime maps missing beat id to needsBridge.
+          target = Transition.toBeat(kBridgeStayBeatId);
         }
         if (target == null) continue;
         choices.add(Choice(id: '${beatId}_c$i', text: text, target: target));
@@ -216,13 +245,24 @@ $converge
     if (choices.isEmpty && forceConverge) {
       throw const BridgeMapException('收敛拍没有选项');
     }
+    if (choices.isEmpty && openMode) {
+      choices.add(
+        Choice(
+          id: '${beatId}_c_continue',
+          text: '继续',
+          target: Transition.toBeat(kBridgeStayBeatId),
+        ),
+      );
+    }
 
     return Beat(
       id: beatId,
       nodeId: nodeId,
-      scene: Scene(locationText: '${map['location'] ?? ''}'.trim().isEmpty
-          ? null
-          : '${map['location']}'.trim()),
+      scene: Scene(
+        locationText: '${map['location'] ?? ''}'.trim().isEmpty
+            ? null
+            : '${map['location']}'.trim(),
+      ),
       appearances: const [],
       lines: lines,
       choices: choices,
