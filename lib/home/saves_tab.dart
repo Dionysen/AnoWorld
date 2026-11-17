@@ -306,14 +306,13 @@ class SavesTabState extends State<SavesTab> {
                           onRefresh: reload,
                           child: ListView.separated(
                             padding: EdgeInsets.fromLTRB(
-                              AppTheme.pagePadding,
+                              0,
                               AppTheme.spaceXs,
-                              AppTheme.pagePadding,
+                              0,
                               AppTheme.pagePadding + mediaBottom + 72,
                             ),
                             itemCount: visible.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: AppTheme.spaceSm),
+                            separatorBuilder: (_, _) => const SizedBox.shrink(),
                             itemBuilder: (context, index) {
                               final row = visible[index];
                               final selected =

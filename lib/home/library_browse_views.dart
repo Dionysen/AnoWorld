@@ -35,12 +35,13 @@ class LibraryBrowseViews extends StatelessWidget {
   final ValueChanged<ProjectSummary> onProjectMenu;
   final String Function(DateTime) formatUpdated;
 
-  EdgeInsets _listPadding(BuildContext context) {
+  EdgeInsets _listPadding(BuildContext context, {bool horizontal = false}) {
     final mediaBottom = MediaQuery.paddingOf(context).bottom;
+    final h = horizontal ? AppTheme.pagePadding : 0.0;
     return EdgeInsets.fromLTRB(
-      AppTheme.pagePadding,
+      h,
       AppTheme.spaceXs,
-      AppTheme.pagePadding,
+      h,
       AppTheme.pagePadding + mediaBottom + 72,
     );
   }
@@ -203,7 +204,7 @@ class LibraryBrowseViews extends StatelessWidget {
     return ListView.separated(
       padding: _listPadding(context),
       itemCount: itemCount,
-      separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spaceSm),
+      separatorBuilder: (_, _) => const SizedBox.shrink(),
       itemBuilder: (context, index) {
         if (index < folders.length) {
           final folder = folders[index];
@@ -260,73 +261,58 @@ class LibraryBrowseViews extends StatelessWidget {
   }
 
   Widget _simpleList(BuildContext context) {
-    const rowHeight = 60.0;
-    const rowGap = 8.0;
     final selectionMode = selection.selectionMode;
     final itemCount = folders.length + projects.length;
     return ListView.builder(
       padding: _listPadding(context),
       itemCount: itemCount,
-      itemExtent: rowHeight + rowGap,
       itemBuilder: (context, index) {
         if (index < folders.length) {
           final folder = folders[index];
           final selected = selection.isSelected(folder.id);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: rowGap),
-            child: SizedBox(
-              height: rowHeight,
-              child: AppListTile(
-                title: folder.name,
-                selected: selectionMode && selected,
-                leading: _selectionOrAvatar(
-                  context,
-                  selectionMode: selectionMode,
-                  selected: selected,
-                  avatar: _folderAvatar(context, compact: true),
-                ),
-                trailing: selectionMode
-                    ? null
-                    : Icon(
-                        Icons.chevron_right,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                onTap: () => _onFolderTap(folder),
-                onLongPress: () => selection.toggle(folder.id),
-              ),
+          return AppListTile(
+            title: folder.name,
+            selected: selectionMode && selected,
+            leading: _selectionOrAvatar(
+              context,
+              selectionMode: selectionMode,
+              selected: selected,
+              avatar: _folderAvatar(context, compact: true),
             ),
+            trailing: selectionMode
+                ? null
+                : Icon(
+                    Icons.chevron_right,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            onTap: () => _onFolderTap(folder),
+            onLongPress: () => selection.toggle(folder.id),
           );
         }
         final project = projects[index - folders.length];
         final selected = selection.isSelected(project.id);
-        return Padding(
-          padding: const EdgeInsets.only(bottom: rowGap),
-          child: SizedBox(
-            height: rowHeight,
-            child: AppListTile(
+        return AppListTile(
+          title: project.title,
+          selected: selectionMode && selected,
+          leading: _selectionOrAvatar(
+            context,
+            selectionMode: selectionMode,
+            selected: selected,
+            avatar: _projectAvatar(
+              context,
               title: project.title,
-              selected: selectionMode && selected,
-              leading: _selectionOrAvatar(
-                context,
-                selectionMode: selectionMode,
-                selected: selected,
-                avatar: _projectAvatar(
-                  context,
-                  title: project.title,
-                  compact: true,
-                ),
-              ),
-              trailing: selectionMode
-                  ? null
-                  : AppIconButton(
-                      icon: Icons.more_vert,
-                      tooltip: '更多',
-                      onPressed: () => onProjectMenu(project),
-                    ),
-              onTap: () => _onProjectTap(project),
-              onLongPress: () => selection.toggle(project.id),
+              compact: true,
             ),
           ),
+          trailing: selectionMode
+              ? null
+              : AppIconButton(
+                  icon: Icons.more_vert,
+                  tooltip: '更多',
+                  onPressed: () => onProjectMenu(project),
+                ),
+          onTap: () => _onProjectTap(project),
+          onLongPress: () => selection.toggle(project.id),
         );
       },
     );
@@ -350,7 +336,7 @@ class LibraryBrowseViews extends StatelessWidget {
           columns--;
         }
         return GridView.builder(
-          padding: _listPadding(context),
+          padding: _listPadding(context, horizontal: true),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             childAspectRatio: aspect,

@@ -255,7 +255,7 @@ class AppNavSectionList extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppTheme.spaceMd,
-                          vertical: AppTheme.spaceSm + 2,
+                          vertical: AppTheme.spaceSm,
                         ),
                         child: Row(
                           children: [

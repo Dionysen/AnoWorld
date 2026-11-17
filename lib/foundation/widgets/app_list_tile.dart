@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import '../theme/app_ui_tokens.dart';
-import 'app_nested_settings_style.dart';
+import 'app_list_hairline.dart';
 import 'app_text.dart';
 
-/// Tappable row for lists. Visuals come from theme tokens only.
+/// Full-width tappable row (X-style): flat, no island card, hairline under the row.
 class AppListTile extends StatelessWidget {
   const AppListTile({
     super.key,
@@ -18,6 +17,7 @@ class AppListTile extends StatelessWidget {
     this.trailing,
     this.selected = false,
     this.nested = false,
+    this.showDivider = true,
   });
 
   final String title;
@@ -31,8 +31,11 @@ class AppListTile extends StatelessWidget {
   final Widget? trailing;
   final bool selected;
 
-  /// Secondary tier inside an expanded settings block.
+  /// Secondary tier inside an expanded settings block (extra leading indent).
   final bool nested;
+
+  /// Hairline under the row. Turn off for the last item in a custom stack.
+  final bool showDivider;
 
   static const double iconSize = 20;
 
@@ -40,27 +43,23 @@ class AppListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final shape = nested
-        ? AppNestedSettingsStyle.itemShape(context)
-        : AppUiTokens.of(context).shape();
-    final base = nested
-        ? AppNestedSettingsStyle.fill(scheme)
-        : scheme.surfaceContainerHighest;
-    final color = selected
-        ? Color.alphaBlend(scheme.primary.withValues(alpha: 0.12), base)
-        : base;
-    return Material(
-      color: color,
-      shape: shape,
-      clipBehavior: Clip.antiAlias,
+    final selectedFill = Color.alphaBlend(
+      scheme.primary.withValues(alpha: 0.12),
+      scheme.surface,
+    );
+    final left = AppTheme.spaceMd + (nested ? AppTheme.spaceMd : 0);
+
+    final row = Material(
+      color: selected ? selectedFill : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
-        customBorder: shape,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spaceMd,
-            vertical: AppTheme.spaceSm + 2,
+          padding: EdgeInsets.fromLTRB(
+            left,
+            AppTheme.spaceInline,
+            AppTheme.spaceMd,
+            AppTheme.spaceInline,
           ),
           child: Row(
             children: [
@@ -103,6 +102,17 @@ class AppListTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+
+    if (!showDivider) return row;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        row,
+        const AppListHairline(),
+      ],
     );
   }
 }

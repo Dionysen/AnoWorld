@@ -184,15 +184,13 @@ class _HomePageState extends State<HomePage> {
               icon: display.viewMode.icon,
               onTap: () => Navigator.of(ctx).pop('view_mode'),
             ),
-            if (display.viewMode == LibraryViewMode.list) ...[
-              const SizedBox(height: AppTheme.spaceSm),
+            if (display.viewMode == LibraryViewMode.list)
               AppListTile(
                 title: '头像形状',
                 subtitle: display.avatarShape.label,
                 icon: display.avatarShape.icon,
                 onTap: () => Navigator.of(ctx).pop('avatar_shape'),
               ),
-            ],
             const SizedBox(height: AppTheme.spaceSm),
             AppButton(
               label: '多选',

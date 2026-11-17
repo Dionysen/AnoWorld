@@ -64,6 +64,7 @@ abstract final class AppTheme {
   static const double spaceXs = 4;
   static const double spaceSm = 8;
   /// Vertical gap between stacked controls in the same section/group.
+  /// Flat list rows use hairline dividers instead of this gap.
   static const double spaceGroup = 6;
   static const double spaceInline = 12;
   static const double spaceMd = 16;
@@ -74,6 +75,17 @@ abstract final class AppTheme {
 
   /// Elevation for raised surfaces (cards that should cast a shadow).
   static const double surfaceElevation = 8;
+
+  /// Flat list row hairline: theme [dividerColor] lightly lifted with
+  /// [onSurface] so dark packs stay readable without looking heavy.
+  static Color listHairline(BuildContext context) {
+    final theme = Theme.of(context);
+    final boost = theme.brightness == Brightness.dark ? 0.04 : 0.028;
+    return Color.alphaBlend(
+      theme.colorScheme.onSurface.withValues(alpha: boost),
+      theme.dividerColor,
+    );
+  }
 
   /// Side/bottom inset for floating sheets (narrower than the page).
   static const double sheetInset = spaceMd;

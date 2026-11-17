@@ -2,8 +2,10 @@ import 'dart:math' as math;
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_nested_settings_group.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_settings_expand_tile.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_surface.dart';
@@ -313,37 +315,42 @@ class _AdvancedSamplingState extends State<_AdvancedSampling> {
           valueText: (v) => v.toStringAsFixed(2),
           onChanged: (v) => patch((prev) => prev.copyWith(mirostatEta: v)),
         ),
-        AppSurface(
-          nested: true,
-          child: AppTextField(
-            label: '随机种子',
-            hint: '-1 表示每次随机',
-            keyboardType: TextInputType.number,
-            controller: _seed,
-            onEditingComplete: () {
-              final v = int.tryParse(_seed.text.trim());
-              if (v != null) {
-                patch((prev) => prev.copyWith(seed: v));
-              }
-            },
+        AppPageGutter(
+          child: AppSurface(
+            nested: true,
+            child: AppTextField(
+              label: '随机种子',
+              hint: '-1 表示每次随机',
+              keyboardType: TextInputType.number,
+              controller: _seed,
+              onEditingComplete: () {
+                final v = int.tryParse(_seed.text.trim());
+                if (v != null) {
+                  patch((prev) => prev.copyWith(seed: v));
+                }
+              },
+            ),
           ),
         ),
-        AppSurface(
-          nested: true,
-          child: AppTextField(
-            label: '停止序列',
-            hint: '每行一条',
-            minLines: 2,
-            maxLines: 6,
-            controller: _stops,
-            onEditingComplete: () {
-              final lines = _stops.text
-                  .split('\n')
-                  .map((line) => line.trim())
-                  .where((line) => line.isNotEmpty)
-                  .toList(growable: false);
-              patch((prev) => prev.copyWith(stopSequences: lines));
-            },
+        const SizedBox(height: AppTheme.spaceGroup),
+        AppPageGutter(
+          child: AppSurface(
+            nested: true,
+            child: AppTextField(
+              label: '停止序列',
+              hint: '每行一条',
+              minLines: 2,
+              maxLines: 6,
+              controller: _stops,
+              onEditingComplete: () {
+                final lines = _stops.text
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .where((line) => line.isNotEmpty)
+                    .toList(growable: false);
+                patch((prev) => prev.copyWith(stopSequences: lines));
+              },
+            ),
           ),
         ),
       ],

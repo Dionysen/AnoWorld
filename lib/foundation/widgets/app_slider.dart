@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import '../theme/app_ui_tokens.dart';
+import 'app_list_hairline.dart';
 import 'app_list_tile.dart';
-import 'app_nested_settings_style.dart';
 import 'app_text.dart';
 
 /// Labeled stepped slider. Business code must not use [Slider] directly.
 ///
 /// [step] snaps the value; divisions are derived as `(max - min) / step`.
-/// Label, value, and track sit inside one themed surface block.
+/// Full-width flat row (same language as [AppListTile]), not an island card.
 class AppSlider extends StatelessWidget {
   const AppSlider({
     super.key,
@@ -22,6 +21,7 @@ class AppSlider extends StatelessWidget {
     this.icon,
     this.valueText,
     this.nested = false,
+    this.showDivider = true,
   }) : assert(step > 0),
        assert(max >= min);
 
@@ -38,6 +38,8 @@ class AppSlider extends StatelessWidget {
 
   /// Secondary tier inside an expanded settings block.
   final bool nested;
+
+  final bool showDivider;
 
   static double snap({
     required double value,
@@ -66,77 +68,77 @@ class AppSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final shape = nested
-        ? AppNestedSettingsStyle.itemShape(context)
-        : AppUiTokens.of(context).shape();
+    final scheme = theme.colorScheme;
     final display = snap(value: value, min: min, max: max, step: step);
     final readout = valueText?.call(display) ?? _defaultValueText(display);
+    final left = AppTheme.spaceMd + (nested ? AppTheme.spaceMd : 0);
 
-    final scheme = theme.colorScheme;
-    return Material(
-      color: nested
-          ? AppNestedSettingsStyle.fill(scheme)
-          : scheme.surfaceContainerHighest,
-      shape: shape,
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.spaceMd,
-          AppTheme.spaceMd,
-          AppTheme.spaceMd,
-          AppTheme.spaceMd,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(
-                    icon,
-                    size: AppListTile.iconSize,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: AppTheme.spaceInline),
-                ],
-                Expanded(
-                  child: AppText(
-                    label,
-                    role: AppTextRole.subtitle,
-                    maxLines: 1,
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spaceSm),
-                AppText(readout, role: AppTextRole.caption),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 3,
-                activeTrackColor: theme.colorScheme.primary,
-                inactiveTrackColor: theme.colorScheme.outline,
-                thumbColor: theme.colorScheme.primary,
-                overlayColor: theme.colorScheme.primary.withValues(alpha: 0.12),
-                valueIndicatorColor: theme.colorScheme.primary,
-                // Keep the track inside the block; Material's default side
-                // padding would otherwise eat into the surface edges.
-                padding: EdgeInsets.zero,
-              ),
-              child: Slider(
-                value: display,
-                min: min,
-                max: max,
-                divisions: _divisions,
-                label: readout,
-                onChanged: (next) {
-                  onChanged(snap(value: next, min: min, max: max, step: step));
-                },
-              ),
-            ),
-          ],
-        ),
+    final body = Padding(
+      padding: EdgeInsets.fromLTRB(
+        left,
+        AppTheme.spaceInline,
+        AppTheme.spaceMd,
+        AppTheme.spaceSm,
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: AppListTile.iconSize,
+                  color: scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppTheme.spaceInline),
+              ],
+              Expanded(
+                child: AppText(
+                  label,
+                  role: AppTextRole.subtitle,
+                  maxLines: 1,
+                ),
+              ),
+              const SizedBox(width: AppTheme.spaceSm),
+              AppText(readout, role: AppTextRole.caption),
+            ],
+          ),
+          const SizedBox(height: AppTheme.spaceSm),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 3,
+              activeTrackColor: scheme.primary,
+              inactiveTrackColor: scheme.outline,
+              thumbColor: scheme.primary,
+              overlayColor: scheme.primary.withValues(alpha: 0.12),
+              valueIndicatorColor: scheme.primary,
+              padding: EdgeInsets.zero,
+            ),
+            child: Slider(
+              value: display,
+              min: min,
+              max: max,
+              divisions: _divisions,
+              label: readout,
+              onChanged: (next) {
+                onChanged(snap(value: next, min: min, max: max, step: step));
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!showDivider) return body;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        body,
+        const AppListHairline(),
+      ],
     );
   }
 }

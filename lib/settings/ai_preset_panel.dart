@@ -7,6 +7,7 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_settings_expand_tile.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
@@ -101,13 +102,15 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(
-                      AppTheme.pagePadding,
                       0,
-                      AppTheme.pagePadding,
+                      0,
+                      0,
                       AppTheme.spaceMd,
                     ),
                     children: [
-                      const AppText('内置', role: AppTextRole.caption),
+                      const AppPageGutter(
+                        child: AppText('内置', role: AppTextRole.caption),
+                      ),
                       const SizedBox(height: AppTheme.spaceSm),
                       for (final preset in builtIn)
                         _PresetPickRow(
@@ -126,7 +129,9 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
                         ),
                       if (custom.isNotEmpty) ...[
                         const SizedBox(height: AppTheme.spaceMd),
-                        const AppText('我的', role: AppTextRole.caption),
+                        const AppPageGutter(
+                          child: AppText('我的', role: AppTextRole.caption),
+                        ),
                         const SizedBox(height: AppTheme.spaceSm),
                         for (final preset in custom)
                           _PresetPickRow(
@@ -349,6 +354,7 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
             const AppSectionHeader(
               '采样与提示词',
               subtitle: '与酒馆预设兼容，套用后写故事生效',
+              gutter: true,
             ),
             AppListTile(
               title: title,
@@ -357,7 +363,6 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
               trailing: const AppForwardIcon(),
               onTap: _openPresetPicker,
             ),
-            const SizedBox(height: AppTheme.spaceLg),
             AppSettingsExpandTile(
               title: '生成相关',
               subtitle: '温度、长度与高级采样',
@@ -366,7 +371,6 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
               onToggle: () => _toggle(_PresetSubPanel.generation),
               child: const AiGenerationSettingsPanel(),
             ),
-            const SizedBox(height: AppTheme.spaceSm),
             AppSettingsExpandTile(
               title: '提示词管理',
               subtitle: '分段顺序与文案',
@@ -399,18 +403,15 @@ class _PresetPickRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
-      child: AppListTile(
-        title: title,
-        subtitle: subtitle,
-        icon: Icons.bookmark_outline,
-        trailing: active
-            ? const AppText('当前', role: AppTextRole.caption)
-            : null,
-        onTap: onTap,
-        onLongPress: onLongPress,
-      ),
+    return AppListTile(
+      title: title,
+      subtitle: subtitle,
+      icon: Icons.bookmark_outline,
+      trailing: active
+          ? const AppText('当前', role: AppTextRole.caption)
+          : null,
+      onTap: onTap,
+      onLongPress: onLongPress,
     );
   }
 }

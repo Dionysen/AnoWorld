@@ -6,6 +6,7 @@ import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
@@ -53,14 +54,13 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(
-                  AppTheme.pagePadding,
                   0,
-                  AppTheme.pagePadding,
+                  0,
+                  0,
                   AppTheme.spaceMd,
                 ),
                 itemCount: options.length,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(height: AppTheme.spaceGroup),
+                separatorBuilder: (_, _) => const SizedBox.shrink(),
                 itemBuilder: (context, index) {
                   final option = options[index];
                   return AppListTile(
@@ -554,9 +554,11 @@ class _ChannelScaffold extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppSectionHeader(title),
-        AppText(caption, role: AppTextRole.caption),
-        const SizedBox(height: AppTheme.spaceGroup),
+        AppSectionHeader(title, gutter: true),
+        AppPageGutter(
+          child: AppText(caption, role: AppTextRole.caption),
+        ),
+        const SizedBox(height: AppTheme.spaceSm),
         AppListTile(
           title: providerLabel,
           subtitle: '当前服务商',
@@ -564,45 +566,52 @@ class _ChannelScaffold extends StatelessWidget {
           onTap: onPickKind,
           trailing: const AppText('更换', role: AppTextRole.caption),
         ),
-        const SizedBox(height: AppTheme.spaceGroup),
-        AppTextField(
-          label: '服务地址',
-          controller: baseUrl,
-          hint: defaultBaseUrl,
-          keyboardType: TextInputType.url,
-          textInputAction: TextInputAction.next,
-          onChanged: onBaseChanged,
-          onEditingComplete: onBaseComplete,
-        ),
-        const SizedBox(height: AppTheme.spaceGroup),
-        if (needsApiKey) ...[
-          AppTextField(
-            label: '密钥',
-            controller: apiKey,
-            obscureText: true,
-            hint: 'sk-…',
-            textInputAction: TextInputAction.done,
-            onChanged: onKeyChanged,
-            onEditingComplete: onKeyComplete,
-            onSubmitted: (_) => onKeyComplete(),
+        const SizedBox(height: AppTheme.spaceMd),
+        AppPageGutter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppTextField(
+                label: '服务地址',
+                controller: baseUrl,
+                hint: defaultBaseUrl,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.next,
+                onChanged: onBaseChanged,
+                onEditingComplete: onBaseComplete,
+              ),
+              const SizedBox(height: AppTheme.spaceGroup),
+              if (needsApiKey) ...[
+                AppTextField(
+                  label: '密钥',
+                  controller: apiKey,
+                  obscureText: true,
+                  hint: 'sk-…',
+                  textInputAction: TextInputAction.done,
+                  onChanged: onKeyChanged,
+                  onEditingComplete: onKeyComplete,
+                  onSubmitted: (_) => onKeyComplete(),
+                ),
+                const SizedBox(height: AppTheme.spaceGroup),
+              ],
+              AppSelectField(
+                label: '模型',
+                value: model,
+                hint: modelHint,
+                onTap: onPickModel,
+                trailing: AppButton(
+                  label: probing ? '查找中' : '查找模型',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: onProbe,
+                ),
+              ),
+              if (probeStatus != null) ...[
+                const SizedBox(height: AppTheme.spaceXs),
+                AppText(probeStatus!, role: AppTextRole.caption),
+              ],
+            ],
           ),
-          const SizedBox(height: AppTheme.spaceGroup),
-        ],
-        AppSelectField(
-          label: '模型',
-          value: model,
-          hint: modelHint,
-          onTap: onPickModel,
-          trailing: AppButton(
-            label: probing ? '查找中' : '查找模型',
-            variant: AppButtonVariant.secondary,
-            onPressed: onProbe,
-          ),
         ),
-        if (probeStatus != null) ...[
-          const SizedBox(height: AppTheme.spaceXs),
-          AppText(probeStatus!, role: AppTextRole.caption),
-        ],
       ],
     );
   }
@@ -639,14 +648,13 @@ Future<String?> _showModelSheet(
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(
-                AppTheme.pagePadding,
+                0,
                 AppTheme.spaceGroup,
-                AppTheme.pagePadding,
+                0,
                 AppTheme.spaceMd,
               ),
               itemCount: models.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: AppTheme.spaceGroup),
+              separatorBuilder: (_, _) => const SizedBox.shrink(),
               itemBuilder: (context, index) {
                 final id = models[index];
                 return AppListTile(

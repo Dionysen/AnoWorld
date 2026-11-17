@@ -12,6 +12,7 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_font_picker.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
@@ -79,14 +80,13 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(
-                      AppTheme.pagePadding,
+                      0,
                       AppTheme.spaceSm,
-                      AppTheme.pagePadding,
+                      0,
                       AppTheme.spaceLg,
                     ),
                     itemCount: packs.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppTheme.spaceGroup),
+                    separatorBuilder: (_, _) => const SizedBox.shrink(),
                     itemBuilder: (context, index) {
                       final pack = packs[index];
                       final isActive = activeMatches &&
@@ -153,14 +153,13 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(
-                      AppTheme.pagePadding,
                       0,
-                      AppTheme.pagePadding,
+                      0,
+                      0,
                       AppTheme.spaceSm,
                     ),
                     itemCount: ThemeToken.values.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppTheme.spaceGroup),
+                    separatorBuilder: (_, _) => const SizedBox.shrink(),
                     itemBuilder: (context, index) {
                       final token = ThemeToken.values[index];
                       return AppListTile(
@@ -309,13 +308,11 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 icon: Icons.drive_file_rename_outline,
                 onTap: () => Navigator.pop(context, _PackMenuAction.rename),
               ),
-              const SizedBox(height: AppTheme.spaceSm),
               AppListTile(
                 title: '复制',
                 icon: Icons.copy_outlined,
                 onTap: () => Navigator.pop(context, _PackMenuAction.copy),
               ),
-              const SizedBox(height: AppTheme.spaceSm),
               AppListTile(
                 title: '删除',
                 icon: Icons.delete_outline,
@@ -404,22 +401,23 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppSectionHeader('主题模式'),
-            AppSegmented<AppThemeModeSetting>(
-              value: current.mode,
-              onChanged: controller.setThemeMode,
-              options: [
-                for (final mode in AppThemeModeSetting.values)
-                  AppSegmentOption(
-                    value: mode,
-                    label: mode.label,
-                    icon: mode.icon,
-                  ),
-              ],
+            const AppSectionHeader('主题模式', gutter: true),
+            AppPageGutter(
+              child: AppSegmented<AppThemeModeSetting>(
+                value: current.mode,
+                onChanged: controller.setThemeMode,
+                options: [
+                  for (final mode in AppThemeModeSetting.values)
+                    AppSegmentOption(
+                      value: mode,
+                      label: mode.label,
+                      icon: mode.icon,
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: AppTheme.spaceLg),
-            const AppSectionHeader('主题颜色'),
-            const SizedBox(height: AppTheme.spaceGroup),
+            const AppSectionHeader('主题颜色', gutter: true),
             AppListTile(
               title: '主题预设',
               subtitle: '浅色与深色各记一套',
@@ -436,7 +434,6 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 ),
               ),
             ),
-            const SizedBox(height: AppTheme.spaceGroup),
             AppListTile(
               title: '自定义颜色',
               subtitle: '调整当前配色',
@@ -445,7 +442,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               trailing: const AppForwardIcon(),
             ),
             const SizedBox(height: AppTheme.spaceLg),
-            const AppSectionHeader('界面'),
+            const AppSectionHeader('界面', gutter: true),
             AppFontPickerRow(
               label: '字体',
               description: '系统字体或导入文件',
@@ -458,7 +455,6 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               onImportPath: controller.importFontFromPath,
               onDeleteFont: controller.deleteImportedFont,
             ),
-            const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
               label: '字体大小',
               icon: Icons.format_size,
@@ -474,7 +470,6 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 );
               },
             ),
-            const SizedBox(height: AppTheme.spaceGroup),
             AppSlider(
               label: '圆角大小',
               icon: Icons.rounded_corner,
