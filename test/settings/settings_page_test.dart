@@ -38,6 +38,8 @@ void main() {
 
     await tester.tap(find.text('预设').last);
     await tester.pumpAndSettle();
+    expect(find.text('采样'), findsOneWidget);
+    expect(find.text('预设提示词'), findsOneWidget);
     expect(find.text('温度'), findsOneWidget);
     expect(find.text('高级采样'), findsOneWidget);
     await tester.tap(find.text('高级采样'));

@@ -2,7 +2,6 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
-import 'package:anoworld/foundation/widgets/app_nested_settings_group.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -32,6 +31,12 @@ class PromptManagerPanel extends StatelessWidget {
     };
   }
 
+  static String _sectionKey(PromptSection section) {
+    final id = section.identifier?.trim();
+    if (id != null && id.isNotEmpty) return id;
+    return '${section.type.name}:${section.name}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
@@ -40,19 +45,83 @@ class PromptManagerPanel extends StatelessWidget {
       builder: (context, _) {
         final config = controller.aiPresets.promptManager;
         final sections = config.sortedSections;
-        return AppSettingsNestedColumn(
-          children: [
-            for (var i = 0; i < sections.length; i++)
-              _SectionRow(
-                index: i,
-                section: sections[i],
-                label: sectionLabel(sections[i]),
-                config: config,
-              ),
-          ],
+        return ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          itemCount: sections.length,
+          onReorderItem: (oldIndex, newIndex) async {
+            await controller.updatePromptManager(
+              config.reorder(oldIndex, newIndex),
+            );
+          },
+          itemBuilder: (context, index) {
+            final section = sections[index];
+            return _SectionRow(
+              key: ValueKey(_sectionKey(section)),
+              index: index,
+              section: section,
+              label: sectionLabel(section),
+              config: config,
+            );
+          },
         );
       },
     );
+  }
+
+  static Future<void> openSection(
+    BuildContext context,
+    int index,
+    PromptSection section,
+  ) async {
+    if (section.isEditable) {
+      await editSection(context, index, section);
+      return;
+    }
+    await viewSection(context, section);
+  }
+
+  static Future<void> viewSection(
+    BuildContext context,
+    PromptSection section,
+  ) async {
+    final body = _readOnlyBody(section);
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return AppPage(
+            title: sectionLabel(section),
+            onBack: () => Navigator.of(context).pop(),
+            body: AppPageBody(
+              children: [
+                AppText(
+                  body,
+                  role: AppTextRole.body,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  static String _readOnlyBody(PromptSection section) {
+    if (section.isCharacterOwned) {
+      return '内容由当前故事角色填充，这里不能改';
+    }
+    final text = section.effectiveContent.trim();
+    if (text.isNotEmpty) return text;
+    return switch (section.type) {
+      PromptSectionType.persona => '写故事时用当前玩家身份填充',
+      PromptSectionType.worldInfo ||
+      PromptSectionType.worldInfoAfter =>
+        '写故事时用当前故事的背景设定填充',
+      PromptSectionType.chatHistory => '写故事时自动带上对话历史',
+      PromptSectionType.authorNote => '暂无作者备注',
+      _ => '这段会在写故事时自动带上',
+    };
   }
 
   static Future<void> editSection(
@@ -99,6 +168,7 @@ class PromptManagerPanel extends StatelessWidget {
 
 class _SectionRow extends StatelessWidget {
   const _SectionRow({
+    super.key,
     required this.index,
     required this.section,
     required this.label,
@@ -114,32 +184,28 @@ class _SectionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
     final editable = section.isEditable;
+    final scheme = Theme.of(context).colorScheme;
     return AppListTile(
-      title: '${index + 1}. $label',
+      title: label,
       subtitle: section.isCharacterOwned
           ? '内容由当前故事角色填充'
-          : (editable ? '点按编辑文案' : null),
-      icon: Icons.article_outlined,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (editable)
-            const Padding(
-              padding: EdgeInsets.only(right: AppTheme.spaceSm),
-              child: AppText('编辑', role: AppTextRole.caption),
-            ),
-          AppSwitch(
-            value: section.enabled,
-            onChanged: (_) async {
-              final next = config.toggleSectionByIndex(index);
-              await controller.updatePromptManager(next);
-            },
-          ),
-        ],
+          : (editable ? '点按编辑文案' : '点按查看'),
+      leading: ReorderableDragStartListener(
+        index: index,
+        child: Icon(
+          Icons.drag_handle,
+          size: AppListTile.iconSize,
+          color: scheme.onSurfaceVariant,
+        ),
       ),
-      onTap: editable
-          ? () => PromptManagerPanel.editSection(context, index, section)
-          : null,
+      trailing: AppSwitch(
+        value: section.enabled,
+        onChanged: (_) async {
+          final next = config.toggleSectionByIndex(index);
+          await controller.updatePromptManager(next);
+        },
+      ),
+      onTap: () => PromptManagerPanel.openSection(context, index, section),
     );
   }
 }

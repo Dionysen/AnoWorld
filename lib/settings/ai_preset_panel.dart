@@ -5,7 +5,6 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
-import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
@@ -17,7 +16,7 @@ import 'package:anoworld/settings/prompt_manager_panel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-/// Global AI preset: picker + root generation controls + prompt sections.
+/// Global AI preset: picker row + sampling + prompt sections.
 class AiPresetPanel extends StatefulWidget {
   const AiPresetPanel({super.key});
 
@@ -325,34 +324,33 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
       listenable: controller,
       builder: (context, _) {
         final active = controller.aiPresets.activePreset;
-        final title = active == null
+        final presetName = active == null
             ? '尚未选用'
             : AiPresetPanel.displayName(active);
-        final sub = active == null
-            ? '点一下选一套'
-            : (AiPresetPanel.displaySubtitle(active) ??
-                '温度 ${controller.ai.generation.temperature.toStringAsFixed(1)}');
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppSectionHeader(
-              '采样',
-              subtitle: '与酒馆预设兼容，套用后写故事生效',
-              gutter: true,
-            ),
             AppListTile(
-              title: title,
-              subtitle: sub,
+              title: '预设',
+              subtitle: '控制输出风格和边界',
               icon: Icons.auto_awesome_outlined,
-              trailing: const AppForwardIcon(),
               onTap: _openPresetPicker,
+              trailing: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: AppText(
+                  presetName,
+                  role: AppTextRole.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                ),
+              ),
             ),
+            const SizedBox(height: AppTheme.spaceLg),
+            const AppSectionHeader('采样', gutter: true),
             const AiGenerationSettingsPanel(),
-            const AppSectionHeader(
-              '提示词管理',
-              subtitle: '按顺序拼进系统提示，故事设定来自背景',
-              gutter: true,
-            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            const AppSectionHeader('预设提示词', gutter: true),
             const PromptManagerPanel(),
           ],
         );
