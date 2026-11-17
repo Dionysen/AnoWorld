@@ -105,25 +105,33 @@ class AppSlider extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppTheme.spaceSm),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              activeTrackColor: scheme.primary,
-              inactiveTrackColor: scheme.outline,
-              thumbColor: scheme.primary,
-              overlayColor: scheme.primary.withValues(alpha: 0.12),
-              valueIndicatorColor: scheme.primary,
-              padding: EdgeInsets.zero,
+          // Same inset both sides; with icon, align under the title text.
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: icon != null
+                  ? AppListTile.iconSize + AppTheme.spaceInline
+                  : AppTheme.spaceInline,
             ),
-            child: Slider(
-              value: display,
-              min: min,
-              max: max,
-              divisions: _divisions,
-              label: readout,
-              onChanged: (next) {
-                onChanged(snap(value: next, min: min, max: max, step: step));
-              },
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                activeTrackColor: scheme.primary,
+                inactiveTrackColor: scheme.outline,
+                thumbColor: scheme.primary,
+                overlayColor: scheme.primary.withValues(alpha: 0.12),
+                valueIndicatorColor: scheme.primary,
+                padding: EdgeInsets.zero,
+              ),
+              child: Slider(
+                value: display,
+                min: min,
+                max: max,
+                divisions: _divisions,
+                label: readout,
+                onChanged: (next) {
+                  onChanged(snap(value: next, min: min, max: max, step: step));
+                },
+              ),
             ),
           ),
         ],

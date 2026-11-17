@@ -38,7 +38,13 @@ void main() {
 
     await tester.tap(find.text('预设').last);
     await tester.pumpAndSettle();
-    expect(find.text('生成相关'), findsOneWidget);
+    expect(find.text('温度'), findsOneWidget);
+    expect(find.text('高级采样'), findsOneWidget);
+    await tester.tap(find.text('高级采样'));
+    await tester.pumpAndSettle();
+    expect(find.text('Top K'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('尚未选用'));
     await tester.pumpAndSettle();
     expect(find.text('选择预设'), findsOneWidget);

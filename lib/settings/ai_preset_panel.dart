@@ -18,9 +18,9 @@ import 'package:anoworld/settings/prompt_manager_panel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-enum _PresetSubPanel { none, generation, prompts }
+enum _PresetSubPanel { none, prompts }
 
-/// Global AI preset: picker + expandable generation / prompt blocks (NT-style).
+/// Global AI preset: picker + root generation controls + expandable prompts.
 class AiPresetPanel extends StatefulWidget {
   const AiPresetPanel({super.key});
 
@@ -345,7 +345,6 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
             ? '点一下选一套'
             : (AiPresetPanel.displaySubtitle(active) ??
                 '温度 ${controller.ai.generation.temperature.toStringAsFixed(1)}');
-        final genOpen = _expanded == _PresetSubPanel.generation;
         final promptsOpen = _expanded == _PresetSubPanel.prompts;
 
         return Column(
@@ -363,14 +362,7 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
               trailing: const AppForwardIcon(),
               onTap: _openPresetPicker,
             ),
-            AppSettingsExpandTile(
-              title: '生成相关',
-              subtitle: '温度、长度与高级采样',
-              icon: Icons.tune_outlined,
-              expanded: genOpen,
-              onToggle: () => _toggle(_PresetSubPanel.generation),
-              child: const AiGenerationSettingsPanel(),
-            ),
+            const AiGenerationSettingsPanel(),
             AppSettingsExpandTile(
               title: '提示词管理',
               subtitle: '分段顺序与文案',
