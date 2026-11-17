@@ -4,11 +4,15 @@ import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/create/preset_editor_page.dart';
+import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/models/story_node_kind.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
+import 'package:anoworld/foundation/widgets/app_detail_entry.dart';
 import 'package:anoworld/foundation/widgets/app_detail_section_card.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -102,36 +106,91 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     if (mounted) await _load();
   }
 
-  String _backgroundBody(Project project) {
-    if (project.background.entries.isEmpty) return '';
-    return project.background.combinedText;
+  List<AppDetailEntry> _backgroundEntries(Project project) {
+    final entries = project.background.entries;
+    if (entries.isEmpty) return const [];
+    final always = entries.where((e) => e.alwaysOn);
+    final keyed = entries.where((e) => !e.alwaysOn);
+    return [...always, ...keyed].map(_backgroundEntry).toList(growable: false);
   }
 
-  String _castBody(Project project) {
-    if (project.cast.isEmpty) return '';
-    return project.cast.map(_formatCastMember).join('\n\n');
+  static AppDetailEntry _backgroundEntry(BackgroundEntry entry) {
+    final title = entry.title.trim();
+    return AppDetailEntry(
+      title: title.isEmpty ? '未命名条目' : title,
+      tags: _backgroundTags(entry),
+      body: entry.body.trim(),
+    );
   }
 
-  static String _formatCastMember(CastMember member) {
-    final lines = <String>[member.name];
-    final summary = member.summary.trim();
-    if (summary.isNotEmpty) lines.add(summary);
-    final personality = member.personality.trim();
-    if (personality.isNotEmpty) lines.add(personality);
-    final speech = member.speechStyle.trim();
-    if (speech.isNotEmpty) lines.add(speech);
-    return lines.join('\n');
+  static List<String> _backgroundTags(BackgroundEntry entry) {
+    if (entry.alwaysOn) return const <String>['常驻'];
+    if (entry.keys.isEmpty) return const <String>['按需'];
+    return entry.keys;
   }
 
-  String _mainBody(Project project) {
-    final summary = project.main.summary.trim();
-    if (summary.isNotEmpty) return summary;
-    final nodes = project.main.nodes;
-    if (nodes.isEmpty) return '';
-    return nodes
-        .take(5)
-        .map((n) => n.title.trim().isEmpty ? n.id : n.title.trim())
-        .join(' → ');
+  List<AppDetailEntry> _castEntries(Project project) {
+    return project.cast.map(_castEntry).toList(growable: false);
+  }
+
+  static AppDetailEntry _castEntry(CastMember member) {
+    final tags = <String>[
+      if (member.exampleLines.isNotEmpty) '示例对白',
+    ];
+    return AppDetailEntry(
+      title: member.name.trim().isEmpty ? '未命名角色' : member.name.trim(),
+      tags: tags,
+      body: _castEntryBody(member),
+    );
+  }
+
+  static String _castEntryBody(CastMember member) {
+    final parts = <String>[
+      if (member.summary.trim().isNotEmpty) member.summary.trim(),
+      if (member.personality.trim().isNotEmpty) member.personality.trim(),
+      if (member.speechStyle.trim().isNotEmpty) member.speechStyle.trim(),
+    ];
+    if (member.exampleLines.isNotEmpty) {
+      parts.add(
+        member.exampleLines
+            .map((line) => '「${line.trim()}」')
+            .where((line) => line != '「」')
+            .join('\n'),
+      );
+    }
+    return parts.join('\n\n');
+  }
+
+  List<AppDetailEntry> _mainEntries(Project project) {
+    final main = project.main;
+    final rows = <AppDetailEntry>[];
+    final summary = main.summary.trim();
+    if (summary.isNotEmpty) {
+      rows.add(
+        AppDetailEntry(
+          title: '脉络摘要',
+          tags: const <String>['概要'],
+          body: summary,
+        ),
+      );
+    }
+    for (final node in main.nodes) {
+      rows.add(_mainNodeEntry(node));
+    }
+    return rows;
+  }
+
+  static AppDetailEntry _mainNodeEntry(StoryNode node) {
+    final title = node.title.trim();
+    final kind = StoryNodeKind.fromTags(node.tags);
+    final extraTags = node.tags
+        .where((t) => !StoryNodeKind.tagNames.contains(t))
+        .toList(growable: false);
+    return AppDetailEntry(
+      title: title.isEmpty ? node.id : title,
+      tags: <String>[kind.label, ...extraTags],
+      body: node.synopsis?.trim() ?? '',
+    );
   }
 
   String _mainSubtitle(Project project) {
@@ -141,18 +200,38 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     return '$nodes 站 · $edges 条连线';
   }
 
-  String _presetBody(Project project) {
+  List<AppDetailEntry> _presetEntries(Project project) {
     final preset = project.activePreset;
-    final notes = <String>[
-      if (preset.styleNotes.trim().isNotEmpty) preset.styleNotes.trim(),
-    ];
+    final rows = <AppDetailEntry>[];
+    final notes = preset.styleNotes.trim();
+    if (notes.isNotEmpty) {
+      rows.add(
+        AppDetailEntry(
+          title: '文风说明',
+          tags: <String>[preset.name],
+          body: notes,
+        ),
+      );
+    }
     if (preset.outputPreferences.isNotEmpty) {
-      notes.add('更想要：${preset.outputPreferences.join('、')}');
+      rows.add(
+        AppDetailEntry(
+          title: '更想要',
+          tags: preset.outputPreferences,
+          body: '',
+        ),
+      );
     }
     if (preset.outputBans.isNotEmpty) {
-      notes.add('不要：${preset.outputBans.join('、')}');
+      rows.add(
+        AppDetailEntry(
+          title: '不要',
+          tags: preset.outputBans,
+          body: '',
+        ),
+      );
     }
-    return notes.join('\n\n');
+    return rows;
   }
 
   String _teaserLine(Project project) {
@@ -252,12 +331,12 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader(
               '故事内容',
-              subtitle: '可展开查看，点编辑改对应部分',
+              subtitle: '分条预览，点右上角展开全文',
             ),
             AppDetailSectionCard(
               title: '背景设定',
               icon: Icons.public_outlined,
-              body: _backgroundBody(project),
+              entries: _backgroundEntries(project),
               emptyHint: '还没有世界观与设定',
               onEdit: () => _openEditor(
                 BackgroundEditorPage(projectId: widget.projectId),
@@ -267,9 +346,8 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             AppDetailSectionCard(
               title: '角色',
               icon: Icons.groups_outlined,
-              body: _castBody(project),
+              entries: _castEntries(project),
               emptyHint: '还没有角色',
-              previewLines: 4,
               onEdit: () => _openEditor(
                 CastEditorPage(projectId: widget.projectId),
               ),
@@ -278,7 +356,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             AppDetailSectionCard(
               title: '情节走向',
               icon: Icons.account_tree_outlined,
-              body: _mainBody(project),
+              entries: _mainEntries(project),
               emptyHint: _mainSubtitle(project),
               onEdit: () => _openEditor(
                 MainGraphPage(projectId: widget.projectId),
@@ -288,7 +366,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             AppDetailSectionCard(
               title: '文风',
               icon: Icons.tune_outlined,
-              body: _presetBody(project),
+              entries: _presetEntries(project),
               emptyHint: '使用默认文风，${project.activePreset.name}',
               onEdit: () => _openEditor(
                 PresetEditorPage(projectId: widget.projectId),

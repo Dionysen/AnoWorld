@@ -25,28 +25,38 @@ class AppExpandableText extends StatefulWidget {
 
 class _AppExpandableTextState extends State<AppExpandableText> {
   bool? _exceedsPreview;
+  bool _measureScheduled = false;
 
   @override
   void didUpdateWidget(covariant AppExpandableText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text || oldWidget.role != widget.role) {
+    if (oldWidget.text != widget.text ||
+        oldWidget.role != widget.role ||
+        oldWidget.previewLines != widget.previewLines) {
       _exceedsPreview = null;
+      _measureScheduled = false;
     }
   }
 
   void _measureIfNeeded(double maxWidth, TextStyle style) {
-    if (_exceedsPreview != null || maxWidth <= 0 || widget.text.isEmpty) {
+    if (_exceedsPreview != null ||
+        _measureScheduled ||
+        maxWidth <= 0 ||
+        widget.text.isEmpty) {
       return;
     }
-    final painter = TextPainter(
-      text: TextSpan(text: widget.text, style: style),
-      maxLines: widget.previewLines,
-      textDirection: Directionality.of(context),
-    )..layout(maxWidth: maxWidth);
-    final exceeds = painter.didExceedMaxLines;
+    _measureScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _exceedsPreview == exceeds) return;
-      setState(() => _exceedsPreview = exceeds);
+      _measureScheduled = false;
+      if (!mounted || _exceedsPreview != null) return;
+
+      final painter = TextPainter(
+        text: TextSpan(text: widget.text, style: style),
+        maxLines: widget.previewLines,
+        textDirection: Directionality.of(context),
+      )..layout(maxWidth: maxWidth);
+      final exceeds = painter.didExceedMaxLines;
+      _exceedsPreview = exceeds;
       widget.onOverflowChanged?.call(exceeds);
     });
   }
