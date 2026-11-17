@@ -1,5 +1,6 @@
 import 'package:anoworld/foundation/widgets/app_detail_entry.dart';
-import 'package:anoworld/foundation/widgets/app_detail_section_card.dart';
+import 'package:anoworld/foundation/widgets/app_detail_section.dart';
+import 'package:anoworld/foundation/widgets/app_list_hairline.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,7 +17,7 @@ void main() {
     await tester.pumpWidget(
       testScoped(
         home: Scaffold(
-          body: AppDetailSectionCard(
+          body: AppDetailSection(
             title: '背景设定',
             icon: Icons.public_outlined,
             entries: [
@@ -37,6 +38,7 @@ void main() {
     expect(find.byTooltip('展开'), findsOneWidget);
     expect(find.text('世界观'), findsOneWidget);
     expect(find.text('常驻'), findsOneWidget);
+    expect(find.byType(AppListHairline), findsOneWidget);
 
     await tester.tap(find.byTooltip('展开'));
     await tester.pumpAndSettle();
@@ -57,7 +59,7 @@ void main() {
           body: Center(
             child: SizedBox(
               width: 120,
-              child: AppDetailSectionCard(
+              child: AppDetailSection(
                 title: '背景设定',
                 icon: Icons.public_outlined,
                 entries: const [
@@ -97,7 +99,7 @@ void main() {
     await tester.pumpWidget(
       testScoped(
         home: Scaffold(
-          body: AppDetailSectionCard(
+          body: AppDetailSection(
             title: '背景设定',
             icon: Icons.public_outlined,
             entries: const [

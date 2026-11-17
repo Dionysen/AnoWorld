@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/background_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
+import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
@@ -12,13 +15,16 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_detail_entry.dart';
-import 'package:anoworld/foundation/widgets/app_detail_section_card.dart';
+import 'package:anoworld/foundation/widgets/app_detail_section.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_sheet.dart';
+import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
-import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/play/play_session_page.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 /// Story overview: cover, structured sections, play actions, per-section edit.
@@ -36,6 +42,8 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   Object? _error;
   bool _loading = true;
   bool _loadScheduled = false;
+  String? _projectDir;
+  String? _coverAbsolutePath;
 
   @override
   void didChangeDependencies() {
@@ -51,11 +59,14 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
       _error = null;
     });
     try {
-      final project =
-          await AppScope.projectsOf(context).open(widget.projectId);
+      final projects = AppScope.projectsOf(context);
+      final project = await projects.open(widget.projectId);
+      final dir = await projects.directoryFor(widget.projectId);
       if (!mounted) return;
       setState(() {
         _project = project;
+        _projectDir = dir;
+        _coverAbsolutePath = _resolveCoverPath(dir, project.meta.coverPath);
         _loading = false;
       });
     } catch (error) {
@@ -64,6 +75,104 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
         _error = error;
         _loading = false;
       });
+    }
+  }
+
+  String? _resolveCoverPath(String? projectDir, String? relative) {
+    if (projectDir == null || relative == null || relative.trim().isEmpty) {
+      return null;
+    }
+    final absolute = ProjectCoverFiles.absolutePath(projectDir, relative);
+    return File(absolute).existsSync() ? absolute : null;
+  }
+
+  Future<void> _persist(Project project) async {
+    final stamped = project.copyWith(
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+    await AppScope.projectsOf(context).save(stamped);
+    if (!mounted) return;
+    setState(() {
+      _project = stamped;
+      _coverAbsolutePath =
+          _resolveCoverPath(_projectDir, stamped.meta.coverPath);
+    });
+  }
+
+  Future<void> _changeCover() async {
+    final project = _project;
+    final dir = _projectDir;
+    if (project == null) return;
+    if (dir == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前故事还不能换封面')),
+      );
+      return;
+    }
+
+    final action = await showAppSheet<String>(
+      context: context,
+      size: AppSheetSize.compact,
+      builder: (ctx) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                AppTheme.spaceSm,
+              ),
+              child: AppSectionHeader('封面'),
+            ),
+            AppListTile(
+              title: '选择图片',
+              icon: Icons.image_outlined,
+              onTap: () => Navigator.pop(ctx, 'pick'),
+            ),
+            if (project.meta.coverPath != null)
+              AppListTile(
+                title: '恢复默认',
+                icon: Icons.hide_image_outlined,
+                onTap: () => Navigator.pop(ctx, 'clear'),
+              ),
+            const SizedBox(height: AppTheme.spaceMd),
+          ],
+        );
+      },
+    );
+    if (!mounted || action == null) return;
+
+    if (action == 'clear') {
+      await ProjectCoverFiles.deleteExisting(dir);
+      await _persist(
+        project.copyWith(meta: project.meta.copyWith(clearCoverPath: true)),
+      );
+      return;
+    }
+
+    final picked = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: ProjectCoverFiles.allowedExtensions.toList(),
+    );
+    final path = picked?.path;
+    if (path == null || path.isEmpty || !mounted) return;
+    try {
+      final relative = await ProjectCoverFiles.importFromPath(
+        projectDir: dir,
+        sourcePath: path,
+      );
+      if (!mounted) return;
+      await _persist(
+        project.copyWith(meta: project.meta.copyWith(coverPath: relative)),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法更换封面：$error')),
+      );
     }
   }
 
@@ -200,28 +309,11 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     return '$nodes 站 · $edges 条连线';
   }
 
-  String _teaserLine(Project project) {
-    final main = project.main.summary.trim();
-    if (main.isNotEmpty) {
-      return main.length > 48 ? '${main.substring(0, 48)}…' : main;
-    }
-    final bg = project.background.alwaysOnText.trim();
-    if (bg.isNotEmpty) {
-      final flat = bg.replaceAll('\n', ' ');
-      return flat.length > 48 ? '${flat.substring(0, 48)}…' : flat;
-    }
-    final cast = project.cast;
-    if (cast.isNotEmpty) {
-      final names = cast.take(3).map((c) => c.name).join('、');
-      return cast.length > 3 ? '$names 等' : names;
-    }
-    return '先看一看概要，再开始游玩或继续改';
-  }
-
   Widget _storyCover(BuildContext context, String title) {
     final scheme = Theme.of(context).colorScheme;
+    final coverPath = _coverAbsolutePath;
     final letter = title.isEmpty ? '?' : title.characters.first;
-    return ColoredBox(
+    final placeholder = ColoredBox(
       color: scheme.primary.withValues(alpha: 0.16),
       child: Center(
         child: Text(
@@ -233,6 +325,29 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
           ),
         ),
       ),
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (coverPath != null)
+          Image.file(
+            File(coverPath),
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => placeholder,
+          )
+        else
+          placeholder,
+        Positioned(
+          top: AppTheme.spaceSm,
+          right: AppTheme.spaceSm,
+          child: AppCircleButton(
+            icon: Icons.photo_outlined,
+            tooltip: '更换封面',
+            variant: AppCircleButtonVariant.tonal,
+            onPressed: _changeCover,
+          ),
+        ),
+      ],
     );
   }
 
@@ -271,35 +386,31 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             )
           : null,
       body: AppPageBody(
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.pagePadding),
         children: [
           if (_loading)
-            const AppText('加载中…', role: AppTextRole.caption)
+            const AppPageGutter(
+              child: AppText('加载中…', role: AppTextRole.caption),
+            )
           else if (_error != null)
-            AppEmptyState(
-              message: '无法打开故事',
-              detail: _error.toString(),
-              action: AppButton(
-                label: '重试',
-                onPressed: _load,
-                variant: AppButtonVariant.secondary,
+            AppPageGutter(
+              child: AppEmptyState(
+                message: '无法打开故事',
+                detail: _error.toString(),
+                action: AppButton(
+                  label: '重试',
+                  onPressed: _load,
+                  variant: AppButtonVariant.secondary,
+                ),
               ),
             )
           else if (project != null) ...[
-            ClipRRect(
-              borderRadius: AppUiTokens.of(context).shape().borderRadius,
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: _storyCover(context, project.meta.title),
-              ),
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: _storyCover(context, project.meta.title),
             ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppText(_teaserLine(project), role: AppTextRole.caption),
             const SizedBox(height: AppTheme.spaceLg),
-            const AppSectionHeader(
-              '故事内容',
-              subtitle: '分条预览，点右上角展开全文',
-            ),
-            AppDetailSectionCard(
+            AppDetailSection(
               title: '背景设定',
               icon: Icons.public_outlined,
               entries: _backgroundEntries(project),
@@ -308,8 +419,8 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
                 BackgroundEditorPage(projectId: widget.projectId),
               ),
             ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppDetailSectionCard(
+            const SizedBox(height: AppTheme.spaceLg),
+            AppDetailSection(
               title: '角色',
               icon: Icons.groups_outlined,
               entries: _castEntries(project),
@@ -318,8 +429,8 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
                 CastEditorPage(projectId: widget.projectId),
               ),
             ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppDetailSectionCard(
+            const SizedBox(height: AppTheme.spaceLg),
+            AppDetailSection(
               title: '情节走向',
               icon: Icons.account_tree_outlined,
               entries: _mainEntries(project),

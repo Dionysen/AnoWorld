@@ -45,7 +45,7 @@ App 全局（设置，与酒馆同类）
 
 **任务层**：在上述 ST 拼装完成之后，应用层再追加 AnoWorld 专用段（当前站 `synopsis`、合法下一站 JSON、schema），不由宏替代。
 
-- **故事包 schema v2**：已移除 `Project.presets` / `activePresetId`；v1 包读入时忽略上述字段。角色卡 system/post-history **不写进故事包**（导入页仅提示，请在设置 → AI 预设调整）。
+- **故事包 schema v2**：已移除 `Project.presets` / `activePresetId`；v1 包读入时忽略上述字段。 `ProjectMeta.coverPath` 可选，相对 `assets/`（如 `cover.jpg`）；详情页可换封面。角色卡 system/post-history **不写进故事包**（导入页仅提示，请在设置 → AI 预设调整）。
 - **仍不做**：ST 正则链、插件；预设不得增删 Main 节点。
 
 ## Background（背景 / 世界书）

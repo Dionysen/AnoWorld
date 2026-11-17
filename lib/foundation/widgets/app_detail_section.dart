@@ -6,12 +6,13 @@ import '../theme/app_ui_tokens.dart';
 import 'app_detail_entry.dart';
 import 'app_expandable_text.dart';
 import 'app_icon_button.dart';
-import 'app_surface.dart';
+import 'app_list_hairline.dart';
+import 'app_page_gutter.dart';
 import 'app_text.dart';
 
-/// Structured story-detail block: titled entries (worldbook-style), edit section.
-class AppDetailSectionCard extends StatelessWidget {
-  const AppDetailSectionCard({
+/// Flat story-detail block: section header + hairline-separated entries.
+class AppDetailSection extends StatelessWidget {
+  const AppDetailSection({
     super.key,
     required this.title,
     required this.icon,
@@ -40,11 +41,11 @@ class AppDetailSectionCard extends StatelessWidget {
     final isEmpty = visible.isEmpty;
     final emptyHint = this.emptyHint ?? '这里还没有内容';
 
-    return AppSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LayoutBuilder(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppPageGutter(
+          child: LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 112;
               final edit = AppIconButton(
@@ -84,63 +85,25 @@ class AppDetailSectionCard extends StatelessWidget {
               return heading;
             },
           ),
-          if (isEmpty) ...[
-            const SizedBox(height: AppTheme.spaceSm),
-            AppText(emptyHint, role: AppTextRole.caption),
-          ] else ...[
-            const SizedBox(height: AppTheme.spaceGroup),
-            for (var i = 0; i < visible.length; i++) ...[
-              if (i > 0) const SizedBox(height: AppTheme.spaceXs),
-              _DetailEntryTile(
-                child: _DetailEntryRow(
-                  key: ValueKey(
-                    '${visible[i].title}\u0000${visible[i].body}',
-                  ),
-                  entry: visible[i],
-                  previewLines: previewLines,
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Inset tile inside a section card (NT lorebook-entry nesting).
-class _DetailEntryTile extends StatelessWidget {
-  const _DetailEntryTile({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final base = scheme.surfaceContainerHighest;
-    final depth = theme.brightness == Brightness.dark ? 0.1 : 0.05;
-    final fill = Color.alphaBlend(
-      Colors.black.withValues(alpha: depth),
-      base,
-    );
-    final shape = AppUiTokens.of(context).shape(
-      side: BorderSide(
-        color: scheme.outlineVariant.withValues(alpha: 0.32),
-      ),
-    );
-
-    return Material(
-      color: fill,
-      shape: shape,
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spaceMd,
-          vertical: AppTheme.spaceMd,
         ),
-        child: child,
-      ),
+        if (isEmpty)
+          AppPageGutter(
+            child: Padding(
+              padding: const EdgeInsets.only(
+                top: AppTheme.spaceSm,
+                bottom: AppTheme.spaceInline,
+              ),
+              child: AppText(emptyHint, role: AppTextRole.caption),
+            ),
+          )
+        else
+          for (var i = 0; i < visible.length; i++)
+            _DetailEntryRow(
+              key: ValueKey('$i\u0000${visible[i].title}\u0000${visible[i].body}'),
+              entry: visible[i],
+              previewLines: previewLines,
+            ),
+      ],
     );
   }
 }
@@ -297,34 +260,45 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (title.isNotEmpty || actions.isNotEmpty)
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return _entryHeaderRow(
-                title: title,
-                actions: actions,
-                maxWidth: constraints.maxWidth,
-              );
-            },
+        AppPageGutter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spaceInline),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (title.isNotEmpty || actions.isNotEmpty)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return _entryHeaderRow(
+                        title: title,
+                        actions: actions,
+                        maxWidth: constraints.maxWidth,
+                      );
+                    },
+                  ),
+                if (widget.entry.tags.isNotEmpty) ...[
+                  if (title.isNotEmpty || actions.isNotEmpty)
+                    const SizedBox(height: AppTheme.spaceXs),
+                  _EntryTagWrap(tags: widget.entry.tags),
+                ],
+                if (body.isNotEmpty) ...[
+                  if (title.isNotEmpty ||
+                      widget.entry.tags.isNotEmpty ||
+                      actions.isNotEmpty)
+                    const SizedBox(height: AppTheme.spaceXs),
+                  AppExpandableText(
+                    text: body,
+                    expanded: _expanded,
+                    previewLines: widget.previewLines,
+                    role: AppTextRole.compactBody,
+                    onOverflowChanged: _onOverflow,
+                  ),
+                ],
+              ],
+            ),
           ),
-        if (widget.entry.tags.isNotEmpty) ...[
-          if (title.isNotEmpty || actions.isNotEmpty)
-            const SizedBox(height: AppTheme.spaceXs),
-          _EntryTagWrap(tags: widget.entry.tags),
-        ],
-        if (body.isNotEmpty) ...[
-          if (title.isNotEmpty ||
-              widget.entry.tags.isNotEmpty ||
-              actions.isNotEmpty)
-            const SizedBox(height: AppTheme.spaceXs),
-          AppExpandableText(
-            text: body,
-            expanded: _expanded,
-            previewLines: widget.previewLines,
-            role: AppTextRole.compactBody,
-            onOverflowChanged: _onOverflow,
-          ),
-        ],
+        ),
+        const AppListHairline(),
       ],
     );
   }
@@ -343,7 +317,7 @@ class _EntryTagWrap extends StatelessWidget {
       scheme.primary.withValues(
         alpha: theme.brightness == Brightness.dark ? 0.1 : 0.07,
       ),
-      scheme.surfaceContainerHighest,
+      scheme.surface,
     );
     final tagShape = AppUiTokens.of(context).shape(
       side: BorderSide(color: scheme.primary.withValues(alpha: 0.16)),

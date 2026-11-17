@@ -98,6 +98,7 @@ class ProjectMeta {
     required this.createdAt,
     required this.updatedAt,
     this.schemaVersion = ProjectManifest.currentSchemaVersion,
+    this.coverPath,
   });
 
   final String id;
@@ -106,15 +107,21 @@ class ProjectMeta {
   final DateTime updatedAt;
   final int schemaVersion;
 
+  /// Relative path under project `assets/` (e.g. `cover.jpg`).
+  final String? coverPath;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'title': title,
         'createdAt': createdAt.toUtc().toIso8601String(),
         'updatedAt': updatedAt.toUtc().toIso8601String(),
         'schemaVersion': schemaVersion,
+        if (coverPath != null && coverPath!.trim().isNotEmpty)
+          'coverPath': coverPath,
       };
 
   factory ProjectMeta.fromJson(Map<String, dynamic> json) {
+    final cover = json.optionalString('coverPath')?.trim();
     return ProjectMeta(
       id: json.requireString('id'),
       title: json.requireString('title'),
@@ -124,6 +131,7 @@ class ProjectMeta {
           (json.optionalNum('schemaVersion') ??
                   ProjectManifest.currentSchemaVersion)
               .toInt(),
+      coverPath: (cover == null || cover.isEmpty) ? null : cover,
     );
   }
 
@@ -133,6 +141,8 @@ class ProjectMeta {
     DateTime? createdAt,
     DateTime? updatedAt,
     int? schemaVersion,
+    String? coverPath,
+    bool clearCoverPath = false,
   }) {
     return ProjectMeta(
       id: id ?? this.id,
@@ -140,6 +150,7 @@ class ProjectMeta {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       schemaVersion: schemaVersion ?? this.schemaVersion,
+      coverPath: clearCoverPath ? null : (coverPath ?? this.coverPath),
     );
   }
 }
