@@ -73,6 +73,12 @@ abstract final class AppTheme {
   static const double pagePadding = spaceMd;
   static const double buttonHeight = 36;
 
+  /// Press-in scale for tappable chrome ([AppPressScale], bottom nav, rail).
+  static const double pressScale = 0.92;
+
+  /// Duration of the press-in / release scale animation.
+  static const Duration pressScaleDuration = Duration(milliseconds: 120);
+
   /// Elevation for raised surfaces (cards that should cast a shadow).
   static const double surfaceElevation = 8;
 

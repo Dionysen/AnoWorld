@@ -7,6 +7,7 @@ import '../layout/app_layout.dart';
 import '../theme/app_shapes.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
+import 'app_press_scale.dart';
 
 class AppNavItem {
   const AppNavItem({
@@ -387,38 +388,41 @@ class _RailButton extends StatelessWidget {
         horizontal: AppTheme.spaceXs,
         vertical: AppTheme.spaceXs,
       ),
-      child: Material(
-        color: selected
-            ? theme.colorScheme.primary.withValues(alpha: 0.14)
-            : Colors.transparent,
-        shape: AppUiTokens.of(context).shape(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          customBorder: AppUiTokens.of(context).shape(),
-          child: SizedBox(
-            height: 64,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  selected ? (item.selectedIcon ?? item.icon) : item.icon,
-                  size: 22,
-                  color: color,
-                ),
-                const SizedBox(height: AppTheme.spaceXs),
-                Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
+      child: AppPressScale(
+        enabled: enabled,
+        child: Material(
+          color: selected
+              ? theme.colorScheme.primary.withValues(alpha: 0.14)
+              : Colors.transparent,
+          shape: AppUiTokens.of(context).shape(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: AppUiTokens.of(context).shape(),
+            child: SizedBox(
+              height: 64,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    selected ? (item.selectedIcon ?? item.icon) : item.icon,
+                    size: 22,
                     color: color,
-                    fontSize: 11,
-                    fontWeight:
-                        selected ? FontWeight.w600 : FontWeight.w400,
                   ),
-                ),
-              ],
+                  const SizedBox(height: AppTheme.spaceXs),
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight:
+                          selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -581,37 +585,40 @@ class _BottomNavButton extends StatelessWidget {
         horizontal: AppTheme.spaceXs,
         vertical: AppTheme.spaceXs,
       ),
-      child: Material(
-        color: selected
-            ? theme.colorScheme.primary.withValues(alpha: 0.14)
-            : Colors.transparent,
-        shape: pill,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: active ? onTap : null,
-          customBorder: pill,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                active && selected
-                    ? (item.selectedIcon ?? item.icon)
-                    : item.icon,
-                size: 22,
-                color: color,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
+      child: AppPressScale(
+        enabled: active,
+        child: Material(
+          color: selected
+              ? theme.colorScheme.primary.withValues(alpha: 0.14)
+              : Colors.transparent,
+          shape: pill,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: active ? onTap : null,
+            customBorder: pill,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  active && selected
+                      ? (item.selectedIcon ?? item.icon)
+                      : item.icon,
+                  size: 22,
                   color: color,
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
