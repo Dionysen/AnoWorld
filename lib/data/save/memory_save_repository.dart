@@ -1,3 +1,4 @@
+import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
@@ -24,6 +25,7 @@ class MemorySaveRepository implements SaveRepository {
     required MainSavePointer pointer,
     BridgeSession? bridge,
     PlayViewMode mode = PlayViewMode.visualNovel,
+    List<TavernChatMessage> chat = const <TavernChatMessage>[],
   }) async {
     _slots[projectId] = SaveSlot(
       projectId: projectId,
@@ -31,6 +33,7 @@ class MemorySaveRepository implements SaveRepository {
       savedAt: DateTime.now().toUtc(),
       bridge: bridge,
       mode: mode,
+      chat: List<TavernChatMessage>.unmodifiable(chat),
     );
   }
 

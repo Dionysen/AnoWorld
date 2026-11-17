@@ -32,7 +32,7 @@ Future<PlayViewMode?> showPlayModeSheet(BuildContext context) {
           AppListTile(
             icon: Icons.chat_bubble_outline,
             title: '聊天',
-            subtitle: '气泡对话，打字或点选项继续',
+            subtitle: '一轮你、一轮角色，可点回复选项',
             showDivider: false,
             onTap: () => Navigator.of(ctx).pop(PlayViewMode.chat),
           ),

@@ -1,6 +1,6 @@
 # AnoWorld 内容核心模型
 
-创作器产出、运行时消费的同一套内容分层。聊天式与 VN 式播放都挂在此模型上，只换 UI。
+创作器产出、运行时消费的同一套内容分层。聊天与 VN **共用** Background / Cast /（可选）Main 素材；呈现与推进状态分开。
 
 ## 分层总览
 
@@ -20,7 +20,7 @@ App 全局（设置，与酒馆同类）
 
 相对酒馆，AnoWorld **多加**：**情节走向（Main 图）**与更细的 **Cast（含配角）**；其余提示词、预设、玩家身份、**宏与变量**尽量与 ST/NativeTavern **同一套语义**。
 
-**产品形态（权威）**：VN / 聊天共用同一 Main 推进，但**开玩选定一种呈现并锁定**（[`PlayViewMode`](../lib/domain/runtime/play_view_mode.dart)，存档字段 `mode`）。聊天为 NT 式气泡 + 浮动输入条（[`PlayChatView`](../lib/play/play_chat_view.dart)）。**情节可选**：有出边则收敛；无出边则开放续写。详见 [MainBeat.md](./MainBeat.md)、[UX.md](./UX.md)、[Style.md](./Style.md)。
+**产品形态（权威）**：开玩选定 [`PlayViewMode`](../lib/domain/runtime/play_view_mode.dart) 并锁定（存档字段 `mode`）。**聊天**对齐酒馆：严格 AI/用户交替 + 回复选项（[`TavernChatGenerateAction`](../lib/domain/chat/tavern_chat_generate_action.dart) / [`TavernReplyChoiceAction`](../lib/domain/chat/tavern_reply_choice_action.dart) + [`PlayChatView`](../lib/play/play_chat_view.dart)）；对话写入存档 `chat`；Main 节点仅可选注入提示词。**视觉小说**仍走 Main 指针 + 区间 AI（[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)）；VN 体验后续再加深。详见 [MainBeat.md](./MainBeat.md)、[UX.md](./UX.md)、[Style.md](./Style.md)。
 
 **Main ↔ Beat 字段与推进规则**：见 [MainBeat.md](./MainBeat.md)（权威 schema）。
 
@@ -102,10 +102,11 @@ App 全局（设置，与酒馆同类）
 ### 区间 AI（游玩）
 
 - 玩家处在某主节点的「发挥区间」：本站 `synopsis`（可空）、出边（可无）、Background / Cast、全局 AiPreset、近期游玩摘要。
-- AI **实时**生成对白与过程选项（VN 与聊天共用 [`MainRuntime`](../lib/domain/runtime/main_runtime.dart)）。
+- **VN**：AI 实时生成对白与过程选项（[`MainRuntime`](../lib/domain/runtime/main_runtime.dart) + [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)）。
 - **有出边**：须存在收敛通路；玩家点导向某站的选项后跳到 `edge.to`。
 - **无出边（开放区间）**：不强制下一站；选项以 stay「继续」为主，可 `end`「告一段落」；失败保底同此。
 - **禁止（有骨架时）**：擅自增删主节点、发明不存在的下一站 id。
+- **聊天**：不走区间拍；见上节产品形态。
 
 ### 收敛（有出边时）
 
@@ -145,7 +146,7 @@ App 全局（设置，与酒馆同类）
 | 无选项 | 下一 Beat → 否则按收敛规则给出下一主节点 / end |
 
 - **VN 模式**：舞台化展示；区间内容可边生成边播。
-- **聊天模式**：同一指针与选项；气泡呈现；续写 = 同一套区间 AI，不得另起一套剧情树。
+- **聊天模式**：酒馆式 transcript（`SaveSlot.chat`）；不复用 Beat 指针推进。
 
 ## 创作器 vs 运行时（内容视角）
 
@@ -157,11 +158,12 @@ App 全局（设置，与酒馆同类）
 
 ## 设计原则
 
-1. **一份内容，两种皮肤**：禁止聊天轨与 VN 轨维护两套互不相干的剧本。
-2. **脉络先于发挥**：先稳定 Background / Main 骨架（节点与分支），再在游玩（或预写）中填 Beats。
-3. **骨架封闭、区间开放**：玩家选择改变的是「走哪条已有分支」，不是「AI 另造主线地图」。
-4. **自由发挥必须收敛**：区间 AI 可以花，但不能堵死通往下一主节点或合法结局的路。
-5. **定式可复用，实例可覆盖**：Side 模板不直接等于最终对白。
-6. **设定与预设分离**：事实进 Background；采样与提示词进全局 AiPreset。
-7. **预设可切换、可复用**：换全局预设改变口吻与采样，不改节点图与故事包。
-8. **按需扩展**：字段与层服务当前闭环；不为兼容 ST 预留空抽象。
+1. **一份素材，两种玩法**：设定 / 角色 /（可选）情节共用；聊天与 VN 推进状态分开，禁止再把聊天硬绑回 Beat 桥接。
+2. **脉络先于发挥（VN）**：先稳定 Background / Main 骨架，再在游玩（或预写）中填 Beats。
+3. **骨架封闭、区间开放（VN）**：玩家选择改变的是「走哪条已有分支」，不是「AI 另造主线地图」。
+4. **自由发挥必须收敛（VN）**：区间 AI 可以花，但不能堵死通往下一主节点或合法结局的路。
+5. **聊天回合清晰**：助手一轮、用户一轮；回复选项只充当用户发言。
+6. **定式可复用，实例可覆盖**：Side 模板不直接等于最终对白。
+7. **设定与预设分离**：事实进 Background；采样与提示词进全局 AiPreset。
+8. **预设可切换、可复用**：换全局预设改变口吻与采样，不改节点图与故事包。
+9. **按需扩展**：字段与层服务当前闭环；不为兼容 ST 预留空抽象。

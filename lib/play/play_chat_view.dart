@@ -1,4 +1,3 @@
-import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/foundation/theme/app_chat_chrome.dart';
 import 'package:anoworld/foundation/theme/app_chat_colors.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -11,29 +10,33 @@ import 'package:anoworld/play/play_chat_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-/// NativeTavern-like chat stage for play (bubbles + floating composer).
+/// NativeTavern-like chat: bubbles + reply chips + floating composer.
 class PlayChatView extends StatefulWidget {
   const PlayChatView({
     super.key,
     required this.messages,
-    required this.choices,
+    required this.replyChoices,
     required this.isGenerating,
-    required this.isEnded,
     required this.title,
     required this.onSend,
-    required this.onChoose,
+    required this.onPickReply,
     required this.onRestart,
+    this.inputLocked = false,
+    this.onRefreshChoices,
     this.onStop,
   });
 
   final List<PlayChatMessage> messages;
-  final List<Choice> choices;
+  final List<String> replyChoices;
   final bool isGenerating;
-  final bool isEnded;
   final String title;
   final ValueChanged<String> onSend;
-  final ValueChanged<Choice> onChoose;
+  final ValueChanged<String> onPickReply;
   final VoidCallback onRestart;
+
+  /// Blocks send / restart / reply chips without showing the typing bubble.
+  final bool inputLocked;
+  final VoidCallback? onRefreshChoices;
   final VoidCallback? onStop;
 
   @override
@@ -60,7 +63,7 @@ class _PlayChatViewState extends State<PlayChatView> {
     super.didUpdateWidget(oldWidget);
     if (widget.messages.length != oldWidget.messages.length ||
         widget.isGenerating != oldWidget.isGenerating ||
-        widget.choices.length != oldWidget.choices.length) {
+        widget.replyChoices.length != oldWidget.replyChoices.length) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _measureChrome();
         if (_pinnedToBottom) _scrollToEnd();
@@ -109,8 +112,11 @@ class _PlayChatViewState extends State<PlayChatView> {
     );
   }
 
+  bool get _blocked => widget.isGenerating || widget.inputLocked;
+
   void _handleSend() {
-    final text = _controller.text;
+    final text = _controller.text.trim();
+    if (text.isEmpty || _blocked) return;
     _controller.clear();
     widget.onSend(text);
   }
@@ -124,7 +130,8 @@ class _PlayChatViewState extends State<PlayChatView> {
       color: chat.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final width = constraints.maxWidth.clamp(0.0, AppChatChrome.contentMaxWidth);
+          final width =
+              constraints.maxWidth.clamp(0.0, AppChatChrome.contentMaxWidth);
           return Align(
             alignment: Alignment.topCenter,
             child: SizedBox(
@@ -151,15 +158,17 @@ class _PlayChatViewState extends State<PlayChatView> {
                               if (index >= widget.messages.length) {
                                 return const AppChatBubble(
                                   text: '',
-                                  isUser: false,
-                                  avatarLabel: null,
+                                  role: AppChatBubbleRole.character,
                                   isTyping: true,
+                                  showAvatar: false,
                                 );
                               }
                               final msg = widget.messages[index];
                               return AppChatBubble(
                                 text: msg.text,
-                                isUser: msg.isUser,
+                                role: msg.isUser
+                                    ? AppChatBubbleRole.user
+                                    : AppChatBubbleRole.character,
                                 avatarLabel: msg.avatarLabel,
                               );
                             },
@@ -172,7 +181,9 @@ class _PlayChatViewState extends State<PlayChatView> {
                       bottom: _bottomChrome + 12,
                       child: Center(
                         child: Material(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           shape: const StadiumBorder(),
                           elevation: 2,
                           child: InkWell(
@@ -204,41 +215,43 @@ class _PlayChatViewState extends State<PlayChatView> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (widget.isEnded) ...[
+                          if (widget.replyChoices.isNotEmpty &&
+                              !widget.isGenerating)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  const AppText(
-                                    '本段结束',
-                                    role: AppTextRole.subtitle,
+                                  Row(
+                                    children: [
+                                      const Expanded(
+                                        child: AppText(
+                                          '回复选项',
+                                          role: AppTextRole.caption,
+                                        ),
+                                      ),
+                                      if (widget.onRefreshChoices != null)
+                                        AppChatComposerIconButton(
+                                          icon: Icons.refresh_rounded,
+                                          tooltip: '换一批',
+                                          onPressed: _blocked
+                                              ? null
+                                              : widget.onRefreshChoices,
+                                        ),
+                                    ],
                                   ),
                                   const SizedBox(height: AppTheme.spaceSm),
-                                  AppButton(
-                                    label: '重新开始',
-                                    onPressed: widget.onRestart,
-                                    expanded: true,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ] else if (widget.choices.isNotEmpty) ...[
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  for (final choice in widget.choices)
+                                  for (final choice in widget.replyChoices)
                                     Padding(
                                       padding: const EdgeInsets.only(
                                         bottom: AppTheme.spaceSm,
                                       ),
                                       child: AppButton(
-                                        label: choice.text,
-                                        onPressed: widget.isGenerating
+                                        label: choice,
+                                        onPressed: _blocked
                                             ? null
-                                            : () => widget.onChoose(choice),
+                                            : () =>
+                                                widget.onPickReply(choice),
                                         variant: AppButtonVariant.secondary,
                                         expanded: true,
                                       ),
@@ -246,20 +259,20 @@ class _PlayChatViewState extends State<PlayChatView> {
                                 ],
                               ),
                             ),
-                          ],
                           SafeArea(
                             top: false,
                             child: AppChatComposer(
                               controller: _controller,
                               isGenerating: widget.isGenerating,
-                              enabled: !widget.isEnded,
+                              enabled: !widget.inputLocked,
                               onSend: _handleSend,
                               onStop: widget.onStop,
-                              leading: const [
+                              leading: [
                                 AppChatComposerIconButton(
-                                  icon: Icons.tune_rounded,
-                                  tooltip: '更多',
-                                  onPressed: null,
+                                  icon: Icons.restart_alt_rounded,
+                                  tooltip: '重新开始',
+                                  onPressed:
+                                      _blocked ? null : widget.onRestart,
                                 ),
                               ],
                             ),
@@ -297,17 +310,13 @@ class _EmptyChat extends StatelessWidget {
               height: 100,
               backgroundColor: scheme.primary.withValues(alpha: 0.18),
               child: Icon(
-                Icons.auto_stories_outlined,
+                Icons.chat_bubble_outline,
                 size: 40,
                 color: scheme.primary,
               ),
             ),
             const SizedBox(height: AppTheme.spaceMd),
-            AppText(
-              title,
-              role: AppTextRole.subtitle,
-              maxLines: 2,
-            ),
+            AppText(title, role: AppTextRole.subtitle, maxLines: 2),
             const SizedBox(height: AppTheme.spaceSm),
             const AppText('开始对话', role: AppTextRole.caption),
           ],

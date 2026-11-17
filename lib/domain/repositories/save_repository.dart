@@ -1,3 +1,4 @@
+import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
@@ -9,6 +10,7 @@ class SaveSlot {
     required this.savedAt,
     this.bridge,
     this.mode = PlayViewMode.visualNovel,
+    this.chat = const <TavernChatMessage>[],
   });
 
   final String projectId;
@@ -18,6 +20,9 @@ class SaveSlot {
 
   /// Presentation locked when this slot was written.
   final PlayViewMode mode;
+
+  /// Tavern chat transcript when [mode] is chat.
+  final List<TavernChatMessage> chat;
 }
 
 /// Per-project play progress (MVP: one auto slot).
@@ -32,6 +37,7 @@ abstract interface class SaveRepository {
     required MainSavePointer pointer,
     BridgeSession? bridge,
     PlayViewMode mode = PlayViewMode.visualNovel,
+    List<TavernChatMessage> chat = const <TavernChatMessage>[],
   });
 
   Future<void> clear(String projectId);

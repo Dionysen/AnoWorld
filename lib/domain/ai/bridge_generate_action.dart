@@ -3,6 +3,7 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
+import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 
 /// Sentinel beat id for "stay in interval / generate again".
@@ -24,6 +25,7 @@ class BridgeGenerateAction {
     required String nodeId,
     required BridgeSession session,
     int maxBeats = BridgeSession.defaultMaxBeats,
+    List<String> userAliases = const <String>[],
   }) async {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
@@ -63,6 +65,7 @@ class BridgeGenerateAction {
 本站目标：${node.synopsis ?? ''}
 设定摘要：${project.background.combinedText}
 角色：${project.cast.map((c) => c.name).join('、')}
+玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
 $nextStationBlock
 区间摘要：${session.summary}
 已生成拍数：${session.turnCount}/${openMode ? '∞' : maxBeats}
@@ -80,11 +83,13 @@ $nextStationBlock
       try {
         return _parseBeat(
           raw,
+          project: project,
           nodeId: nodeId,
           beatId: 'bridge_${nodeId}_${session.turnCount + 1}',
           legalNodeIds: exits.map((e) => e.to).toSet(),
           forceConverge: forceConverge,
           openMode: openMode,
+          userAliases: userAliases,
         );
       } on BridgeMapException catch (error) {
         lastError = error.message;
@@ -149,7 +154,12 @@ $nextStationBlock
   }) {
     if (openMode) {
       return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
-输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白","text":"..."}],"choices":[{"text":"...","target":{...}}]}
+输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[{"text":"...","target":{...}}]}
+规则：
+- text 只写对白/叙述正文，禁止「瑞希：」「User：」这类前缀。
+- 角色开口：speaker 必须是角色列表里的名字，不能写成旁白。
+- 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）；不要把玩家写成角色列表外的路人。
+- 第三人称叙述：speaker 用「旁白」。
 本站开放续写：优先给继续选项 {"type":"beat","beatId":"$kBridgeStayBeatId"}；也可给 {"type":"end"} 告一段落。
 禁止发明情节站 nodeId。''';
     }
@@ -157,18 +167,65 @@ $nextStationBlock
         ? '必须给 1～3 个 choices，且每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。'
         : '可给过程选项；若继续本站用 {"type":"beat","beatId":"$kBridgeStayBeatId"}；导向下一站必须用合法 nodeId。';
     return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
-输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白","text":"..."}],"choices":[{"text":"...","target":{...}}]}
+输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[{"text":"...","target":{...}}]}
+规则：
+- text 只写对白/叙述正文，禁止「瑞希：」「User：」这类前缀。
+- 角色开口：speaker 必须是角色列表里的名字，不能写成旁白。
+- 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）。
+- 第三人称叙述：speaker 用「旁白」。
 $converge
 禁止发明不在合法下一站列表里的 nodeId。''';
   }
 
+  static bool _isNarratorSpeaker(String speaker) {
+    final s = speaker.trim().toLowerCase();
+    return s.isEmpty ||
+        s == '旁白' ||
+        s == 'narrator' ||
+        s == 'narration' ||
+        s == 'system';
+  }
+
+  static bool _isUserSpeaker(String speaker, List<String> userAliases) {
+    final s = speaker.trim();
+    if (s.isEmpty) return false;
+    final lower = s.toLowerCase();
+    if (lower == 'user' ||
+        lower == '{{user}}' ||
+        s == '玩家' ||
+        s == '我') {
+      return true;
+    }
+    for (final alias in userAliases) {
+      final a = alias.trim();
+      if (a.isEmpty) continue;
+      if (a == s || a.toLowerCase() == lower) return true;
+    }
+    return false;
+  }
+
+  static String? _resolveSpeakerId(
+    String speaker,
+    Project project,
+    List<String> userAliases,
+  ) {
+    if (_isNarratorSpeaker(speaker)) return null;
+    if (_isUserSpeaker(speaker, userAliases)) return kPlayUserSpeakerId;
+    for (final member in project.cast) {
+      if (member.name == speaker) return member.id;
+    }
+    return speaker;
+  }
+
   static Beat _parseBeat(
     String raw, {
+    required Project project,
     required String nodeId,
     required String beatId,
     required Set<String> legalNodeIds,
     required bool forceConverge,
     required bool openMode,
+    List<String> userAliases = const <String>[],
   }) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) {
@@ -182,16 +239,25 @@ $converge
         final item = linesRaw[i];
         if (item is! Map) continue;
         final row = Map<String, dynamic>.from(item);
-        final text = '${row['text'] ?? ''}'.trim();
+        var text = '${row['text'] ?? ''}'.trim();
         if (text.isEmpty) continue;
-        final speaker = '${row['speaker'] ?? ''}'.trim();
-        final narration =
-            speaker.isEmpty || speaker == '旁白' || speaker == 'narrator';
+        var speaker = '${row['speaker'] ?? ''}'.trim();
+        // Recover character/user from "名字：" in text when speaker is missing/旁白.
+        final labeled = dialogueSpeakerLabel(text);
+        if (labeled != null && _isNarratorSpeaker(speaker)) {
+          speaker = labeled;
+        }
+        text = stripDialogueSpeakerLabel(text);
+        final narration = _isNarratorSpeaker(speaker);
+        final speakerId = narration
+            ? null
+            : _resolveSpeakerId(speaker, project, userAliases);
         lines.add(
           DialogueLine(
             id: '${beatId}_l$i',
-            text: narration ? text : '$speaker：$text',
-            kind: DialogueKind.narration,
+            text: text,
+            speakerId: speakerId,
+            kind: narration ? DialogueKind.narration : DialogueKind.speech,
           ),
         );
       }

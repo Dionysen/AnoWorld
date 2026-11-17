@@ -1,14 +1,17 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
+import 'package:anoworld/domain/chat/tavern_chat_generate_action.dart';
+import 'package:anoworld/domain/chat/tavern_reply_choice_action.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/main_runtime.dart';
 import 'package:anoworld/domain/runtime/play_pointer.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
+import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -44,37 +47,52 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   BridgeSession? _bridge;
   String? _status;
   bool _bootstrapped = false;
-  bool _bridging = false;
-  final List<PlayChatMessage> _chatMessages = <PlayChatMessage>[];
-  final Set<String> _chatSeenLineIds = <String>{};
+  bool _busy = false;
+  bool _assistantBusy = false;
+  bool _choicesBusy = false;
+
+  /// Tavern chat transcript (chat mode only).
+  final List<TavernChatMessage> _chat = <TavernChatMessage>[];
+  List<String> _replyChoices = const <String>[];
 
   Project get _project => widget.project;
+
+  bool get _isChat => widget.mode == PlayViewMode.chat;
+
+  bool get _chatLocked => _assistantBusy || _choicesBusy;
 
   MainStory get _baseMain =>
       ProjectFactory.ensurePlayableMain(widget.project.main);
 
-  void _resetChatLog() {
-    _chatMessages.clear();
-    _chatSeenLineIds.clear();
+  String get _userLabel {
+    final name =
+        AppScope.settingsOf(context).activePersona?.name.trim() ?? '';
+    return name.isNotEmpty ? name : '我';
   }
 
-  void _captureChatLines() {
-    // Chat shows full beat content (NT-style), not line-by-line reveal.
-    final beat = _runtime.currentBeat;
-    final lines = beat?.lines ?? _runtime.revealedLines;
-    for (final line in lines) {
-      if (!_chatSeenLineIds.add(line.id)) continue;
-      final isUser = line.speakerId == kPlayUserSpeakerId;
-      _chatMessages.add(
-        PlayChatMessage(
-          id: line.id,
-          text: line.text,
-          isUser: isUser,
-          avatarLabel: isUser ? null : _speakerName(line),
-        ),
-      );
+  String get _assistantLabel {
+    for (final member in _project.cast) {
+      if (member.isProtagonist) return member.name;
     }
+    if (_project.cast.isNotEmpty) return _project.cast.first.name;
+    return '角色';
   }
+
+  List<PlayChatMessage> get _chatUiMessages {
+    final user = _userLabel;
+    final assistant = _assistantLabel;
+    return [
+      for (final m in _chat)
+        PlayChatMessage.fromTavern(
+          m,
+          userLabel: user,
+          assistantLabel: assistant,
+        ),
+    ];
+  }
+
+  String _newChatId(String prefix) =>
+      '${prefix}_${DateTime.now().microsecondsSinceEpoch}';
 
   @override
   void didChangeDependencies() {
@@ -82,9 +100,11 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     if (_bootstrapped) return;
     _bootstrapped = true;
     _runtime = MainRuntime(_baseMain, save: widget.initialSave);
-    _captureChatLines();
     if (widget.resumeSave && widget.initialSave == null) {
       _maybeLoadAutoSave();
+    } else if (_isChat) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _ensureChatOpening());
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) => _ensureBridge());
     }
@@ -94,19 +114,29 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     final slot = await AppScope.savesOf(context).load(widget.project.meta.id);
     if (!mounted) return;
     if (slot != null) {
-      var main = _baseMain;
-      final bridge = slot.bridge;
-      if (bridge != null && bridge.generatedBeats.isNotEmpty) {
-        main = _mergeBeats(main, bridge.generatedBeats);
-        _bridge = bridge;
+      if (_isChat) {
+        _chat
+          ..clear()
+          ..addAll(slot.chat);
+        _replyChoices = const [];
+        _runtime = MainRuntime(_baseMain, save: slot.pointer);
+        setState(() => _status = '已读取进度');
+      } else {
+        var main = _baseMain;
+        final bridge = slot.bridge;
+        if (bridge != null && bridge.generatedBeats.isNotEmpty) {
+          main = _mergeBeats(main, bridge.generatedBeats);
+          _bridge = bridge;
+        }
+        _runtime = MainRuntime(main, save: slot.pointer);
+        setState(() => _status = '已读取进度');
       }
-      _runtime = MainRuntime(main, save: slot.pointer);
-      _resetChatLog();
-      _captureChatLines();
-      setState(() => _status = '已读取进度');
     }
-    await _ensureBridge();
-    if (mounted) setState(_captureChatLines);
+    if (_isChat) {
+      await _ensureChatOpening();
+    } else {
+      await _ensureBridge();
+    }
   }
 
   MainStory _mergeBeats(MainStory main, List<Beat> beats) {
@@ -157,12 +187,23 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     return _project.castById(characterId)?.name ?? characterId;
   }
 
+  List<String> _userAliases() {
+    final persona = AppScope.settingsOf(context).activePersona;
+    return <String>[
+      if (persona != null && persona.name.trim().isNotEmpty) persona.name.trim(),
+      'User',
+      '玩家',
+      '{{user}}',
+    ];
+  }
+
   Future<void> _save() async {
     await AppScope.savesOf(context).save(
       projectId: widget.project.meta.id,
       pointer: _runtime.toSave(),
-      bridge: _bridge,
+      bridge: _isChat ? null : _bridge,
       mode: widget.mode,
+      chat: _isChat ? List<TavernChatMessage>.unmodifiable(_chat) : const [],
     );
     if (!mounted) return;
     setState(() => _status = '进度已保存');
@@ -170,75 +211,130 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   void _advance() {
     if (!_runtime.canAdvance) return;
-    setState(() {
-      _runtime.advance();
-      _captureChatLines();
-    });
+    setState(() => _runtime.advance());
     _ensureBridge();
   }
 
   void _choose(Choice choice) {
-    setState(() {
-      _runtime.choose(choice.id);
-      _captureChatLines();
-    });
+    setState(() => _runtime.choose(choice.id));
     _syncBridgeNode();
     _ensureBridge();
   }
 
   Future<void> _onChatSend(String raw) async {
     final text = raw.trim();
-    if (text.isEmpty) {
-      if (_runtime.canAdvance) {
-        _advance();
-        return;
-      }
-      if (_runtime.pointer.phase == PlayPhase.choices) return;
-      if (_runtime.pointer.isEnded) return;
-      await _ensureBridge();
-      return;
-    }
-    if (_bridging || _runtime.pointer.isEnded) return;
-    final node = _runtime.currentNode;
-    if (node == null) return;
-    if (node.tags.contains('ending')) {
-      setState(_runtime.endStory);
-      return;
-    }
-    final beatId = 'user_${DateTime.now().millisecondsSinceEpoch}';
-    final beat = Beat(
-      id: beatId,
-      nodeId: node.id,
-      scene: const Scene(),
-      appearances: const [],
-      lines: [
-        DialogueLine(
-          id: '${beatId}_l0',
-          text: text,
-          kind: DialogueKind.speech,
-          speakerId: kPlayUserSpeakerId,
-        ),
-      ],
-      choices: const [],
-    );
-    _syncBridgeNode();
-    final session = _bridge ?? BridgeSession(nodeId: node.id);
+    if (text.isEmpty || _chatLocked) return;
+    await _appendUserAndGenerate(text);
+  }
+
+  Future<void> _onPickReply(String choice) async {
+    final text = choice.trim();
+    if (text.isEmpty || _chatLocked) return;
+    await _appendUserAndGenerate(text);
+  }
+
+  Future<void> _appendUserAndGenerate(String text) async {
     setState(() {
-      _runtime.adoptBridgeBeat(beat);
-      _bridge = session.copyWith(
-        generatedBeats: [...session.generatedBeats, beat],
-        turnCount: session.turnCount + 1,
-        summary: '${session.summary} 玩家：$text'.trim(),
+      _chat.add(
+        TavernChatMessage(
+          id: _newChatId('user'),
+          role: TavernChatRole.user,
+          content: text,
+        ),
       );
-      _captureChatLines();
+      _replyChoices = const [];
+      _status = null;
     });
-    while (_runtime.canAdvance) {
+    await _generateAssistantTurn(refreshChoices: true);
+  }
+
+  Future<void> _ensureChatOpening() async {
+    if (!_isChat || !mounted || _chatLocked) return;
+    if (_chat.isNotEmpty) {
+      if (_replyChoices.isEmpty &&
+          _chat.last.role == TavernChatRole.assistant) {
+        await _refreshReplyChoices();
+      }
+      return;
+    }
+    await _generateAssistantTurn(refreshChoices: true);
+  }
+
+  Future<void> _generateAssistantTurn({required bool refreshChoices}) async {
+    if (!mounted || _chatLocked) return;
+    setState(() {
+      _assistantBusy = true;
+      _status = '正在写这一段…';
+    });
+
+    final settings = AppScope.settingsOf(context);
+    final ctx = settings.textPromptContext();
+    try {
+      final action = TavernChatGenerateAction(
+        textClient: AppScope.textClientOf(context),
+      );
+      final content = await action.generate(
+        ctx: ctx,
+        project: _project,
+        history: List<TavernChatMessage>.unmodifiable(_chat),
+      );
+      if (!mounted) return;
       setState(() {
-        _runtime.advance();
-        _captureChatLines();
+        _chat.add(
+          TavernChatMessage(
+            id: _newChatId('assistant'),
+            role: TavernChatRole.assistant,
+            content: content,
+          ),
+        );
+        _assistantBusy = false;
+        _status = null;
+      });
+      if (refreshChoices) {
+        await _refreshReplyChoices();
+      }
+    } on AiTextException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _assistantBusy = false;
+        _status = error.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _assistantBusy = false;
+        _status = '这一轮暂时写不出来，请稍后再试';
       });
     }
-    await _ensureBridge();
+  }
+
+  Future<void> _refreshReplyChoices() async {
+    if (!mounted || _assistantBusy || _choicesBusy) return;
+    if (_chat.isEmpty || _chat.last.role != TavernChatRole.assistant) {
+      return;
+    }
+    setState(() => _choicesBusy = true);
+    try {
+      final action = TavernReplyChoiceAction(
+        textClient: AppScope.textClientOf(context),
+      );
+      final choices = await action.generate(
+        ctx: AppScope.settingsOf(context).textPromptContext(),
+        project: _project,
+        history: List<TavernChatMessage>.unmodifiable(_chat),
+      );
+      if (!mounted) return;
+      setState(() {
+        _replyChoices = choices;
+        _choicesBusy = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _replyChoices = const [];
+        _choicesBusy = false;
+      });
+    }
   }
 
   void _syncBridgeNode() {
@@ -252,15 +348,19 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     setState(() {
       _runtime = MainRuntime(_baseMain);
       _bridge = null;
+      _chat.clear();
+      _replyChoices = const [];
       _status = '已从头开始';
-      _resetChatLog();
-      _captureChatLines();
     });
-    _ensureBridge();
+    if (_isChat) {
+      _ensureChatOpening();
+    } else {
+      _ensureBridge();
+    }
   }
 
   Future<void> _ensureBridge() async {
-    if (!mounted || _bridging) return;
+    if (_isChat || !mounted || _busy) return;
     if (!_runtime.needsBridge) return;
 
     final node = _runtime.currentNode;
@@ -275,7 +375,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     final session = _bridge ?? BridgeSession(nodeId: node.id);
 
     setState(() {
-      _bridging = true;
+      _busy = true;
       _status = '正在写这一段…';
     });
 
@@ -289,6 +389,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         project: _project.copyWith(main: _runtime.main),
         nodeId: node.id,
         session: session,
+        userAliases: _userAliases(),
       );
       if (!mounted) return;
       setState(() {
@@ -296,16 +397,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         _bridge = session.copyWith(
           generatedBeats: [...session.generatedBeats, beat],
           turnCount: session.turnCount + 1,
-          summary: '${session.summary} ${beat.lines.map((l) => l.text).join(' ')}'
-              .trim(),
+          summary:
+              '${session.summary} ${beat.lines.map((l) => l.text).join(' ')}'
+                  .trim(),
         );
-        _bridging = false;
+        _busy = false;
         _status = null;
-        _captureChatLines();
       });
     } on AiTextException catch (error) {
       if (!mounted) return;
-      // Fall back to guaranteed exit choices as a synthetic beat.
       final choices = BridgeGenerateAction.fallbackChoices(
         _runtime.main,
         node.id,
@@ -330,9 +430,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           generatedBeats: [...session.generatedBeats, beat],
           turnCount: session.turnCount + 1,
         );
-        _bridging = false;
+        _busy = false;
         _status = '用稳妥出口继续';
-        _captureChatLines();
       });
     } catch (_) {
       if (!mounted) return;
@@ -360,9 +459,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           generatedBeats: [...session.generatedBeats, beat],
           turnCount: session.turnCount + 1,
         );
-        _bridging = false;
+        _busy = false;
         _status = '用稳妥出口继续';
-        _captureChatLines();
       });
     }
   }
@@ -377,7 +475,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           child: AppButton(
             label:
                 '前往：${_runtime.main.nodeById(edge.to)?.title ?? edge.to}',
-            onPressed: _bridging
+            onPressed: _busy
                 ? null
                 : () {
                     setState(() => _runtime.jumpToNode(edge.to));
@@ -398,7 +496,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final chatMode = widget.mode == PlayViewMode.chat;
+    final chatMode = _isChat;
     return AppPage(
       title: _modeTitle,
       onBack: () => Navigator.of(context).maybePop(),
@@ -406,7 +504,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         AppIconButton(
           icon: Icons.save_outlined,
           tooltip: '保存进度',
-          onPressed: _runtime.pointer.isEnded ? null : _save,
+          onPressed: (!chatMode && _runtime.pointer.isEnded) ? null : _save,
         ),
       ],
       body: LayoutBuilder(
@@ -428,14 +526,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                   ),
                 Expanded(
                   child: PlayChatView(
-                    messages: _chatMessages,
-                    choices: _runtime.visibleChoices,
-                    isGenerating: _bridging,
-                    isEnded: _runtime.pointer.isEnded,
+                    messages: _chatUiMessages,
+                    replyChoices: _replyChoices,
+                    isGenerating: _assistantBusy,
+                    inputLocked: _choicesBusy,
                     title: widget.project.meta.title,
                     onSend: _onChatSend,
-                    onChoose: _choose,
+                    onPickReply: _onPickReply,
                     onRestart: _restart,
+                    onRefreshChoices: _refreshReplyChoices,
                   ),
                 ),
               ],
@@ -457,7 +556,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                     castName: _castName,
                     onAdvance: _advance,
                     narrow: narrow,
-                    bridging: _bridging,
+                    bridging: _busy,
                   ),
                 ),
                 const SizedBox(height: AppTheme.spaceMd),
@@ -483,10 +582,10 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                     onPressed: _restart,
                     expanded: true,
                   ),
-                ] else if (_runtime.needsBridge || _bridging)
+                ] else if (_runtime.needsBridge || _busy)
                   AppButton(
-                    label: _bridging ? '生成中…' : '生成这一段',
-                    onPressed: _bridging ? null : _ensureBridge,
+                    label: _busy ? '生成中…' : '生成这一段',
+                    onPressed: _busy ? null : _ensureBridge,
                     expanded: true,
                   )
                 else
@@ -585,7 +684,10 @@ class _VnStage extends StatelessWidget {
                         maxLines: 1,
                       ),
                       const SizedBox(height: AppTheme.spaceSm),
-                      AppText(line.text, role: AppTextRole.body),
+                      AppText(
+                        stripDialogueSpeakerLabel(line.text),
+                        role: AppTextRole.body,
+                      ),
                     ] else if (runtime.pointer.phase == PlayPhase.choices)
                       const AppText('请选择', role: AppTextRole.body)
                     else if (runtime.needsBridge || bridging)
@@ -607,4 +709,3 @@ class _VnStage extends StatelessWidget {
     );
   }
 }
-

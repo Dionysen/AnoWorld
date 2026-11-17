@@ -4,6 +4,8 @@ import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// AppChatBubbleRole is exported from app_chat_bubble.dart.
+
 void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
@@ -17,12 +19,36 @@ void main() {
       wrap(
         const AppChatBubble(
           text: '他低声说「今晚别走」。',
-          isUser: false,
-          avatarLabel: '旁白',
+          role: AppChatBubbleRole.narration,
         ),
       ),
     );
     expect(find.textContaining('今晚别走'), findsOneWidget);
+  });
+
+  testWidgets('character bubble shows name and body', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const Column(
+          children: [
+            AppChatBubble(
+              text: '你会更开心吗？',
+              role: AppChatBubbleRole.character,
+              avatarLabel: '瑞希',
+            ),
+            AppChatBubble(
+              text: '会。',
+              role: AppChatBubbleRole.user,
+              avatarLabel: 'User',
+            ),
+          ],
+        ),
+      ),
+    );
+    expect(find.text('瑞希'), findsOneWidget);
+    expect(find.text('你会更开心吗？'), findsOneWidget);
+    expect(find.text('User'), findsOneWidget);
+    expect(find.text('会。'), findsOneWidget);
   });
 
   testWidgets('AppChatComposer send tap fires onSend', (tester) async {

@@ -98,9 +98,13 @@ abstract final class AppChatChrome {
 
   static BorderRadius bubbleBorderRadius({
     required bool isUser,
+    bool narration = false,
     double radius = bubbleCornerRadius,
   }) {
     final r = radius.clamp(0.0, 80.0);
+    if (narration) {
+      return BorderRadius.circular(r);
+    }
     return BorderRadius.only(
       topLeft: Radius.circular(isUser ? r : 0),
       topRight: Radius.circular(isUser ? 0 : r),
@@ -111,10 +115,15 @@ abstract final class AppChatChrome {
 
   static ShapeBorder messageBubbleShape({
     required bool isUser,
+    bool narration = false,
     double radius = bubbleCornerRadius,
   }) =>
       ContinuousRectangleBorder(
-        borderRadius: bubbleBorderRadius(isUser: isUser, radius: radius),
+        borderRadius: bubbleBorderRadius(
+          isUser: isUser,
+          narration: narration,
+          radius: radius,
+        ),
       );
 
   /// User bubble fill: accent blended onto surface (NT Zephyr).
@@ -134,17 +143,32 @@ abstract final class AppChatChrome {
   static ShapeDecoration messageBubbleDecoration(
     BuildContext context, {
     required bool isUser,
+    bool narration = false,
   }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final chat = AppChatColors.of(context);
-    final base =
-        isUser ? userBubbleFromAccent(scheme) : chat.characterBubble;
+    final Color base;
+    if (narration) {
+      base = Color.alphaBlend(
+        scheme.onSurface.withValues(
+          alpha: theme.brightness == Brightness.dark ? 0.08 : 0.06,
+        ),
+        chat.characterBubble,
+      );
+    } else if (isUser) {
+      base = userBubbleFromAccent(scheme);
+    } else {
+      base = chat.characterBubble;
+    }
     return ShapeDecoration(
       color: base,
       shadows: messageBubbleShadows(theme.brightness),
       shape: ContinuousRectangleBorder(
-        borderRadius: bubbleBorderRadius(isUser: isUser),
+        borderRadius: bubbleBorderRadius(
+          isUser: isUser,
+          narration: narration,
+        ),
       ),
     );
   }

@@ -1,0 +1,106 @@
+import 'package:anoworld/domain/ai/ai_prompt_context.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/chat/tavern_chat_generate_action.dart';
+import 'package:anoworld/domain/chat/tavern_chat_message.dart';
+import 'package:anoworld/domain/chat/tavern_reply_choice_action.dart';
+import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+class _ScriptedTextClient implements AiTextClient {
+  _ScriptedTextClient(this.replies);
+
+  final List<String> replies;
+  int calls = 0;
+  final users = <String>[];
+
+  @override
+  Future<String> complete({
+    required AiTextEndpoint endpoint,
+    required String system,
+    required String user,
+    GenerationPreset? generation,
+  }) async {
+    users.add(user);
+    if (calls >= replies.length) {
+      throw AiTextException('no more replies');
+    }
+    return replies[calls++];
+  }
+}
+
+void main() {
+  const endpoint = AiTextEndpoint(
+    kind: AiTextProviderKind.openAiCompatible,
+    baseUrl: 'http://localhost:8080/v1',
+    apiKey: 'sk',
+    model: 'demo',
+  );
+
+  AiPromptContext ctx() => AiPromptContext(
+        endpoint: endpoint,
+        generation: const GenerationPreset(),
+        promptManager: PromptManagerConfig.defaultConfig(),
+      );
+
+  test('tavern generate returns assistant prose and asks not to speak as user',
+      () async {
+    final project = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient(['夜风很轻。']);
+    final action = TavernChatGenerateAction(textClient: client);
+    final out = await action.generate(
+      ctx: ctx(),
+      project: project,
+      history: const [],
+    );
+    expect(out, '夜风很轻。');
+    expect(client.users.single, contains('尚无对话'));
+    expect(client.users.single, contains('助手这一轮'));
+  });
+
+  test('tavern generate includes prior turns', () async {
+    final project = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient(['好的。']);
+    final action = TavernChatGenerateAction(textClient: client);
+    await action.generate(
+      ctx: ctx(),
+      project: project,
+      history: const [
+        TavernChatMessage(
+          id: 'a1',
+          role: TavernChatRole.assistant,
+          content: '你好',
+        ),
+        TavernChatMessage(
+          id: 'u1',
+          role: TavernChatRole.user,
+          content: '在吗',
+        ),
+      ],
+    );
+    expect(client.users.single, contains('你好'));
+    expect(client.users.single, contains('在吗'));
+  });
+
+  test('reply choices parse JSON choices array', () async {
+    final project = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient([
+      '{"choices":["走近一点","先问问她","转身离开"]}',
+    ]);
+    final action = TavernReplyChoiceAction(textClient: client);
+    final choices = await action.generate(
+      ctx: ctx(),
+      project: project,
+      history: const [
+        TavernChatMessage(
+          id: 'a1',
+          role: TavernChatRole.assistant,
+          content: '她看着你',
+        ),
+      ],
+    );
+    expect(choices, ['走近一点', '先问问她', '转身离开']);
+  });
+}

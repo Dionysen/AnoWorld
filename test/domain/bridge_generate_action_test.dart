@@ -1,12 +1,14 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
-import 'package:anoworld/foundation/ai/st_ai_preset.dart';
-import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
+import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
+import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _ScriptedTextClient implements AiTextClient {
@@ -84,9 +86,47 @@ void main() {
       session: BridgeSession(nodeId: blank.main.startNodeId),
     );
     expect(beat.lines.first.text, '风停了。');
+    expect(beat.lines.first.kind, DialogueKind.narration);
     expect(beat.choices, hasLength(1));
     expect(beat.choices.single.text, '继续');
     expect(beat.choices.single.target.beatId, kBridgeStayBeatId);
+  });
+
+  test('speech lines keep plain text and map speakers', () async {
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final project = blank.copyWith(
+      cast: const [
+        CastMember(id: 'c1', name: '瑞希', summary: ''),
+      ],
+    );
+    final client = _ScriptedTextClient([
+      '''
+{"lines":[
+  {"speaker":"瑞希","text":"瑞希：你会更开心吗？"},
+  {"speaker":"User","text":"会。"},
+  {"speaker":"旁白","text":"夜还很长。"},
+  {"speaker":"旁白","text":"瑞希：别急着躲。"}
+],"choices":[]}''',
+    ]);
+    final action = BridgeGenerateAction(textClient: client);
+    final beat = await action.generate(
+      ctx: ctx(),
+      project: project,
+      nodeId: project.main.startNodeId,
+      session: BridgeSession(nodeId: project.main.startNodeId),
+      userAliases: const ['User'],
+    );
+    expect(beat.lines[0].text, '你会更开心吗？');
+    expect(beat.lines[0].speakerId, 'c1');
+    expect(beat.lines[0].kind, DialogueKind.speech);
+    expect(beat.lines[1].text, '会。');
+    expect(beat.lines[1].speakerId, kPlayUserSpeakerId);
+    expect(beat.lines[2].kind, DialogueKind.narration);
+    expect(beat.lines[2].speakerId, isNull);
+    // speaker 误标旁白但正文带「瑞希：」时收回角色归属
+    expect(beat.lines[3].text, '别急着躲。');
+    expect(beat.lines[3].speakerId, 'c1');
+    expect(beat.lines[3].kind, DialogueKind.speech);
   });
 
   test('generate drops illegal node targets and keeps legal ones', () async {

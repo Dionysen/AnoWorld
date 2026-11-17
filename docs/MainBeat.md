@@ -162,7 +162,7 @@ Transition {
 
 ### 3.2 区间 AI 推进（当前实现）
 
-适用于：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥，或聊天式续写。落点：[`BridgeSession`](../lib/domain/runtime/bridge_session.dart)、[`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)、[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)（`PlayPhase.needsBridge`）、[`PlaySessionPage`](../lib/play/play_session_page.dart)。
+适用于 **视觉小说** 游玩：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥。落点：[`BridgeSession`](../lib/domain/runtime/bridge_session.dart)、[`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)、[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)（`PlayPhase.needsBridge`）、[`PlaySessionPage`](../lib/play/play_session_page.dart)（仅 VN 模式）。
 
 1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + 出边列表（可空）+ 区间摘要。进站若已是 `needsBridge`，游玩页自动生成。游玩入口 [`ensurePlayableMain`](../lib/domain/project/project_factory.dart) 会去掉无出边站上「仅结束」的旧占位拍（不写回包），避免空白故事只能点结束。
 2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。`type: beat` + `beatId: __stay__` 表示继续本区间（再选 → `needsBridge`）。
@@ -171,11 +171,16 @@ Transition {
    - UI 可提供「前往：{下一站}」保底；失败时用 `fallbackChoices`（合法出边）。
 4. **无出边（开放区间）**：不触顶强制收敛；prompt 要求 stay「继续」为主，可 `end`；空 choices 时自动补「继续」；`fallbackChoices` = 「继续」+「告一段落」。
 5. **入下一站**：合法 `node` Transition 后换新 `BridgeSession`；会话写入存档附件，**不写回**故事包。
-6. **VN 与聊天**：同一套区间状态机；聊天不另开无出口闲聊树。
+6. **范围**：本节状态机只服务 VN。聊天见 §3.3。
 
 ### 3.3 双模式
 
-聊天与 VN **共用**指针、区间会话与 `choices`；呈现由开玩时的 [`PlayViewMode`](../lib/domain/runtime/play_view_mode.dart) 锁定，局内不切换。
+开玩时的 [`PlayViewMode`](../lib/domain/runtime/play_view_mode.dart) 锁定，局内不切换。
+
+| 模式 | 推进 | 存档 |
+| --- | --- | --- |
+| 视觉小说 | §3.1–3.2 指针 + 区间 AI | `pointer` + 可选 `bridge` |
+| 聊天 | 酒馆交替：[`TavernChatGenerateAction`](../lib/domain/chat/tavern_chat_generate_action.dart) 一轮助手；用户输入或 [`TavernReplyChoiceAction`](../lib/domain/chat/tavern_reply_choice_action.dart) 选项；UI [`PlayChatView`](../lib/play/play_chat_view.dart) | `mode` + `chat[]`（[`TavernChatMessage`](../lib/domain/chat/tavern_chat_message.dart)）；Main 仅作可选情节提示 |
 
 ---
 

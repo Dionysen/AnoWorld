@@ -5,12 +5,24 @@ import '../theme/app_theme.dart';
 import 'app_chat_dialogue_text.dart';
 import 'app_shaped_avatar.dart';
 
-/// Chat message bubble (NativeTavern bubble layout: avatar above, sharp outer corner).
+/// Chat bubble alignment / chrome role.
+enum AppChatBubbleRole {
+  /// Left-aligned character bubble.
+  character,
+
+  /// Right-aligned user bubble.
+  user,
+
+  /// Centered narration (no side tip, no avatar).
+  narration,
+}
+
+/// Chat message bubble (NativeTavern-inspired chrome).
 class AppChatBubble extends StatelessWidget {
   const AppChatBubble({
     super.key,
     required this.text,
-    required this.isUser,
+    this.role = AppChatBubbleRole.character,
     this.avatarLabel,
     this.showAvatar = true,
     this.isTyping = false,
@@ -18,33 +30,75 @@ class AppChatBubble extends StatelessWidget {
   });
 
   final String text;
-  final bool isUser;
+  final AppChatBubbleRole role;
 
-  /// Single glyph / initial drawn inside the avatar circle.
+  /// Display name (shown inside the bubble) and avatar initial source.
   final String? avatarLabel;
   final bool showAvatar;
   final bool isTyping;
   final VoidCallback? onLongPress;
 
   static const double _avatarRadius = 16;
+  static const double _narrationMaxWidth = 420;
+
+  bool get _isUser => role == AppChatBubbleRole.user;
+  bool get _isNarration => role == AppChatBubbleRole.narration;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final cross = isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final name = avatarLabel?.trim();
+    final bubbleBody = isTyping
+        ? const _AppChatTypingDots()
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (name != null && name.isNotEmpty && !_isNarration) ...[
+                Text(
+                  name,
+                  style: AppChatChrome.messageInputStyle(context).copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: (AppChatChrome.messageFontSize(context) - 1)
+                        .clamp(11, 18),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spaceXs),
+              ],
+              AppChatDialogueText(text: text, isUser: _isUser),
+            ],
+          );
     final bubble = DecoratedBox(
       decoration: AppChatChrome.messageBubbleDecoration(
         context,
-        isUser: isUser,
+        isUser: _isUser,
+        narration: _isNarration,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: isTyping
-            ? const _AppChatTypingDots()
-            : AppChatDialogueText(text: text, isUser: isUser),
+        child: bubbleBody,
       ),
     );
 
+    if (_isNarration) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 24),
+        child: Align(
+          alignment: Alignment.center,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _narrationMaxWidth),
+            child: GestureDetector(
+              onLongPress: onLongPress,
+              child: bubble,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final cross =
+        _isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
@@ -54,10 +108,10 @@ class AppChatBubble extends StatelessWidget {
             AppShapedAvatar(
               width: _avatarRadius * 2,
               height: _avatarRadius * 2,
-              backgroundColor: isUser
+              backgroundColor: _isUser
                   ? AppChatChrome.userAvatarFill(scheme)
                   : scheme.primary.withValues(alpha: 0.18),
-              child: isUser
+              child: _isUser
                   ? Icon(
                       Icons.person,
                       size: 18,
@@ -76,11 +130,14 @@ class AppChatBubble extends StatelessWidget {
           ],
           GestureDetector(
             onLongPress: onLongPress,
-            child: SizedBox(width: double.infinity, child: Align(
-              alignment:
-                  isUser ? Alignment.centerRight : Alignment.centerLeft,
-              child: bubble,
-            )),
+            child: SizedBox(
+              width: double.infinity,
+              child: Align(
+                alignment:
+                    _isUser ? Alignment.centerRight : Alignment.centerLeft,
+                child: bubble,
+              ),
+            ),
           ),
         ],
       ),

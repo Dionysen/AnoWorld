@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:anoworld/data/project/project_paths.dart';
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
@@ -57,12 +58,20 @@ class FileSaveRepository implements SaveRepository {
       path: file.path,
     );
     final bridgeMap = map.optionalMap('bridge');
+    final chatRaw = map.optionalList('chat');
     return SaveSlot(
       projectId: map.requireString('projectId'),
       pointer: MainSavePointer.fromJson(map.requireMap('pointer')),
       savedAt: DateTime.parse(map.requireString('savedAt')),
       bridge: bridgeMap == null ? null : BridgeSession.fromJson(bridgeMap),
       mode: PlayViewModeCodec.parse(map.optionalString('mode')),
+      chat: chatRaw
+          .map(
+            (item) => TavernChatMessage.fromJson(
+              asJsonMap(item, path: 'chat[]'),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -72,6 +81,7 @@ class FileSaveRepository implements SaveRepository {
     required MainSavePointer pointer,
     BridgeSession? bridge,
     PlayViewMode mode = PlayViewMode.visualNovel,
+    List<TavernChatMessage> chat = const <TavernChatMessage>[],
   }) async {
     final file = await _slotFile(projectId);
     final payload = <String, dynamic>{
@@ -80,6 +90,8 @@ class FileSaveRepository implements SaveRepository {
       'savedAt': DateTime.now().toUtc().toIso8601String(),
       'mode': mode.wireName,
       if (bridge != null) 'bridge': bridge.toJson(),
+      if (chat.isNotEmpty)
+        'chat': chat.map((m) => m.toJson()).toList(growable: false),
     };
     await file.writeAsString(
       '${const JsonEncoder.withIndent('  ').convert(payload)}\n',
