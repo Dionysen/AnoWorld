@@ -1,4 +1,5 @@
 import 'package:anoworld/domain/models/json_map.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 
 /// Text/LLM providers (OpenAI-compatible HTTP). Inspired by NativeTavern `LLMProvider`.
 enum AiTextProviderKind {
@@ -319,6 +320,7 @@ class AiSettings {
     this.image = const AiImageEndpoint(),
     this.textSlots = const <String, AiTextEndpoint>{},
     this.imageSlots = const <String, AiImageEndpoint>{},
+    this.generation = const GenerationPreset(),
   });
 
   final AiTextEndpoint text;
@@ -326,17 +328,22 @@ class AiSettings {
   final Map<String, AiTextEndpoint> textSlots;
   final Map<String, AiImageEndpoint> imageSlots;
 
+  /// Active sampler params (from applied ST preset or manual tweaks).
+  final GenerationPreset generation;
+
   AiSettings copyWith({
     AiTextEndpoint? text,
     AiImageEndpoint? image,
     Map<String, AiTextEndpoint>? textSlots,
     Map<String, AiImageEndpoint>? imageSlots,
+    GenerationPreset? generation,
   }) {
     return AiSettings(
       text: text ?? this.text,
       image: image ?? this.image,
       textSlots: textSlots ?? this.textSlots,
       imageSlots: imageSlots ?? this.imageSlots,
+      generation: generation ?? this.generation,
     );
   }
 
@@ -377,14 +384,19 @@ class AiSettings {
         'imageSlots': {
           for (final e in imageSlots.entries) e.key: e.value.toJson(),
         },
+        'generation': generation.toJson(),
       };
 
   factory AiSettings.fromJson(Map<String, dynamic> json) {
+    final genMap = json.optionalMap('generation');
     return AiSettings(
       text: AiTextEndpoint.fromJson(json.optionalMap('text')),
       image: AiImageEndpoint.fromJson(json.optionalMap('image')),
       textSlots: _textSlotsFromJson(json.optionalMap('textSlots')),
       imageSlots: _imageSlotsFromJson(json.optionalMap('imageSlots')),
+      generation: genMap == null
+          ? const GenerationPreset()
+          : GenerationPreset.fromJson(genMap),
     );
   }
 

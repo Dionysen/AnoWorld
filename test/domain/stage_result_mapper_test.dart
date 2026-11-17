@@ -2,7 +2,6 @@ import 'package:anoworld/domain/ai/stage_result_mapper.dart';
 import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
-import 'package:anoworld/domain/models/preset.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/validation/project_validator.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,7 +51,6 @@ void main() {
     expect(main.edges, isNotEmpty);
     expect(main.edges.any((e) => e.kind == EdgeKind.branch), isTrue);
 
-    final preset = Preset.builtinDefault();
     final project = Project(
       meta: ProjectMeta(
         id: 'p',
@@ -60,8 +58,6 @@ void main() {
         createdAt: DateTime.utc(2024),
         updatedAt: DateTime.utc(2024),
       ),
-      presets: [preset],
-      activePresetId: preset.id,
       background: const Background(
         entries: [
           BackgroundEntry(

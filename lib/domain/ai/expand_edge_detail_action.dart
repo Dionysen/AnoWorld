@@ -1,5 +1,6 @@
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 
 /// Expands a short edge title/notes into richer author notes for AI / play.
 class ExpandEdgeDetailAction {
@@ -9,6 +10,7 @@ class ExpandEdgeDetailAction {
 
   Future<String> expand({
     required AiTextEndpoint endpoint,
+    GenerationPreset? generation,
     required String title,
     required String detail,
     String? fromTitle,
@@ -27,6 +29,7 @@ class ExpandEdgeDetailAction {
 
     final raw = await _text.complete(
       endpoint: endpoint,
+      generation: generation,
       system: '''你是视觉小说作者的助手。根据用户给出的岔路标题与草稿，写出更具体的走向说明。
 只输出纯文本说明，不要标题、不要 markdown、不要 JSON。
 写 2～5 句，说清这条路发生什么、氛围与后果，方便之后生成对白。

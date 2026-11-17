@@ -13,6 +13,7 @@ class _NoCallTextClient implements AiTextClient {
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
+    generation,
   }) async {
     fail('should not call text client');
   }

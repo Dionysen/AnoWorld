@@ -417,6 +417,7 @@ class _RecordingTextClient implements AiTextClient {
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
+    generation,
   }) async =>
       '展开后的说明';
 }

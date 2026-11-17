@@ -2,7 +2,7 @@
 
 ## 一句话
 
-AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配置 AI API；创作时定下类似 Gal/SLG 的**剧情脉络与分支**，游玩时在大情节之间由 AI **实时发挥**并**收敛**到下一站；聊天式 / 视觉小说式双模式共用同一状态。SillyTavern 角色卡仅作素材入口，不是兼容目标。
+AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：在酒馆式 **AI 预设 / 提示词 / 玩家 Persona / 宏变量**之上，增加 **情节走向控制** 与更细的 **多角色设定（含配角）** 与世界书式背景；本地配置 AI API；创作时定 Gal/SLG 式脉络，游玩时站间 AI 发挥并收敛；双模式共用状态。ST 角色卡作素材入口；**预设与 Persona、宏语义**对齐 ST/NativeTavern，行为不要求整站克隆。
 
 ## 目标与非目标
 
@@ -18,8 +18,9 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 
 ### 非目标（明确不做）
 
-- 不做 SillyTavern 替代品或行为兼容层。
-- 不做正则、插件、ST 扩展脚本、完整世界书优先级引擎（世界书是否借鉴见 Core，MVP 待定）。
+- 不做 SillyTavern **整站**替代品（无插件市场、无正则链、无扩展脚本宿主）。
+- **要做（对齐 ST/NT）**：AiPreset 文件兼容、提示词管理、Persona、`{{…}}` 宏与变量展开（对照 `MacroService`）。
+- 不做完整世界书 **正则 Key / 多层递归 / Sticky** 等引擎（故事内世界书见 Core）；不做正则、插件。
 - 不做云同步、内容商店、账号体系（导入/导出本地包即可支撑「现成游玩」的第一版）。
 - 不做 Live2D 等重资源管线（后续再议）。
 - 不做「一个万能 AI 聊天框写完全稿 / 另造主线地图」；创作 AI 出骨架，游玩 AI 只在封闭出边内发挥。
@@ -29,7 +30,8 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 
 | 层 | 职责 |
 | --- | --- |
-| **创作器** | 项目管理、预设、设定与角色、**主线脉络（大节点/分支/结局）**、可选预写钩子、支线定式、ST 素材摘取、AI 文/图辅助、资源导入 |
+| **创作器** | 项目管理、设定（世界书）与**多角色** Cast、**主线脉络**、可选预写钩子、支线定式、ST 素材摘取、AI 文/图辅助、资源导入 |
+| **设置（全局）** | 文本/生图连接、**酒馆 AiPreset**、提示词管理、**Persona** |
 | **运行时** | 聊天式 / VN 式播放、**节点区间 AI 生成与收敛**、存档/读档；只读故事骨架 + 写进度与本局会话 |
 
 两者可同 App 内切换入口，但数据流与界面职责分开：创作改骨架与设定；运行读骨架、写进度，并在区间内写临时发挥。纯玩家路径：导入项目包 → 运行时，可不进创作器。
@@ -53,8 +55,8 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 
 详见 [docs/Core.md](../docs/Core.md)、[docs/MainBeat.md](../docs/MainBeat.md)。
 
-- 内容分层：Preset → Background → Cast → Main → Side（定式）→ Beat/Scene。
-- Preset 管文风 / 输出禁用 / 输出偏好（借鉴酒馆预设思路，不做 ST 预设兼容）。
+- 内容分层：Background → Cast → Main → Side（定式）→ Beat/Scene；**全局 AiPreset**（设置）管采样与 ST 提示词。
+- **AiPreset**：与 SillyTavern 预设 JSON **兼容**（对照 NativeTavern 实现）；故事包内不再存预设。
 - **Main 两层**：创作时固化 `summary` + 大节点（`synopsis`）+ `edges`（分支/汇合/结局）；游玩时在节点区间内由 AI 生成 Beats，且只能收敛到已有出边或合法 `end`。
 - 聊天式与 VN 式**共用指针、区间会话与 Transition**，只换呈现。
 
@@ -72,7 +74,7 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 
 - 支持常见角色卡 JSON（如 V2/V3）解析。
 - 自动映射有效素材：世界书/情景类 → 设定，角色描述与示例对话 → 角色，首条消息 → 开场素材。
-- 用户在确认页微调；不保证与 ST 原卡行为一致。正则、插件、酒馆预设文件不导入。
+- 用户在确认页微调；不保证与 ST 原卡行为一致。正则、插件不导入；**酒馆预设**在设置中单独导入，不写入故事包。
 
 ## AI 辅助（创作动作 + 游玩区间）
 
@@ -93,7 +95,7 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 
 设置项：文本与生图使用**不同供应商列表**（对齐 NativeTavern：`LLMProvider` vs `ImageGenProvider`）。文本侧：OpenAI / DeepSeek / OpenRouter / 通义 / 硅基流动 / Moonshot / 智谱 / MiniMax / Ollama / 自定义；生图侧：OpenAI Images / OAI Chat 生图 / 硅基流动 / Pollinations / NovelAI / A1111 / ComfyUI / 自定义。各自一份 Base URL、Key、Model；支持探测的渠道在输入密钥后可拉 `/models`。参考实现见同级仓库 `NativeTavern`，规则见 `.cursor/rules/nativetavern-reference.mdc`。
 
-**当前实现**：文本侧已接通 OpenAI 兼容 `chat/completions`；路径 1 可导入酒馆 JSON/PNG 角色卡并映射到 Preset / Background 条目 / Cast，写入后进创作截面；路径 3 分阶段生成设定/角色，阶段 3「走向」只出脉络骨架（空 `beats` 可玩）；创作截面进预设 / 设定 / 角色 / 情节（[`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart)）；游玩侧 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart) + 保底「前往：下一站」，存档可附带本局 `BridgeSession`。路径 2、生图调用、路径 1 自动生成脉络尚未落地。
+**当前实现**：文本侧已接通 OpenAI 兼容 `chat/completions`；路径 1 角色卡映射到 Background / Cast；**全局 AiPreset UI 与拼装对照 NT 落地中**；创作截面为设定 / 角色 / 情节（[`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart)）；游玩侧 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart) + 保底「前往：下一站」，存档可附带本局 `BridgeSession`。路径 2、生图调用、路径 1 自动生成脉络尚未落地。
 
 ## 图片资源
 
@@ -110,7 +112,7 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 
 ## 编辑器取向
 
-- **故事内创作截面**先选预设 / 设定 / 角色 / 情节；**Main** 再用节点编辑器：节点 = 关键情节单元及其流向。手机、平板、桌面是同一套编辑器，交互一致。
+- **故事内创作截面**为设定 / 角色 / 情节；**AiPreset** 在设置；**Main** 再用节点编辑器：节点 = 关键情节单元及其流向。手机、平板、桌面是同一套编辑器，交互一致。
 - **画布 / 卡片**用编辑器底部胶囊导航切换（默认画布）：卡片仍是同一张画布，相机把当前选中站居中放大；切回画布恢复自由平移/缩放。细则与验收见 [docs/UX.md](../docs/UX.md)。
 - 两种视角读写同一张图，不另起一套 UI。支线 / 对白详情用列表或表单；节点图只服务主线骨架。
 
@@ -139,7 +141,9 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：本地配�
 | 块 | 最小形态 |
 | --- | --- |
 | 项目 | 新建、打开、本地导出/导入包 |
-| Preset | 一套可编辑的说明/禁用/偏好；创作与区间 AI 均生效 |
+| AiPreset（设置） | ST 兼容预设 + 提示词管理；应用后作用于全部文本 AI |
+| Persona（设置） | 玩家身份；与 ST 相同宏与 persona 段 |
+| 宏 / 变量 | 展开规则继承酒馆（实现 port `MacroService` / 变量） |
 | Background / Cast | 设定条目（常驻/关键词）+ 角色编辑页；ST 卡选择性摘取 |
 | Main 脉络 | 创作截面进入；生成/可编大节点与分支；全端节点编辑器 + 小屏卡片（验收见 UX） |
 | 区间 AI | 游玩时在站间生成过程戏；合法出边封闭；拍数上限 + UI 保底前往下一站 |

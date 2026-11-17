@@ -4,20 +4,8 @@
     "title": "雨夜投宿",
     "createdAt": "2026-01-01T00:00:00.000Z",
     "updatedAt": "2026-01-01T00:00:00.000Z",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
-  "presets": [
-    {
-      "id": "preset_default",
-      "name": "默认",
-      "styleNotes": "简洁对白，少系统腔；场景描写克制。",
-      "outputBans": ["剧透后续主线", "OOC 系统说明"],
-      "outputPreferences": ["选项短而可执行", "先给可玩段落再润色"],
-      "applyToCreator": true,
-      "applyToRuntimeChat": true
-    }
-  ],
-  "activePresetId": "preset_default",
   "background": {
     "sections": [
       {

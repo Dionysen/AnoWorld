@@ -3,7 +3,6 @@ import 'package:anoworld/create/background_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
-import 'package:anoworld/create/preset_editor_page.dart';
 import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
@@ -135,6 +134,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
 
   static AppDetailEntry _castEntry(CastMember member) {
     final tags = <String>[
+      if (member.isProtagonist) '主角',
       if (member.exampleLines.isNotEmpty) '示例对白',
     ];
     return AppDetailEntry(
@@ -198,40 +198,6 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     final edges = project.main.edges.length;
     if (nodes == 0) return '还没有大情节站';
     return '$nodes 站 · $edges 条连线';
-  }
-
-  List<AppDetailEntry> _presetEntries(Project project) {
-    final preset = project.activePreset;
-    final rows = <AppDetailEntry>[];
-    final notes = preset.styleNotes.trim();
-    if (notes.isNotEmpty) {
-      rows.add(
-        AppDetailEntry(
-          title: '预设说明',
-          tags: <String>[preset.name],
-          body: notes,
-        ),
-      );
-    }
-    if (preset.outputPreferences.isNotEmpty) {
-      rows.add(
-        AppDetailEntry(
-          title: '更想要',
-          tags: preset.outputPreferences,
-          body: '',
-        ),
-      );
-    }
-    if (preset.outputBans.isNotEmpty) {
-      rows.add(
-        AppDetailEntry(
-          title: '不要',
-          tags: preset.outputBans,
-          body: '',
-        ),
-      );
-    }
-    return rows;
   }
 
   String _teaserLine(Project project) {
@@ -360,16 +326,6 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
               emptyHint: _mainSubtitle(project),
               onEdit: () => _openEditor(
                 MainGraphPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppDetailSectionCard(
-              title: '预设',
-              icon: Icons.tune_outlined,
-              entries: _presetEntries(project),
-              emptyHint: '使用默认预设，${project.activePreset.name}',
-              onEdit: () => _openEditor(
-                PresetEditorPage(projectId: widget.projectId),
               ),
             ),
             const SizedBox(

@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const mapper = StCardProjectMapper();
 
-  test('maps card fields into cast / background / preset', () {
+  test('maps card fields into cast / background', () {
     final draft = mapper.fromCards([
       const StCharacterCard(
         name: '掌柜',
@@ -32,6 +32,7 @@ void main() {
     expect(draft.title, '掌柜');
     expect(draft.castItems, hasLength(1));
     expect(draft.castItems.first.value.summary, '客栈老板');
+    expect(draft.castItems.first.value.isProtagonist, isTrue);
     expect(draft.castItems.first.value.exampleLines, isNotEmpty);
 
     final titles = draft.backgroundItems.map((e) => e.title).toList();
@@ -45,7 +46,7 @@ void main() {
     expect(project.meta.title, '掌柜');
     expect(project.cast.single.name, '掌柜');
     expect(project.background.entries.length, greaterThanOrEqualTo(3));
-    expect(project.activePreset.styleNotes, contains('少系统腔'));
+    expect(draft.cardAiNote, contains('少系统腔'));
   });
 
   test('second card becomes extra cast member', () {
@@ -54,6 +55,8 @@ void main() {
       StCharacterCard(name: '配角', description: '向导', scenario: '山路'),
     ]);
     expect(draft.castItems.map((e) => e.title), ['主角', '配角']);
+    expect(draft.castItems.first.value.isProtagonist, isTrue);
+    expect(draft.castItems.last.value.isProtagonist, isFalse);
     expect(
       draft.backgroundItems.any((e) => e.title.contains('情景')),
       isTrue,

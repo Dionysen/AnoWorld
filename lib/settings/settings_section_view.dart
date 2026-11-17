@@ -1,10 +1,9 @@
 import 'package:anoworld/foundation/theme/app_theme.dart';
-import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
-import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/settings/about_panel.dart';
 import 'package:anoworld/settings/ai_settings_panel.dart';
 import 'package:anoworld/settings/appearance_settings_panel.dart';
+import 'package:anoworld/settings/persona_settings_panel.dart';
 import 'package:anoworld/settings/settings_sections.dart';
 import 'package:flutter/widgets.dart';
 
@@ -56,11 +55,7 @@ Widget _bodyFor(SettingsSection section) {
     SettingsSection.general => const Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppSectionHeader('通用'),
-          AppEmptyState(
-            message: '这里还没有可改的选项',
-            detail: '语言、启动等将放在这里',
-          ),
+          PersonaSettingsPanel(),
         ],
       ),
     SettingsSection.appearance => const AppearanceSettingsPanel(),

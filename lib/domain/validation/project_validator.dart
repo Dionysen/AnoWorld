@@ -9,7 +9,6 @@ class ProjectValidator {
   ProjectValidationResult validate(Project project) {
     final issues = <ProjectIssue>[];
     _validateMeta(project, issues);
-    _validatePresets(project, issues);
     _validateMain(project, issues);
     return ProjectValidationResult(List<ProjectIssue>.unmodifiable(issues));
   }
@@ -32,43 +31,6 @@ class ProjectValidator {
           code: 'meta_title_empty',
           message: 'Project title is empty',
           path: r'$.meta.title',
-        ),
-      );
-    }
-  }
-
-  void _validatePresets(Project project, List<ProjectIssue> issues) {
-    if (project.presets.isEmpty) {
-      issues.add(
-        const ProjectIssue(
-          severity: ProjectIssueSeverity.error,
-          code: 'presets_empty',
-          message: 'At least one preset is required',
-          path: r'$.presets',
-        ),
-      );
-      return;
-    }
-    final ids = <String>{};
-    for (final preset in project.presets) {
-      if (!ids.add(preset.id)) {
-        issues.add(
-          ProjectIssue(
-            severity: ProjectIssueSeverity.error,
-            code: 'preset_id_duplicate',
-            message: 'Duplicate preset id "${preset.id}"',
-            path: r'$.presets',
-          ),
-        );
-      }
-    }
-    if (!ids.contains(project.activePresetId)) {
-      issues.add(
-        ProjectIssue(
-          severity: ProjectIssueSeverity.error,
-          code: 'active_preset_missing',
-          message: 'activePresetId "${project.activePresetId}" not found',
-          path: r'$.activePresetId',
         ),
       );
     }

@@ -9,6 +9,7 @@ class CastMember {
     this.speechStyle = '',
     this.exampleLines = const <String>[],
     this.avatarAssetId,
+    this.isProtagonist = false,
   });
 
   final String id;
@@ -19,6 +20,9 @@ class CastMember {
   final List<String> exampleLines;
   final String? avatarAssetId;
 
+  /// Drives {{char}} and ST char* prompt sections when this member is selected.
+  final bool isProtagonist;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'name': name,
@@ -27,6 +31,7 @@ class CastMember {
         'speechStyle': speechStyle,
         'exampleLines': exampleLines,
         if (avatarAssetId != null) 'avatarAssetId': avatarAssetId,
+        if (isProtagonist) 'isProtagonist': true,
       };
 
   factory CastMember.fromJson(Map<String, dynamic> json) {
@@ -38,6 +43,7 @@ class CastMember {
       speechStyle: json.optionalString('speechStyle') ?? '',
       exampleLines: json.stringList('exampleLines', required: false),
       avatarAssetId: json.optionalString('avatarAssetId'),
+      isProtagonist: json.optionalBool('isProtagonist') ?? false,
     );
   }
 
@@ -49,6 +55,7 @@ class CastMember {
     String? speechStyle,
     List<String>? exampleLines,
     String? avatarAssetId,
+    bool? isProtagonist,
   }) {
     return CastMember(
       id: id ?? this.id,
@@ -58,6 +65,32 @@ class CastMember {
       speechStyle: speechStyle ?? this.speechStyle,
       exampleLines: exampleLines ?? this.exampleLines,
       avatarAssetId: avatarAssetId ?? this.avatarAssetId,
+      isProtagonist: isProtagonist ?? this.isProtagonist,
     );
   }
+}
+
+/// At most one protagonist; used for macro / prompt assembly focus.
+List<CastMember> castWithProtagonist(
+  List<CastMember> cast, {
+  required String memberId,
+  required bool isProtagonist,
+}) {
+  if (!isProtagonist) {
+    return cast
+        .map(
+          (c) => c.id == memberId ? c.copyWith(isProtagonist: false) : c,
+        )
+        .toList(growable: false);
+  }
+  return cast
+      .map((c) => c.copyWith(isProtagonist: c.id == memberId))
+      .toList(growable: false);
+}
+
+CastMember? protagonistOf(Iterable<CastMember> cast) {
+  for (final member in cast) {
+    if (member.isProtagonist) return member;
+  }
+  return null;
 }

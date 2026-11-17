@@ -8,6 +8,22 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Project JSON codec', () {
+    test('ignores legacy v1 preset fields on read', () {
+      final raw = File('test/fixtures/rain_night_project.json').readAsStringSync();
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      map['presets'] = [
+        {
+          'id': 'preset_legacy',
+          'name': 'legacy',
+          'styleNotes': 'should drop',
+        },
+      ];
+      map['activePresetId'] = 'preset_legacy';
+      final project = Project.fromJson(map);
+      expect(project.toJson().containsKey('presets'), isFalse);
+      expect(project.toJson().containsKey('activePresetId'), isFalse);
+    });
+
     test('fixture round-trips without changing semantics', () {
       final raw = File('test/fixtures/rain_night_project.json').readAsStringSync();
       final map = jsonDecode(raw) as Map<String, dynamic>;

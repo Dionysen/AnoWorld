@@ -1,8 +1,14 @@
 import 'dart:math' as math;
 
+import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/repositories/settings_repository.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
+import 'package:anoworld/domain/settings/ai_preset_state.dart';
+import 'package:anoworld/domain/settings/persona_settings.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
+import 'package:anoworld/foundation/persona/user_persona.dart';
 import 'package:anoworld/foundation/fonts/file_system_font_repository.dart';
 import 'package:anoworld/foundation/fonts/system_font.dart';
 import 'package:anoworld/foundation/theme/theme_color_pack.dart';
@@ -25,6 +31,8 @@ class SettingsController extends ChangeNotifier {
 
   AiSettings ai = const AiSettings();
   AppearanceSettings appearance = AppearanceSettings();
+  PersonaSettings personas = const PersonaSettings().ensureDefault();
+  AiPresetCatalog aiPresets = AiPresetCatalog();
   Brightness platformBrightness;
   List<SystemFont> fontCatalog = const [];
   bool fontsLoading = false;
@@ -48,6 +56,11 @@ class SettingsController extends ChangeNotifier {
   Future<void> load() async {
     ai = await repository.loadAi();
     appearance = await repository.loadAppearance();
+    personas = (await repository.loadPersonas()).ensureDefault();
+    aiPresets = await repository.loadAiPresets();
+    if (aiPresets.activePresetId == null) {
+      await applyAiPreset(BuiltInAIPresets.defaultPreset);
+    }
     _nextCustomSeq = _deriveNextCustomSeq(appearance.customPacks);
     loaded = true;
     notifyListeners();
@@ -58,6 +71,184 @@ class SettingsController extends ChangeNotifier {
     ai = next;
     notifyListeners();
     await repository.saveAi(next);
+  }
+
+  Future<void> updateAiPresets(AiPresetCatalog next) async {
+    aiPresets = next;
+    notifyListeners();
+    await repository.saveAiPresets(aiPresets);
+  }
+
+  Future<void> updatePromptManager(PromptManagerConfig config) async {
+    await updateAiPresets(aiPresets.copyWith(promptManager: config));
+  }
+
+  Future<void> applyAiPreset(AIPreset preset) async {
+    final gen = preset.generationSettings;
+    await updateAi(
+      ai.copyWith(
+        generation: gen,
+      ),
+    );
+    final prompt = preset.promptManagerConfig ??
+        PromptManagerConfig.defaultConfig();
+    await updateAiPresets(
+      aiPresets.copyWith(
+        activePresetId: preset.id,
+        promptManager: prompt,
+      ),
+    );
+  }
+
+  Future<AIPreset> importAiPreset(Map<String, dynamic> json) async {
+    final id = 'preset_${DateTime.now().toUtc().microsecondsSinceEpoch}';
+    final preset = AIPreset.fromExportJson(json, id);
+    await updateAiPresets(
+      aiPresets.copyWith(
+        customPresets: [...aiPresets.customPresets, preset],
+      ),
+    );
+    await applyAiPreset(preset);
+    return preset;
+  }
+
+  AiPromptContext textPromptContext() {
+    return AiPromptContext(
+      endpoint: ai.text,
+      generation: ai.generation,
+      promptManager: aiPresets.promptManager,
+      persona: activePersona,
+    );
+  }
+
+  Future<AIPreset> saveCurrentAsAiPreset(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('name');
+    }
+    final stamp = DateTime.now().toUtc();
+    final preset = AIPreset(
+      id: 'preset_${stamp.microsecondsSinceEpoch}',
+      name: trimmed,
+      createdAt: stamp,
+      updatedAt: stamp,
+      generationSettings: ai.generation,
+      promptManagerConfig: aiPresets.promptManager,
+    );
+    await updateAiPresets(
+      aiPresets.copyWith(
+        customPresets: [...aiPresets.customPresets, preset],
+      ),
+    );
+    await applyAiPreset(preset);
+    return preset;
+  }
+
+  Future<AIPreset> copyAiPresetToCustom(
+    AIPreset template, {
+    required String name,
+  }) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('name');
+    }
+    final stamp = DateTime.now().toUtc();
+    final copy = template.copyWith(
+      id: 'preset_${stamp.microsecondsSinceEpoch}',
+      name: trimmed,
+      isBuiltIn: false,
+      createdAt: stamp,
+      updatedAt: stamp,
+      generationSettings: template.generationSettings,
+      promptManagerConfig:
+          template.promptManagerConfig ?? aiPresets.promptManager,
+    );
+    await updateAiPresets(
+      aiPresets.copyWith(
+        customPresets: [...aiPresets.customPresets, copy],
+      ),
+    );
+    return copy;
+  }
+
+  Future<void> renameCustomAiPreset(String id, String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final next = aiPresets.customPresets.map((p) {
+      if (p.id != id) return p;
+      return p.copyWith(name: trimmed, updatedAt: DateTime.now().toUtc());
+    }).toList(growable: false);
+    await updateAiPresets(aiPresets.copyWith(customPresets: next));
+  }
+
+  Future<void> deleteCustomAiPreset(String id) async {
+    final next =
+        aiPresets.customPresets.where((p) => p.id != id).toList(growable: false);
+    final clearActive = aiPresets.activePresetId == id;
+    await updateAiPresets(
+      aiPresets.copyWith(
+        customPresets: next,
+        clearActive: clearActive,
+      ),
+    );
+  }
+
+  UserPersona? get activePersona => personas.activePersona;
+
+  Future<void> updatePersonas(PersonaSettings next) async {
+    personas = next.ensureDefault();
+    notifyListeners();
+    await repository.savePersonas(personas);
+  }
+
+  Future<void> setActivePersona(String id) async {
+    if (!personas.personas.any((p) => p.id == id)) return;
+    await updatePersonas(personas.copyWith(activePersonaId: id));
+  }
+
+  Future<UserPersona> createPersona({required String name}) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('name');
+    }
+    final stamp = DateTime.now().toUtc();
+    final persona = UserPersona(
+      id: 'persona_${stamp.microsecondsSinceEpoch}',
+      name: trimmed,
+      createdAt: stamp,
+      updatedAt: stamp,
+    );
+    final next = personas.withPersonas([...personas.personas, persona]);
+    await updatePersonas(
+      next.copyWith(activePersonaId: persona.id),
+    );
+    return persona;
+  }
+
+  Future<void> savePersona(UserPersona persona) async {
+    final list = personas.personas.map((p) {
+      return p.id == persona.id
+          ? persona.copyWith(updatedAt: DateTime.now().toUtc())
+          : p;
+    }).toList(growable: false);
+    await updatePersonas(personas.copyWith(personas: list));
+  }
+
+  Future<void> deletePersona(String id) async {
+    final target = personas.personas.where((p) => p.id == id).firstOrNull;
+    if (target == null || target.isDefault) return;
+    final list =
+        personas.personas.where((p) => p.id != id).toList(growable: false);
+    await updatePersonas(personas.withPersonas(list));
+  }
+
+  Future<void> setDefaultPersona(String id) async {
+    final list = personas.personas
+        .map(
+          (p) => p.copyWith(isDefault: p.id == id),
+        )
+        .toList(growable: false);
+    await updatePersonas(personas.copyWith(personas: list));
   }
 
   Future<void> updateAppearance(AppearanceSettings next) async {

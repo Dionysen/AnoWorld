@@ -1,6 +1,7 @@
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/expand_edge_detail_action.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeTextClient implements AiTextClient {
@@ -12,6 +13,7 @@ class _FakeTextClient implements AiTextClient {
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
+    GenerationPreset? generation,
   }) async {
     lastUser = user;
     return response;

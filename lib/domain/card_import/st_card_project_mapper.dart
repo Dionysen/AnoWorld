@@ -1,7 +1,6 @@
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
-import 'package:anoworld/domain/models/preset.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
@@ -33,35 +32,33 @@ class StCardImportItem<T> {
   }
 }
 
-/// Editable import draft: maps ST cards → AnoWorld Preset / Background / Cast.
+/// Editable import draft: maps ST cards → Background / Cast.
 class StCardImportDraft {
   const StCardImportDraft({
     required this.title,
     required this.castItems,
     required this.backgroundItems,
-    required this.preset,
-    this.includePresetExtras = true,
+    this.cardAiNote,
   });
 
   final String title;
   final List<StCardImportItem<CastMember>> castItems;
   final List<StCardImportItem<BackgroundEntry>> backgroundItems;
-  final Preset preset;
-  final bool includePresetExtras;
+
+  /// 卡内 system/post-history 提示（不写进故事包，仅导入页说明）。
+  final String? cardAiNote;
 
   StCardImportDraft copyWith({
     String? title,
     List<StCardImportItem<CastMember>>? castItems,
     List<StCardImportItem<BackgroundEntry>>? backgroundItems,
-    Preset? preset,
-    bool? includePresetExtras,
+    String? cardAiNote,
   }) {
     return StCardImportDraft(
       title: title ?? this.title,
       castItems: castItems ?? this.castItems,
       backgroundItems: backgroundItems ?? this.backgroundItems,
-      preset: preset ?? this.preset,
-      includePresetExtras: includePresetExtras ?? this.includePresetExtras,
+      cardAiNote: cardAiNote ?? this.cardAiNote,
     );
   }
 
@@ -85,12 +82,7 @@ class StCardImportDraft {
         .where((item) => item.included)
         .map((item) => item.value)
         .toList(growable: false);
-    final preset = includePresetExtras
-        ? this.preset
-        : Preset.builtinDefault().copyWith(id: this.preset.id);
     return blank.copyWith(
-      presets: <Preset>[preset],
-      activePresetId: preset.id,
       background: Background(entries: entries),
       cast: cast,
     );
@@ -130,6 +122,7 @@ class StCardProjectMapper {
             personality: card.personality.trim(),
             speechStyle: '',
             exampleLines: _exampleLines(card.mesExample),
+            isProtagonist: cardIndex == 0,
           ),
         ),
       );
@@ -210,40 +203,27 @@ class StCardProjectMapper {
       }
     }
 
-    final preset = _presetFromCards(cards);
     return StCardImportDraft(
       title: primary.name,
       castItems: castItems,
       backgroundItems: backgroundItems,
-      preset: preset,
-      includePresetExtras: preset.styleNotes.trim().isNotEmpty ||
-          preset.outputPreferences.isNotEmpty,
+      cardAiNote: _cardAiNote(cards),
     );
   }
 
-  Preset _presetFromCards(List<StCharacterCard> cards) {
-    final styleParts = <String>[];
-    final prefs = <String>[];
+  String? _cardAiNote(List<StCharacterCard> cards) {
+    final parts = <String>[];
     for (final card in cards) {
       if (card.systemPrompt.trim().isNotEmpty) {
-        styleParts.add(card.systemPrompt.trim());
+        parts.add(card.systemPrompt.trim());
       }
       if (card.postHistoryInstructions.trim().isNotEmpty) {
-        prefs.add(card.postHistoryInstructions.trim());
+        parts.add(card.postHistoryInstructions.trim());
       }
     }
-    final base = Preset.builtinDefault();
-    if (styleParts.isEmpty && prefs.isEmpty) {
-      return base.copyWith(id: newEntityId('preset'), name: '从角色卡');
-    }
-    return base.copyWith(
-      id: newEntityId('preset'),
-      name: '从角色卡',
-      styleNotes: styleParts.isEmpty
-          ? base.styleNotes
-          : styleParts.join('\n\n'),
-      outputPreferences: prefs.isEmpty ? base.outputPreferences : prefs,
-    );
+    if (parts.isEmpty) return null;
+    final joined = parts.join('\n\n');
+    return joined.length > 160 ? '${joined.substring(0, 160)}…' : joined;
   }
 
   static String _bookTitle(StCharacterBookEntry entry) {

@@ -179,23 +179,14 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _status = '正在写这一段…';
     });
 
-    final endpoint = AppScope.settingsOf(context).ai.text;
+    final settings = AppScope.settingsOf(context);
     try {
       final action = BridgeGenerateAction(
         textClient: AppScope.textClientOf(context),
       );
       final beat = await action.generate(
-        endpoint: endpoint,
-        project: Project(
-          meta: _project.meta,
-          presets: _project.presets,
-          activePresetId: _project.activePresetId,
-          background: _project.background,
-          cast: _project.cast,
-          main: _runtime.main,
-          side: _project.side,
-          assets: _project.assets,
-        ),
+        ctx: settings.textPromptContext(),
+        project: _project.copyWith(main: _runtime.main),
         nodeId: node.id,
         session: session,
       );

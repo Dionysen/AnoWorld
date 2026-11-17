@@ -13,6 +13,7 @@ import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
+import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
@@ -109,11 +110,17 @@ class _CastEditorPageState extends State<CastEditorPage> {
     final personality = TextEditingController(text: draft.personality);
     final speech = TextEditingController(text: draft.speechStyle);
     final examples = TextEditingController(text: draft.exampleLines.join('\n'));
+  var isProtagonist = draft.isProtagonist ||
+        (existing == null &&
+            project.cast.isEmpty &&
+            !project.cast.any((c) => c.isProtagonist));
 
     final result = await showAppSheet<_CastSheetResult>(
       context: context,
       size: AppSheetSize.half,
       builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheet) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(
             AppTheme.pagePadding,
@@ -165,6 +172,17 @@ class _CastEditorPageState extends State<CastEditorPage> {
                       maxLines: 6,
                       hint: '一行一句',
                     ),
+                    const SizedBox(height: AppTheme.spaceMd),
+                    AppListTile(
+                      title: '主角',
+                      subtitle: '酒馆里「当前角色」的名字与设定来源',
+                      icon: Icons.star_outline,
+                      trailing: AppSwitch(
+                        value: isProtagonist,
+                        onChanged: (value) =>
+                            setSheet(() => isProtagonist = value),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -186,6 +204,7 @@ class _CastEditorPageState extends State<CastEditorPage> {
                             .map((s) => s.trim())
                             .where((s) => s.isNotEmpty)
                             .toList(growable: false),
+                        isProtagonist: isProtagonist,
                       ),
                     ),
                   );
@@ -205,6 +224,8 @@ class _CastEditorPageState extends State<CastEditorPage> {
             ],
           ),
         );
+          },
+        );
       },
     );
 
@@ -215,7 +236,7 @@ class _CastEditorPageState extends State<CastEditorPage> {
     examples.dispose();
     if (result == null || !mounted) return;
 
-    final cast = [...project.cast];
+    var cast = [...project.cast];
     if (result.delete) {
       cast.removeWhere((c) => c.id == draft.id);
     } else {
@@ -226,6 +247,11 @@ class _CastEditorPageState extends State<CastEditorPage> {
       } else {
         cast[index] = saved;
       }
+      cast = castWithProtagonist(
+        cast,
+        memberId: saved.id,
+        isProtagonist: saved.isProtagonist,
+      );
     }
     _scheduleSave(cast);
   }
@@ -262,7 +288,7 @@ class _CastEditorPageState extends State<CastEditorPage> {
           else if (project != null) ...[
             const AppSectionHeader(
               '登场人物',
-              subtitle: '姓名、性格与说话方式会喂给写故事',
+              subtitle: '可勾选一名主角，作为酒馆里的当前角色',
             ),
             if (cast.isEmpty)
               AppEmptyState(
@@ -279,8 +305,12 @@ class _CastEditorPageState extends State<CastEditorPage> {
                 if (i > 0) const SizedBox(height: AppTheme.spaceSm),
                 AppListTile(
                   title: cast[i].name,
-                  subtitle: _subtitle(cast[i]),
-                  icon: Icons.person_outline,
+                  subtitle: cast[i].isProtagonist
+                      ? '主角 · ${_subtitle(cast[i])}'
+                      : _subtitle(cast[i]),
+                  icon: cast[i].isProtagonist
+                      ? Icons.star_outline
+                      : Icons.person_outline,
                   trailing: const AppForwardIcon(),
                   onTap: () => _editMember(existing: cast[i]),
                 ),

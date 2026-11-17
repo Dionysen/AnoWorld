@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/folder/file_project_folder_repository.dart';
@@ -10,6 +12,7 @@ import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/repositories/settings_repository.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
+import 'package:anoworld/foundation/ai/variables_service.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/home/home_page.dart';
@@ -55,6 +58,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     if (widget.settingsController == null) {
+      unawaited(VariablesService.instance.initialize());
       _settings.load();
     }
     if (widget.libraryDisplay == null) {

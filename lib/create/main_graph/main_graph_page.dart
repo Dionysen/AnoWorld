@@ -933,10 +933,12 @@ class _EdgeEditorBodyState extends State<_EdgeEditorBody> {
       _aiError = null;
     });
     try {
+      final settings = AppScope.settingsOf(context);
       final expanded = await ExpandEdgeDetailAction(
         textClient: AppScope.textClientOf(context),
       ).expand(
-        endpoint: AppScope.settingsOf(context).ai.text,
+        endpoint: settings.ai.text,
+        generation: settings.ai.generation,
         title: _title.text,
         detail: _detail.text,
         fromTitle: widget.from?.title,

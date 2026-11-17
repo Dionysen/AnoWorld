@@ -1,8 +1,7 @@
 import 'package:anoworld/domain/models/background.dart';
-import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/cast.dart' show CastMember, protagonistOf;
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/main_story.dart';
-import 'package:anoworld/domain/models/preset.dart';
 import 'package:anoworld/domain/models/project_asset.dart';
 import 'package:anoworld/domain/models/side.dart';
 
@@ -10,8 +9,6 @@ import 'package:anoworld/domain/models/side.dart';
 class Project {
   const Project({
     required this.meta,
-    required this.presets,
-    required this.activePresetId,
     required this.background,
     required this.cast,
     required this.main,
@@ -20,21 +17,11 @@ class Project {
   });
 
   final ProjectMeta meta;
-  final List<Preset> presets;
-  final String activePresetId;
   final Background background;
   final List<CastMember> cast;
   final MainStory main;
   final SideBundle side;
   final List<ProjectAsset> assets;
-
-  Preset get activePreset {
-    for (final preset in presets) {
-      if (preset.id == activePresetId) return preset;
-    }
-    if (presets.isNotEmpty) return presets.first;
-    return Preset.builtinDefault();
-  }
 
   CastMember? castById(String id) {
     for (final member in cast) {
@@ -42,6 +29,9 @@ class Project {
     }
     return null;
   }
+
+  /// Member勾选了「主角」，供 {{char}} 与酒馆角色段；未勾选时返回 null。
+  CastMember? get protagonist => protagonistOf(cast);
 
   ProjectAsset? assetById(String id) {
     for (final asset in assets) {
@@ -52,8 +42,6 @@ class Project {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'meta': meta.toJson(),
-        'presets': presets.map((p) => p.toJson()).toList(growable: false),
-        'activePresetId': activePresetId,
         'background': background.toJson(),
         'cast': cast.map((c) => c.toJson()).toList(growable: false),
         'main': main.toJson(),
@@ -62,13 +50,9 @@ class Project {
       };
 
   factory Project.fromJson(Map<String, dynamic> json) {
+    // Legacy v1: `presets` / `activePresetId` are ignored (global AiPreset).
     return Project(
       meta: ProjectMeta.fromJson(json.requireMap('meta')),
-      presets: json
-          .requireList('presets')
-          .map((item) => Preset.fromJson(asJsonMap(item, path: 'presets[]')))
-          .toList(growable: false),
-      activePresetId: json.requireString('activePresetId'),
       background: Background.fromJson(json.requireMap('background')),
       cast: json
           .requireList('cast')
@@ -90,8 +74,6 @@ class Project {
 
   Project copyWith({
     ProjectMeta? meta,
-    List<Preset>? presets,
-    String? activePresetId,
     Background? background,
     List<CastMember>? cast,
     MainStory? main,
@@ -100,8 +82,6 @@ class Project {
   }) {
     return Project(
       meta: meta ?? this.meta,
-      presets: presets ?? this.presets,
-      activePresetId: activePresetId ?? this.activePresetId,
       background: background ?? this.background,
       cast: cast ?? this.cast,
       main: main ?? this.main,
@@ -175,7 +155,7 @@ class ProjectManifest {
   });
 
   static const String formatName = 'anoworld-project';
-  static const int currentSchemaVersion = 1;
+  static const int currentSchemaVersion = 2;
 
   final String format;
   final int schemaVersion;

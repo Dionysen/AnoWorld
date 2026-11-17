@@ -294,31 +294,13 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
                   ),
                 ),
               ],
-            if (draft.preset.styleNotes.trim().isNotEmpty ||
-                draft.preset.outputPreferences.isNotEmpty) ...[
+            if (draft.cardAiNote != null) ...[
               const SizedBox(height: AppTheme.spaceLg),
               const AppSectionHeader(
-                '预设',
-                subtitle: '来自卡内系统说明，可关掉',
+                '卡内 AI 说明',
+                subtitle: '不会写进故事，写对白请在设置里改 AI 预设',
               ),
-              AppListTile(
-                title: '带上预设说明',
-                subtitle: draft.preset.styleNotes.trim().isEmpty
-                    ? '仅输出偏好'
-                    : draft.preset.styleNotes
-                        .replaceAll(RegExp(r'\s+'), ' ')
-                        .trim(),
-                icon: Icons.tune_outlined,
-                trailing: AppSwitch(
-                  value: draft.includePresetExtras,
-                  onChanged: (value) {
-                    setState(
-                      () => _draft =
-                          draft.copyWith(includePresetExtras: value),
-                    );
-                  },
-                ),
-              ),
+              AppText(draft.cardAiNote!, role: AppTextRole.caption),
             ],
             const SizedBox(height: AppTheme.spaceLg),
             AppButton(

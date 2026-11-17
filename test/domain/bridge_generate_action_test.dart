@@ -1,5 +1,8 @@
+import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
@@ -17,6 +20,7 @@ class _ScriptedTextClient implements AiTextClient {
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
+    GenerationPreset? generation,
   }) async {
     if (calls >= replies.length) {
       throw AiTextException('no more replies');
@@ -32,6 +36,12 @@ void main() {
     apiKey: 'sk',
     model: 'demo',
   );
+
+  AiPromptContext ctx() => AiPromptContext(
+        endpoint: endpoint,
+        generation: const GenerationPreset(),
+        promptManager: PromptManagerConfig.defaultConfig(),
+      );
 
   test('fallbackChoices point at legal outbound nodes', () {
     final main = const ProjectFactory().createRainNightSample().main;
@@ -99,7 +109,7 @@ void main() {
     ]);
     final action = BridgeGenerateAction(textClient: client);
     final beat = await action.generate(
-      endpoint: endpoint,
+      ctx: ctx(),
       project: project,
       nodeId: 'n1',
       session: const BridgeSession(nodeId: 'n1'),
@@ -141,7 +151,7 @@ void main() {
     ]);
     final action = BridgeGenerateAction(textClient: client);
     final beat = await action.generate(
-      endpoint: endpoint,
+      ctx: ctx(),
       project: project,
       nodeId: 'n1',
       session: const BridgeSession(

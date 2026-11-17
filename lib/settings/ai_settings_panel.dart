@@ -5,12 +5,16 @@ import 'package:anoworld/domain/ai/ai_model_catalog.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/settings/ai_preset_panel.dart';
+import 'package:anoworld/settings/ai_presets_settings_page.dart';
+import 'package:anoworld/settings/persona_settings_page.dart';
 import 'package:flutter/material.dart';
 
 class AiSettingsPanel extends StatefulWidget {
@@ -89,9 +93,49 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
       listenable: controller,
       builder: (context, _) {
         final ai = controller.ai;
+        final persona = controller.activePersona;
+        final personaDesc = persona?.description.trim() ?? '';
+        final activePreset = controller.aiPresets.activePreset;
+        final presetLabel = activePreset == null
+            ? '尚未选用'
+            : AiPresetPanel.displayName(activePreset);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const AppSectionHeader(
+              'AI 预设',
+              subtitle: '采样与提示词分段，可导入酒馆 JSON',
+            ),
+            AppListTile(
+              title: presetLabel,
+              subtitle: '内置或自定义，套用后写故事生效',
+              icon: Icons.auto_awesome_outlined,
+              trailing: const AppForwardIcon(),
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AiPresetsSettingsPage(),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            const AppSectionHeader(
+              '玩家身份',
+              subtitle: '与酒馆相同，影响提示词里的用户侧',
+            ),
+            AppListTile(
+              title: persona?.name ?? 'User',
+              subtitle: personaDesc.isEmpty
+                  ? '去建或切换一套身份'
+                  : personaDesc.replaceAll('\n', ' '),
+              icon: Icons.face_outlined,
+              trailing: const AppForwardIcon(),
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PersonaSettingsPage(),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
             _TextChannelEditor(
               endpoint: ai.text,
               catalog: catalog,

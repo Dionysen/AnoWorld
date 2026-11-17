@@ -1,8 +1,10 @@
+import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/staged_create_actions.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
-import 'package:anoworld/domain/models/preset.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +21,7 @@ class _ScriptedTextClient implements AiTextClient {
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
+    GenerationPreset? generation,
   }) async {
     users.add(user);
     if (calls >= replies.length) {
@@ -35,7 +38,11 @@ void main() {
     apiKey: 'sk',
     model: 'demo',
   );
-  final preset = Preset.builtinDefault();
+  AiPromptContext ctx() => AiPromptContext(
+        endpoint: endpoint,
+        generation: const GenerationPreset(),
+        promptManager: PromptManagerConfig.defaultConfig(),
+      );
 
   test('generateWorld maps and applyWorld only changes background', () async {
     final client = _ScriptedTextClient([
@@ -43,8 +50,7 @@ void main() {
     ]);
     final actions = StagedCreateActions(textClient: client);
     final background = await actions.generateWorld(
-      endpoint: endpoint,
-      preset: preset,
+      ctx: ctx(),
       prompt: '雨夜边城',
     );
     expect(background.entries.first.body, '雨夜边城');
@@ -63,8 +69,7 @@ void main() {
     ]);
     final actions = StagedCreateActions(textClient: client);
     final background = await actions.generateWorld(
-      endpoint: endpoint,
-      preset: preset,
+      ctx: ctx(),
       prompt: '提示',
     );
     expect(background.entries.first.body, '修好了');
@@ -88,8 +93,7 @@ void main() {
       CastMember(id: 'c_1', name: '掌柜'),
     ];
     final main = await actions.generateMain(
-      endpoint: endpoint,
-      preset: preset,
+      ctx: ctx(),
       prompt: '出城',
       background: const Background(
         entries: [

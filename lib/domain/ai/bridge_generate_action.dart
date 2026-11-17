@@ -1,9 +1,8 @@
+import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/models/main_story.dart';
-import 'package:anoworld/domain/models/preset.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
-import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 
 /// Generates one bridge Beat for the current main node interval.
@@ -17,12 +16,13 @@ class BridgeGenerateAction {
   final int maxFormatRetries;
 
   Future<Beat> generate({
-    required AiTextEndpoint endpoint,
+    required AiPromptContext ctx,
     required Project project,
     required String nodeId,
     required BridgeSession session,
     int maxBeats = BridgeSession.defaultMaxBeats,
   }) async {
+    final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
         (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
       throw AiTextException('请先在设置里配好写故事的服务');
@@ -47,8 +47,8 @@ class BridgeGenerateAction {
     }).join('\n');
 
     final forceConverge = session.turnCount + 1 >= maxBeats;
-    final preset = project.activePreset;
-    final system = _system(preset, forceConverge: forceConverge);
+    final task = _taskBlock(forceConverge: forceConverge);
+    final system = ctx.assembleSystem(project: project, taskSuffix: task);
     final user = '''
 当前站：${node.title}
 本站目标：${node.synopsis ?? ''}
@@ -67,6 +67,7 @@ $exitLines
         endpoint: endpoint,
         system: system,
         user: attemptUser,
+        generation: ctx.generation,
       );
       try {
         return _parseBeat(
@@ -124,12 +125,11 @@ $exitLines
     return '前往：$dest';
   }
 
-  static String _system(Preset preset, {required bool forceConverge}) {
+  static String _taskBlock({required bool forceConverge}) {
     final converge = forceConverge
         ? '必须给 1～3 个 choices，且每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。'
         : '可给过程选项；若继续本站用 {"type":"beat","beatId":"__stay__"}；导向下一站必须用合法 nodeId。';
     return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
-预设说明：${preset.styleNotes}
 输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白","text":"..."}],"choices":[{"text":"...","target":{...}}]}
 $converge
 禁止发明不在合法下一站列表里的 nodeId。''';

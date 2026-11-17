@@ -209,12 +209,11 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
 
     try {
       final actions = _actions();
-      final preset = project.activePreset;
+      final ctx = AppScope.settingsOf(context).textPromptContext();
       switch (_stage) {
         case _Stage.world:
           final background = await actions.generateWorld(
-            endpoint: endpoint,
-            preset: preset,
+            ctx: ctx,
             prompt: prompt,
           );
           final next = actions.applyWorld(project, background);
@@ -232,8 +231,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
             return;
           }
           final cast = await actions.generateCast(
-            endpoint: endpoint,
-            preset: preset,
+            ctx: ctx,
             prompt: prompt,
             background: background,
           );
@@ -255,8 +253,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
             return;
           }
           final main = await actions.generateMain(
-            endpoint: endpoint,
-            preset: preset,
+            ctx: ctx,
             prompt: prompt,
             background: background,
             cast: cast,

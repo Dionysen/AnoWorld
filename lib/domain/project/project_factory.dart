@@ -1,7 +1,6 @@
 import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
-import 'package:anoworld/domain/models/preset.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/side.dart';
 
@@ -18,7 +17,6 @@ class ProjectFactory {
     final stamp = now ?? DateTime.now().toUtc();
     const nodeId = 'n_start';
     const beatId = 'b_start';
-    final preset = Preset.builtinDefault();
     return Project(
       meta: ProjectMeta(
         id: id,
@@ -26,8 +24,6 @@ class ProjectFactory {
         createdAt: stamp,
         updatedAt: stamp,
       ),
-      presets: <Preset>[preset],
-      activePresetId: preset.id,
       background: const Background(),
       cast: const <CastMember>[],
       main: MainStory(
@@ -77,7 +73,6 @@ class ProjectFactory {
     DateTime? now,
   }) {
     final stamp = now ?? DateTime.now().toUtc();
-    final preset = Preset.builtinDefault();
     return Project(
       meta: ProjectMeta(
         id: id,
@@ -85,8 +80,6 @@ class ProjectFactory {
         createdAt: stamp,
         updatedAt: stamp,
       ),
-      presets: <Preset>[preset],
-      activePresetId: preset.id,
       background: const Background(
         entries: <BackgroundEntry>[
           BackgroundEntry(
@@ -104,6 +97,7 @@ class ProjectFactory {
           summary: '离家远行的旅人',
           personality: '沉着，话少',
           speechStyle: '短句',
+          isProtagonist: true,
         ),
         CastMember(
           id: 'c_keeper',

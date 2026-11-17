@@ -2,7 +2,6 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/background_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
-import 'package:anoworld/create/preset_editor_page.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -14,7 +13,7 @@ import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/material.dart';
 
-/// Creation cross-section: pick Preset / Background / Cast / Main to edit.
+/// Creation cross-section: pick Background / Cast / Main to edit.
 class CreateHubPage extends StatefulWidget {
   const CreateHubPage({super.key, required this.projectId});
 
@@ -72,16 +71,6 @@ class _CreateHubPageState extends State<CreateHubPage> {
     if (mounted) await _load();
   }
 
-  String _presetSubtitle(Project project) {
-    final preset = project.activePreset;
-    if (preset.styleNotes.trim().isEmpty) {
-      return '当前：${preset.name}';
-    }
-    final notes = preset.styleNotes.trim();
-    final short = notes.length > 28 ? '${notes.substring(0, 28)}…' : notes;
-    return '${preset.name} · $short';
-  }
-
   String _backgroundSubtitle(Project project) {
     final count = project.background.entries.length;
     if (count == 0) return '还没有设定条目';
@@ -132,18 +121,8 @@ class _CreateHubPageState extends State<CreateHubPage> {
           else if (project != null) ...[
             AppSectionHeader(
               project.meta.title,
-              subtitle: '先定预设、设定、角色与情节走向',
+              subtitle: '改设定、角色与情节走向',
             ),
-            AppListTile(
-              title: '预设',
-              subtitle: _presetSubtitle(project),
-              icon: Icons.tune_outlined,
-              trailing: const AppForwardIcon(),
-              onTap: () => _open(
-                PresetEditorPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
             AppListTile(
               title: '背景设定',
               subtitle: _backgroundSubtitle(project),

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:anoworld/foundation/ai/openai_base_url.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:http/http.dart' as http;
 
 /// Portable non-streaming OpenAI-compatible chat completions client.
@@ -24,6 +25,7 @@ class OpenAiChatClient {
     String? fallbackBaseUrl,
     double temperature = defaultTemperature,
     int maxTokens = defaultMaxTokens,
+    GenerationPreset? generation,
   }) async {
     final base = normalizeOpenAiBaseUrl(
       baseUrl.trim().isEmpty ? (fallbackBaseUrl ?? '') : baseUrl,
@@ -45,9 +47,20 @@ class OpenAiChatClient {
     final body = <String, dynamic>{
       'model': model.trim(),
       'messages': messages.map((m) => m.toJson()).toList(growable: false),
-      'temperature': temperature,
-      'max_tokens': maxTokens,
+      'temperature': generation?.temperature ?? temperature,
+      'max_tokens': generation?.maxTokens ?? maxTokens,
     };
+    if (generation != null) {
+      body['top_p'] = generation.topP;
+      body['frequency_penalty'] = generation.frequencyPenalty;
+      body['presence_penalty'] = generation.presencePenalty;
+      if (generation.stopSequences.isNotEmpty) {
+        body['stop'] = generation.stopSequences;
+      }
+      if (generation.seed >= 0) {
+        body['seed'] = generation.seed;
+      }
+    }
 
     final headers = <String, String>{
       'Accept': 'application/json',

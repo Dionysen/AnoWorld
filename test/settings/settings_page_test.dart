@@ -33,7 +33,7 @@ void main() {
     expect(find.text('外观'), findsWidgets);
     expect(find.text('AI'), findsWidgets);
     expect(find.text('关于'), findsWidgets);
-    expect(find.text('这里还没有可改的选项'), findsOneWidget);
+    expect(find.text('玩家身份'), findsWidgets);
 
     await tester.tap(find.text('AI').last);
     await tester.pumpAndSettle();
@@ -104,7 +104,7 @@ void main() {
       Size(AppLayout.railBreakpoint + 200, 800),
     );
 
-    expect(find.text('这里还没有可改的选项'), findsOneWidget);
+    expect(find.text('玩家身份'), findsWidgets);
     await tester.tap(find.text('AI').first);
     await tester.pumpAndSettle();
     expect(find.text('当前服务商'), findsWidgets);
