@@ -1,6 +1,17 @@
 import 'package:flutter/material.dart';
 
-enum AppTextRole { pageTitle, title, subtitle, body, caption, label }
+enum AppTextRole {
+  pageTitle,
+  title,
+  subtitle,
+  body,
+  caption,
+  label,
+  /// One step below [body] (e.g. story-detail lorebook rows).
+  compactBody,
+  /// Entry title on compact rows; between [caption] and [label] in weight.
+  compactLabel,
+}
 
 /// Themed text. Business screens should prefer this over raw [Text] styling.
 class AppText extends StatelessWidget {
@@ -29,6 +40,10 @@ class AppText extends StatelessWidget {
       AppTextRole.body => theme.textTheme.bodyLarge,
       AppTextRole.caption => theme.textTheme.bodySmall,
       AppTextRole.label => theme.textTheme.labelLarge,
+      AppTextRole.compactBody => theme.textTheme.bodyMedium,
+      AppTextRole.compactLabel => theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
     };
     return Text(
       data,

@@ -61,9 +61,24 @@ class _AppExpandableTextState extends State<AppExpandableText> {
     });
   }
 
+  TextStyle? _textStyle(TextTheme theme) {
+    return switch (widget.role) {
+      AppTextRole.pageTitle => theme.headlineSmall,
+      AppTextRole.title => theme.titleLarge,
+      AppTextRole.subtitle => theme.titleMedium,
+      AppTextRole.body => theme.bodyLarge,
+      AppTextRole.caption => theme.bodySmall,
+      AppTextRole.label => theme.labelLarge,
+      AppTextRole.compactBody => theme.bodyMedium,
+      AppTextRole.compactLabel => theme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodyLarge;
+    final style = _textStyle(Theme.of(context).textTheme);
     if (widget.text.isEmpty) {
       return const SizedBox.shrink();
     }

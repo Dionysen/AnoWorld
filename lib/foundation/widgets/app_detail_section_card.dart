@@ -44,52 +44,102 @@ class AppDetailSectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: scheme.primary),
-              const SizedBox(width: AppTheme.spaceSm),
-              Expanded(
-                child: AppText(title, role: AppTextRole.subtitle),
-              ),
-              AppIconButton(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 112;
+              final edit = AppIconButton(
                 icon: Icons.edit_outlined,
                 tooltip: '编辑',
-                size: 36,
-                iconSize: 20,
+                size: compact ? 28 : 36,
+                iconSize: compact ? 16 : 20,
                 onPressed: onEdit,
-              ),
-            ],
+              );
+              final heading = Row(
+                children: [
+                  Icon(icon, size: 20, color: scheme.primary),
+                  const SizedBox(width: AppTheme.spaceSm),
+                  Expanded(
+                    child: AppText(
+                      title,
+                      role: AppTextRole.subtitle,
+                      maxLines: 1,
+                    ),
+                  ),
+                  if (!compact) edit,
+                ],
+              );
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    heading,
+                    const SizedBox(height: AppTheme.spaceXs),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: edit,
+                    ),
+                  ],
+                );
+              }
+              return heading;
+            },
           ),
           if (isEmpty) ...[
             const SizedBox(height: AppTheme.spaceSm),
             AppText(emptyHint, role: AppTextRole.caption),
-          ] else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < visible.length; i++) ...[
-                  if (i == 0)
-                    const SizedBox(height: AppTheme.spaceSm)
-                  else ...[
-                    const SizedBox(height: AppTheme.spaceMd),
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: scheme.outlineVariant.withValues(alpha: 0.35),
-                    ),
-                    const SizedBox(height: AppTheme.spaceMd),
-                  ],
-                  _DetailEntryRow(
-                    key: ValueKey(
-                      '${visible[i].title}\u0000${visible[i].body}',
-                    ),
-                    entry: visible[i],
-                    previewLines: previewLines,
+          ] else ...[
+            const SizedBox(height: AppTheme.spaceGroup),
+            for (var i = 0; i < visible.length; i++) ...[
+              if (i > 0) const SizedBox(height: AppTheme.spaceXs),
+              _DetailEntryTile(
+                child: _DetailEntryRow(
+                  key: ValueKey(
+                    '${visible[i].title}\u0000${visible[i].body}',
                   ),
-                ],
-              ],
-            ),
+                  entry: visible[i],
+                  previewLines: previewLines,
+                ),
+              ),
+            ],
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// Inset tile inside a section card (NT lorebook-entry nesting).
+class _DetailEntryTile extends StatelessWidget {
+  const _DetailEntryTile({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final base = scheme.surfaceContainerHighest;
+    final depth = theme.brightness == Brightness.dark ? 0.1 : 0.05;
+    final fill = Color.alphaBlend(
+      Colors.black.withValues(alpha: depth),
+      base,
+    );
+    final shape = AppUiTokens.of(context).shape(
+      side: BorderSide(
+        color: scheme.outlineVariant.withValues(alpha: 0.32),
+      ),
+    );
+
+    return Material(
+      color: fill,
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spaceMd,
+          vertical: AppTheme.spaceMd,
+        ),
+        child: child,
       ),
     );
   }
@@ -147,58 +197,131 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
     );
   }
 
+  static const double _entryActionSize = 28;
+  static const double _entryActionIcon = 16;
+
+  List<Widget> _entryActions({required bool hasCopy, required bool hasBody}) {
+    return <Widget>[
+      if (hasCopy)
+        AppIconButton(
+          icon: Icons.copy_outlined,
+          tooltip: '复制',
+          size: _entryActionSize,
+          iconSize: _entryActionIcon,
+          onPressed: _copy,
+        ),
+      if (hasBody && _canExpand)
+        AppIconButton(
+          icon: _expanded ? Icons.expand_less : Icons.expand_more,
+          tooltip: _expanded ? '收起' : '展开',
+          size: _entryActionSize,
+          iconSize: _entryActionIcon,
+          onPressed: () => setState(() => _expanded = !_expanded),
+        ),
+    ];
+  }
+
+  Widget _actionCluster(List<Widget> actions, double maxWidth) {
+    if (actions.isEmpty) return const SizedBox.shrink();
+    final horizontal = actions.length * _entryActionSize;
+    if (maxWidth >= horizontal) {
+      return Row(mainAxisSize: MainAxisSize.min, children: actions);
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: actions,
+    );
+  }
+
+  double _actionClusterWidth(List<Widget> actions, double maxWidth) {
+    if (actions.isEmpty) return 0;
+    final horizontal = actions.length * _entryActionSize;
+    return maxWidth >= horizontal ? horizontal : _entryActionSize;
+  }
+
+  Widget _entryHeaderRow({
+    required String title,
+    required List<Widget> actions,
+    required double maxWidth,
+  }) {
+    if (actions.isEmpty) {
+      return AppText(title, role: AppTextRole.compactLabel, maxLines: 1);
+    }
+
+    final cluster = _actionCluster(actions, maxWidth);
+    final clusterWidth = _actionClusterWidth(actions, maxWidth);
+    final fitsBesideTitle =
+        title.isEmpty || maxWidth >= clusterWidth + AppTheme.spaceSm + 24;
+
+    if (!fitsBesideTitle) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (title.isNotEmpty)
+            AppText(title, role: AppTextRole.compactLabel, maxLines: 2),
+          if (title.isNotEmpty) const SizedBox(height: AppTheme.spaceXs),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: cluster,
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title.isNotEmpty)
+          Expanded(
+            child: AppText(
+              title,
+              role: AppTextRole.compactLabel,
+              maxLines: 1,
+            ),
+          )
+        else
+          const Spacer(),
+        cluster,
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = widget.entry.title.trim();
     final body = widget.entry.body.trim();
     final hasCopy = widget.entry.clipboardText.isNotEmpty;
+    final actions = _entryActions(hasCopy: hasCopy, hasBody: body.isNotEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (title.isNotEmpty)
-                    AppText(title, role: AppTextRole.label),
-                  if (widget.entry.tags.isNotEmpty) ...[
-                    if (title.isNotEmpty)
-                      const SizedBox(height: AppTheme.spaceXs),
-                    _EntryTagWrap(tags: widget.entry.tags),
-                  ],
-                ],
-              ),
-            ),
-            if (hasCopy)
-              AppIconButton(
-                icon: Icons.copy_outlined,
-                tooltip: '复制',
-                size: 32,
-                iconSize: 18,
-                onPressed: _copy,
-              ),
-            if (body.isNotEmpty && _canExpand)
-              AppIconButton(
-                icon: _expanded ? Icons.expand_less : Icons.expand_more,
-                tooltip: _expanded ? '收起' : '展开',
-                size: 32,
-                iconSize: 18,
-                onPressed: () => setState(() => _expanded = !_expanded),
-              ),
-          ],
-        ),
+        if (title.isNotEmpty || actions.isNotEmpty)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return _entryHeaderRow(
+                title: title,
+                actions: actions,
+                maxWidth: constraints.maxWidth,
+              );
+            },
+          ),
+        if (widget.entry.tags.isNotEmpty) ...[
+          if (title.isNotEmpty || actions.isNotEmpty)
+            const SizedBox(height: AppTheme.spaceXs),
+          _EntryTagWrap(tags: widget.entry.tags),
+        ],
         if (body.isNotEmpty) ...[
-          if (title.isNotEmpty || widget.entry.tags.isNotEmpty)
+          if (title.isNotEmpty ||
+              widget.entry.tags.isNotEmpty ||
+              actions.isNotEmpty)
             const SizedBox(height: AppTheme.spaceXs),
           AppExpandableText(
             text: body,
             expanded: _expanded,
             previewLines: widget.previewLines,
-            role: AppTextRole.body,
+            role: AppTextRole.compactBody,
             onOverflowChanged: _onOverflow,
           ),
         ],
@@ -225,7 +348,14 @@ class _EntryTagWrap extends StatelessWidget {
           if (tag.trim().isNotEmpty)
             DecoratedBox(
               decoration: ShapeDecoration(
-                color: scheme.surfaceContainerHighest,
+                color: Color.alphaBlend(
+                  Colors.black.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 0.14
+                        : 0.07,
+                  ),
+                  scheme.surfaceContainerHighest,
+                ),
                 shape: shape,
               ),
               child: Padding(

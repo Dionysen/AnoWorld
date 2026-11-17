@@ -48,6 +48,37 @@ void main() {
     expect(edited, isTrue);
   });
 
+  testWidgets('narrow width does not overflow entry actions', (tester) async {
+    const body = '第一行。\n第二行。\n第三行。\n第四行。';
+
+    await tester.pumpWidget(
+      testScoped(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 120,
+              child: AppDetailSectionCard(
+                title: '背景设定',
+                icon: Icons.public_outlined,
+                entries: const [
+                  AppDetailEntry(
+                    title: '世界观',
+                    tags: <String>['常驻'],
+                    body: body,
+                  ),
+                ],
+                onEdit: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('entry copy puts title and body on clipboard', (tester) async {
     const body = '小城雨夜。';
     String? copied;
