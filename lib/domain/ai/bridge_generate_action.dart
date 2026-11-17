@@ -74,12 +74,13 @@ $nextStationBlock
     String? lastError;
     var attemptUser = user;
     for (var attempt = 0; attempt <= maxFormatRetries; attempt++) {
-      final raw = await _text.complete(
+      final raw = (await _text.complete(
         endpoint: endpoint,
         system: system,
         user: attemptUser,
         generation: ctx.generation,
-      );
+      ))
+          .content;
       try {
         return _parseBeat(
           raw,

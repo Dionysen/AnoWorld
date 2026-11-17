@@ -413,11 +413,11 @@ void main() {
 
 class _RecordingTextClient implements AiTextClient {
   @override
-  Future<String> complete({
+  Future<AiTextCompletion> complete({
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
     generation,
   }) async =>
-      '展开后的说明';
+      const AiTextCompletion(content: '展开后的说明');
 }

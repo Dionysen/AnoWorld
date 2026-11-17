@@ -3,9 +3,20 @@ import 'package:anoworld/foundation/ai/openai_chat_client.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 
+/// Text completion with optional chain-of-thought.
+class AiTextCompletion {
+  const AiTextCompletion({
+    required this.content,
+    this.reasoning,
+  });
+
+  final String content;
+  final String? reasoning;
+}
+
 /// Business-facing text completion over the active [AiTextEndpoint].
 abstract class AiTextClient {
-  Future<String> complete({
+  Future<AiTextCompletion> complete({
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
@@ -30,7 +41,7 @@ class EndpointAiTextClient implements AiTextClient {
   final OpenAiChatClient _chat;
 
   @override
-  Future<String> complete({
+  Future<AiTextCompletion> complete({
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
@@ -39,7 +50,7 @@ class EndpointAiTextClient implements AiTextClient {
     try {
       final openRouter = endpoint.kind == AiTextProviderKind.openRouter;
       final effort = endpoint.reasoningEffort;
-      return await _chat.complete(
+      final result = await _chat.complete(
         baseUrl: endpoint.baseUrl,
         fallbackBaseUrl: endpoint.kind.defaultBaseUrl,
         apiKey: endpoint.apiKey,
@@ -55,6 +66,10 @@ class EndpointAiTextClient implements AiTextClient {
           OpenAiChatMessage(role: 'system', content: system),
           OpenAiChatMessage(role: 'user', content: user),
         ],
+      );
+      return AiTextCompletion(
+        content: result.content,
+        reasoning: result.reasoning,
       );
     } on OpenAiChatException catch (error) {
       throw AiTextException(error.message);

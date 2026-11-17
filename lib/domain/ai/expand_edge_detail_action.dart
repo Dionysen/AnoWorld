@@ -27,7 +27,7 @@ class ExpandEdgeDetailAction {
       throw AiTextException('先写一个标题，再让我帮你展开');
     }
 
-    final raw = await _text.complete(
+    final raw = (await _text.complete(
       endpoint: endpoint,
       generation: generation,
       system: '''你是视觉小说作者的助手。根据用户给出的岔路标题与草稿，写出更具体的走向说明。
@@ -41,7 +41,8 @@ class ExpandEdgeDetailAction {
 岔路标题：$trimmedTitle
 已有草稿：${detail.trim().isEmpty ? '（无，请根据标题合理展开）' : detail.trim()}
 请写出更详细的走向说明。''',
-    );
+    ))
+        .content;
     final text = raw.trim();
     if (text.isEmpty) {
       throw AiTextException('没有写出内容，请再试一次');

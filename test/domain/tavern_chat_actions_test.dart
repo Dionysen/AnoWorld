@@ -10,14 +10,15 @@ import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _ScriptedTextClient implements AiTextClient {
-  _ScriptedTextClient(this.replies);
+  _ScriptedTextClient(this.replies, {this.reasoning});
 
   final List<String> replies;
+  final String? reasoning;
   int calls = 0;
   final users = <String>[];
 
   @override
-  Future<String> complete({
+  Future<AiTextCompletion> complete({
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
@@ -27,7 +28,10 @@ class _ScriptedTextClient implements AiTextClient {
     if (calls >= replies.length) {
       throw AiTextException('no more replies');
     }
-    return replies[calls++];
+    return AiTextCompletion(
+      content: replies[calls++],
+      reasoning: reasoning,
+    );
   }
 }
 
@@ -55,9 +59,26 @@ void main() {
       project: project,
       history: const [],
     );
-    expect(out, '夜风很轻。');
+    expect(out.content, '夜风很轻。');
+    expect(out.reasoning, isNull);
     expect(client.users.single, contains('尚无对话'));
     expect(client.users.single, contains('助手这一轮'));
+  });
+
+  test('tavern generate keeps reasoning from completion', () async {
+    final project = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient(
+      ['夜风很轻。'],
+      reasoning: '先写气氛',
+    );
+    final action = TavernChatGenerateAction(textClient: client);
+    final out = await action.generate(
+      ctx: ctx(),
+      project: project,
+      history: const [],
+    );
+    expect(out.content, '夜风很轻。');
+    expect(out.reasoning, '先写气氛');
   });
 
   test('tavern generate includes prior turns', () async {

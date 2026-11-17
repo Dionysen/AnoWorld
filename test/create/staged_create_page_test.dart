@@ -9,7 +9,7 @@ import '../support/test_app.dart';
 
 class _NoCallTextClient implements AiTextClient {
   @override
-  Future<String> complete({
+  Future<AiTextCompletion> complete({
     required AiTextEndpoint endpoint,
     required String system,
     required String user,

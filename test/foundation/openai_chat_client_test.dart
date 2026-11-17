@@ -21,7 +21,7 @@ void main() {
     });
 
     final chat = OpenAiChatClient(client: client);
-    final text = await chat.complete(
+    final result = await chat.complete(
       baseUrl: 'https://api.example.com/v1/',
       apiKey: 'sk-test',
       model: 'demo',
@@ -29,7 +29,8 @@ void main() {
         OpenAiChatMessage(role: 'user', content: 'hi'),
       ],
     );
-    expect(text, 'hello');
+    expect(result.content, 'hello');
+    expect(result.reasoning, isNull);
   });
 
   test('includes reasoning_effort when provided', () async {
@@ -43,7 +44,7 @@ void main() {
     });
 
     final chat = OpenAiChatClient(client: client);
-    final text = await chat.complete(
+    final result = await chat.complete(
       baseUrl: 'https://api.example.com/v1',
       apiKey: 'sk-test',
       model: 'demo',
@@ -52,7 +53,7 @@ void main() {
         OpenAiChatMessage(role: 'user', content: 'hi'),
       ],
     );
-    expect(text, 'ok');
+    expect(result.content, 'ok');
   });
 
   test('includes nested reasoning for openrouter style', () async {
@@ -67,7 +68,7 @@ void main() {
     });
 
     final chat = OpenAiChatClient(client: client);
-    final text = await chat.complete(
+    final result = await chat.complete(
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'sk-test',
       model: 'demo',
@@ -76,7 +77,53 @@ void main() {
         OpenAiChatMessage(role: 'user', content: 'hi'),
       ],
     );
-    expect(text, 'ok');
+    expect(result.content, 'ok');
+  });
+
+  test('extracts reasoning_content field', () async {
+    final client = MockClient((request) async {
+      return http.Response(
+        '{"choices":[{"message":{"content":"你好",'
+        '"reasoning_content":"先打招呼"}}]}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final chat = OpenAiChatClient(client: client);
+    final result = await chat.complete(
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'demo',
+      messages: const [
+        OpenAiChatMessage(role: 'user', content: 'hi'),
+      ],
+    );
+    expect(result.content, '你好');
+    expect(result.reasoning, '先打招呼');
+  });
+
+  test('extracts leading think tags into reasoning', () async {
+    final client = MockClient((request) async {
+      return http.Response(
+        '{"choices":[{"message":{"content":'
+        '"<think>想一下</think>\\n正文"}}]}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final chat = OpenAiChatClient(client: client);
+    final result = await chat.complete(
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'demo',
+      messages: const [
+        OpenAiChatMessage(role: 'user', content: 'hi'),
+      ],
+    );
+    expect(result.content, '正文');
+    expect(result.reasoning, '想一下');
   });
 
   test('throws when api key missing', () async {

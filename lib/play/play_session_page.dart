@@ -297,7 +297,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       final action = TavernChatGenerateAction(
         textClient: AppScope.textClientOf(context),
       );
-      final content = await action.generate(
+      final result = await action.generate(
         ctx: ctx,
         project: _project,
         history: List<TavernChatMessage>.unmodifiable(_chat),
@@ -308,7 +308,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           TavernChatMessage(
             id: _newChatId('assistant'),
             role: TavernChatRole.assistant,
-            content: content,
+            content: result.content,
+            reasoning: result.reasoning,
           ),
         );
         _assistantBusy = false;

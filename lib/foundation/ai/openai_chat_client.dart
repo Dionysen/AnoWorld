@@ -3,7 +3,22 @@ import 'dart:convert';
 import 'package:anoworld/foundation/ai/openai_base_url.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/ai/think_tag_parser.dart';
 import 'package:http/http.dart' as http;
+
+/// Result of a non-streaming chat completion.
+class OpenAiChatCompletion {
+  const OpenAiChatCompletion({
+    required this.content,
+    this.reasoning,
+  });
+
+  final String content;
+  final String? reasoning;
+
+  bool get hasReasoning =>
+      reasoning != null && reasoning!.trim().isNotEmpty;
+}
 
 /// Portable non-streaming OpenAI-compatible chat completions client.
 ///
@@ -16,7 +31,7 @@ class OpenAiChatClient {
   static const double defaultTemperature = 0.7;
   static const int defaultMaxTokens = 4096;
 
-  Future<String> complete({
+  Future<OpenAiChatCompletion> complete({
     required String baseUrl,
     required String model,
     required List<OpenAiChatMessage> messages,
@@ -112,11 +127,40 @@ class OpenAiChatClient {
     if (message is! Map) {
       throw OpenAiChatException('模型没有返回可用内容');
     }
-    final content = message['content'];
+    var content = message['content'];
     if (content is! String || content.trim().isEmpty) {
       throw OpenAiChatException('模型没有返回可用内容');
     }
-    return content;
+    var reasoningText = _readReasoningField(message);
+    if (reasoningText == null || reasoningText.isEmpty) {
+      final extracted = ThinkTagParser.extract(content);
+      content = extracted.$1;
+      reasoningText = extracted.$2;
+    }
+    if (content.trim().isEmpty) {
+      throw OpenAiChatException('模型没有返回可用内容');
+    }
+    return OpenAiChatCompletion(
+      content: content,
+      reasoning: reasoningText?.trim().isEmpty ?? true
+          ? null
+          : reasoningText!.trim(),
+    );
+  }
+
+  /// DeepSeek / o-series style fields on `message`.
+  static String? _readReasoningField(Map message) {
+    for (final key in const [
+      'reasoning_content',
+      'reasoning',
+      'thought',
+    ]) {
+      final value = message[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
   }
 
   static Map<String, dynamic>? _tryDecodeMap(String body) {

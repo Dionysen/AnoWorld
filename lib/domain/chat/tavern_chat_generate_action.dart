@@ -3,13 +3,25 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/project.dart';
 
+/// Assistant turn prose + optional reasoning from the model.
+class TavernChatGenerateResult {
+  const TavernChatGenerateResult({
+    required this.content,
+    this.reasoning,
+  });
+
+  final String content;
+  final String? reasoning;
+}
+
 /// Generates the next assistant reply in a tavern-style chat (one user → one AI).
 class TavernChatGenerateAction {
-  TavernChatGenerateAction({required AiTextClient textClient}) : _text = textClient;
+  TavernChatGenerateAction({required AiTextClient textClient})
+      : _text = textClient;
 
   final AiTextClient _text;
 
-  Future<String> generate({
+  Future<TavernChatGenerateResult> generate({
     required AiPromptContext ctx,
     required Project project,
     required List<TavernChatMessage> history,
@@ -47,17 +59,21 @@ class TavernChatGenerateAction {
     }
     buffer.writeln('—— 请继续写助手这一轮 ——');
 
-    final raw = await _text.complete(
+    final result = await _text.complete(
       endpoint: endpoint,
       system: system,
       user: buffer.toString(),
       generation: ctx.generation,
     );
-    final out = raw.trim();
+    final out = result.content.trim();
     if (out.isEmpty) {
       throw AiTextException('这一轮没有写出内容，请重试');
     }
-    return out;
+    final reasoning = result.reasoning?.trim();
+    return TavernChatGenerateResult(
+      content: out,
+      reasoning: reasoning == null || reasoning.isEmpty ? null : reasoning,
+    );
   }
 
   static String _plotHint(Project project) {

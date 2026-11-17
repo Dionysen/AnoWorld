@@ -9,14 +9,14 @@ class _FakeTextClient implements AiTextClient {
   String response = '夜里敲门，客栈掌柜犹豫后开门。';
 
   @override
-  Future<String> complete({
+  Future<AiTextCompletion> complete({
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
     GenerationPreset? generation,
   }) async {
     lastUser = user;
-    return response;
+    return AiTextCompletion(content: response);
   }
 }
 

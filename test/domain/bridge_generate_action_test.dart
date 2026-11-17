@@ -18,7 +18,7 @@ class _ScriptedTextClient implements AiTextClient {
   int calls = 0;
 
   @override
-  Future<String> complete({
+  Future<AiTextCompletion> complete({
     required AiTextEndpoint endpoint,
     required String system,
     required String user,
@@ -27,7 +27,7 @@ class _ScriptedTextClient implements AiTextClient {
     if (calls >= replies.length) {
       throw AiTextException('no more replies');
     }
-    return replies[calls++];
+    return AiTextCompletion(content: replies[calls++]);
   }
 }
 
