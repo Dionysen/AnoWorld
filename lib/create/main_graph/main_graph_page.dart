@@ -844,13 +844,11 @@ class _MainGraphPageState extends State<MainGraphPage> {
           tooltip: '撤销',
           onPressed: editorReady && _history.canUndo ? _undo : null,
         ),
-        const SizedBox(width: AppTheme.spaceSm),
         AppCircleButton(
           icon: Icons.redo,
           tooltip: '重做',
           onPressed: editorReady && _history.canRedo ? _redo : null,
         ),
-        const SizedBox(width: AppTheme.spaceSm),
         AppCircleButton(
           icon: Icons.more_horiz,
           tooltip: '更多',

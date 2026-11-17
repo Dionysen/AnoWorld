@@ -47,6 +47,21 @@ class AppPage extends StatelessWidget {
     };
   }
 
+  /// Insert [AppTheme.spaceSm] between action widgets.
+  ///
+  /// Existing bare [SizedBox] spacers in [actions] are dropped so callers can
+  /// list controls without hand-spacing.
+  static List<Widget> spacedActions(List<Widget> actions) {
+    final items = actions.where((w) => w is! SizedBox).toList(growable: false);
+    if (items.length <= 1) return items;
+    final out = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      if (i > 0) out.add(const SizedBox(width: AppTheme.spaceSm));
+      out.add(items[i]);
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final metrics = ImmersiveScope.metricsOf(context);
@@ -110,22 +125,31 @@ class AppPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    showTitleBack ? AppTheme.spaceSm : AppTheme.pagePadding,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
                     AppTheme.spaceXs,
                     AppTheme.pagePadding,
                     AppTheme.spaceSm,
                   ),
                   child: Row(
                     children: [
-                      if (showTitleBack) ...[
-                        AppCircleButton(
-                          icon: Icons.arrow_back,
-                          tooltip: '返回',
-                          onPressed: onBack,
-                        ),
-                        const SizedBox(width: AppTheme.spaceSm),
-                      ],
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        alignment: Alignment.centerLeft,
+                        child: showTitleBack
+                            ? Padding(
+                                padding: const EdgeInsets.only(
+                                  right: AppTheme.spaceSm,
+                                ),
+                                child: AppCircleButton(
+                                  icon: Icons.arrow_back,
+                                  tooltip: '返回',
+                                  onPressed: onBack,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
                       Expanded(
                         child: titleWidget ??
                             AppText(
@@ -134,7 +158,7 @@ class AppPage extends StatelessWidget {
                               maxLines: 1,
                             ),
                       ),
-                      if (showTitleActions) ...actions,
+                      if (showTitleActions) ...spacedActions(actions),
                     ],
                   ),
                 ),
@@ -184,7 +208,7 @@ class AppPage extends StatelessWidget {
                                   )
                                 else
                                   const Spacer(),
-                                if (showBarActions) ...actions,
+                                if (showBarActions) ...spacedActions(actions),
                               ],
                             ),
                           )

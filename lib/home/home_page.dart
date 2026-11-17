@@ -219,29 +219,18 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget _titleSwitcher({
-    required String text,
-    required String keyName,
-    required bool forward,
-  }) {
+  Widget _titleSwitcher(String text) {
+    // Key by visible text only — folder enter/exit keeps「作品」and must not
+    // remount / flash. Real title changes (存档↔作品、多选计数) fade.
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
+      duration: const Duration(milliseconds: 180),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
       transitionBuilder: (child, animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: Offset(forward ? 0.08 : -0.08, 0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          ),
-        );
+        return FadeTransition(opacity: animation, child: child);
       },
       child: Align(
-        key: ValueKey(keyName),
+        key: ValueKey<String>(text),
         alignment: Alignment.centerLeft,
         child: AppText(text, role: AppTextRole.pageTitle, maxLines: 1),
       ),
@@ -253,18 +242,12 @@ class _HomePageState extends State<HomePage> {
     final selection = _activeSelection;
     final selectionMode = selection.selectionMode;
     final works = _worksKey.currentState;
-    final folderForward = works?.folderEnterForward ?? true;
 
     final titleText = selectionMode
         ? (selection.selectedCount == 0
             ? '选择项目'
             : '已选 ${selection.selectedCount} 项')
         : (_tab == HomeTab.saves ? '存档' : '作品');
-    final titleKey = selectionMode
-        ? 'select-${selection.selectedCount}'
-        : (_tab == HomeTab.works
-            ? 'works-${works?.browsePath.join('/') ?? ''}'
-            : 'saves');
 
     final List<Widget> actions;
     if (selectionMode) {
@@ -341,11 +324,7 @@ class _HomePageState extends State<HomePage> {
       },
       child: AppPage(
         title: titleText,
-        titleWidget: _titleSwitcher(
-          text: titleText,
-          keyName: titleKey,
-          forward: folderForward,
-        ),
+        titleWidget: _titleSwitcher(titleText),
         onBack: selectionMode
             ? () {
                 selection.exit();

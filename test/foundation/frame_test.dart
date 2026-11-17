@@ -23,7 +23,7 @@ void main() {
         await tester.pumpWidget(testApp());
         await tester.pumpAndSettle();
 
-        expect(find.text('AnoWorld'), findsOneWidget);
+        expect(find.text('存档'), findsWidgets);
         expect(find.byIcon(Icons.close), findsNothing);
       } finally {
         debugDefaultTargetPlatformOverride = null;

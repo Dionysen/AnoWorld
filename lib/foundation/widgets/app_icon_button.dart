@@ -9,24 +9,37 @@ class AppIconButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.tooltip,
+    this.size = hitTarget,
+    this.iconSize = glyphSize,
   });
+
+  /// Default hit target (matches [AppCircleButton.diameter]).
+  static const double hitTarget = 40;
+
+  /// Default glyph size inside the hit target.
+  static const double glyphSize = 22;
 
   final IconData icon;
   final VoidCallback? onPressed;
   final String? tooltip;
+  final double size;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final button = IconButton(
-      onPressed: onPressed,
-      tooltip: tooltip,
-      icon: Icon(icon, size: 20),
-      color: theme.colorScheme.onSurface,
-      visualDensity: VisualDensity.compact,
-      padding: const EdgeInsets.all(AppTheme.spaceXs),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+    return SizedBox(
+      width: size,
+      height: size,
+      child: IconButton(
+        onPressed: onPressed,
+        tooltip: tooltip,
+        icon: Icon(icon, size: iconSize),
+        color: theme.colorScheme.onSurface,
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.standard,
+        constraints: BoxConstraints.tightFor(width: size, height: size),
+      ),
     );
-    return button;
   }
 }

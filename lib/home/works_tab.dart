@@ -934,7 +934,7 @@ class WorksTabState extends State<WorksTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!selectionMode && _breadcrumbs.isNotEmpty)
+        if (!selectionMode)
           _WorksBreadcrumb(
             crumbs: _breadcrumbs,
             onRoot: () => jumpBreadcrumb(-1),
@@ -1008,6 +1008,9 @@ class _WorksBreadcrumb extends StatelessWidget {
     required this.onCrumb,
   });
 
+  static const double _rowHeight = 36;
+  static const double _chipHeight = 28;
+
   final List<ProjectFolder> crumbs;
   final VoidCallback onRoot;
   final ValueChanged<int> onCrumb;
@@ -1015,37 +1018,47 @@ class _WorksBreadcrumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+    final muted = Theme.of(context).textTheme.bodySmall?.copyWith(
           color: scheme.onSurfaceVariant,
+          height: 1.0,
         );
-    final activeStyle = style?.copyWith(
+    final active = muted?.copyWith(
       color: scheme.primary,
       fontWeight: FontWeight.w600,
     );
+    final atRoot = crumbs.isEmpty;
 
     return SizedBox(
-      height: 32,
-      child: ListView(
+      height: _rowHeight,
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppTheme.pagePadding),
-        children: [
-          _BreadcrumbChip(label: '作品', style: style, onTap: onRoot),
-          for (var i = 0; i < crumbs.length; i++) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Icon(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _BreadcrumbChip(
+              label: '作品',
+              style: atRoot ? active : muted,
+              filled: true,
+              height: _chipHeight,
+              onTap: atRoot ? null : onRoot,
+            ),
+            for (var i = 0; i < crumbs.length; i++) ...[
+              Icon(
                 Icons.chevron_right,
                 size: 16,
                 color: scheme.onSurfaceVariant,
               ),
-            ),
-            _BreadcrumbChip(
-              label: crumbs[i].name,
-              style: i == crumbs.length - 1 ? activeStyle : style,
-              onTap: i == crumbs.length - 1 ? null : () => onCrumb(i),
-            ),
+              _BreadcrumbChip(
+                label: crumbs[i].name,
+                style: i == crumbs.length - 1 ? active : muted,
+                filled: false,
+                height: _chipHeight,
+                onTap: i == crumbs.length - 1 ? null : () => onCrumb(i),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1055,23 +1068,45 @@ class _BreadcrumbChip extends StatelessWidget {
   const _BreadcrumbChip({
     required this.label,
     required this.style,
+    required this.filled,
+    required this.height,
     this.onTap,
   });
 
   final String label;
   final TextStyle? style;
+  final bool filled;
+  final double height;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final radius = BorderRadius.circular(AppTheme.radiusMd - 4);
+    final labelText = Text(
+      label,
+      style: style,
+      textHeightBehavior: const TextHeightBehavior(
+        applyHeightToFirstAscent: false,
+        applyHeightToLastDescent: false,
+      ),
+    );
+
     return Material(
-      type: MaterialType.transparency,
+      color: filled ? scheme.surfaceContainerHighest : Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: radius),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Text(label, style: style),
+        borderRadius: radius,
+        child: SizedBox(
+          height: height,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: filled ? AppTheme.spaceSm : AppTheme.spaceXs,
+            ),
+            child: Center(child: labelText),
+          ),
         ),
       ),
     );
