@@ -62,7 +62,8 @@ class _PlayChatViewState extends State<PlayChatView> {
     super.didUpdateWidget(oldWidget);
     if (widget.messages.length != oldWidget.messages.length ||
         widget.isGenerating != oldWidget.isGenerating ||
-        widget.replyChoices.length != oldWidget.replyChoices.length) {
+        widget.replyChoices.length != oldWidget.replyChoices.length ||
+        widget.inputLocked != oldWidget.inputLocked) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _measureChrome();
         if (_pinnedToBottom) _scrollToEnd();
@@ -84,16 +85,19 @@ class _PlayChatViewState extends State<PlayChatView> {
     final h = box.size.height;
     if ((h - _bottomChrome).abs() > 1) {
       setState(() => _bottomChrome = h);
+      if (_pinnedToBottom) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
+      }
     }
   }
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
-    // reverse: true → pixels≈0 is the visual bottom (newest).
     final pos = _scroll.position;
-    final pinned = pos.pixels <= 160;
-    final showJump = pos.pixels > 160 &&
-        pos.userScrollDirection == ScrollDirection.forward;
+    final distance = pos.maxScrollExtent - pos.pixels;
+    final pinned = distance <= 160;
+    final showJump = distance > 160 &&
+        pos.userScrollDirection == ScrollDirection.reverse;
     if (pinned != _pinnedToBottom || showJump != _showJump) {
       setState(() {
         _pinnedToBottom = pinned;
@@ -102,13 +106,18 @@ class _PlayChatViewState extends State<PlayChatView> {
     }
   }
 
-  void _scrollToEnd() {
+  void _scrollToEnd({bool animate = true}) {
     if (!_scroll.hasClients) return;
-    _scroll.animateTo(
-      0,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-    );
+    final target = _scroll.position.maxScrollExtent;
+    if (animate) {
+      _scroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _scroll.jumpTo(target);
+    }
   }
 
   bool get _blocked => widget.isGenerating || widget.inputLocked;
@@ -147,48 +156,41 @@ class _PlayChatViewState extends State<PlayChatView> {
                         ? _EmptyChat(title: widget.title)
                         : ListView.builder(
                             controller: _scroll,
-                            reverse: true,
                             physics: const AlwaysScrollableScrollPhysics(
                               parent: ClampingScrollPhysics(),
                             ),
-                            // reverse: padding.top is visual bottom (composer gap).
                             padding: EdgeInsets.fromLTRB(
                               16,
-                              8 + _bottomChrome,
-                              16,
                               8,
+                              16,
+                              12 + _bottomChrome,
                             ),
                             itemCount: widget.messages.length +
                                 (widget.isGenerating || _showChoices ? 1 : 0),
                             itemBuilder: (context, index) {
-                              final hasTrail =
-                                  widget.isGenerating || _showChoices;
-                              if (hasTrail && index == 0) {
-                                if (widget.isGenerating) {
-                                  return const AppChatBubble(
-                                    text: '',
-                                    role: AppChatBubbleRole.character,
-                                    isTyping: true,
-                                    showAvatar: false,
-                                  );
-                                }
-                                return _ReplyChoicesBlock(
-                                  choices: widget.replyChoices,
-                                  blocked: _blocked,
-                                  onPick: widget.onPickReply,
-                                  onRefresh: widget.onRefreshChoices,
+                              if (index < widget.messages.length) {
+                                final msg = widget.messages[index];
+                                return AppChatBubble(
+                                  text: msg.text,
+                                  role: msg.isUser
+                                      ? AppChatBubbleRole.user
+                                      : AppChatBubbleRole.character,
+                                  avatarLabel: msg.avatarLabel,
                                 );
                               }
-                              final messageIndex = widget.messages.length -
-                                  1 -
-                                  (index - (hasTrail ? 1 : 0));
-                              final msg = widget.messages[messageIndex];
-                              return AppChatBubble(
-                                text: msg.text,
-                                role: msg.isUser
-                                    ? AppChatBubbleRole.user
-                                    : AppChatBubbleRole.character,
-                                avatarLabel: msg.avatarLabel,
+                              if (widget.isGenerating) {
+                                return const AppChatBubble(
+                                  text: '',
+                                  role: AppChatBubbleRole.character,
+                                  isTyping: true,
+                                  showAvatar: false,
+                                );
+                              }
+                              return _ReplyChoicesBlock(
+                                choices: widget.replyChoices,
+                                blocked: _blocked,
+                                onPick: widget.onPickReply,
+                                onRefresh: widget.onRefreshChoices,
                               );
                             },
                           ),
@@ -279,6 +281,7 @@ class _ReplyChoicesBlock extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.spaceSm),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
