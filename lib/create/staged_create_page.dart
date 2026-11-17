@@ -100,7 +100,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
   }
 
   String _formatBackground(Background background) {
-    return background.sections
+    return background.entries
         .map((s) => '【${s.title}】\n${s.body}')
         .join('\n\n');
   }
@@ -153,21 +153,28 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
   Background? _backgroundFromPreview() {
     final text = _preview.text.trim();
     if (text.isEmpty || _background == null) return _background;
-    // Keep section ids; replace bodies from editable blob best-effort by whole text.
-    if (_background!.sections.length == 1) {
-      final only = _background!.sections.first;
+    // Keep entry ids; replace bodies from editable blob best-effort by whole text.
+    if (_background!.entries.length == 1) {
+      final only = _background!.entries.first;
       return Background(
-        sections: [
-          BackgroundSection(id: only.id, title: only.title, body: text),
+        entries: [
+          BackgroundEntry(
+            id: only.id,
+            title: only.title,
+            body: text,
+            alwaysOn: only.alwaysOn,
+            keys: only.keys,
+          ),
         ],
       );
     }
     return Background(
-      sections: [
-        BackgroundSection(
-          id: _background!.sections.first.id,
+      entries: [
+        BackgroundEntry(
+          id: _background!.entries.first.id,
           title: '设定',
           body: text,
+          alwaysOn: true,
         ),
       ],
     );
@@ -220,7 +227,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
           });
         case _Stage.cast:
           final background = _backgroundFromPreview() ?? _background;
-          if (background == null || background.sections.isEmpty) {
+          if (background == null || background.entries.isEmpty) {
             setState(() => _status = '请先完成世界设定');
             return;
           }
@@ -243,7 +250,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
         case _Stage.main:
           final background = _background ?? project.background;
           final cast = _cast ?? project.cast;
-          if (background.sections.isEmpty || cast.isEmpty) {
+          if (background.entries.isEmpty || cast.isEmpty) {
             setState(() => _status = '请先完成设定和角色');
             return;
           }
@@ -281,7 +288,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
     switch (_stage) {
       case _Stage.world:
         final background = _backgroundFromPreview();
-        if (background == null || background.sections.isEmpty) {
+        if (background == null || background.entries.isEmpty) {
           setState(() => _status = '请先生成设定');
           return;
         }

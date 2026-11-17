@@ -129,7 +129,7 @@
 
 阶段 3 结束就是「能玩」的分界：骨架合法且文案服务可用即可开玩，**不要求**创作时写满对白。
 
-**当前实现**：路径 3「走向」只生成 `summary` + 大站（含 `synopsis`）+ `default`/`branch` 边（`beats` 可空）；作品页「继续创作」打开 [`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart) 改站与连线；游玩时空拍进 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)，失败或未配文案服务时用「前往：{下一站}」保底；样例「雨夜投宿」仍带预写对白作静态对照。路径 1/2、阶段 4 生图未做。
+**当前实现**：路径 3「走向」只生成 `summary` + 大站（含 `synopsis`）+ `default`/`branch` 边（`beats` 可空）；作品页「继续创作」打开创作截面（文风 / 设定 / 角色 / 情节）；游玩时空拍进 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)，失败或未配文案服务时用「前往：{下一站}」保底；样例「雨夜投宿」仍带预写对白作静态对照。路径 1/2、阶段 4 生图未做。
 
 每一阶段：输入框 → 生成 → 就地预览可编辑 → 下一步 / 重写。不要在阶段 1 打开情节画布。未配置文案服务时留在当前阶段提示去设置，不丢已写入内容。
 
@@ -141,20 +141,33 @@
 
 ---
 
+## 创作截面（作品内）
+
+作品页点「继续创作」进入 [`CreateHubPage`](../lib/create/create_hub_page.dart)：四条入口，点进各自编辑页。
+
+| 入口 | 用户在改什么 | 编辑页 |
+| --- | --- | --- |
+| 文风预设 | 怎么写、不要写什么、更想要什么；可多套切换 | [`PresetEditorPage`](../lib/create/preset_editor_page.dart) |
+| 背景设定 | 世界事实条目：常驻或关键词唤起 | [`BackgroundEditorPage`](../lib/create/background_editor_page.dart) |
+| 角色 | 姓名、简介、性格、说话方式、示例对白 | [`CastEditorPage`](../lib/create/cast_editor_page.dart) |
+| 情节走向 | 大站与分支（原节点画布） | [`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart) |
+
+副标题用当前作品摘要（套数/条数/人数/站数），不堆内部字段名。情节图仍只服务大走向，不是创作入口的第一步。
+
 ## 微调：三条路共用，而且是可选的
 
 开玩之后，用户只会因为「这里不对」进来，而不是为了填满 schema。
 
 | 用户觉得 | 打开的界面 | 背后改的数据 |
 | --- | --- | --- |
-| 人设/世界观偏了 | 设定或角色页 | Background / Cast |
-| 这一站目标不对 / 分支不对 | 情节列表或节点编辑器 | nodes / edges / synopsis |
+| 人设/世界观偏了 | 创作截面 → 背景设定 / 角色 | Background / Cast |
+| 这一站目标不对 / 分支不对 | 创作截面 → 情节走向 | nodes / edges / synopsis |
 | 过程戏这段不对 | 游玩中「重来这一段」或创作里预写钩子 | 区间会话 / 可选预写 Beats |
-| 想多一个结局或岔路 | 主线节点编辑器 | nodes / edges |
-| 画风不对 | 文风预设，再玩时区间 AI 跟新预设 | Preset |
+| 想多一个结局或岔路 | 创作截面 → 情节走向 | nodes / edges |
+| 画风不对 | 创作截面 → 文风预设 | Preset |
 | 图不好看 | 图片：再生或换自己的 | 资源槽 |
 
-情节图用来调整**大走向与分支**，不是创作入口的第一步。全端同一套节点编辑器；底栏可切「画布 / 卡片」，见下一节。
+全端同一套节点编辑器；底栏可切「画布 / 卡片」，见下一节。
 
 ---
 

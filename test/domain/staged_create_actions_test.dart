@@ -47,11 +47,11 @@ void main() {
       preset: preset,
       prompt: '雨夜边城',
     );
-    expect(background.sections.first.body, '雨夜边城');
+    expect(background.entries.first.body, '雨夜边城');
 
     final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
     final next = actions.applyWorld(blank, background);
-    expect(next.background.sections.first.body, '雨夜边城');
+    expect(next.background.entries.first.body, '雨夜边城');
     expect(next.cast, blank.cast);
     expect(next.main.startNodeId, blank.main.startNodeId);
   });
@@ -67,7 +67,7 @@ void main() {
       preset: preset,
       prompt: '提示',
     );
-    expect(background.sections.first.body, '修好了');
+    expect(background.entries.first.body, '修好了');
     expect(client.calls, 2);
     expect(client.users.last, contains('只输出合法 JSON'));
   });
@@ -92,8 +92,13 @@ void main() {
       preset: preset,
       prompt: '出城',
       background: const Background(
-        sections: [
-          BackgroundSection(id: 'bg', title: '世界', body: '边城'),
+        entries: [
+          BackgroundEntry(
+            id: 'bg',
+            title: '世界',
+            body: '边城',
+            alwaysOn: true,
+          ),
         ],
       ),
       cast: cast,

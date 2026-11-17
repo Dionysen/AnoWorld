@@ -88,11 +88,12 @@ class ProjectFactory {
       presets: <Preset>[preset],
       activePresetId: preset.id,
       background: const Background(
-        sections: <BackgroundSection>[
-          BackgroundSection(
+        entries: <BackgroundEntry>[
+          BackgroundEntry(
             id: 'bg_world',
             title: '世界观',
             body: '边陲小城外常有过路旅人；雨夜客栈是唯一歇脚处。',
+            alwaysOn: true,
           ),
         ],
       ),

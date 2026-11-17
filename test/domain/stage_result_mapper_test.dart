@@ -16,8 +16,9 @@ void main() {
 {"sections":[{"title":"世界观","body":"边城雨夜"}]}
 ```
 ''');
-    expect(background.sections, hasLength(1));
-    expect(background.sections.first.body, '边城雨夜');
+    expect(background.entries, hasLength(1));
+    expect(background.entries.first.body, '边城雨夜');
+    expect(background.entries.first.alwaysOn, isTrue);
   });
 
   test('maps cast list', () {
@@ -62,8 +63,13 @@ void main() {
       presets: [preset],
       activePresetId: preset.id,
       background: const Background(
-        sections: [
-          BackgroundSection(id: 'bg', title: '世界观', body: '边城'),
+        entries: [
+          BackgroundEntry(
+            id: 'bg',
+            title: '世界观',
+            body: '边城',
+            alwaysOn: true,
+          ),
         ],
       ),
       cast: cast,

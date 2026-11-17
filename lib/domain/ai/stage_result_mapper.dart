@@ -18,7 +18,7 @@ class StageResultMapper {
     if (sectionsRaw is! List || sectionsRaw.isEmpty) {
       throw const StageMapException('设定里没有可用的段落');
     }
-    final sections = <BackgroundSection>[];
+    final entries = <BackgroundEntry>[];
     for (var i = 0; i < sectionsRaw.length; i++) {
       final item = sectionsRaw[i];
       if (item is! Map) continue;
@@ -26,18 +26,19 @@ class StageResultMapper {
       final title = _stringOf(row['title']) ?? '设定';
       final body = _stringOf(row['body']) ?? '';
       if (body.trim().isEmpty) continue;
-      sections.add(
-        BackgroundSection(
+      entries.add(
+        BackgroundEntry(
           id: _stringOf(row['id']) ?? 'bg_$i',
           title: title.trim(),
           body: body.trim(),
+          alwaysOn: true,
         ),
       );
     }
-    if (sections.isEmpty) {
+    if (entries.isEmpty) {
       throw const StageMapException('设定里没有可用的段落');
     }
-    return Background(sections: sections);
+    return Background(entries: entries);
   }
 
   List<CastMember> castFromRaw(String raw) {

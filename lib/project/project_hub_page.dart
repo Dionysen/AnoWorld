@@ -1,5 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
-import 'package:anoworld/create/main_graph/main_graph_page.dart';
+import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -10,7 +10,7 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:flutter/widgets.dart';
 
-/// After opening a work: play or continue editing (edit UI comes later).
+/// After opening a work: play or enter the creation hub.
 class ProjectHubPage extends StatefulWidget {
   const ProjectHubPage({super.key, required this.projectId});
 
@@ -81,10 +81,10 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     if (mounted) await _load();
   }
 
-  Future<void> _openGraph() async {
+  Future<void> _openCreate() async {
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => MainGraphPage(projectId: widget.projectId),
+        pageBuilder: (_, _, _) => CreateHubPage(projectId: widget.projectId),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -143,13 +143,13 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             const SizedBox(height: AppTheme.spaceSm),
             AppButton(
               label: '继续创作',
-              onPressed: _openGraph,
+              onPressed: _openCreate,
               variant: AppButtonVariant.secondary,
               expanded: true,
             ),
             const SizedBox(height: AppTheme.spaceSm),
             const AppText(
-              '可改情节大站与分支，过程戏游玩时生成',
+              '可改文风、设定、角色与情节走向',
               role: AppTextRole.caption,
             ),
           ],
