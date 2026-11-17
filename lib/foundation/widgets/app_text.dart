@@ -11,6 +11,8 @@ enum AppTextRole {
   compactBody,
   /// Entry title on compact rows; between [caption] and [label] in weight.
   compactLabel,
+  /// Tag chip on story-detail lorebook rows.
+  compactTag,
 }
 
 /// Themed text. Business screens should prefer this over raw [Text] styling.
@@ -40,9 +42,19 @@ class AppText extends StatelessWidget {
       AppTextRole.body => theme.textTheme.bodyLarge,
       AppTextRole.caption => theme.textTheme.bodySmall,
       AppTextRole.label => theme.textTheme.labelLarge,
-      AppTextRole.compactBody => theme.textTheme.bodyMedium,
-      AppTextRole.compactLabel => theme.textTheme.bodyMedium?.copyWith(
+      AppTextRole.compactBody => theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface,
+            height: 1.35,
+          ),
+      AppTextRole.compactLabel => theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
+            height: 1.35,
+          ),
+      AppTextRole.compactTag => theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: theme.colorScheme.primary,
+            height: 1.2,
           ),
     };
     return Text(

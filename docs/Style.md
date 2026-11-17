@@ -49,6 +49,6 @@
 - 手机 / 平板：状态栏和导航栏透明；页面标题（`AppPage.title`）画在顶栏内，内容从顶栏下面开始。
 - 桌面（macOS / Windows / Linux）：顶栏**不画标题文案、返回与页面 `actions`**（只留窗口拖动/系统钮区域）；页面标题落到顶栏下方（上边距 `spaceXs`），用 `AppTextRole.pageTitle`（`headlineSmall` **24** / semibold），左侧圆形返回（`AppCircleButton`），右侧为 `AppPage.actions`（与标题同行）。窗口内容铺到红绿灯或自绘窗口按钮下面；macOS 顶栏让出红绿灯宽度；Windows / Linux 隐藏系统标题栏，最小化/最大化/关闭画在顶栏右侧，空白顶栏可拖动，双击切换最大化。
 - 圆形图标按钮：`AppCircleButton` 默认 **40** 圆径（顶栏 `actions`、图内行内工具等）；右下角悬浮操作用 `AppCircleButton.fab`（**64** / 图标 **30**），如首页加号、故事详情「开始游玩」、情节画布右下角「加一站」等。窄屏底栏时 FAB 用 [`AppFabLocation.aboveCompactBottomNav`](../lib/foundation/widgets/app_fab_location.dart) 抬高，水平仍贴右。
-- 故事详情 [`AppDetailSectionCard`](../lib/foundation/widgets/app_detail_section_card.dart)：外卡 `AppSurface`（`surfaceContainerHighest` + `outline`）；条目在父表面上叠黑约 10%（亮主题约 5%）压深 + 低对比 `outlineVariant` 描边，内边距 `spaceMd`，条目间距 `spaceXs`、与版块标题间距 `spaceGroup`；条内文案用 `AppTextRole.compactLabel` / `compactBody`（比全局正文字号小一档，`bodyMedium` 基准），标签仍 `caption`。
+- 故事详情 [`AppDetailSectionCard`](../lib/foundation/widgets/app_detail_section_card.dart)：外卡 `AppSurface`（`surfaceContainerHighest` + `outline`）；条目在父表面上叠黑约 10%（亮主题约 5%）压深 + 低对比 `outlineVariant` 描边，内边距 `spaceMd`，条目间距 `spaceXs`、与版块标题间距 `spaceGroup`；条内文案用 `compactLabel` / `compactBody`（`bodySmall` 级、正文色），标签 `compactTag`（主色字 + 主色浅底与描边 chip）。
 
 通道没有实现时（测试、还没接上的窗口）仍显示页面顶栏，不画窗口按钮。

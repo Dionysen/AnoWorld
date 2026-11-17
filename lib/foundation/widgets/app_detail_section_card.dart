@@ -337,8 +337,17 @@ class _EntryTagWrap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final shape = AppUiTokens.of(context).shape();
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tagFill = Color.alphaBlend(
+      scheme.primary.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.1 : 0.07,
+      ),
+      scheme.surfaceContainerHighest,
+    );
+    final tagShape = AppUiTokens.of(context).shape(
+      side: BorderSide(color: scheme.primary.withValues(alpha: 0.16)),
+    );
 
     return Wrap(
       spacing: AppTheme.spaceXs,
@@ -348,22 +357,15 @@ class _EntryTagWrap extends StatelessWidget {
           if (tag.trim().isNotEmpty)
             DecoratedBox(
               decoration: ShapeDecoration(
-                color: Color.alphaBlend(
-                  Colors.black.withValues(
-                    alpha: Theme.of(context).brightness == Brightness.dark
-                        ? 0.14
-                        : 0.07,
-                  ),
-                  scheme.surfaceContainerHighest,
-                ),
-                shape: shape,
+                color: tagFill,
+                shape: tagShape,
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppTheme.spaceSm,
                   vertical: AppTheme.spaceXs,
                 ),
-                child: AppText(tag.trim(), role: AppTextRole.caption),
+                child: AppText(tag.trim(), role: AppTextRole.compactTag),
               ),
             ),
       ],

@@ -69,9 +69,14 @@ class _AppExpandableTextState extends State<AppExpandableText> {
       AppTextRole.body => theme.bodyLarge,
       AppTextRole.caption => theme.bodySmall,
       AppTextRole.label => theme.labelLarge,
-      AppTextRole.compactBody => theme.bodyMedium,
-      AppTextRole.compactLabel => theme.bodyMedium?.copyWith(
+      AppTextRole.compactBody => theme.bodySmall?.copyWith(height: 1.35),
+      AppTextRole.compactLabel => theme.bodySmall?.copyWith(
             fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+      AppTextRole.compactTag => theme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w500,
+            height: 1.2,
           ),
     };
   }
