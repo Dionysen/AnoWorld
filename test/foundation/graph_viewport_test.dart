@@ -335,8 +335,8 @@ void main() {
     expect(find.text('Alpha'), findsOneWidget);
   });
 
-  testWidgets('chip pan notifies onMove callback', (tester) async {
-    var panned = false;
+  testWidgets('chip pointer down arms drag', (tester) async {
+    var armed = false;
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.data,
@@ -346,15 +346,90 @@ void main() {
               data: const GraphNodeData(id: 'a', label: 'Alpha', x: 0, y: 0),
               selected: true,
               onTap: () {},
-              onPanUpdate: (_) => panned = true,
-              onPanEnd: (_) {},
+              onPanDown: (_) => armed = true,
             ),
           ),
         ),
       ),
     );
-    await tester.drag(find.text('Alpha'), const Offset(24, 12));
+    await tester.pumpAndSettle();
+    final gesture =
+        await tester.startGesture(tester.getCenter(find.byType(GraphNodeChip)));
     await tester.pump();
-    expect(panned, isTrue);
+    await gesture.up();
+    expect(armed, isTrue);
+  });
+
+  testWidgets(
+      'node drag keeps up when multiple moves land before rebuild',
+      (tester) async {
+    // Reproduces Windows high-rate mice: several PointerMoves in one frame
+    // while parent still holds the pre-drag layout. Absolute canvas tracking
+    // must keep the full pointer travel; stale node.x+delta would drop all
+    // but the last segment.
+    late StateSetter setHarness;
+    var node = const GraphNodeData(
+      id: 'a',
+      label: 'Alpha',
+      x: 80,
+      y: 60,
+      width: 160,
+      height: 96,
+    );
+    final xs = <double>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              setHarness = setState;
+              return SizedBox(
+                width: 640,
+                height: 480,
+                child: GraphViewport(
+                  nodes: [node],
+                  edges: const [],
+                  selectedId: 'a',
+                  onSelect: (_) {},
+                  onMove: (id, x, y) {
+                    xs.add(x);
+                    setHarness(() {
+                      node = GraphNodeData(
+                        id: node.id,
+                        label: node.label,
+                        x: x,
+                        y: y,
+                        width: node.width,
+                        height: node.height,
+                      );
+                    });
+                  },
+                  onConnect: (_, __, ___) {},
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final start = tester.getCenter(find.byType(GraphNodeChip));
+    final gesture = await tester.startGesture(start);
+    await gesture.moveBy(const Offset(20, 0));
+    await tester.pump();
+    expect(xs, isNotEmpty);
+    final xAfterFirst = xs.last;
+    xs.clear();
+    await gesture.moveBy(const Offset(30, 0));
+    await gesture.moveBy(const Offset(30, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(xs, isNotEmpty);
+    expect(xs.last, closeTo(xAfterFirst + 60, 1.0));
   });
 }

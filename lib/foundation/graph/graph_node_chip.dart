@@ -7,14 +7,16 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 /// Selectable / draggable chip wrapping [GraphNodeVisual] for the canvas.
+///
+/// Body drag is armed here on pointer-down; [GraphViewport] tracks move/up at
+/// the canvas layer so follow-hand survives chip rebuilds while the node moves.
 class GraphNodeChip extends StatelessWidget {
   const GraphNodeChip({
     super.key,
     required this.data,
     required this.selected,
     required this.onTap,
-    required this.onPanUpdate,
-    required this.onPanEnd,
+    required this.onPanDown,
     this.highlightPorts = false,
     this.highlightInput = false,
     this.highlightOutputPortId,
@@ -31,8 +33,10 @@ class GraphNodeChip extends StatelessWidget {
   final bool highlightInput;
   final String? highlightOutputPortId;
   final VoidCallback onTap;
-  final GestureDragUpdateCallback onPanUpdate;
-  final GestureDragEndCallback onPanEnd;
+
+  /// Pointer down on the card (before any slop) so the canvas can lock pan
+  /// and take over move tracking.
+  final GestureDragDownCallback onPanDown;
   final void Function(String portId)? onOutputDragStart;
   final GestureDragUpdateCallback? onOutputDragUpdate;
   final GestureDragEndCallback? onOutputDragEnd;
@@ -54,15 +58,6 @@ class GraphNodeChip extends StatelessWidget {
           GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
         TapGestureRecognizer.new,
         (instance) => instance.onTap = onTap,
-      ),
-      _EagerPanGestureRecognizer:
-          GestureRecognizerFactoryWithHandlers<_EagerPanGestureRecognizer>(
-        _EagerPanGestureRecognizer.new,
-        (instance) {
-          instance
-            ..onUpdate = onPanUpdate
-            ..onEnd = onPanEnd;
-        },
       ),
     };
 
@@ -86,10 +81,21 @@ class GraphNodeChip extends StatelessWidget {
             top: 0,
             width: width,
             height: height,
-            child: RawGestureDetector(
+            child: Listener(
               behavior: HitTestBehavior.opaque,
-              gestures: cardGestures,
-              child: const ColoredBox(color: Color(0x00000000)),
+              onPointerDown: (event) {
+                onPanDown(
+                  DragDownDetails(
+                    globalPosition: event.position,
+                    localPosition: event.localPosition,
+                  ),
+                );
+              },
+              child: RawGestureDetector(
+                behavior: HitTestBehavior.opaque,
+                gestures: cardGestures,
+                child: const ColoredBox(color: Color(0x00000000)),
+              ),
             ),
           ),
           for (var i = 0; i < outputs.length; i++)
@@ -207,14 +213,4 @@ class _PortTitleButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _EagerPanGestureRecognizer extends PanGestureRecognizer {
-  @override
-  void rejectGesture(int pointer) {
-    acceptGesture(pointer);
-  }
-
-  @override
-  String get debugDescription => 'eager pan';
 }

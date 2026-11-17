@@ -90,6 +90,11 @@ class _GraphViewportState extends State<GraphViewport>
   String? _linkFromPortId;
   Offset? _draftPointer;
   bool _draggingNode = false;
+  String? _dragNodeId;
+  int? _dragPointer;
+  /// Scene-space pointer − node origin at pointer-down. Absolute tracking so
+  /// multi-move frames never depend on a stale parent [GraphNodeData] layout.
+  Offset? _dragGrabOffset;
   Size _viewportSize = Size.zero;
   late final AnimationController _focusAnim;
   Animation<Matrix4>? _focusTween;
@@ -197,6 +202,69 @@ class _GraphViewportState extends State<GraphViewport>
           : GraphEdgeGeometry.outputPort(node, portId: portId);
       _selectNode(nodeId);
     });
+  }
+
+  void _armNodeDrag({
+    required String nodeId,
+    required Offset globalPosition,
+  }) {
+    if (_linkFromId != null) return;
+    final node = _byId[nodeId];
+    final scene = _scenePoint(globalPosition);
+    if (node == null || scene == null) return;
+    _dragNodeId = nodeId;
+    _dragGrabOffset = Offset(scene.dx - node.x, scene.dy - node.y);
+    if (!_draggingNode) {
+      setState(() => _draggingNode = true);
+    }
+  }
+
+  void _onCanvasPointerDown(PointerDownEvent event) {
+    if (_dragNodeId != null) {
+      _dragPointer = event.pointer;
+    }
+  }
+
+  void _onCanvasPointerMove(PointerMoveEvent event) {
+    if (event.pointer != _dragPointer) return;
+    final id = _dragNodeId;
+    final grab = _dragGrabOffset;
+    if (id == null || grab == null) return;
+    final scene = _scenePoint(event.position);
+    if (scene == null) return;
+    widget.onMove(id, scene.dx - grab.dx, scene.dy - grab.dy);
+  }
+
+  void _endNodeDrag({required bool commit}) {
+    final id = _dragNodeId;
+    final wasDragging = _draggingNode;
+    if (_draggingNode || _dragGrabOffset != null || id != null) {
+      setState(() {
+        _draggingNode = false;
+        _dragNodeId = null;
+        _dragPointer = null;
+        _dragGrabOffset = null;
+      });
+    }
+    if (commit && wasDragging) {
+      widget.onNodeDragEnd?.call();
+    }
+    if (commit &&
+        widget.focusSelected &&
+        id != null &&
+        id == widget.selectedId) {
+      _focusCamera(animate: true);
+    }
+  }
+
+  void _onCanvasPointerUp(PointerUpEvent event) {
+    if (event.pointer != _dragPointer) return;
+    _endNodeDrag(commit: true);
+  }
+
+  void _onCanvasPointerCancel(PointerCancelEvent event) {
+    if (event.pointer != _dragPointer) return;
+    _endNodeDrag(commit: false);
   }
 
   void _onOutputDragUpdate(DragUpdateDetails details) {
@@ -342,19 +410,25 @@ class _GraphViewportState extends State<GraphViewport>
                   ),
                 ),
               ),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapUp: _onCanvasTapUp,
-              child: InteractiveViewer(
-                key: _viewerKey,
-                transformationController: _transform,
-                minScale: widget.minScale,
-                maxScale: widget.maxScale,
-                panEnabled: canvasInteractive,
-                scaleEnabled: canvasInteractive,
-                constrained: false,
-                boundaryMargin: const EdgeInsets.all(800),
-                child: SizedBox(
+            Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: _onCanvasPointerDown,
+              onPointerMove: _onCanvasPointerMove,
+              onPointerUp: _onCanvasPointerUp,
+              onPointerCancel: _onCanvasPointerCancel,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapUp: _onCanvasTapUp,
+                child: InteractiveViewer(
+                  key: _viewerKey,
+                  transformationController: _transform,
+                  minScale: widget.minScale,
+                  maxScale: widget.maxScale,
+                  panEnabled: canvasInteractive,
+                  scaleEnabled: canvasInteractive,
+                  constrained: false,
+                  boundaryMargin: const EdgeInsets.all(800),
+                  child: SizedBox(
                     width: width + 1200,
                     height: height + 1200 + inset,
                     child: Stack(
@@ -395,31 +469,10 @@ class _GraphViewportState extends State<GraphViewport>
                                           selectedEdge.id)
                                       : null,
                               onTap: () => _selectNode(node.id),
-                              onPanUpdate: (details) {
-                                if (linking) return;
-                                if (!_draggingNode) {
-                                  setState(() => _draggingNode = true);
-                                }
-                                // Deltas are in the chip's local (scene) space.
-                                widget.onMove(
-                                  node.id,
-                                  node.x + details.delta.dx,
-                                  node.y + details.delta.dy,
-                                );
-                              },
-                              onPanEnd: (_) {
-                                final wasDragging = _draggingNode;
-                                if (_draggingNode) {
-                                  setState(() => _draggingNode = false);
-                                }
-                                if (wasDragging) {
-                                  widget.onNodeDragEnd?.call();
-                                }
-                                if (widget.focusSelected &&
-                                    node.id == widget.selectedId) {
-                                  _focusCamera(animate: true);
-                                }
-                              },
+                              onPanDown: (details) => _armNodeDrag(
+                                nodeId: node.id,
+                                globalPosition: details.globalPosition,
+                              ),
                               onOutputDragStart: (portId) =>
                                   _onOutputDragStart(node.id, portId),
                               onOutputDragUpdate: _onOutputDragUpdate,
@@ -440,6 +493,7 @@ class _GraphViewportState extends State<GraphViewport>
                   ),
                 ),
               ),
+            ),
               if (widget.selectedId != null &&
                   (widget.onOpenNode != null ||
                       widget.onCopyNode != null ||
