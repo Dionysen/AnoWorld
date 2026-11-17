@@ -1,7 +1,9 @@
 import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/play/play_session_page.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/test_app.dart';
@@ -44,10 +46,17 @@ void main() {
         ),
       );
 
-  Future<void> pumpPlay(WidgetTester tester) async {
+  Future<void> pumpPlay(
+    WidgetTester tester, {
+    PlayViewMode mode = PlayViewMode.visualNovel,
+  }) async {
     await tester.pumpWidget(
       testScoped(
-        home: PlaySessionPage(project: sample, resumeSave: false),
+        home: PlaySessionPage(
+          project: sample,
+          mode: mode,
+          resumeSave: false,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -73,20 +82,24 @@ void main() {
   });
 
   testWidgets('chat mode reveals the same opening line', (tester) async {
-    await pumpPlay(tester);
-    await tester.tap(find.text('聊天'));
-    await tester.pumpAndSettle();
+    await pumpPlay(tester, mode: PlayViewMode.chat);
 
     expect(find.text('该走了。'), findsOneWidget);
-    expect(find.text('少年'), findsWidgets);
+    expect(find.text('输入消息'), findsOneWidget);
+    expect(find.byIcon(Icons.send_rounded), findsOneWidget);
+    expect(find.text('视觉小说'), findsNothing);
   });
 
-  testWidgets('save writes an auto slot', (tester) async {
+  testWidgets('save writes an auto slot with mode', (tester) async {
     final saves = MemorySaveRepository();
     await tester.pumpWidget(
       testScoped(
         saves: saves,
-        home: PlaySessionPage(project: sample, resumeSave: false),
+        home: PlaySessionPage(
+          project: sample,
+          mode: PlayViewMode.chat,
+          resumeSave: false,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -96,13 +109,18 @@ void main() {
     final slot = await saves.load(sample.meta.id);
     expect(slot, isNotNull);
     expect(slot!.pointer.beatId, 'b1');
+    expect(slot.mode, PlayViewMode.chat);
   });
 
   testWidgets('empty skeleton still offers guaranteed next station',
       (tester) async {
     await tester.pumpWidget(
       testScoped(
-        home: PlaySessionPage(project: skeleton, resumeSave: false),
+        home: PlaySessionPage(
+          project: skeleton,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
       ),
     );
     await tester.pumpAndSettle();

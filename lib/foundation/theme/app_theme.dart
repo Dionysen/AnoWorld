@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/settings/appearance_settings.dart';
 import '../frame/window_controls.dart';
+import 'app_chat_colors.dart';
 import 'app_continuous_input_border.dart';
 import 'app_shapes.dart';
 import 'app_ui_tokens.dart';
@@ -218,7 +219,10 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: tokens.canvas,
       dividerColor: tokens.divider,
       fontFamily: fontFamily,
-      extensions: <ThemeExtension<dynamic>>[ui],
+      extensions: <ThemeExtension<dynamic>>[
+        ui,
+        AppChatColors.fromThemeTokens(themeTokens),
+      ],
       splashColor: tokens.primary.withValues(alpha: 0.14),
       highlightColor: tokens.primary.withValues(alpha: 0.08),
       switchTheme: SwitchThemeData(

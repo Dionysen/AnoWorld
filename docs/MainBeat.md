@@ -175,7 +175,7 @@ Transition {
 
 ### 3.3 双模式
 
-聊天与 VN **共用**指针、区间会话与 `choices`；只换呈现。
+聊天与 VN **共用**指针、区间会话与 `choices`；呈现由开玩时的 [`PlayViewMode`](../lib/domain/runtime/play_view_mode.dart) 锁定，局内不切换。
 
 ---
 

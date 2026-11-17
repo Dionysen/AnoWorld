@@ -23,6 +23,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/play/play_mode_sheet.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -179,9 +180,14 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   Future<void> _play() async {
     final project = _project;
     if (project == null) return;
+    final mode = await showPlayModeSheet(context);
+    if (!mounted || mode == null) return;
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => PlaySessionPage(project: project),
+        pageBuilder: (_, _, _) => PlaySessionPage(
+          project: project,
+          mode: mode,
+        ),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },

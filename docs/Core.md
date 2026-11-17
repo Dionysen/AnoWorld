@@ -20,7 +20,7 @@ App 全局（设置，与酒馆同类）
 
 相对酒馆，AnoWorld **多加**：**情节走向（Main 图）**与更细的 **Cast（含配角）**；其余提示词、预设、玩家身份、**宏与变量**尽量与 ST/NativeTavern **同一套语义**。
 
-**产品形态（权威）**：VN / 聊天共用同一 Main 推进。**情节（Main 图）是可选约束**：有节点与出边时，区间 AI 须**收敛**到合法下一站或结局；无出边（空白/开放区间）时，AI 按 Background + Cast + 全局 AiPreset **自由续写**，以 stay「继续」为主，不强制下一站。详见下文 Main，以及 [MainBeat.md](./MainBeat.md)、[UX.md](./UX.md)。
+**产品形态（权威）**：VN / 聊天共用同一 Main 推进，但**开玩选定一种呈现并锁定**（[`PlayViewMode`](../lib/domain/runtime/play_view_mode.dart)，存档字段 `mode`）。聊天为 NT 式气泡 + 浮动输入条（[`PlayChatView`](../lib/play/play_chat_view.dart)）。**情节可选**：有出边则收敛；无出边则开放续写。详见 [MainBeat.md](./MainBeat.md)、[UX.md](./UX.md)、[Style.md](./Style.md)。
 
 **Main ↔ Beat 字段与推进规则**：见 [MainBeat.md](./MainBeat.md)（权威 schema）。
 

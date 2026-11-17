@@ -1,6 +1,7 @@
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
+import 'package:anoworld/domain/runtime/play_view_mode.dart';
 
 class MemorySaveRepository implements SaveRepository {
   MemorySaveRepository({Map<String, SaveSlot>? seed})
@@ -22,12 +23,14 @@ class MemorySaveRepository implements SaveRepository {
     required String projectId,
     required MainSavePointer pointer,
     BridgeSession? bridge,
+    PlayViewMode mode = PlayViewMode.visualNovel,
   }) async {
     _slots[projectId] = SaveSlot(
       projectId: projectId,
       pointer: pointer,
       savedAt: DateTime.now().toUtc(),
       bridge: bridge,
+      mode: mode,
     );
   }
 
