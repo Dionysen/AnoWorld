@@ -126,14 +126,22 @@ class AppPage extends StatelessWidget {
 
           Widget pageBody = body;
           if (showLargeTitle) {
+            // Side icon buttons hug the edges; title-only rows keep the wider
+            // page inset so the heading still lines up with body content.
+            final titleLeftPad = showTitleBack
+                ? AppTheme.titleChromePadding
+                : AppTheme.pagePadding;
+            final titleRightPad = showTitleActions
+                ? AppTheme.titleChromePadding
+                : AppTheme.pagePadding;
             pageBody = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.pagePadding,
+                  padding: EdgeInsets.fromLTRB(
+                    titleLeftPad,
                     AppTheme.spaceXs,
-                    AppTheme.pagePadding,
+                    titleRightPad,
                     AppTheme.spaceSm,
                   ),
                   child: Row(

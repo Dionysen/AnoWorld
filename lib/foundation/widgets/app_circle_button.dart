@@ -5,9 +5,10 @@ enum AppCircleButtonVariant { filled, tonal, ghost }
 /// Icon-only circular control. Shape is always a circle — never reads the
 /// corner-radius slider / [AppUiTokens.radius].
 ///
-/// [AppCircleButtonVariant.tonal] keeps a resting fill (e.g. page back).
-/// [AppCircleButtonVariant.ghost] has no resting background (e.g. tool bar);
-/// press / hover still show the ink overlay.
+/// Default [AppCircleButtonVariant.ghost]: no resting fill; press / hover still
+/// show the ink overlay. Prefer this for chrome (back, title actions, overlays).
+/// [AppCircleButtonVariant.filled] is for primary circular CTAs (FAB).
+/// [AppCircleButtonVariant.tonal] keeps a resting fill when a soft chip is needed.
 class AppCircleButton extends StatelessWidget {
   const AppCircleButton({
     super.key,
@@ -16,7 +17,7 @@ class AppCircleButton extends StatelessWidget {
     this.tooltip,
     this.size = diameter,
     this.iconSize = 22,
-    this.variant = AppCircleButtonVariant.tonal,
+    this.variant = AppCircleButtonVariant.ghost,
   });
 
   /// Default hit target — top chrome [AppPage.actions], tool rows, etc.

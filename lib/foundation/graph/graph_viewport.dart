@@ -540,7 +540,7 @@ class _GraphViewportState extends State<GraphViewport>
                         AppCircleButton.fab(
                           icon: Icons.dashboard_customize_outlined,
                           tooltip: '整理排版',
-                          variant: AppCircleButtonVariant.tonal,
+                          variant: AppCircleButtonVariant.ghost,
                           onPressed: widget.onArrange,
                         ),
                         if (widget.onAddNode != null)
@@ -550,7 +550,7 @@ class _GraphViewportState extends State<GraphViewport>
                         AppCircleButton.fab(
                           icon: Icons.add,
                           tooltip: '加一站',
-                          variant: AppCircleButtonVariant.tonal,
+                          variant: AppCircleButtonVariant.ghost,
                           onPressed: widget.onAddNode,
                         ),
                     ],
@@ -585,7 +585,6 @@ class _SelectionActionBar extends StatelessWidget {
           AppCircleButton(
             icon: Icons.copy_outlined,
             tooltip: '复制',
-            variant: AppCircleButtonVariant.tonal,
             onPressed: () => onCopy!(nodeId),
           ),
           if (onOpen != null || onDelete != null)
@@ -595,7 +594,6 @@ class _SelectionActionBar extends StatelessWidget {
           AppCircleButton(
             icon: Icons.edit_outlined,
             tooltip: '编辑',
-            variant: AppCircleButtonVariant.tonal,
             onPressed: () => onOpen!(nodeId),
           ),
           if (onDelete != null) const SizedBox(width: AppTheme.spaceSm),
@@ -604,7 +602,6 @@ class _SelectionActionBar extends StatelessWidget {
           AppCircleButton(
             icon: Icons.delete_outline,
             tooltip: '删除',
-            variant: AppCircleButtonVariant.tonal,
             onPressed: () => onDelete!(nodeId),
           ),
       ],

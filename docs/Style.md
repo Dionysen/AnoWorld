@@ -56,8 +56,8 @@
 
 - 顶栏高度默认 **36**（`AppTheme.titleBandHeight`），比 Material 默认工具栏矮；macOS 若红绿灯更高，才跟着抬高。
 - 手机 / 平板：状态栏和导航栏透明；页面标题（`AppPage.title`）画在顶栏内，内容从顶栏下面开始。
-- 桌面（macOS / Windows / Linux）：顶栏**不画标题文案、返回与页面 `actions`**（只留窗口拖动/系统钮区域）；页面标题落到顶栏下方（上边距 `spaceXs`），用 `AppTextRole.pageTitle`（`headlineSmall` **24** / semibold），左侧圆形返回（`AppCircleButton`），右侧为 `AppPage.actions`（与标题同行）。窗口内容铺到红绿灯或自绘窗口按钮下面；macOS 顶栏让出红绿灯宽度；Windows / Linux 隐藏系统标题栏，最小化/最大化/关闭画在顶栏右侧，空白顶栏可拖动，双击切换最大化。
-- 圆形图标按钮：`AppCircleButton` 默认 **40** 圆径（顶栏 `actions`、图内行内工具等）；右下角悬浮操作用 `AppCircleButton.fab`（**64** / 图标 **30**），如首页加号、故事详情「开始游玩」、情节画布右下角「加一站」等。窄屏底栏时 FAB 用 [`AppFabLocation.aboveCompactBottomNav`](../lib/foundation/widgets/app_fab_location.dart) 抬高，水平仍贴右。
+- 桌面（macOS / Windows / Linux）：顶栏**不画标题文案、返回与页面 `actions`**（只留窗口拖动/系统钮区域）；页面标题落到顶栏下方（上边距 `spaceXs`），用 `AppTextRole.pageTitle`（`headlineSmall` **24** / semibold），左侧圆形返回（`AppCircleButton`），右侧为 `AppPage.actions`（与标题同行）。有返回/右侧按钮时该侧用 `titleChromePadding`（**8**）让图标更贴边；**仅标题**时左边距仍为 `pagePadding`（**16**），与正文齐。窗口内容铺到红绿灯或自绘窗口按钮下面；macOS 顶栏让出红绿灯宽度；Windows / Linux 隐藏系统标题栏，最小化/最大化/关闭画在顶栏右侧，空白顶栏可拖动，双击切换最大化。
+- 圆形图标按钮：`AppCircleButton` 默认 **40** 圆径（顶栏返回 / `actions`、封面换图、图内行内工具等）；**默认 `ghost`**：未按下时无底色，仅图标，按下/悬停仍有 ink；主色圆形 CTA 用 `filled`（`AppCircleButton.fab` 默认 **54** / 图标 **30**，如首页加号、故事详情「开始游玩」）；画布角上次要圆钮显式 `ghost` FAB（整理排版、加一站）。窄屏底栏时 FAB 用 [`AppFabLocation.aboveCompactBottomNav`](../lib/foundation/widgets/app_fab_location.dart) 抬高，水平仍贴右。
 - 故事详情 [`AppDetailSection`](../lib/foundation/widgets/app_detail_section.dart)：扁平分区（无外卡）；标题行 icon+标题+编辑；条目上下 `spaceInline`、底用 [`AppListHairline`](../lib/foundation/widgets/app_list_hairline.dart)；条内文案 `compactLabel` / `compactBody`，标签 `compactTag`（主色浅底 chip）。封面 16:9 横向贴边、直角无圆角；右上角圆形钮可更换图片（存 `assets/cover.*`，`ProjectMeta.coverPath`）。窄屏底栏胶囊高度/边距见 `AppLayout.bottomNav*`。
 
 通道没有实现时（测试、还没接上的窗口）仍显示页面顶栏，不画窗口按钮。

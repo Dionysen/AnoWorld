@@ -350,7 +350,6 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
           child: AppCircleButton(
             icon: Icons.photo_outlined,
             tooltip: '更换封面',
-            variant: AppCircleButtonVariant.tonal,
             onPressed: _changeCover,
           ),
         ),
@@ -377,7 +376,6 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
               AppCircleButton(
                 icon: Icons.edit_note_outlined,
                 tooltip: '继续创作',
-                variant: AppCircleButtonVariant.tonal,
                 onPressed: _openCreateHub,
               ),
             ]

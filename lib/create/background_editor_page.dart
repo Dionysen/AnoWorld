@@ -279,7 +279,6 @@ class _BackgroundEditorPageState extends State<BackgroundEditorPage> {
         AppCircleButton(
           icon: Icons.add,
           tooltip: '加一条设定',
-          variant: AppCircleButtonVariant.tonal,
           onPressed: _loading || _error != null ? null : () => _editEntry(),
         ),
       ],

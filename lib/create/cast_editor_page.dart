@@ -290,7 +290,6 @@ class _CastEditorPageState extends State<CastEditorPage> {
         AppCircleButton(
           icon: Icons.add,
           tooltip: '加一个角色',
-          variant: AppCircleButtonVariant.tonal,
           onPressed: _loading || _error != null ? null : () => _editMember(),
         ),
       ],

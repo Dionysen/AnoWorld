@@ -53,6 +53,27 @@ void main() {
     expect(tester.getSize(find.byType(IconButton)), const Size(40, 40));
   });
 
+  testWidgets('default variant has no resting fill', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: AppCircleButton(
+            icon: Icons.arrow_back,
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final button = tester.widget<IconButton>(find.byType(IconButton));
+    expect(
+      button.style?.backgroundColor?.resolve({}),
+      Colors.transparent,
+    );
+  });
+
   testWidgets('fab constructor uses larger hit target', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

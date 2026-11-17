@@ -72,6 +72,10 @@ abstract final class AppTheme {
   static const double spaceLg = 24;
   static const double radiusMd = 10;
   static const double pagePadding = spaceMd;
+
+  /// Horizontal inset for [AppPage] title chrome (back / title / actions).
+  /// Tighter than [pagePadding] so side icon buttons sit closer to the edges.
+  static const double titleChromePadding = spaceSm;
   static const double buttonHeight = 36;
 
   /// Press-in scale for tappable chrome ([AppPressScale], bottom nav, rail).
