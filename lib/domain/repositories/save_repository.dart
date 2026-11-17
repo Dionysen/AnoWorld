@@ -19,6 +19,9 @@ class SaveSlot {
 abstract interface class SaveRepository {
   Future<SaveSlot?> load(String projectId);
 
+  /// All slots, newest [SaveSlot.savedAt] first.
+  Future<List<SaveSlot>> listAll();
+
   Future<void> save({
     required String projectId,
     required MainSavePointer pointer,

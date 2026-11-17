@@ -49,9 +49,18 @@
 
 ---
 
+## 首页（底栏：存档 / 作品）
+
+首页用 `AppNavShell` 双分区（窄屏悬浮胶囊底栏 / 宽屏左侧栏）：**存档** / **作品**。顶栏进设置；作品页可导入作品包、多选、建文件夹。
+
+- **存档**：已开玩过的进度列表（按最近存档时间）；搜索、长按多选、删除存档（只清进度）；空态可跳到作品；加号切到作品。
+- **作品**：作品库列表 + 文件夹；点文件夹进入下一层（内容左右滑入/滑出）；面包屑回退；搜索、长按多选、移动到文件夹、删除；加号打开创作菜单（空白作品 / 导入角色卡 / 粘贴故事 / 分阶段提示词 / 新建文件夹 / 试用样例）。顶栏「更多」可改**显示方式**（详细列表 / 简洁列表 / 网格 / 紧凑网格）与**头像形状**（圆形 / 方形 / 矩形，仅详细列表）；选择会记住。
+
+库内文件夹与作品归属落在 `{library}/folders.json`（[`ProjectFolderRepository`](../lib/domain/repositories/project_folder_repository.dart)），与作品包目录分开。
+
 ## 设置（从首页顶栏进入）
 
-首页本身没有底栏。进入设置后才有分区导航（窄屏为悬浮胶囊底栏 / 宽屏侧栏）：**通用** / **外观** / **AI** / **关于**。
+设置内另有分区导航（窄屏悬浮胶囊底栏 / 宽屏侧栏）：**通用** / **外观** / **AI** / **关于**。
 
 - **外观**：主题模式（跟随系统/浅/深）；主题预设 / 自定义颜色 / 字体等均用同一套浮层抽屉（两侧内缩、限宽，列表类默认半屏）；主题预设行尾显示当前包名；自定义颜色含「保存为主题」「恢复默认」；字体可选系统默认 / 本机 / 导入；字体大小/圆角滑块。各项列表与滑块左侧有图标。改完立即作用到全局封装控件。视觉约定见 [Style.md](./Style.md)。
 - **AI**：写故事与生图分开选服务商（半屏浮层抽屉，标题与说明固定不随列表滚）。各自填写服务地址、密钥；切换服务商会记住上次内容。能自动查找模型的，填好后会拉出列表；点模型即可选用，也可点「查找模型」。
@@ -63,7 +72,7 @@
 
 **用户想要的感觉**：选一个卡 → 看软件读懂了什么 → 勾选留下 → 写入作品再改。
 
-**当前实现**：首页「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；确认后「写入作品」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。
+**当前实现**：作品页加号「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；确认后「写入作品」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。
 
 ### 用户做的事
 
@@ -119,7 +128,7 @@
 
 ## 路径 3：从空白开始，分阶段写提示词
 
-**入口已接通**（路径 1 / 2 仍为占位）：首页「分阶段提示词」→ [`StagedCreatePage`](../lib/create/staged_create_page.dart)。需在设置 → AI 配好写故事服务（[`OpenAiChatClient`](../lib/foundation/ai/openai_chat_client.dart) + [`StagedCreateActions`](../lib/domain/ai/staged_create_actions.dart)）。
+**入口已接通**（路径 2 仍为占位）：作品页加号「分阶段提示词」→ [`StagedCreatePage`](../lib/create/staged_create_page.dart)。需在设置 → AI 配好写故事服务（[`OpenAiChatClient`](../lib/foundation/ai/openai_chat_client.dart) + [`StagedCreateActions`](../lib/domain/ai/staged_create_actions.dart)）。
 
 **目标体验**：每个阶段只写一两句人话；阶段 3 产出的是**脉络骨架**（概括 + 大站 + 分支），开玩后站间由 AI 实时演。
 

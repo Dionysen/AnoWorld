@@ -1,5 +1,9 @@
 import 'package:anoworld/data/project/memory_project_repository.dart';
+import 'package:anoworld/data/save/memory_save_repository.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/domain/repositories/save_repository.dart';
+import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,19 +16,16 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('home shows creation entries and empty library', (tester) async {
+  testWidgets('home shows bottom nav for saves and works', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('AnoWorld'), findsOneWidget);
-    expect(find.text('导入角色卡'), findsOneWidget);
-    expect(find.text('粘贴故事'), findsOneWidget);
-    expect(find.text('分阶段提示词'), findsOneWidget);
-    expect(find.text('还没有作品'), findsOneWidget);
-    expect(find.text('试用「雨夜投宿」'), findsOneWidget);
+    expect(find.text('存档'), findsWidgets);
+    expect(find.text('作品'), findsWidgets);
+    expect(find.text('还没有存档'), findsOneWidget);
   });
 
-  testWidgets('home lists seeded projects and opens hub', (tester) async {
+  testWidgets('works tab lists seeded projects and opens hub', (tester) async {
     final sample = const ProjectFactory().createRainNightSample(
       now: DateTime.utc(2026, 1, 1),
     );
@@ -36,6 +37,9 @@ void main() {
     await tester.pumpWidget(testApp(projects: repo));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('作品').last);
+    await tester.pumpAndSettle();
+
     expect(find.text('雨夜投宿'), findsOneWidget);
     await tester.tap(find.text('雨夜投宿'));
     await tester.pumpAndSettle();
@@ -44,12 +48,43 @@ void main() {
     expect(find.text('少年离家，雨夜投宿。'), findsOneWidget);
   });
 
-  testWidgets('blank create opens project hub', (tester) async {
+  testWidgets('works more can switch display mode', (tester) async {
+    final sample = const ProjectFactory().createRainNightSample(
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final repo = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    final display = await testLibraryDisplay();
+    await tester.pumpWidget(testApp(projects: repo, libraryDisplay: display));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('作品').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('作品选项'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('显示方式'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('紧凑网格'));
+    await tester.pumpAndSettle();
+
+    expect(display.prefs.viewMode, LibraryViewMode.compactGrid);
+    expect(find.text('雨夜投宿'), findsOneWidget);
+  });
+
+  testWidgets('blank create opens project hub from works fab sheet', (
+    tester,
+  ) async {
     final repo = MemoryProjectRepository(idGenerator: () => 'p_blank');
     await tester.pumpWidget(testApp(projects: repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('新建空白作品').first);
+    await tester.tap(find.text('作品').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('开始创作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('新建空白作品').last);
     await tester.pumpAndSettle();
 
     expect(find.text('未命名作品'), findsWidgets);
@@ -71,14 +106,44 @@ void main() {
     expect(find.text('关于'), findsWidgets);
   });
 
-  testWidgets('create entry opens placeholder', (tester) async {
+  testWidgets('create entry opens from works sheet', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('导入角色卡'));
+    await tester.tap(find.text('作品').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('开始创作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('粘贴故事'));
     await tester.pumpAndSettle();
 
     expect(find.text('这条创作路径马上就好'), findsOneWidget);
+  });
+
+  testWidgets('saves tab lists progress and opens hub', (tester) async {
+    final sample = const ProjectFactory().createRainNightSample(
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final projects = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    final saves = MemorySaveRepository(
+      seed: {
+        sample.meta.id: SaveSlot(
+          projectId: sample.meta.id,
+          pointer: const MainSavePointer(nodeId: 'n1', beatId: 'b1'),
+          savedAt: DateTime.utc(2026, 1, 2),
+        ),
+      },
+    );
+
+    await tester.pumpWidget(testApp(projects: projects, saves: saves));
+    await tester.pumpAndSettle();
+
+    expect(find.text('雨夜投宿'), findsWidgets);
+    await tester.tap(find.text('雨夜投宿').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('继续'), findsWidgets);
   });
 
   testWidgets('hub start play opens runtime', (tester) async {
@@ -89,6 +154,8 @@ void main() {
       seed: {sample.meta.id: sample},
     );
     await tester.pumpWidget(testApp(projects: repo));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('作品').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('雨夜投宿'));
     await tester.pumpAndSettle();

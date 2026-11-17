@@ -11,15 +11,23 @@ class AppListTile extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.icon,
+    this.leading,
     this.onTap,
+    this.onLongPress,
     this.trailing,
+    this.selected = false,
   });
 
   final String title;
   final String? subtitle;
   final IconData? icon;
+
+  /// When set, replaces [icon].
+  final Widget? leading;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final Widget? trailing;
+  final bool selected;
 
   static const double iconSize = 20;
 
@@ -27,12 +35,18 @@ class AppListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final shape = AppUiTokens.of(context).shape();
+    final scheme = theme.colorScheme;
+    final base = scheme.surfaceContainerHighest;
+    final color = selected
+        ? Color.alphaBlend(scheme.primary.withValues(alpha: 0.12), base)
+        : base;
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: color,
       shape: shape,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         customBorder: shape,
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -41,11 +55,14 @@ class AppListTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              if (icon != null) ...[
+              if (leading != null) ...[
+                leading!,
+                const SizedBox(width: AppTheme.spaceInline),
+              ] else if (icon != null) ...[
                 Icon(
                   icon,
                   size: iconSize,
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: AppTheme.spaceInline),
               ],
@@ -69,8 +86,6 @@ class AppListTile extends StatelessWidget {
                   ],
                 ),
               ),
-              // Trailing stays intrinsic-width so title/subtitle can use the
-              // whole middle — no Flexible blank between text and controls.
               if (trailing != null) ...[
                 const SizedBox(width: AppTheme.spaceSm),
                 trailing!,

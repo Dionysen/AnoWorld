@@ -30,6 +30,27 @@ class FileSaveRepository implements SaveRepository {
   Future<SaveSlot?> load(String projectId) async {
     final file = await _slotFile(projectId);
     if (!await file.exists()) return null;
+    return _readSlot(file);
+  }
+
+  @override
+  Future<List<SaveSlot>> listAll() async {
+    final root = Directory(await _savesRoot());
+    if (!await root.exists()) return const <SaveSlot>[];
+    final slots = <SaveSlot>[];
+    await for (final entity in root.list()) {
+      if (entity is! File || !entity.path.endsWith('.json')) continue;
+      try {
+        slots.add(await _readSlot(entity));
+      } on Object {
+        // Skip corrupt slots.
+      }
+    }
+    slots.sort((a, b) => b.savedAt.compareTo(a.savedAt));
+    return slots;
+  }
+
+  Future<SaveSlot> _readSlot(File file) async {
     final map = asJsonMap(
       jsonDecode(await file.readAsString()),
       path: file.path,

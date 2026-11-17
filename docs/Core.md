@@ -100,6 +100,12 @@ Project
 
 字段级推进与存档见 [MainBeat.md](./MainBeat.md)。资源：场景图等仍以生图或导入挂槽；无图可先玩。
 
+## 作品库与存档落点
+
+- **作品包**：`{library}/projects/{id}/`（manifest + project.json + assets）。
+- **游玩存档**：`{library}/saves/{projectId}.json`（每作品一槽；[`SaveRepository`](../lib/domain/repositories/save_repository.dart)）。
+- **库内文件夹**：`{library}/folders.json`（文件夹树 + 作品归属；[`ProjectFolder`](../lib/domain/models/project_folder.dart)）。文件夹只组织库浏览，不进作品包内容。
+
 ## Side（支线）
 
 - **可拼装**：支线是可插入主线缝隙的模块，不强制改写主线骨架。

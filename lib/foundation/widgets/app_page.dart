@@ -18,17 +18,23 @@ class AppPage extends StatelessWidget {
     super.key,
     required this.title,
     required this.body,
+    this.titleWidget,
     this.actions = const [],
     this.onBack,
+    this.floatingActionButton,
   });
 
   final String title;
+
+  /// When set, replaces the plain [title] text (e.g. slide/fade switcher).
+  final Widget? titleWidget;
   final Widget body;
 
   /// Trailing controls aligned with the page title (large-title row on desktop,
   /// chrome band on phone/tablet).
   final List<Widget> actions;
   final VoidCallback? onBack;
+  final Widget? floatingActionButton;
 
   static bool get _desktopLargeTitle {
     if (kIsWeb) return false;
@@ -59,6 +65,7 @@ class AppPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
+      floatingActionButton: floatingActionButton,
       body: LayoutBuilder(
         builder: (context, constraints) {
           // Never force a taller band than the viewport; shrink or hide instead
@@ -120,11 +127,12 @@ class AppPage extends StatelessWidget {
                         const SizedBox(width: AppTheme.spaceSm),
                       ],
                       Expanded(
-                        child: AppText(
-                          title,
-                          role: AppTextRole.pageTitle,
-                          maxLines: 1,
-                        ),
+                        child: titleWidget ??
+                            AppText(
+                              title,
+                              role: AppTextRole.pageTitle,
+                              maxLines: 1,
+                            ),
                       ),
                       if (showTitleActions) ...actions,
                     ],
@@ -166,12 +174,13 @@ class AppPage extends StatelessWidget {
                                   ),
                                 if (showTitleText)
                                   Expanded(
-                                    child: Text(
-                                      title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: titleStyle,
-                                    ),
+                                    child: titleWidget ??
+                                        Text(
+                                          title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: titleStyle,
+                                        ),
                                   )
                                 else
                                   const Spacer(),

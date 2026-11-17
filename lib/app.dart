@@ -1,9 +1,11 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/settings_controller.dart';
+import 'package:anoworld/data/folder/file_project_folder_repository.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
 import 'package:anoworld/data/save/file_save_repository.dart';
 import 'package:anoworld/data/settings/prefs_settings_repository.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/repositories/project_folder_repository.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/repositories/settings_repository.dart';
@@ -11,6 +13,7 @@ import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/home/home_page.dart';
+import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:flutter/material.dart';
 
 class App extends StatefulWidget {
@@ -18,16 +21,20 @@ class App extends StatefulWidget {
     super.key,
     this.projects,
     this.saves,
+    this.folders,
     this.settingsRepository,
     this.settingsController,
+    this.libraryDisplay,
     this.textClient,
     this.pickImportDirectory,
   });
 
   final ProjectRepository? projects;
   final SaveRepository? saves;
+  final ProjectFolderRepository? folders;
   final SettingsRepository? settingsRepository;
   final SettingsController? settingsController;
+  final LibraryDisplayController? libraryDisplay;
   final AiTextClient? textClient;
   final Future<String?> Function()? pickImportDirectory;
 
@@ -40,6 +47,8 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       SettingsController(
         repository: widget.settingsRepository ?? PrefsSettingsRepository(),
       );
+  late final LibraryDisplayController _libraryDisplay =
+      widget.libraryDisplay ?? LibraryDisplayController();
 
   @override
   void initState() {
@@ -48,6 +57,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     if (widget.settingsController == null) {
       _settings.load();
     }
+    if (widget.libraryDisplay == null) {
+      _libraryDisplay.load();
+    }
   }
 
   @override
@@ -55,6 +67,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     if (widget.settingsController == null) {
       _settings.dispose();
+    }
+    if (widget.libraryDisplay == null) {
+      _libraryDisplay.dispose();
     }
     super.dispose();
   }
@@ -71,7 +86,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     return AppScope(
       projects: widget.projects ?? FolderProjectRepository(),
       saves: widget.saves ?? FileSaveRepository(),
+      folders: widget.folders ?? FileProjectFolderRepository(),
       settings: _settings,
+      libraryDisplay: _libraryDisplay,
       textClient: widget.textClient,
       child: ListenableBuilder(
         listenable: _settings,

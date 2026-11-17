@@ -12,6 +12,12 @@ class MemorySaveRepository implements SaveRepository {
   Future<SaveSlot?> load(String projectId) async => _slots[projectId];
 
   @override
+  Future<List<SaveSlot>> listAll() async {
+    final list = _slots.values.toList(growable: false);
+    return list..sort((a, b) => b.savedAt.compareTo(a.savedAt));
+  }
+
+  @override
   Future<void> save({
     required String projectId,
     required MainSavePointer pointer,
