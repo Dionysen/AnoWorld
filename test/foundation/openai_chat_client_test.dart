@@ -32,6 +32,53 @@ void main() {
     expect(text, 'hello');
   });
 
+  test('includes reasoning_effort when provided', () async {
+    final client = MockClient((request) async {
+      expect(request.body, contains('"reasoning_effort":"high"'));
+      return http.Response(
+        '{"choices":[{"message":{"content":"ok"}}]}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final chat = OpenAiChatClient(client: client);
+    final text = await chat.complete(
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'demo',
+      reasoningEffort: 'high',
+      messages: const [
+        OpenAiChatMessage(role: 'user', content: 'hi'),
+      ],
+    );
+    expect(text, 'ok');
+  });
+
+  test('includes nested reasoning for openrouter style', () async {
+    final client = MockClient((request) async {
+      expect(request.body, contains('"reasoning":{"effort":"low"}'));
+      expect(request.body, isNot(contains('reasoning_effort')));
+      return http.Response(
+        '{"choices":[{"message":{"content":"ok"}}]}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final chat = OpenAiChatClient(client: client);
+    final text = await chat.complete(
+      baseUrl: 'https://openrouter.ai/api/v1',
+      apiKey: 'sk-test',
+      model: 'demo',
+      reasoning: const {'effort': 'low'},
+      messages: const [
+        OpenAiChatMessage(role: 'user', content: 'hi'),
+      ],
+    );
+    expect(text, 'ok');
+  });
+
   test('throws when api key missing', () async {
     final chat = OpenAiChatClient(
       client: MockClient((_) async => fail('should not call')),

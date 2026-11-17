@@ -37,6 +37,8 @@ class EndpointAiTextClient implements AiTextClient {
     GenerationPreset? generation,
   }) async {
     try {
+      final openRouter = endpoint.kind == AiTextProviderKind.openRouter;
+      final effort = endpoint.reasoningEffort;
       return await _chat.complete(
         baseUrl: endpoint.baseUrl,
         fallbackBaseUrl: endpoint.kind.defaultBaseUrl,
@@ -44,6 +46,11 @@ class EndpointAiTextClient implements AiTextClient {
         needsApiKey: endpoint.needsApiKey,
         model: endpoint.model,
         generation: generation,
+        reasoningEffort:
+            openRouter ? null : effort.openAiReasoningEffort,
+        reasoning: openRouter && effort.openRouterEffort != null
+            ? <String, dynamic>{'effort': effort.openRouterEffort}
+            : null,
         messages: <OpenAiChatMessage>[
           OpenAiChatMessage(role: 'system', content: system),
           OpenAiChatMessage(role: 'user', content: user),

@@ -59,4 +59,18 @@ void main() {
     expect(settings.text.apiKey, 'sk-oai');
     expect(settings.text.model, 'gpt-4o-mini');
   });
+
+  test('text endpoint round-trips reasoningEffort', () {
+    const endpoint = AiTextEndpoint(
+      kind: AiTextProviderKind.openai,
+      model: 'gpt-4o',
+      reasoningEffort: AiReasoningEffort.high,
+    );
+    final restored = AiTextEndpoint.fromJson(endpoint.toJson());
+    expect(restored.reasoningEffort, AiReasoningEffort.high);
+    expect(
+      AiTextEndpoint.fromJson(<String, dynamic>{}).reasoningEffort,
+      AiReasoningEffort.auto,
+    );
+  });
 }

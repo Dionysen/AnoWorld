@@ -165,6 +165,59 @@ extension AiImageProviderKindX on AiImageProviderKind {
   }
 }
 
+/// Reasoning / thinking budget for text models (aligned with NT `ReasoningEffort`).
+enum AiReasoningEffort {
+  auto,
+  min,
+  low,
+  medium,
+  high,
+  max;
+
+  /// User-facing short label.
+  String get label => switch (this) {
+        auto => '自动',
+        min => '最低',
+        low => '低',
+        medium => '中',
+        high => '高',
+        max => '最高',
+      };
+
+  /// OpenAI-compatible `reasoning_effort` value; `null` means omit the field.
+  String? get openAiReasoningEffort => switch (this) {
+        auto => null,
+        min => 'minimal',
+        low => 'low',
+        medium => 'medium',
+        high => 'high',
+        max => 'high',
+      };
+
+  /// OpenRouter nested `reasoning.effort` (low / medium / high).
+  String? get openRouterEffort => switch (this) {
+        auto => null,
+        min || low => 'low',
+        medium => 'medium',
+        high || max => 'high',
+      };
+
+  static AiReasoningEffort parse(String? raw) {
+    if (raw == null || raw.isEmpty) return auto;
+    for (final value in values) {
+      if (value.name == raw) return value;
+    }
+    return auto;
+  }
+
+  /// Tolerates hot-reload / legacy in-memory nulls.
+  static AiReasoningEffort coerce(Object? value) {
+    if (value is AiReasoningEffort) return value;
+    if (value is String) return parse(value);
+    return auto;
+  }
+}
+
 /// Active text endpoint.
 class AiTextEndpoint {
   const AiTextEndpoint({
@@ -172,12 +225,20 @@ class AiTextEndpoint {
     this.baseUrl = '',
     this.apiKey = '',
     this.model = '',
-  });
+    AiReasoningEffort reasoningEffort = AiReasoningEffort.auto,
+  }) : _reasoningEffort = reasoningEffort;
 
   final AiTextProviderKind kind;
   final String baseUrl;
   final String apiKey;
   final String model;
+
+  /// Nullable storage so hot-reload / legacy instances with a null slot
+  /// do not crash when read through a non-null field getter.
+  final AiReasoningEffort? _reasoningEffort;
+
+  AiReasoningEffort get reasoningEffort =>
+      AiReasoningEffort.coerce(_reasoningEffort);
 
   bool get isConfigured =>
       baseUrl.trim().isNotEmpty && model.trim().isNotEmpty;
@@ -190,12 +251,14 @@ class AiTextEndpoint {
     String? baseUrl,
     String? apiKey,
     String? model,
+    AiReasoningEffort? reasoningEffort,
   }) {
     return AiTextEndpoint(
       kind: kind ?? this.kind,
       baseUrl: baseUrl ?? this.baseUrl,
       apiKey: apiKey ?? this.apiKey,
       model: model ?? this.model,
+      reasoningEffort: reasoningEffort ?? this.reasoningEffort,
     );
   }
 
@@ -206,6 +269,7 @@ class AiTextEndpoint {
       baseUrl: next.defaultBaseUrl,
       apiKey: '',
       model: next.defaultModel,
+      reasoningEffort: reasoningEffort,
     );
   }
 
@@ -214,6 +278,7 @@ class AiTextEndpoint {
         'baseUrl': baseUrl,
         'apiKey': apiKey,
         'model': model,
+        'reasoningEffort': reasoningEffort.name,
       };
 
   factory AiTextEndpoint.fromJson(Map<String, dynamic>? json) {
@@ -226,6 +291,9 @@ class AiTextEndpoint {
       baseUrl: json.optionalString('baseUrl') ?? '',
       apiKey: json.optionalString('apiKey') ?? '',
       model: json.optionalString('model') ?? '',
+      reasoningEffort: AiReasoningEffort.parse(
+        json.optionalString('reasoningEffort'),
+      ),
     );
   }
 }

@@ -11,6 +11,7 @@ import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
+import 'package:anoworld/settings/ai_model_picker.dart';
 import 'package:flutter/material.dart';
 
 class AiSettingsPanel extends StatefulWidget {
@@ -259,13 +260,22 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
       await _probeModels(force: true);
     }
     if (!mounted || _models.isEmpty) return;
-    final selected = await _showModelSheet(
+    final selected = await showAiModelSheet(
       context,
       models: _models,
       current: widget.endpoint.model,
     );
     if (selected == null || !mounted) return;
     widget.onChanged(_endpoint.copyWith(model: selected));
+  }
+
+  Future<void> _pickReasoningEffort() async {
+    final selected = await showAiReasoningEffortSheet(
+      context,
+      current: widget.endpoint.reasoningEffort,
+    );
+    if (selected == null || !mounted) return;
+    widget.onChanged(_endpoint.copyWith(reasoningEffort: selected));
   }
 
   @override
@@ -283,6 +293,8 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
       modelHint: _modelHint(widget.endpoint.model, _probing, _models),
       probing: _probing,
       probeStatus: _probeStatus,
+      reasoningEffortLabel: widget.endpoint.reasoningEffort.label,
+      onPickReasoningEffort: _pickReasoningEffort,
       onBaseSubmitted: (value) {
         widget.onChanged(_endpoint.copyWith(baseUrl: value));
       },
@@ -443,7 +455,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
       await _probeModels(force: true);
     }
     if (!mounted || _models.isEmpty) return;
-    final selected = await _showModelSheet(
+    final selected = await showAiModelSheet(
       context,
       models: _models,
       current: widget.endpoint.model,
@@ -497,6 +509,8 @@ class _ChannelScaffold extends StatelessWidget {
     required this.onKeySubmitted,
     required this.onPickModel,
     required this.onProbe,
+    this.reasoningEffortLabel,
+    this.onPickReasoningEffort,
   });
 
   final String title;
@@ -515,12 +529,15 @@ class _ChannelScaffold extends StatelessWidget {
   final ValueChanged<String> onKeySubmitted;
   final VoidCallback? onPickModel;
   final VoidCallback? onProbe;
+  final String? reasoningEffortLabel;
+  final VoidCallback? onPickReasoningEffort;
 
   @override
   Widget build(BuildContext context) {
     final modelTrailing = model.trim().isEmpty
         ? (modelHint ?? '未选择')
         : model.trim();
+    final showEffort = onPickReasoningEffort != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -579,6 +596,25 @@ class _ChannelScaffold extends StatelessWidget {
             ],
           ),
         ),
+        if (showEffort)
+          AppListTile(
+            title: '思考程度',
+            subtitle: '影响会想多久再回答',
+            icon: Icons.psychology_outlined,
+            onTap: onPickReasoningEffort,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppText(
+                  reasoningEffortLabel ?? '自动',
+                  role: AppTextRole.caption,
+                  maxLines: 1,
+                ),
+                const SizedBox(width: AppTheme.spaceXs),
+                const AppForwardIcon(),
+              ],
+            ),
+          ),
         AppListTile(
           title: probing ? '正在查找模型' : '查找模型',
           subtitle: probeStatus ?? '重新拉取可用列表',
@@ -596,54 +632,4 @@ String? _modelHint(String model, bool probing, List<String> models) {
   if (probing) return '正在查找…';
   if (models.isEmpty) return '点这里选择，或先查找可用模型';
   return '已找到 ${models.length} 个';
-}
-
-Future<String?> _showModelSheet(
-  BuildContext context, {
-  required List<String> models,
-  required String current,
-}) {
-  return showAppSheet<String>(
-    context: context,
-    size: AppSheetSize.half,
-    builder: (context) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppTheme.pagePadding,
-              AppTheme.spaceXs,
-              AppTheme.pagePadding,
-              AppTheme.spaceXs,
-            ),
-            child: AppSectionHeader('选择模型'),
-          ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(
-                0,
-                AppTheme.spaceGroup,
-                0,
-                AppTheme.spaceMd,
-              ),
-              itemCount: models.length,
-              separatorBuilder: (_, _) => const SizedBox.shrink(),
-              itemBuilder: (context, index) {
-                final id = models[index];
-                return AppListTile(
-                  title: id,
-                  icon: Icons.smart_toy_outlined,
-                  onTap: () => Navigator.of(context).pop(id),
-                  trailing: id == current
-                      ? const AppText('当前', role: AppTextRole.caption)
-                      : null,
-                );
-              },
-            ),
-          ),
-        ],
-      );
-    },
-  );
 }

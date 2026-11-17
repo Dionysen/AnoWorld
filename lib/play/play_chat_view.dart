@@ -19,7 +19,8 @@ class PlayChatView extends StatefulWidget {
     required this.title,
     required this.onSend,
     required this.onPickReply,
-    required this.onRestart,
+    required this.onPickModel,
+    required this.onOpenSettings,
     this.inputLocked = false,
     this.onRefreshChoices,
     this.onStop,
@@ -31,9 +32,10 @@ class PlayChatView extends StatefulWidget {
   final String title;
   final ValueChanged<String> onSend;
   final ValueChanged<String> onPickReply;
-  final VoidCallback onRestart;
+  final VoidCallback onPickModel;
+  final VoidCallback onOpenSettings;
 
-  /// Blocks send / restart / reply chips without showing the typing bubble.
+  /// Blocks send / reply chips without showing the typing bubble.
   final bool inputLocked;
   final VoidCallback? onRefreshChoices;
   final VoidCallback? onStop;
@@ -243,9 +245,14 @@ class _PlayChatViewState extends State<PlayChatView> {
                           onStop: widget.onStop,
                           leading: [
                             AppChatComposerIconButton(
-                              icon: Icons.restart_alt_rounded,
-                              tooltip: '重新开始',
-                              onPressed: _blocked ? null : widget.onRestart,
+                              icon: Icons.smart_toy_outlined,
+                              tooltip: '选择模型',
+                              onPressed: widget.onPickModel,
+                            ),
+                            AppChatComposerIconButton(
+                              icon: Icons.settings_outlined,
+                              tooltip: '设置',
+                              onPressed: widget.onOpenSettings,
                             ),
                           ],
                         ),

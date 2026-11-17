@@ -13,11 +13,14 @@ import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_surface.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/play/play_chat_message.dart';
 import 'package:anoworld/play/play_chat_view.dart';
+import 'package:anoworld/settings/ai_model_picker.dart';
+import 'package:anoworld/settings/settings_page.dart';
 import 'package:flutter/material.dart';
 
 export 'package:anoworld/domain/runtime/play_view_mode.dart' show PlayViewMode;
@@ -332,6 +335,30 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     }
   }
 
+  bool get _canRegenerateChat {
+    if (!_isChat || _chatLocked || _chat.isEmpty) return false;
+    return _chat.last.role == TavernChatRole.assistant;
+  }
+
+  Future<void> _regenerateLastAssistant() async {
+    if (!_canRegenerateChat) return;
+    setState(() {
+      _chat.removeLast();
+      _replyChoices = const [];
+      _status = null;
+    });
+    await _persist();
+    await _generateAssistantTurn(refreshChoices: true);
+  }
+
+  void _openChatSettings() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const SettingsPage(),
+      ),
+    );
+  }
+
   Future<void> _refreshReplyChoices() async {
     if (!mounted || _assistantBusy || _choicesBusy) return;
     if (_chat.isEmpty || _chat.last.role != TavernChatRole.assistant) {
@@ -538,6 +565,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
             )
           : null,
       onBack: () => Navigator.of(context).maybePop(),
+      actions: chatMode && _canRegenerateChat
+          ? [
+              AppCircleButton(
+                icon: Icons.refresh_rounded,
+                tooltip: '重新生成回复',
+                onPressed: _regenerateLastAssistant,
+              ),
+            ]
+          : const [],
       body: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 420;
@@ -564,7 +600,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                     title: widget.project.meta.title,
                     onSend: _onChatSend,
                     onPickReply: _onPickReply,
-                    onRestart: _restart,
+                    onPickModel: () => pickAndApplyTextModel(context),
+                    onOpenSettings: _openChatSettings,
                     onRefreshChoices: _refreshReplyChoices,
                   ),
                 ),

@@ -26,6 +26,10 @@ class OpenAiChatClient {
     double temperature = defaultTemperature,
     int maxTokens = defaultMaxTokens,
     GenerationPreset? generation,
+    /// OpenAI-style `reasoning_effort` (omit when null).
+    String? reasoningEffort,
+    /// OpenRouter-style nested `{ "effort": "low|medium|high" }`.
+    Map<String, dynamic>? reasoning,
   }) async {
     final base = normalizeOpenAiBaseUrl(
       baseUrl.trim().isEmpty ? (fallbackBaseUrl ?? '') : baseUrl,
@@ -60,6 +64,11 @@ class OpenAiChatClient {
       if (generation.seed >= 0) {
         body['seed'] = generation.seed;
       }
+    }
+    if (reasoning != null) {
+      body['reasoning'] = reasoning;
+    } else if (reasoningEffort != null && reasoningEffort.trim().isNotEmpty) {
+      body['reasoning_effort'] = reasoningEffort.trim();
     }
 
     final headers = <String, String>{
