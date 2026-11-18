@@ -61,7 +61,7 @@
   1. **窗口 / 状态 chrome**：与页面同色背景。桌面为自定义标题栏（高度 `AppTheme.titleBandHeight` **44**，macOS 可抬高对齐红绿灯）；**禁止**在此层放返回、标题、`actions` 或任何业务文字/控件。移动端仅 `statusInset`（`titleBarHeight: 0`）。
   2. **软件标题栏**（`AppTheme.pageTitleBarHeight` **44**）：在 chrome **下方**；非主页放返回（**32**）+ 标题（`AppTextRole.subtitle`）+ `actions`。主页 `showTitle: false` 时不画这一层。
 - 桌面窗口能力：macOS 红绿灯区可拖动；Windows / Linux 自绘最小化/最大化/关闭（宽度够时才画）；双击切换最大化。不驱动第二套业务布局。
-- 圆形图标按钮：`AppCircleButton` 默认 **40** 圆径（软件标题栏 `actions`、封面换图、图内行内工具等）；软件标题栏返回为 **32**；**默认 `ghost`**：未按下时无底色，仅图标，按下/悬停仍有 ink；主色圆形 CTA 用 `filled`（`AppCircleButton.fab` 默认 **54** / 图标 **30**，如首页加号、故事详情「开始游玩」）；画布角上次要圆钮显式 `ghost` FAB（整理排版、加一站）。窄屏底栏时 FAB 用 [`AppFabLocation.aboveCompactBottomNav`](../lib/foundation/widgets/app_fab_location.dart) 抬高，水平仍贴右。
+- 圆形图标按钮：形状**一律正圆**，不读外观圆角滑块。[`AppCircleButton`](../lib/foundation/widgets/app_circle_button.dart) 默认 **40**；[`AppIconButton`](../lib/foundation/widgets/app_icon_button.dart) 为同款 `ghost` 封装（故事工具行 + / 导入 / 更多等）。软件标题栏返回 **32**；`ghost` 未按下无底色，按下/悬停仍有 ink；主色 CTA 用 `filled`（`AppCircleButton.fab` 默认 **54** / 图标 **30**）。画布角上次要圆钮显式 `ghost` FAB。窄屏底栏时 FAB 用 [`AppFabLocation.aboveCompactBottomNav`](../lib/foundation/widgets/app_fab_location.dart) 抬高。
 - 故事详情 [`AppDetailSection`](../lib/foundation/widgets/app_detail_section.dart)：扁平分区（无外卡）；标题行 icon+标题+编辑；条目上下 `spaceInline`、底用 [`AppListHairline`](../lib/foundation/widgets/app_list_hairline.dart)；条内文案 `compactLabel` / `compactBody`，标签 `compactTag`（主色浅底 chip）。封面 16:9 横向贴边、直角无圆角；右上角圆形钮可更换图片（存 `assets/cover.*`，`ProjectMeta.coverPath`）。窄屏底栏胶囊高度/边距见 `AppLayout.bottomNav*`。
 
 通道没有实现时（测试、还没接上的窗口）仍显示页面顶栏，不画窗口按钮。

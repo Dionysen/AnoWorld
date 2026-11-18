@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import 'app_circle_button.dart';
 
-/// Icon-only control for title-band actions and compact chrome.
+/// Icon-only control for tool rows and compact chrome.
+///
+/// Always a circle via [AppCircleButton] — never reads the corner-radius
+/// slider / [AppUiTokens.radius].
 class AppIconButton extends StatelessWidget {
   const AppIconButton({
     super.key,
@@ -14,7 +17,7 @@ class AppIconButton extends StatelessWidget {
   });
 
   /// Default hit target (matches [AppCircleButton.diameter]).
-  static const double hitTarget = 40;
+  static const double hitTarget = AppCircleButton.diameter;
 
   /// Default glyph size inside the hit target.
   static const double glyphSize = 22;
@@ -27,19 +30,13 @@ class AppIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      width: size,
-      height: size,
-      child: IconButton(
-        onPressed: onPressed,
-        tooltip: tooltip,
-        icon: Icon(icon, size: iconSize),
-        color: theme.colorScheme.onSurface,
-        padding: EdgeInsets.zero,
-        visualDensity: VisualDensity.standard,
-        constraints: BoxConstraints.tightFor(width: size, height: size),
-      ),
+    return AppCircleButton(
+      icon: icon,
+      onPressed: onPressed,
+      tooltip: tooltip,
+      size: size,
+      iconSize: iconSize,
+      variant: AppCircleButtonVariant.ghost,
     );
   }
 }

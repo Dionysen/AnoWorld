@@ -1,4 +1,5 @@
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,50 @@ void main() {
     final size = tester.getSize(find.byType(AppIconButton));
     expect(size.width, AppIconButton.hitTarget);
     expect(size.height, AppIconButton.hitTarget);
+  });
+
+  testWidgets('stays circular independent of corner radius', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data.copyWith(
+          extensions: <ThemeExtension<dynamic>>[
+            AppUiTokens.fallback.copyWith(radius: 0),
+          ],
+        ),
+        home: Scaffold(
+          body: AppIconButton(
+            icon: Icons.add,
+            tooltip: '开始创作',
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final button = tester.widget<IconButton>(find.byType(IconButton));
+    expect(button.style?.shape?.resolve({}), isA<CircleBorder>());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data.copyWith(
+          extensions: <ThemeExtension<dynamic>>[
+            AppUiTokens.fallback.copyWith(radius: 24),
+          ],
+        ),
+        home: Scaffold(
+          body: AppIconButton(
+            icon: Icons.add,
+            tooltip: '开始创作',
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final again = tester.widget<IconButton>(find.byType(IconButton));
+    expect(again.style?.shape?.resolve({}), isA<CircleBorder>());
   });
 
   test('AppPage.spacedActions inserts spaceSm and drops SizedBox spacers', () {
