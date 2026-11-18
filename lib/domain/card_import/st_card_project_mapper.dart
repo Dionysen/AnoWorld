@@ -1,3 +1,4 @@
+import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
@@ -13,6 +14,7 @@ class StCardImportItem<T> {
     required this.preview,
     required this.value,
     this.included = true,
+    this.sourceId,
   });
 
   final String id;
@@ -21,13 +23,23 @@ class StCardImportItem<T> {
   final T value;
   final bool included;
 
-  StCardImportItem<T> copyWith({bool? included}) {
+  /// Stable key for organize / provenance (`cast:…`, `world:…`).
+  final String? sourceId;
+
+  StCardImportItem<T> copyWith({
+    bool? included,
+    String? title,
+    String? preview,
+    T? value,
+    String? sourceId,
+  }) {
     return StCardImportItem<T>(
       id: id,
-      title: title,
-      preview: preview,
-      value: value,
+      title: title ?? this.title,
+      preview: preview ?? this.preview,
+      value: value ?? this.value,
       included: included ?? this.included,
+      sourceId: sourceId ?? this.sourceId,
     );
   }
 }
@@ -91,7 +103,13 @@ class StCardImportDraft {
 
 /// Maps one or more ST cards into a confirmable [StCardImportDraft].
 class StCardProjectMapper {
-  const StCardProjectMapper();
+  const StCardProjectMapper({
+    this.autoSanitizeOnMap = true,
+    this.sanitizeAction = const CardSanitizeAction(),
+  });
+
+  final bool autoSanitizeOnMap;
+  final CardSanitizeAction sanitizeAction;
 
   StCardImportDraft fromCards(List<StCharacterCard> cards) {
     if (cards.isEmpty) {
@@ -107,6 +125,7 @@ class StCardProjectMapper {
       castItems.add(
         StCardImportItem(
           id: castId,
+          sourceId: 'cast:$castId',
           title: card.name,
           preview: _preview(
             [
@@ -132,6 +151,7 @@ class StCardProjectMapper {
         worldBookItems.add(
           StCardImportItem(
             id: id,
+            sourceId: 'world:$id',
             title: cards.length == 1 ? '情景' : '情景 · ${card.name}',
             preview: _preview(card.scenario),
             value: WorldBookEntry(
@@ -149,6 +169,7 @@ class StCardProjectMapper {
         worldBookItems.add(
           StCardImportItem(
             id: id,
+            sourceId: 'world:$id',
             title: cards.length == 1 ? '开场素材' : '开场素材 · ${card.name}',
             preview: _preview(card.firstMes),
             value: WorldBookEntry(
@@ -168,6 +189,7 @@ class StCardProjectMapper {
         worldBookItems.add(
           StCardImportItem(
             id: id,
+            sourceId: 'world:$id',
             title: '备选开场 ${i + 1}',
             preview: _preview(text),
             value: WorldBookEntry(
@@ -189,6 +211,7 @@ class StCardProjectMapper {
         worldBookItems.add(
           StCardImportItem(
             id: id,
+            sourceId: 'world:$id',
             title: title,
             preview: _preview(entry.content),
             value: WorldBookEntry(
@@ -203,12 +226,16 @@ class StCardProjectMapper {
       }
     }
 
-    return StCardImportDraft(
+    var draft = StCardImportDraft(
       title: primary.name,
       castItems: castItems,
       worldBookItems: worldBookItems,
       cardAiNote: _cardAiNote(cards),
     );
+    if (autoSanitizeOnMap) {
+      draft = sanitizeAction.run(draft).draft;
+    }
+    return draft;
   }
 
   String? _cardAiNote(List<StCharacterCard> cards) {

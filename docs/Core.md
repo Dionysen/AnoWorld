@@ -68,7 +68,7 @@ App 全局（设置，与酒馆同类）
 ## Cast（角色）
 
 - 姓名、设定摘要、性格、对白风格、示例对白、立绘/头像资源引用等；**支持多名角色（主角 + 配角）**，比重酒馆的「单卡聊天」更细。其中 **至多一名** 可勾 **主角**（驱动 `{{char}}`）；导入角色卡时第一张默认勾选。
-- 来源：手建，或从 ST 角色卡**选择性摘取**字段后映射至此（及必要的 WorldBook 条目）；解析见 [`StCharacterCardParser`](../lib/domain/card_import/st_character_card_parser.dart)，映射见 [`StCardProjectMapper`](../lib/domain/card_import/st_card_project_mapper.dart)。
+- 来源：手建，或从 ST 角色卡**选择性摘取**字段后映射至此（及必要的 WorldBook 条目）；解析见 [`StCharacterCardParser`](../lib/domain/card_import/st_character_card_parser.dart)，映射见 [`StCardProjectMapper`](../lib/domain/card_import/st_card_project_mapper.dart)。导入时 [`RichTextSanitizer`](../lib/foundation/text/rich_text_sanitizer.dart) 去 HTML、保留 Markdown；可选 [`CardOrganizeAction`](../lib/domain/card_import/card_organize_action.dart) **只搬迁归类**，不生成新事实。
 - 立绘等图片：优先走**生图通道**配置的供应商（与文本/LLM 供应商列表分离，对齐 NativeTavern `ImageGenProvider`）；同时支持用户本地导入；运行时只认资源引用。
 - 角色是素材与演出主体，不是 ST 运行时人格容器；无插件、无正则人格脚本。
 

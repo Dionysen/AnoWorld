@@ -4,11 +4,15 @@ import 'dart:typed_data';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/create_hub_page.dart';
+import 'package:anoworld/domain/card_import/card_organize_action.dart';
+import 'package:anoworld/domain/card_import/card_organize_models.dart';
+import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/card_import/st_character_card_parser.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -59,6 +63,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
   String? _status;
   bool _busy = false;
   final _title = TextEditingController();
+  final _sanitizeAction = const CardSanitizeAction();
 
   @override
   void dispose() {
@@ -193,6 +198,103 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
     });
   }
 
+  Future<void> _sanitizeDraft() async {
+    final draft = _draft;
+    if (draft == null || _busy) return;
+    final result = _sanitizeAction.run(draft);
+    setState(() {
+      _draft = result.draft;
+      _status = result.changedFieldCount == 0
+          ? '格式已是 Markdown，无需再清'
+          : '已调整 ${result.changedFieldCount} 处排版';
+    });
+  }
+
+  Future<void> _organizeDraft() async {
+    final draft = _draft;
+    if (draft == null || _busy) return;
+    setState(() {
+      _busy = true;
+      _status = null;
+    });
+    try {
+      final settings = AppScope.settingsOf(context);
+      final ctx = settings.textPromptContext();
+      final text = AppScope.textClientOf(context);
+      final action = CardOrganizeAction(textClient: text);
+      final proposal = await action.propose(ctx: ctx, draft: draft);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (proposal.changes.isEmpty) {
+        setState(() => _status = '模型未建议改动，换模型重试或手动改角色/设定');
+        return;
+      }
+      final applied = await _showOrganizePreview(proposal);
+      if (applied == true && mounted) {
+        setState(() {
+          _draft = proposal.draftAfter;
+          _status = '已应用 ${proposal.changes.length} 条整理';
+        });
+      }
+    } on CardOrganizeException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _status = error.message;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _status = '整理失败：$error';
+      });
+    }
+  }
+
+  Future<bool?> _showOrganizePreview(CardOrganizeProposal proposal) {
+    return showAppSheet<bool>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (sheetContext) => AppSheetScrollBody(
+        footer: [
+          Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  label: '取消',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: () => Navigator.of(sheetContext).pop(false),
+                ),
+              ),
+              const SizedBox(width: AppTheme.spaceSm),
+              Expanded(
+                child: AppButton(
+                  label: '应用',
+                  onPressed: () => Navigator.of(sheetContext).pop(true),
+                ),
+              ),
+            ],
+          ),
+        ],
+        children: [
+          const AppText('整理预览', role: AppTextRole.subtitle),
+          const SizedBox(height: AppTheme.spaceXs),
+          const AppText(
+            '只归类素材，不替你编剧情',
+            role: AppTextRole.caption,
+          ),
+          const SizedBox(height: AppTheme.spaceMd),
+          for (final line in proposal.changes)
+            AppListTile(
+              title: line.label,
+              subtitle: line.detail,
+              showDivider: false,
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _writeProject() async {
     final draft = _draft;
     if (draft == null || _busy) return;
@@ -280,6 +382,31 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
               child: AppTextField(
                 label: '故事名',
                 controller: _title,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            const AppSectionHeader(
+              '整理',
+              subtitle: '去掉网页标记，保留 Markdown；可归到角色与设定',
+              gutter: true,
+            ),
+            AppPageGutter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppButton(
+                    label: '清理格式',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: _busy ? null : _sanitizeDraft,
+                    expanded: true,
+                  ),
+                  const SizedBox(height: AppTheme.spaceSm),
+                  AppButton(
+                    label: 'AI 分类整理',
+                    onPressed: _busy ? null : _organizeDraft,
+                    expanded: true,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: AppTheme.spaceLg),

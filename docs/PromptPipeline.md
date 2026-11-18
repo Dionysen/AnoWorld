@@ -183,6 +183,15 @@ flowchart LR
 
 ---
 
+## 8b. 创作 Tool 任务层（P0）
+
+| 动作 | taskSuffix 来源 | 说明 |
+| --- | --- | --- |
+| 角色卡 AI 分类整理 | [`CreatePromptProfiles.organizeCardTaskSuffix`](../lib/domain/ai/create/create_prompt_profiles.dart) | 只输出 JSON `operations`，禁止 paraphrase；仍走全局预设段顺序 |
+| 清理格式 | 无 LLM | [`RichTextSanitizer`](../lib/foundation/text/rich_text_sanitizer.dart) 规则管线 |
+
+编排经 [`CreateToolRegistry`](../lib/domain/ai/create/create_tool_registry.dart) / [`CreateAgentRunner`](../lib/domain/ai/create/create_agent_runner.dart)；P1 创作助手浮窗见 [CreateAgent.md](./CreateAgent.md)。
+
 ## 9. 与创作 / 双模式的衔接
 
 - **全局一套预设** 服务：游玩聊天、VN 区间生成、创作器 AI 动作（用户字段可合成进 `user` 或单独 system，但 **预设段顺序一致**）。
