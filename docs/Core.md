@@ -26,6 +26,7 @@ App 全局（设置，与酒馆同类）
 
 ## 全局 AiPreset（设置 · 酒馆预设）
 
+- **拼装流水线（权威）**：每次文本 AI 调用前的段顺序、锚点、任务层与裁剪，见 [PromptPipeline.md](./PromptPipeline.md)。
 - **是什么**：与 SillyTavern **同名同构**的 AI 预设——导入/导出 ST 预设 JSON（`temperature`、`prompts`、`prompt_order` 等）。实现对照 NativeTavern：`AIPreset`、`GenerationPreset`、`PromptManagerConfig`。
 - **作用域**：**全局**，所有故事与所有文本 AI 动作共用当前选用的一套；故事包内**不再**存放预设。
 - **与 WorldBook 的分工**：WorldBook = 本故事世界书式事实；AiPreset = 跨故事通用指令与采样。二者分属不同设置/编辑入口。

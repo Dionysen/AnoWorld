@@ -67,7 +67,7 @@
 - **AI**：写故事与生图分开选服务商（半屏浮层抽屉，标题与说明固定不随列表滚）。服务地址、密钥为整行列表项（左标题/说明，右显示当前值；密钥打码），点开抽屉编辑后保存；切换服务商会记住上次内容。能自动查找模型的，填好后会拉出列表；点「模型」选用，也可点「查找模型」。文本通道另有 **思考程度**（自动 / 最低 / 低 / 中 / 高 / 最高）。
 - **预设**（[`AiPresetPanel`](../lib/settings/ai_preset_panel.dart)）：顶行 **预设**（副标题「控制输出风格和边界」，右显示当前名称，点开半屏抽屉选内置/自定义/导入）；其下 **采样**（无副标题）直接列出生成项（单次输出、上下文、温度、Top P、流式），**高级采样**点进子页（[`AdvancedSamplingPage`](../lib/settings/advanced_sampling_page.dart)）；再下 **预设提示词**（[`PromptManagerPanel`](../lib/settings/prompt_manager_panel.dart)）段列表全部显示，可拖动手柄改顺序；不可编辑段可点进只读查看。套用预设会写入 `AiSettings.generation` 与 `AiPresetCatalog.promptManager`，在面板内改动即为当前生效值。
 - **AI**（[`AiSettingsPanel`](../lib/settings/ai_settings_panel.dart)）：文本/生图 **服务地址、密钥、模型**；文本另有 **思考程度**（[`AiReasoningEffort`](../lib/domain/settings/ai_settings.dart)，请求时 OpenAI 用 `reasoning_effort`、OpenRouter 用 `reasoning.effort`）。写故事/游玩/分步创建走全局 [`AiPromptContext`](../lib/domain/ai/ai_prompt_context.dart)（预设 + 通用里的 Persona + 故事背景）。
-- **预设 · 预设提示词**：与 ST 相同的段类型与 `prompt_order`；左侧拖动手柄可改顺序；可编辑段点进改文案，不可编辑段点进只读查看；游玩与创作拼装时用 **世界书**、**角色**当卡字段注入对应段（实现渐进对齐）。
+- **预设 · 预设提示词**：与 ST 相同的段类型与 `prompt_order`；左侧拖动手柄可改顺序；可编辑段点进改文案，不可编辑段点进只读查看；游玩与创作拼装时用 **世界书**、**角色**当卡字段注入对应段（实现渐进对齐）。发送前如何拼成模型输入见 [PromptPipeline.md](./PromptPipeline.md)。
 - **玩家身份（Persona）**：首页「我」管理（与酒馆相同——可建多套、选当前一套）；名字与描述参与 `{{user}}` 等宏。设置 → **通用** 暂为占位。
 - **宏 / 变量**：预设与世界书、角色、对白模板里的 `{{…}}` 按酒馆规则展开（含常用宏与变量语法，实现对照 NT）。
 - **关于**：应用图标与一句话说明。
