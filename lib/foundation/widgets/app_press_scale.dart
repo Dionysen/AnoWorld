@@ -32,7 +32,7 @@ class _AppPressScaleState extends State<AppPressScale> {
   bool _pressed = false;
 
   void _setPressed(bool value) {
-    if (!widget.enabled || _pressed == value) return;
+    if (!mounted || !widget.enabled || _pressed == value) return;
     setState(() => _pressed = value);
   }
 
