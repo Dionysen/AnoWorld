@@ -15,6 +15,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:anoworld/home/library_browse_views.dart';
+import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
 import 'package:anoworld/project/project_hub_page.dart';
@@ -181,14 +182,7 @@ class WorksTabState extends State<WorksTab> {
   }
 
   Future<void> _openRoute(Widget page) async {
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => page,
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
+    await pushStoryRoute<void>(context, page);
     if (mounted) await reload();
   }
 

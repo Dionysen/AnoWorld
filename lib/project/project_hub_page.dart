@@ -23,6 +23,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/play_mode_sheet.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:file_picker/file_picker.dart';
@@ -197,26 +198,14 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   }
 
   Future<void> _openEditor(Widget page) async {
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => page,
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
+    await pushStoryRoute<void>(context, page);
     if (mounted) await _load();
   }
 
   Future<void> _openCreateHub() async {
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) =>
-            CreateHubPage(projectId: widget.projectId),
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
+    await pushStoryRoute<void>(
+      context,
+      CreateHubPage(projectId: widget.projectId),
     );
     if (mounted) await _load();
   }

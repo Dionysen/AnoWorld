@@ -1,16 +1,14 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/create_entry_page.dart';
-import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
-import 'package:anoworld/foundation/widgets/app_circle_button.dart';
-import 'package:anoworld/foundation/widgets/app_fab_location.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/home/create_assistant_host.dart';
 import 'package:anoworld/home/home_nav.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
@@ -316,6 +314,11 @@ class _HomePageState extends State<HomePage> {
     } else if (_tab == HomeTab.stories) {
       actions = [
         AppIconButton(
+          icon: Icons.add,
+          tooltip: '开始创作',
+          onPressed: _showCreateSheet,
+        ),
+        AppIconButton(
           icon: Icons.folder_open,
           tooltip: '导入故事包',
           onPressed: () => _worksKey.currentState?.importPack(),
@@ -357,70 +360,54 @@ class _HomePageState extends State<HomePage> {
       },
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compactNav = !AppLayout.useRail(constraints.maxWidth);
+          final shell = AppNavShell(
+            destinations: homeNavItems,
+            selectedIndex: _tab.tabIndex,
+            onDestinationSelected: _selectTab,
+            railTopInset: 0,
+            body: IndexedStack(
+              index: _tab.tabIndex,
+              children: [
+                SavesTab(
+                  key: _savesKey,
+                  selection: _savesSelection,
+                  onBrowseWorks: () => _selectTab(HomeTab.stories.tabIndex),
+                  onSelectionChromeChanged: () => setState(() {}),
+                ),
+                WorksTab(
+                  key: _worksKey,
+                  selection: _worksSelection,
+                  pickImportDirectory: widget.pickImportDirectory,
+                  onSelectionChromeChanged: () => setState(() {}),
+                  onBrowsePathChanged: (_) => setState(() {}),
+                ),
+                const PlayModesTab(),
+                const MeTab(),
+              ],
+            ),
+          );
+
+          final storiesChrome = _tab == HomeTab.stories && !selectionMode;
+          final body =
+              storiesChrome ? CreateAssistantHost(child: shell) : shell;
+
           return AppPage(
-        title: titleText,
-        titleWidget: _titleSwitcher(titleText),
-        onBack: selectionMode && selection != null
-            ? () {
-                selection.exit();
-                setState(() {});
-              }
-            : (_tab == HomeTab.stories &&
-                    (works?.browsePath.isNotEmpty ?? false)
+            title: titleText,
+            titleWidget: _titleSwitcher(titleText),
+            onBack: selectionMode && selection != null
                 ? () {
-                    _worksKey.currentState?.handleSystemBack();
+                    selection.exit();
                     setState(() {});
                   }
-                : null),
-        actions: actions,
-        floatingActionButton: selectionMode ||
-                _tab == HomeTab.playModes ||
-                _tab == HomeTab.me
-            ? null
-            : SizedBox.square(
-                dimension: AppCircleButton.fabDiameter,
-                child: AppCircleButton.fab(
-                  icon: Icons.add,
-                  tooltip: _tab == HomeTab.sessions ? '去故事' : '开始创作',
-                  onPressed: () {
-                    if (_tab == HomeTab.sessions) {
-                      _selectTab(HomeTab.stories.tabIndex);
-                    } else {
-                      _showCreateSheet();
-                    }
-                  },
-                ),
-              ),
-        floatingActionButtonLocation: selectionMode || !compactNav
-            ? null
-            : AppFabLocation.aboveCompactBottomNav,
-        body: AppNavShell(
-          destinations: homeNavItems,
-          selectedIndex: _tab.tabIndex,
-          onDestinationSelected: _selectTab,
-          railTopInset: 0,
-          body: IndexedStack(
-            index: _tab.tabIndex,
-            children: [
-              SavesTab(
-                key: _savesKey,
-                selection: _savesSelection,
-                onBrowseWorks: () => _selectTab(HomeTab.stories.tabIndex),
-                onSelectionChromeChanged: () => setState(() {}),
-              ),
-              WorksTab(
-                key: _worksKey,
-                selection: _worksSelection,
-                pickImportDirectory: widget.pickImportDirectory,
-                onSelectionChromeChanged: () => setState(() {}),
-                onBrowsePathChanged: (_) => setState(() {}),
-              ),
-              const PlayModesTab(),
-              const MeTab(),
-            ],
-          ),
-        ),
+                : (_tab == HomeTab.stories &&
+                        (works?.browsePath.isNotEmpty ?? false)
+                    ? () {
+                        _worksKey.currentState?.handleSystemBack();
+                        setState(() {});
+                      }
+                    : null),
+            actions: actions,
+            body: body,
           );
         },
       ),

@@ -11,6 +11,7 @@ import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:flutter/material.dart';
 
 /// Creation cross-section: pick WorldBook / Cast / Main to edit.
@@ -60,14 +61,7 @@ class _CreateHubPageState extends State<CreateHubPage> {
   }
 
   Future<void> _open(Widget page) async {
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => page,
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
+    await pushStoryRoute<void>(context, page);
     if (mounted) await _load();
   }
 

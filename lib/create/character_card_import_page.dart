@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/create_hub_page.dart';
+import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/domain/card_import/card_organize_action.dart';
 import 'package:anoworld/domain/card_import/card_organize_models.dart';
 import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
@@ -337,14 +338,9 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       final filled = titled.toProject(id: created.meta.id);
       await projects.save(filled);
       if (!mounted) return;
-      await Navigator.of(context).pushReplacement(
-        PageRouteBuilder<void>(
-          pageBuilder: (_, _, _) =>
-              CreateHubPage(projectId: filled.meta.id),
-          transitionsBuilder: (_, animation, _, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
+      await pushStoryRouteReplacement<void>(
+        context,
+        CreateHubPage(projectId: filled.meta.id),
       );
     } catch (error) {
       if (!mounted) return;

@@ -7,6 +7,7 @@ import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_chip.dart';
 import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:flutter/material.dart';
 
@@ -531,7 +532,7 @@ class _GraphViewportState extends State<GraphViewport>
                 ),
               if (showEndActions)
                 Positioned(
-                  right: AppTheme.spaceMd,
+                  right: AppBottomChromeMetrics.graphEndActionsRight(),
                   bottom: AppTheme.spaceMd,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
