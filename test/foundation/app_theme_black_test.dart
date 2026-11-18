@@ -14,7 +14,7 @@ void main() {
     expect(tokens.primary, const Color(0xFF4D9DF4));
     expect(tokens.secondary, const Color(0xFF6CB6FF));
     expect(tokens.tertiary, const Color(0xFFD4B483));
-    expect(tokens.onCanvas, const Color(0xFFCCCCCC));
+    expect(tokens.onCanvas, const Color(0xFFEBEBEB));
     expect(tokens.outlineSubtle, const Color(0xFF2A2A2A));
   });
 

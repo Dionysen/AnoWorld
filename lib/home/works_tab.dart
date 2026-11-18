@@ -878,7 +878,7 @@ class WorksTabState extends State<WorksTab> {
                 : '换个关键词试试',
             action: _query.trim().isEmpty
                 ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       AppButton(
                         label: '试用「雨夜投宿」',

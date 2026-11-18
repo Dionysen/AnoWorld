@@ -4,7 +4,7 @@
 
 ## 当前主题
 
-配色对齐 NativeTavern：内置 `ThemePreset`（浅色 / 灰色 / 石板 / Claude / 薄荷 / 紫色 / Hermes / 海洋 / 深色现代 / 石墨 / 深林 / 咖啡 / 午夜 / 暮色 / Cursor 深色），亮色槽与暗色槽**各自记住**一套 `ThemeTokens` + `packId`；自定义色可改当前槽后「保存为主题」或「恢复默认」。设置 → **外观** 可改：
+配色对齐 NativeTavern：内置 `ThemePreset`（浅色 / 灰色 / 石板 / Claude / 薄荷 / 紫色 / Hermes / 海洋 / 深色现代 / 石墨 / 深林 / 咖啡 / 午夜 / 暮色 / Cursor 深色），亮色槽与暗色槽**各自记住**一套 `ThemeTokens` + `packId`；自定义色可改当前槽后「保存为主题」或「恢复默认」。内置亮色预设（浅色 / 灰色 / 石板 / Claude Code / 薄荷 / 紫色 / Hermes）共用一套飞书式对比度：主字 `#1F2329`、次要字 `#646A73`、分割 `#DEE0E3`、强调蓝 `#3370FF`、气泡 `#F5F6F7`；各套仅 `editorSurface` / `sidebarSurface` 色调不同（见 `ThemeTokens.lightPreset`）。暗色预设默认主字 `#EBEBEB`、次要字 `#B0B0B0`（配色主题如石墨 / 深林等仍用略暖略冷的提亮主字，见 `ThemeTokens.darkPreset`）。设置 → **外观** 可改：
 
 | 项 | 选项 | 落点 |
 | --- | --- | --- |

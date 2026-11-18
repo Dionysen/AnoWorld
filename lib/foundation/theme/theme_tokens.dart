@@ -77,8 +77,68 @@ class ThemeTokens {
         // Soft orange tertiary keeps quoted speech distinct from narration.
         dialogueText = dialogueText ?? tertiaryAccent;
 
-  /// Accent for light presets — clear blue that reads well on pale chrome.
-  static const lightAccent = 0xFF3376CE;
+  /// Accent for light presets — Feishu-like primary blue on white chrome.
+  static const lightAccent = 0xFF3370FF;
+
+  static const _lightPrimaryText = 0xFF1F2329;
+  static const _lightMutedText = 0xFF646A73;
+  static const _lightBorder = 0xFFDEE0E3;
+  static const _lightCharacterBubble = 0xFFF5F6F7;
+  static const _lightSecondaryAccent = 0xFF4E83FD;
+
+  /// Shared chrome contrast for built-in light presets; [editorSurface] /
+  /// [sidebarSurface] keep each preset's tint.
+  static ThemeTokens lightPreset({
+    required int editorSurface,
+    required int sidebarSurface,
+  }) =>
+      ThemeTokens(
+        editorSurface: editorSurface,
+        sidebarSurface: sidebarSurface,
+        controlSurface: 0xFFFFFFFF,
+        border: _lightBorder,
+        divider: _lightBorder,
+        primaryText: _lightPrimaryText,
+        mutedText: _lightMutedText,
+        accent: lightAccent,
+        secondaryAccent: _lightSecondaryAccent,
+        cursor: _lightPrimaryText,
+        chatBackground: editorSurface,
+        characterBubble: _lightCharacterBubble,
+      );
+
+  static const _darkPrimaryText = 0xFFEBEBEB;
+  static const _darkMutedText = 0xFFB0B0B0;
+
+  /// Shared readability for built-in dark presets; surfaces and accents vary
+  /// per preset. [primaryText] / [mutedText] may be tinted but stay brighter
+  /// than legacy `#CCCCCC` / `#9D9D9D` neutral chrome.
+  static ThemeTokens darkPreset({
+    required int editorSurface,
+    required int sidebarSurface,
+    required int controlSurface,
+    required int border,
+    required int divider,
+    required int accent,
+    int secondaryAccent = defaultSecondaryAccent,
+    int tertiaryAccent = defaultTertiaryAccent,
+    int primaryText = _darkPrimaryText,
+    int mutedText = _darkMutedText,
+    int? cursor,
+  }) =>
+      ThemeTokens(
+        editorSurface: editorSurface,
+        sidebarSurface: sidebarSurface,
+        controlSurface: controlSurface,
+        border: border,
+        divider: divider,
+        primaryText: primaryText,
+        mutedText: mutedText,
+        accent: accent,
+        secondaryAccent: secondaryAccent,
+        tertiaryAccent: tertiaryAccent,
+        cursor: cursor ?? primaryText,
+      );
 
   /// Cursor / VS Code “Sync Changes” button blue.
   static const darkModernAccent = 0xFF3376CE;
@@ -90,191 +150,135 @@ class ThemeTokens {
   static const defaultTertiaryAccent = 0xFFE09A5A;
 
   /// Default dark pack (Dark Modern).
-  static final defaults = ThemeTokens(
+  static final defaults = darkPreset(
     editorSurface: 0xFF1F1F1F,
     sidebarSurface: 0xFF181818,
     controlSurface: 0xFF313131,
     border: 0xFF2B2B2B,
     divider: 0xFF2B2B2B,
-    primaryText: 0xFFCCCCCC,
-    mutedText: 0xFF9D9D9D,
     accent: darkModernAccent,
     cursor: 0xFFFFFFFF,
   );
 
   static final presets = <ThemePreset, ThemeTokens>{
-    ThemePreset.light: ThemeTokens(
-      editorSurface: 0xFFF9F9FA,
-      sidebarSurface: 0xFFF1F3F6,
-      controlSurface: 0xFFFFFFFF,
-      border: 0xFFE1E4E8,
-      divider: 0xFFE4E6EA,
-      primaryText: 0xFF25272A,
-      mutedText: 0xFF70757D,
-      accent: lightAccent,
-      cursor: 0xFF25272A,
+    ThemePreset.light: lightPreset(
+      editorSurface: 0xFFFFFFFF,
+      sidebarSurface: 0xFFF2F5F8,
     ),
-    ThemePreset.grey: ThemeTokens(
+    ThemePreset.grey: lightPreset(
       editorSurface: 0xFFF8FAFC,
-      sidebarSurface: 0xFFF0F3F7,
-      controlSurface: 0xFFFFFFFF,
-      border: 0xFFDDE3EA,
-      divider: 0xFFE0E4EA,
-      primaryText: 0xFF293241,
-      mutedText: 0xFF718096,
-      accent: lightAccent,
-      cursor: 0xFF293241,
+      sidebarSurface: 0xFFF2F5F8,
     ),
-    ThemePreset.slate: ThemeTokens(
+    ThemePreset.slate: lightPreset(
       editorSurface: 0xFFFAFAFA,
-      sidebarSurface: 0xFFF3F4F6,
-      controlSurface: 0xFFFFFFFF,
-      border: 0xFFE5E5E5,
-      divider: 0xFFE8E8E8,
-      primaryText: 0xFF34343A,
-      mutedText: 0xFF777780,
-      accent: lightAccent,
-      cursor: 0xFF34343A,
+      sidebarSurface: 0xFFF2F5F8,
     ),
-    ThemePreset.claude: ThemeTokens(
+    ThemePreset.claude: lightPreset(
       editorSurface: 0xFFFCFAF7,
       sidebarSurface: 0xFFF4F0E9,
-      controlSurface: 0xFFFFFFFF,
-      border: 0xFFE7E0D5,
-      divider: 0xFFEBE4D9,
-      primaryText: 0xFF39312B,
-      mutedText: 0xFF82756A,
-      accent: lightAccent,
-      cursor: 0xFF39312B,
     ),
-    ThemePreset.mint: ThemeTokens(
+    ThemePreset.mint: lightPreset(
       editorSurface: 0xFFFBFDFC,
-      sidebarSurface: 0xFFE5F2EC,
-      controlSurface: 0xFFFFFFFF,
-      border: 0xFFD2E5DC,
-      divider: 0xFFDCE8E2,
-      primaryText: 0xFF253A32,
-      mutedText: 0xFF6A8277,
-      accent: lightAccent,
-      cursor: 0xFF253A32,
+      sidebarSurface: 0xFFE8F3EE,
     ),
-    ThemePreset.purple: ThemeTokens(
+    ThemePreset.purple: lightPreset(
       editorSurface: 0xFFFCF9FF,
-      sidebarSurface: 0xFFF0E6FB,
-      controlSurface: 0xFFFFFFFF,
-      border: 0xFFE5D9F2,
-      divider: 0xFFE8DFF2,
-      primaryText: 0xFF382D4A,
-      mutedText: 0xFF7E708F,
-      accent: lightAccent,
-      cursor: 0xFF382D4A,
+      sidebarSurface: 0xFFF2F0F8,
     ),
-    ThemePreset.hermes: ThemeTokens(
-      editorSurface: 0xFFF7F7FF,
-      sidebarSurface: 0xFFE9EAFA,
-      controlSurface: 0xFFFFFFFF,
-      border: 0xFFDCDDFA,
-      divider: 0xFFE2E3F5,
-      primaryText: 0xFF252D50,
-      mutedText: 0xFF70769A,
-      accent: lightAccent,
-      cursor: 0xFF252D50,
+    ThemePreset.hermes: lightPreset(
+      editorSurface: 0xFFF7F8FF,
+      sidebarSurface: 0xFFECEDF8,
     ),
-    ThemePreset.ocean: ThemeTokens(
+    ThemePreset.ocean: darkPreset(
       editorSurface: 0xFF161923,
       sidebarSurface: 0xFF10131B,
       controlSurface: 0xFF202531,
       border: 0xFF303847,
       divider: 0xFF1C2230,
-      primaryText: 0xFFE4E8F0,
-      mutedText: 0xFF8B95A7,
       accent: darkModernAccent,
+      primaryText: 0xFFECF0F8,
+      mutedText: 0xFF9AA4B6,
       cursor: 0xFFFFFFFF,
     ),
     ThemePreset.darkModern: defaults,
     // Warm charcoal — easy on the eyes for long sessions.
-    ThemePreset.graphite: ThemeTokens(
+    ThemePreset.graphite: darkPreset(
       editorSurface: 0xFF1B1A19,
       sidebarSurface: 0xFF131211,
       controlSurface: 0xFF2A2927,
       border: 0xFF353330,
       divider: 0xFF262422,
-      primaryText: 0xFFE4E0DA,
-      mutedText: 0xFF9A958C,
       accent: 0xFFC9A06B,
       secondaryAccent: 0xFF7FAE98,
       tertiaryAccent: 0xFFD4A57A,
-      cursor: 0xFFE4E0DA,
+      primaryText: 0xFFF2EEE8,
+      mutedText: 0xFFAEA9A0,
     ),
     // Deep forest — cool green tint without neon punch.
-    ThemePreset.forest: ThemeTokens(
+    ThemePreset.forest: darkPreset(
       editorSurface: 0xFF151A17,
       sidebarSurface: 0xFF0F1311,
       controlSurface: 0xFF222A26,
       border: 0xFF2E3833,
       divider: 0xFF1A211D,
-      primaryText: 0xFFDFE7E2,
-      mutedText: 0xFF8A9A92,
       accent: 0xFF6BAE8F,
       secondaryAccent: 0xFF5FA8B8,
       tertiaryAccent: 0xFFD2A06E,
-      cursor: 0xFFDFE7E2,
+      primaryText: 0xFFEAF2ED,
+      mutedText: 0xFF9EAEA6,
     ),
     // Espresso — warm brown chrome, soft terracotta accent.
-    ThemePreset.espresso: ThemeTokens(
+    ThemePreset.espresso: darkPreset(
       editorSurface: 0xFF1A1613,
       sidebarSurface: 0xFF120F0D,
       controlSurface: 0xFF2A241F,
       border: 0xFF3A322B,
       divider: 0xFF221C18,
-      primaryText: 0xFFEDE6DF,
-      mutedText: 0xFFA09488,
       accent: 0xFFD08B6A,
       secondaryAccent: 0xFF7EAE9A,
       tertiaryAccent: 0xFFE0A070,
-      cursor: 0xFFEDE6DF,
+      primaryText: 0xFFF6EFE8,
+      mutedText: 0xFFB0A49A,
     ),
     // Midnight — soft indigo, calmer than Ocean's cool blue.
-    ThemePreset.midnight: ThemeTokens(
+    ThemePreset.midnight: darkPreset(
       editorSurface: 0xFF16151E,
       sidebarSurface: 0xFF100F16,
       controlSurface: 0xFF23222E,
       border: 0xFF323040,
       divider: 0xFF1B1A24,
-      primaryText: 0xFFE4E2EF,
-      mutedText: 0xFF9490A8,
       accent: 0xFF8B9FE0,
       secondaryAccent: 0xFF6FB5A8,
       tertiaryAccent: 0xFFD4A07A,
-      cursor: 0xFFE4E2EF,
+      primaryText: 0xFFEDEBF6,
+      mutedText: 0xFFAAA6BE,
     ),
     // Dusk — mauve night with a dusty rose accent.
-    ThemePreset.dusk: ThemeTokens(
+    ThemePreset.dusk: darkPreset(
       editorSurface: 0xFF1B1619,
       sidebarSurface: 0xFF131014,
       controlSurface: 0xFF2A2327,
       border: 0xFF3A3236,
       divider: 0xFF221C20,
-      primaryText: 0xFFEDE6EA,
-      mutedText: 0xFFA09098,
       accent: 0xFFD49AAA,
       secondaryAccent: 0xFF7EAEA0,
       tertiaryAccent: 0xFFD4A07A,
-      cursor: 0xFFEDE6EA,
+      primaryText: 0xFFF6EEF2,
+      mutedText: 0xFFB2A4AC,
     ),
     // Cursor Dark — near-black chrome from Cursor's current dark UI
     // (much deeper than Dark Modern's #1F1F1F / #313131 surfaces).
-    ThemePreset.cursorDark: ThemeTokens(
+    ThemePreset.cursorDark: darkPreset(
       editorSurface: 0xFF141414,
       sidebarSurface: 0xFF101010,
       controlSurface: 0xFF232323,
       border: 0xFF2A2A2A,
       divider: 0xFF1C1C1C,
-      primaryText: 0xFFCCCCCC,
-      mutedText: 0xFF6E6E6E,
       accent: 0xFF4D9DF4,
       secondaryAccent: 0xFF6CB6FF,
       tertiaryAccent: 0xFFD4B483,
+      primaryText: _darkPrimaryText,
+      mutedText: 0xFF909090,
       cursor: 0xFFFFFFFF,
     ),
   };

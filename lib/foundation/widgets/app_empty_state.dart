@@ -19,19 +19,30 @@ class AppEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spaceLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppText(message, role: AppTextRole.body),
-          if (detail != null && detail!.isNotEmpty) ...[
-            const SizedBox(height: AppTheme.spaceSm),
-            AppText(detail!, role: AppTextRole.caption),
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            AppText(
+              message,
+              role: AppTextRole.body,
+              textAlign: TextAlign.center,
+            ),
+            if (detail != null && detail!.isNotEmpty) ...[
+              const SizedBox(height: AppTheme.spaceSm),
+              AppText(
+                detail!,
+                role: AppTextRole.caption,
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (action != null) ...[
+              const SizedBox(height: AppTheme.spaceMd),
+              action!,
+            ],
           ],
-          if (action != null) ...[
-            const SizedBox(height: AppTheme.spaceMd),
-            action!,
-          ],
-        ],
+        ),
       ),
     );
   }

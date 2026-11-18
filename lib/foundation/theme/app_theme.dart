@@ -135,7 +135,7 @@ abstract final class AppTheme {
     required Brightness brightness,
   }) {
     final selected = Color.alphaBlend(
-      tokens.primary.withValues(alpha: 0.20),
+      tokens.primary.withValues(alpha: brightness == Brightness.dark ? 0.20 : 0.12),
       tokens.sidebar,
     );
     final tertiaryContainer = Color.alphaBlend(

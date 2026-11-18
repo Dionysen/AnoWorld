@@ -4,7 +4,7 @@ import 'package:anoworld/settings/about_panel.dart';
 import 'package:anoworld/settings/ai_preset_panel.dart';
 import 'package:anoworld/settings/ai_settings_panel.dart';
 import 'package:anoworld/settings/appearance_settings_panel.dart';
-import 'package:anoworld/settings/persona_settings_panel.dart';
+import 'package:anoworld/settings/general_settings_panel.dart';
 import 'package:anoworld/settings/settings_sections.dart';
 import 'package:flutter/widgets.dart';
 
@@ -54,12 +54,7 @@ class SettingsSectionView extends StatelessWidget {
 
 Widget _bodyFor(SettingsSection section) {
   return switch (section) {
-    SettingsSection.general => const Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          PersonaSettingsPanel(),
-        ],
-      ),
+    SettingsSection.general => const GeneralSettingsPanel(),
     SettingsSection.appearance => const AppearanceSettingsPanel(),
     SettingsSection.presets => const AiPresetPanel(),
     SettingsSection.ai => const AiSettingsPanel(),
