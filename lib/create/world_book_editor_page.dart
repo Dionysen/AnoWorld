@@ -112,146 +112,16 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
           body: '',
           alwaysOn: true,
         );
-    final title = TextEditingController(text: draft.title);
-    final body = TextEditingController(text: draft.body);
-    final keys = TextEditingController(text: draft.keys.join('、'));
-    var alwaysOn = draft.alwaysOn;
 
     final result = await showAppSheet<_EntrySheetResult>(
       context: context,
       size: AppSheetSize.half,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.pagePadding,
-                    AppTheme.spaceXs,
-                    AppTheme.pagePadding,
-                    0,
-                  ),
-                  child: AppText(
-                    existing == null ? '新设定' : '编辑设定',
-                    role: AppTextRole.subtitle,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spaceMd),
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.pagePadding,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            AppTextField(
-                              label: '标题',
-                              controller: title,
-                              hint: '世界观、客栈、城门规则…',
-                            ),
-                            const SizedBox(height: AppTheme.spaceMd),
-                            AppTextField(
-                              label: '正文',
-                              controller: body,
-                              minLines: 4,
-                              maxLines: 10,
-                              hint: '写给故事用的完整说明，单独成段也能读懂',
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppTheme.spaceMd),
-                      AppListTile(
-                        title: '始终带上',
-                        subtitle: '基调、硬规则适合打开',
-                        icon: Icons.push_pin_outlined,
-                        trailing: AppSwitch(
-                          value: alwaysOn,
-                          onChanged: (value) {
-                            setSheetState(() => alwaysOn = value);
-                          },
-                        ),
-                      ),
-                      if (!alwaysOn)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppTheme.pagePadding,
-                            AppTheme.spaceMd,
-                            AppTheme.pagePadding,
-                            0,
-                          ),
-                          child: AppTextField(
-                            label: '关键词',
-                            controller: keys,
-                            hint: '用顿号或逗号分开',
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.pagePadding,
-                    AppTheme.spaceMd,
-                    AppTheme.pagePadding,
-                    AppTheme.spaceMd,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AppButton(
-                        label: '保存',
-                        expanded: true,
-                        onPressed: () {
-                          final nextKeys = keys.text
-                              .split(RegExp(r'[,，、\s]+'))
-                              .map((s) => s.trim())
-                              .where((s) => s.isNotEmpty)
-                              .toList(growable: false);
-                          Navigator.of(sheetContext).pop(
-                            _EntrySheetResult.save(
-                              draft.copyWith(
-                                title: title.text.trim().isEmpty
-                                    ? '未命名设定'
-                                    : title.text.trim(),
-                                body: body.text.trim(),
-                                alwaysOn: alwaysOn,
-                                keys: alwaysOn ? const <String>[] : nextKeys,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      if (existing != null) ...[
-                        const SizedBox(height: AppTheme.spaceSm),
-                        AppButton(
-                          label: '删除这条',
-                          expanded: true,
-                          variant: AppButtonVariant.ghost,
-                          onPressed: () => Navigator.of(sheetContext).pop(
-                            const _EntrySheetResult.delete(),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (sheetContext) => _WorldBookEntrySheet(
+        draft: draft,
+        existing: existing,
+      ),
     );
 
-    title.dispose();
-    body.dispose();
-    keys.dispose();
     if (result == null || !mounted) return;
 
     final entries = [...project.worldBook.entries];
@@ -350,4 +220,169 @@ class _EntrySheetResult {
 
   final WorldBookEntry? entry;
   final bool delete;
+}
+
+/// Owns [TextEditingController]s for the entry sheet so they outlive the
+/// modal route close animation (parent must not dispose right after [pop]).
+class _WorldBookEntrySheet extends StatefulWidget {
+  const _WorldBookEntrySheet({
+    required this.draft,
+    required this.existing,
+  });
+
+  final WorldBookEntry draft;
+  final WorldBookEntry? existing;
+
+  @override
+  State<_WorldBookEntrySheet> createState() => _WorldBookEntrySheetState();
+}
+
+class _WorldBookEntrySheetState extends State<_WorldBookEntrySheet> {
+  late final TextEditingController _title;
+  late final TextEditingController _body;
+  late final TextEditingController _keys;
+  late bool _alwaysOn;
+
+  @override
+  void initState() {
+    super.initState();
+    _title = TextEditingController(text: widget.draft.title);
+    _body = TextEditingController(text: widget.draft.body);
+    _keys = TextEditingController(text: widget.draft.keys.join('、'));
+    _alwaysOn = widget.draft.alwaysOn;
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _body.dispose();
+    _keys.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final nextKeys = _keys.text
+        .split(RegExp(r'[,，、\s]+'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList(growable: false);
+    Navigator.of(context).pop(
+      _EntrySheetResult.save(
+        widget.draft.copyWith(
+          title: _title.text.trim().isEmpty
+              ? '未命名设定'
+              : _title.text.trim(),
+          body: _body.text.trim(),
+          alwaysOn: _alwaysOn,
+          keys: _alwaysOn ? const <String>[] : nextKeys,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final existing = widget.existing;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            AppTheme.spaceXs,
+            AppTheme.pagePadding,
+            0,
+          ),
+          child: AppText(
+            existing == null ? '新设定' : '编辑设定',
+            role: AppTextRole.subtitle,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spaceMd),
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.pagePadding,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppTextField(
+                      label: '标题',
+                      controller: _title,
+                      hint: '世界观、客栈、城门规则…',
+                    ),
+                    const SizedBox(height: AppTheme.spaceMd),
+                    AppTextField(
+                      label: '正文',
+                      controller: _body,
+                      minLines: 4,
+                      maxLines: 10,
+                      hint: '写给故事用的完整说明，单独成段也能读懂',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.spaceMd),
+              AppListTile(
+                title: '始终带上',
+                subtitle: '基调、硬规则适合打开',
+                icon: Icons.push_pin_outlined,
+                trailing: AppSwitch(
+                  value: _alwaysOn,
+                  onChanged: (value) => setState(() => _alwaysOn = value),
+                ),
+              ),
+              if (!_alwaysOn)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.pagePadding,
+                    AppTheme.spaceMd,
+                    AppTheme.pagePadding,
+                    0,
+                  ),
+                  child: AppTextField(
+                    label: '关键词',
+                    controller: _keys,
+                    hint: '用顿号或逗号分开',
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            AppTheme.spaceMd,
+            AppTheme.pagePadding,
+            AppTheme.spaceMd,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppButton(
+                label: '保存',
+                expanded: true,
+                onPressed: _save,
+              ),
+              if (existing != null) ...[
+                const SizedBox(height: AppTheme.spaceSm),
+                AppButton(
+                  label: '删除这条',
+                  expanded: true,
+                  variant: AppButtonVariant.ghost,
+                  onPressed: () => Navigator.of(context).pop(
+                    const _EntrySheetResult.delete(),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
