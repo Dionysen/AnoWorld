@@ -249,11 +249,21 @@ class AppPage extends StatelessWidget {
 
 /// Standard padded scrollable page body.
 class AppPageBody extends StatelessWidget {
+  /// Vertical-only inset so [AppListTile] / [AppSlider] rows span content width.
+  static const EdgeInsets listPadding =
+      EdgeInsets.symmetric(vertical: AppTheme.pagePadding);
+
   const AppPageBody({
     super.key,
     required this.children,
     this.padding = const EdgeInsets.all(AppTheme.pagePadding),
   });
+
+  /// Flat list/settings body: same as [AppPageBody] with [listPadding].
+  const AppPageBody.list({
+    super.key,
+    required this.children,
+  }) : padding = listPadding;
 
   final List<Widget> children;
   final EdgeInsetsGeometry padding;

@@ -11,6 +11,7 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
@@ -293,50 +294,59 @@ class _CastEditorPageState extends State<CastEditorPage> {
           onPressed: _loading || _error != null ? null : () => _editMember(),
         ),
       ],
-      body: AppPageBody(
+      body: AppPageBody.list(
         children: [
           if (_loading)
-            const AppText('加载中…', role: AppTextRole.caption)
+            const AppPageGutter(
+              child: AppText('加载中…', role: AppTextRole.caption),
+            )
           else if (_error != null)
-            AppEmptyState(
-              message: '无法打开角色',
-              detail: _error.toString(),
-              action: AppButton(
-                label: '重试',
-                onPressed: _load,
-                variant: AppButtonVariant.secondary,
+            AppPageGutter(
+              child: AppEmptyState(
+                message: '无法打开角色',
+                detail: _error.toString(),
+                action: AppButton(
+                  label: '重试',
+                  onPressed: _load,
+                  variant: AppButtonVariant.secondary,
+                ),
               ),
             )
           else if (project != null) ...[
             const AppSectionHeader(
               '登场人物',
               subtitle: '可勾选一名主角，作为酒馆里的当前角色',
+              gutter: true,
             ),
             if (cast.isEmpty)
-              AppEmptyState(
-                message: '还没有角色',
-                detail: '先加主角和关键配角',
-                action: AppButton(
-                  label: '加一个',
-                  onPressed: () => _editMember(),
-                  variant: AppButtonVariant.secondary,
+              AppPageGutter(
+                child: AppEmptyState(
+                  message: '还没有角色',
+                  detail: '先加主角和关键配角',
+                  action: AppButton(
+                    label: '加一个',
+                    onPressed: () => _editMember(),
+                    variant: AppButtonVariant.secondary,
+                  ),
                 ),
               )
             else
-              for (var i = 0; i < cast.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-                AppListTile(
-                  title: cast[i].name,
-                  subtitle: cast[i].isProtagonist
-                      ? '主角 · ${_subtitle(cast[i])}'
-                      : _subtitle(cast[i]),
-                  icon: cast[i].isProtagonist
-                      ? Icons.star_outline
-                      : Icons.person_outline,
-                  trailing: const AppForwardIcon(),
-                  onTap: () => _editMember(existing: cast[i]),
-                ),
-              ],
+              AppListTileStack(
+                tiles: [
+                  for (final member in cast)
+                    AppListTile(
+                      title: member.name,
+                      subtitle: member.isProtagonist
+                          ? '主角 · ${_subtitle(member)}'
+                          : _subtitle(member),
+                      icon: member.isProtagonist
+                          ? Icons.star_outline
+                          : Icons.person_outline,
+                      trailing: const AppForwardIcon(),
+                      onTap: () => _editMember(existing: member),
+                    ),
+                ],
+              ),
           ],
         ],
       ),

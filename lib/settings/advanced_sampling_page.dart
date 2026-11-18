@@ -16,10 +16,7 @@ class AdvancedSamplingPage extends StatelessWidget {
     return AppPage(
       title: '高级采样',
       onBack: () => Navigator.of(context).maybePop(),
-      body: AppPageBody(
-        padding: const EdgeInsets.symmetric(vertical: AppTheme.pagePadding),
-        children: const [_AdvancedSamplingBody()],
-      ),
+      body: const AppPageBody.list(children: [_AdvancedSamplingBody()]),
     );
   }
 }

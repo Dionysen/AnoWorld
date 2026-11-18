@@ -3,6 +3,7 @@ import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
@@ -93,11 +94,13 @@ class PromptManagerPanel extends StatelessWidget {
           return AppPage(
             title: sectionLabel(section),
             onBack: () => Navigator.of(context).pop(),
-            body: AppPageBody(
+            body: AppPageBody.list(
               children: [
-                AppText(
-                  body,
-                  role: AppTextRole.body,
+                AppPageGutter(
+                  child: AppText(
+                    body,
+                    role: AppTextRole.body,
+                  ),
                 ),
               ],
             ),
@@ -137,19 +140,22 @@ class PromptManagerPanel extends StatelessWidget {
           return AppPage(
             title: sectionLabel(section),
             onBack: () => Navigator.of(context).pop(false),
-            body: AppPageBody(
+            body: AppPageBody.list(
               children: [
-                AppTextField(
-                  label: '内容',
-                  controller: draft,
-                  minLines: 8,
-                  maxLines: 24,
+                AppPageGutter(
+                  child: AppTextField(
+                    label: '内容',
+                    controller: draft,
+                    minLines: 8,
+                    maxLines: 24,
+                  ),
                 ),
                 const SizedBox(height: AppTheme.spaceMd),
                 AppListTile(
                   title: '保存',
                   icon: Icons.check_outlined,
                   onTap: () => Navigator.of(context).pop(true),
+                  showDivider: false,
                 ),
               ],
             ),

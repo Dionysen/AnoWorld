@@ -10,9 +10,7 @@ class PersonaSettingsPage extends StatelessWidget {
     return AppPage(
       title: '玩家身份',
       onBack: () => Navigator.of(context).maybePop(),
-      body: const AppPageBody(
-        children: [PersonaSettingsPanel()],
-      ),
+      body: const AppPageBody.list(children: [PersonaSettingsPanel()]),
     );
   }
 }

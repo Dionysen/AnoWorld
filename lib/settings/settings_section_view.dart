@@ -17,10 +17,7 @@ class SettingsSectionBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Vertical pad only so flat list rows can span the content width.
-    return AppPageBody(
-      padding: const EdgeInsets.symmetric(vertical: AppTheme.pagePadding),
-      children: [_bodyFor(section)],
-    );
+    return AppPageBody.list(children: [_bodyFor(section)]);
   }
 }
 
@@ -42,8 +39,7 @@ class SettingsSectionView extends StatelessWidget {
     return AppPage(
       title: section.label,
       onBack: onBack,
-      body: AppPageBody(
-        padding: const EdgeInsets.symmetric(vertical: AppTheme.pagePadding),
+      body: AppPageBody.list(
         children: [
           if (header != null) ...[
             header!,

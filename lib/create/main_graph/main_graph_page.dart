@@ -24,6 +24,7 @@ import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_docked_panel.dart';
@@ -856,26 +857,36 @@ class _MainGraphPageState extends State<MainGraphPage> {
         ),
       ],
       body: _loading
-          ? const AppPageBody(
-              children: [AppText('加载中…', role: AppTextRole.caption)],
+          ? const AppPageBody.list(
+              children: [
+                AppPageGutter(
+                  child: AppText('加载中…', role: AppTextRole.caption),
+                ),
+              ],
             )
           : _error != null
-              ? AppPageBody(
+              ? AppPageBody.list(
                   children: [
-                    AppEmptyState(
-                      message: '打不开情节图',
-                      detail: _error.toString(),
-                      action: AppButton(
-                        label: '重试',
-                        onPressed: _load,
-                        variant: AppButtonVariant.secondary,
+                    AppPageGutter(
+                      child: AppEmptyState(
+                        message: '打不开情节图',
+                        detail: _error.toString(),
+                        action: AppButton(
+                          label: '重试',
+                          onPressed: _load,
+                          variant: AppButtonVariant.secondary,
+                        ),
                       ),
                     ),
                   ],
                 )
               : project == null
-                  ? const AppPageBody(
-                      children: [AppEmptyState(message: '没有故事')],
+                  ? const AppPageBody.list(
+                      children: [
+                        AppPageGutter(
+                          child: AppEmptyState(message: '没有故事'),
+                        ),
+                      ],
                     )
                   : _buildEditor(project),
     );

@@ -12,6 +12,7 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -234,131 +235,139 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
     return AppPage(
       title: '导入角色卡',
       onBack: () => Navigator.of(context).maybePop(),
-      body: AppPageBody(
+      body: AppPageBody.list(
         children: [
           const AppSectionHeader(
             '从酒馆卡摘素材',
             subtitle: '只取设定与角色，不跑插件和正则',
+            gutter: true,
           ),
-          AppButton(
-            label: draft == null ? '选择角色卡' : '重新选卡',
-            onPressed: _busy ? null : _pickCards,
-            expanded: true,
-          ),
-          const SizedBox(height: AppTheme.spaceSm),
-          const AppText(
-            '可选多张：第一张作主角与故事名，其余当配角',
-            role: AppTextRole.caption,
-          ),
-          if (_status != null) ...[
-            const SizedBox(height: AppTheme.spaceMd),
-            AppText(_status!, role: AppTextRole.caption),
-          ],
-          if (_busy && draft == null) ...[
-            const SizedBox(height: AppTheme.spaceMd),
-            const AppText('读取中…', role: AppTextRole.caption),
-          ],
-          if (draft == null && !_busy) ...[
-            const SizedBox(height: AppTheme.spaceLg),
-            const AppEmptyState(
-              message: '还没有读入角色卡',
-              detail: '支持 .json 与带角色数据的 .png',
+          AppPageGutter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppButton(
+                  label: draft == null ? '选择角色卡' : '重新选卡',
+                  onPressed: _busy ? null : _pickCards,
+                  expanded: true,
+                ),
+                const SizedBox(height: AppTheme.spaceSm),
+                const AppText(
+                  '可选多张：第一张作主角与故事名，其余当配角',
+                  role: AppTextRole.caption,
+                ),
+                if (_status != null) ...[
+                  const SizedBox(height: AppTheme.spaceMd),
+                  AppText(_status!, role: AppTextRole.caption),
+                ],
+                if (_busy && draft == null) ...[
+                  const SizedBox(height: AppTheme.spaceMd),
+                  const AppText('读取中…', role: AppTextRole.caption),
+                ],
+                if (draft == null && !_busy) ...[
+                  const SizedBox(height: AppTheme.spaceLg),
+                  const AppEmptyState(
+                    message: '还没有读入角色卡',
+                    detail: '支持 .json 与带角色数据的 .png',
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
           if (draft != null) ...[
             const SizedBox(height: AppTheme.spaceLg),
-            AppTextField(
-              label: '故事名',
-              controller: _title,
+            AppPageGutter(
+              child: AppTextField(
+                label: '故事名',
+                controller: _title,
+              ),
             ),
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader(
               '角色',
               subtitle: '描述、性格与示例对白',
+              gutter: true,
             ),
-            for (var i = 0; i < draft.castItems.length; i++) ...[
-              if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-              _ImportToggleTile(
-                title: draft.castItems[i].title,
-                subtitle: draft.castItems[i].preview,
-                icon: Icons.person_outline,
-                included: draft.castItems[i].included,
-                onChanged: (value) =>
-                    _setCastIncluded(draft.castItems[i].id, value),
-              ),
-            ],
+            AppListTileStack(
+              tiles: [
+                for (final item in draft.castItems)
+                  AppListTile(
+                    title: item.title,
+                    subtitle: item.preview,
+                    icon: Icons.person_outline,
+                    trailing: AppSwitch(
+                      value: item.included,
+                      onChanged: (value) => _setCastIncluded(item.id, value),
+                    ),
+                    onTap: () => _setCastIncluded(item.id, !item.included),
+                  ),
+              ],
+            ),
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader(
               '背景设定',
               subtitle: '情景、开场素材与角色书条目',
+              gutter: true,
             ),
             if (draft.backgroundItems.isEmpty)
-              const AppText('这张卡没有可摘的设定条目', role: AppTextRole.caption)
-            else
-              for (var i = 0; i < draft.backgroundItems.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-                _ImportToggleTile(
-                  title: draft.backgroundItems[i].title,
-                  subtitle: draft.backgroundItems[i].preview,
-                  icon: draft.backgroundItems[i].value.alwaysOn
-                      ? Icons.push_pin_outlined
-                      : Icons.bookmark_border,
-                  included: draft.backgroundItems[i].included,
-                  onChanged: (value) => _setBackgroundIncluded(
-                    draft.backgroundItems[i].id,
-                    value,
-                  ),
+              const AppPageGutter(
+                child: AppText(
+                  '这张卡没有可摘的设定条目',
+                  role: AppTextRole.caption,
                 ),
-              ],
+              )
+            else
+              AppListTileStack(
+                tiles: [
+                  for (final item in draft.backgroundItems)
+                    AppListTile(
+                      title: item.title,
+                      subtitle: item.preview,
+                      icon: item.value.alwaysOn
+                          ? Icons.push_pin_outlined
+                          : Icons.bookmark_border,
+                      trailing: AppSwitch(
+                        value: item.included,
+                        onChanged: (value) =>
+                            _setBackgroundIncluded(item.id, value),
+                      ),
+                      onTap: () =>
+                          _setBackgroundIncluded(item.id, !item.included),
+                    ),
+                ],
+              ),
             if (draft.cardAiNote != null) ...[
               const SizedBox(height: AppTheme.spaceLg),
               const AppSectionHeader(
                 '卡内 AI 说明',
                 subtitle: '不会写进故事，写对白请在设置里改 AI 预设',
+                gutter: true,
               ),
-              AppText(draft.cardAiNote!, role: AppTextRole.caption),
+              AppPageGutter(
+                child: AppText(draft.cardAiNote!, role: AppTextRole.caption),
+              ),
             ],
             const SizedBox(height: AppTheme.spaceLg),
-            AppButton(
-              label: '写入故事',
-              onPressed: _busy ? null : _writeProject,
-              expanded: true,
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            const AppText(
-              '写入后可在创作里继续改设定、角色与情节',
-              role: AppTextRole.caption,
+            AppPageGutter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppButton(
+                    label: '写入故事',
+                    onPressed: _busy ? null : _writeProject,
+                    expanded: true,
+                  ),
+                  const SizedBox(height: AppTheme.spaceSm),
+                  const AppText(
+                    '写入后可在创作里继续改设定、角色与情节',
+                    role: AppTextRole.caption,
+                  ),
+                ],
+              ),
             ),
           ],
         ],
       ),
-    );
-  }
-}
-
-class _ImportToggleTile extends StatelessWidget {
-  const _ImportToggleTile({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.included,
-    required this.onChanged,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool included;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppListTile(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      trailing: AppSwitch(value: included, onChanged: onChanged),
-      onTap: () => onChanged(!included),
     );
   }
 }

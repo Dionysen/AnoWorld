@@ -3,12 +3,12 @@ import 'package:anoworld/create/background_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/domain/models/project.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/material.dart';
@@ -104,53 +104,60 @@ class _CreateHubPageState extends State<CreateHubPage> {
     return AppPage(
       title: '创作',
       onBack: () => Navigator.of(context).maybePop(),
-      body: AppPageBody(
+      body: AppPageBody.list(
         children: [
           if (_loading)
-            const AppText('加载中…', role: AppTextRole.caption)
+            const AppPageGutter(
+              child: AppText('加载中…', role: AppTextRole.caption),
+            )
           else if (_error != null)
-            AppEmptyState(
-              message: '无法打开故事',
-              detail: _error.toString(),
-              action: AppButton(
-                label: '重试',
-                onPressed: _load,
-                variant: AppButtonVariant.secondary,
+            AppPageGutter(
+              child: AppEmptyState(
+                message: '无法打开故事',
+                detail: _error.toString(),
+                action: AppButton(
+                  label: '重试',
+                  onPressed: _load,
+                  variant: AppButtonVariant.secondary,
+                ),
               ),
             )
           else if (project != null) ...[
             AppSectionHeader(
               project.meta.title,
               subtitle: '改设定、角色与情节走向',
+              gutter: true,
             ),
-            AppListTile(
-              title: '背景设定',
-              subtitle: _backgroundSubtitle(project),
-              icon: Icons.public_outlined,
-              trailing: const AppForwardIcon(),
-              onTap: () => _open(
-                BackgroundEditorPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppListTile(
-              title: '角色',
-              subtitle: _castSubtitle(project),
-              icon: Icons.groups_outlined,
-              trailing: const AppForwardIcon(),
-              onTap: () => _open(
-                CastEditorPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppListTile(
-              title: '情节走向',
-              subtitle: _mainSubtitle(project),
-              icon: Icons.account_tree_outlined,
-              trailing: const AppForwardIcon(),
-              onTap: () => _open(
-                MainGraphPage(projectId: widget.projectId),
-              ),
+            AppListTileStack(
+              tiles: [
+                AppListTile(
+                  title: '背景设定',
+                  subtitle: _backgroundSubtitle(project),
+                  icon: Icons.public_outlined,
+                  trailing: const AppForwardIcon(),
+                  onTap: () => _open(
+                    BackgroundEditorPage(projectId: widget.projectId),
+                  ),
+                ),
+                AppListTile(
+                  title: '角色',
+                  subtitle: _castSubtitle(project),
+                  icon: Icons.groups_outlined,
+                  trailing: const AppForwardIcon(),
+                  onTap: () => _open(
+                    CastEditorPage(projectId: widget.projectId),
+                  ),
+                ),
+                AppListTile(
+                  title: '情节走向',
+                  subtitle: _mainSubtitle(project),
+                  icon: Icons.account_tree_outlined,
+                  trailing: const AppForwardIcon(),
+                  onTap: () => _open(
+                    MainGraphPage(projectId: widget.projectId),
+                  ),
+                ),
+              ],
             ),
           ],
         ],

@@ -390,8 +390,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
               ),
             )
           : null,
-      body: AppPageBody(
-        padding: const EdgeInsets.symmetric(vertical: AppTheme.pagePadding),
+      body: AppPageBody.list(
         children: [
           if (_loading)
             const AppPageGutter(

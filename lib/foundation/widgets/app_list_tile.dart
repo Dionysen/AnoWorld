@@ -39,6 +39,33 @@ class AppListTile extends StatelessWidget {
 
   static const double iconSize = 20;
 
+  AppListTile copyWith({
+    String? title,
+    String? subtitle,
+    IconData? icon,
+    Widget? leading,
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+    Widget? trailing,
+    bool? selected,
+    bool? nested,
+    bool? showDivider,
+  }) {
+    return AppListTile(
+      key: key,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      icon: icon ?? this.icon,
+      leading: leading ?? this.leading,
+      onTap: onTap ?? this.onTap,
+      onLongPress: onLongPress ?? this.onLongPress,
+      trailing: trailing ?? this.trailing,
+      selected: selected ?? this.selected,
+      nested: nested ?? this.nested,
+      showDivider: showDivider ?? this.showDivider,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -112,6 +139,26 @@ class AppListTile extends StatelessWidget {
       children: [
         row,
         const AppListHairline(),
+      ],
+    );
+  }
+}
+
+/// Stacks [tiles] with hairlines only between rows (no vertical gaps).
+class AppListTileStack extends StatelessWidget {
+  const AppListTileStack({super.key, required this.tiles});
+
+  final List<AppListTile> tiles;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tiles.isEmpty) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < tiles.length; i++)
+          tiles[i].copyWith(showDivider: i < tiles.length - 1),
       ],
     );
   }

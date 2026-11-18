@@ -12,11 +12,12 @@ class PromptManagerPage extends StatelessWidget {
     return AppPage(
       title: '提示词分段',
       onBack: () => Navigator.of(context).maybePop(),
-      body: const AppPageBody(
+      body: const AppPageBody.list(
         children: [
           AppSectionHeader(
             '顺序与开关',
             subtitle: '写故事时按序拼进系统提示',
+            gutter: true,
           ),
           PromptManagerPanel(),
         ],

@@ -49,7 +49,7 @@
 
 故事库进入/退出文件夹时，列表用约 280ms 的水平滑动 + 淡入淡出（`AnimatedSwitcher` + `SlideTransition`）。首页大标题仅在文案变化时淡入淡出（进出文件夹标题仍为「故事」时不重播，避免闪一下）。故事库四种布局（详细列表 / 简洁列表 / 网格 / 紧凑网格）与列表头像形状（圆 / 方 / 竖矩）见 [`LibraryDisplayController`](../lib/home/library_display_prefs.dart)；网格卡用 [`AppCoverTile`](../lib/foundation/widgets/app_cover_tile.dart)，头像用 [`AppShapedAvatar`](../lib/foundation/widgets/app_shaped_avatar.dart)。
 
-窄屏底栏尺寸见 `AppLayout.bottomNavHeight` / `bottomNavHorizontalInset` / `bottomNavBottomInset` / `bottomNavBlurSigma`；胶囊圆角固定为高度一半，不跟控件圆角滑块走。胶囊以 `Stack` 叠在内容之上，四周留白透明；本体为半透明表面 + `BackdropFilter` 毛玻璃模糊（对齐新版 iOS 胶囊质感）。底栏项与侧栏项按下用统一 [`AppPressScale`](../lib/foundation/widgets/app_press_scale.dart)（缩至 `AppTheme.pressScale` **0.92**，`pressScaleDuration` **120ms**，`easeOutCubic`）。`AppPage` 不预扣底边，`AppPageBody` 与情节图画布读 `MediaQuery.padding.bottom`（壳层会加上胶囊高度）以免内容被挡。
+窄屏底栏尺寸见 `AppLayout.bottomNavHeight` / `bottomNavHorizontalInset` / `bottomNavBottomInset` / `bottomNavBlurSigma`；胶囊圆角固定为高度一半，不跟控件圆角滑块走。胶囊以 `Stack` 叠在内容之上，四周留白透明；本体为半透明表面 + `BackdropFilter` 毛玻璃模糊（对齐新版 iOS 胶囊质感）。底栏项与侧栏项按下用统一 [`AppPressScale`](../lib/foundation/widgets/app_press_scale.dart)（缩至 `AppTheme.pressScale` **0.92**，`pressScaleDuration` **120ms**，`easeOutCubic`）。`AppPage` 不预扣底边，`AppPageBody` 与情节图画布读 `MediaQuery.padding.bottom`（壳层会加上胶囊高度）以免内容被挡。以通栏列表为主的页面用 [`AppPageBody.list`](../lib/foundation/widgets/app_page.dart)（仅上下 `pagePadding`）；多块列表无行间距时用 [`AppListTileStack`](../lib/foundation/widgets/app_list_tile.dart)。
 
 ## 沉浸式标题栏
 

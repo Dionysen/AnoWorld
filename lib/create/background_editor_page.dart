@@ -11,6 +11,7 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
@@ -282,48 +283,58 @@ class _BackgroundEditorPageState extends State<BackgroundEditorPage> {
           onPressed: _loading || _error != null ? null : () => _editEntry(),
         ),
       ],
-      body: AppPageBody(
+      body: AppPageBody.list(
         children: [
           if (_loading)
-            const AppText('加载中…', role: AppTextRole.caption)
+            const AppPageGutter(
+              child: AppText('加载中…', role: AppTextRole.caption),
+            )
           else if (_error != null)
-            AppEmptyState(
-              message: '无法打开设定',
-              detail: _error.toString(),
-              action: AppButton(
-                label: '重试',
-                onPressed: _load,
-                variant: AppButtonVariant.secondary,
+            AppPageGutter(
+              child: AppEmptyState(
+                message: '无法打开设定',
+                detail: _error.toString(),
+                action: AppButton(
+                  label: '重试',
+                  onPressed: _load,
+                  variant: AppButtonVariant.secondary,
+                ),
               ),
             )
           else if (project != null) ...[
             const AppSectionHeader(
               '设定条目',
               subtitle: '常驻会一直带上；其他条目靠关键词唤起',
+              gutter: true,
             ),
             if (entries.isEmpty)
-              AppEmptyState(
-                message: '还没有设定',
-                detail: '先写世界基调，再补地名与规则',
-                action: AppButton(
-                  label: '加一条',
-                  onPressed: () => _editEntry(),
-                  variant: AppButtonVariant.secondary,
+              AppPageGutter(
+                child: AppEmptyState(
+                  message: '还没有设定',
+                  detail: '先写世界基调，再补地名与规则',
+                  action: AppButton(
+                    label: '加一条',
+                    onPressed: () => _editEntry(),
+                    variant: AppButtonVariant.secondary,
+                  ),
                 ),
               )
             else
-              for (var i = 0; i < entries.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-                AppListTile(
-                  title: entries[i].title.isEmpty ? '未命名设定' : entries[i].title,
-                  subtitle: _subtitle(entries[i]),
-                  icon: entries[i].alwaysOn
-                      ? Icons.push_pin_outlined
-                      : Icons.bookmark_border,
-                  trailing: const AppForwardIcon(),
-                  onTap: () => _editEntry(existing: entries[i]),
-                ),
-              ],
+              AppListTileStack(
+                tiles: [
+                  for (final entry in entries)
+                    AppListTile(
+                      title:
+                          entry.title.isEmpty ? '未命名设定' : entry.title,
+                      subtitle: _subtitle(entry),
+                      icon: entry.alwaysOn
+                          ? Icons.push_pin_outlined
+                          : Icons.bookmark_border,
+                      trailing: const AppForwardIcon(),
+                      onTap: () => _editEntry(existing: entry),
+                    ),
+                ],
+              ),
           ],
         ],
       ),
