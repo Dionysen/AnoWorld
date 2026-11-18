@@ -1,15 +1,15 @@
 /// Responsive chrome breakpoints (NativeTavern-inspired).
 ///
 /// Same width ⇒ same chrome on every platform (desktop portrait ≡ phone).
-/// Do not branch page title / nav on [TargetPlatform].
+/// Do not branch nav on [TargetPlatform].
 ///
-/// - Compact (portrait / narrow): bottom navigation, title in the immersive
-///   band, single content layer.
-/// - Expanded (landscape / wide): left rail; large title below the band;
-///   optional secondary list + detail.
+/// Window/status chrome is background-only; software titles live in
+/// [AppPage]'s page title bar ([AppPage.showTitle]). Home hubs hide that bar.
+///
+/// - Compact (portrait / narrow): bottom navigation, single content layer.
+/// - Expanded (landscape / wide): left rail; optional secondary list + detail.
 abstract final class AppLayout {
-  /// Width at which the shell switches from bottom nav to left rail, and
-  /// [AppPage] switches from band title to large title below the band.
+  /// Width at which the shell switches from bottom nav to left rail.
   static const double railBreakpoint = 600;
 
   /// Primary rail / bottom-nav icon column width.

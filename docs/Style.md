@@ -37,19 +37,19 @@
 
 ## 响应式导航（双布局）
 
-断点与壳层在 `lib/foundation/layout/app_layout.dart`、`AppNavShell`、`AppPage`（参考 NativeTavern）。**同宽度 ⇒ 同壳层**（桌面竖屏 / 窄窗与手机一致）；导航与页面标题模式按宽度切换，不按 `TargetPlatform`。
+断点与壳层在 `lib/foundation/layout/app_layout.dart`、`AppNavShell`、`AppPage`（参考 NativeTavern）。**同宽度 ⇒ 同壳层**（桌面竖屏 / 窄窗与手机一致）；导航按宽度切换，不按 `TargetPlatform`。桌面自定义标题栏只铺背景；软件标题栏在其下（见「沉浸式标题栏」）。
 
-首页、设置与情节图复用 `AppNavShell`；`AppPage` 标题模式跟同一断点：
+首页、设置与情节图复用 `AppNavShell`：
 
 | 页面 | 条件 | 导航 / 标题 |
 | --- | --- | --- |
-| 首页 | 宽度 `< 600` | **主胶囊**会话 / 故事 / 玩法 / 我；标题在顶栏 band 内 |
-| 首页 | 宽度 `≥ 600` | **左侧导航栏**；大标题在 band 下方 |
-| 设置 | 宽度 `< 600` | **悬浮胶囊底栏**（通用 / 外观 / 预设 / AI / 关于）；标题在 band 内 |
-| 设置 | 宽度 `≥ 600` | **左侧导航栏**；大标题在 band 下方 |
+| 首页 | 宽度 `< 600` | **主胶囊**会话 / 故事 / 玩法 / 我；**无**软件标题栏（搜索/工具在正文顶） |
+| 首页 | 宽度 `≥ 600` | **左侧导航栏**；同样无软件标题栏 |
+| 设置 | 宽度 `< 600` | **悬浮胶囊底栏**；chrome 下有软件标题栏（返回+「设置」） |
+| 设置 | 宽度 `≥ 600` | **左侧导航栏**；同样 chrome 下软件标题栏 |
 | 情节走向 | 任意宽度（`forceCompact: true`） | **主胶囊**画布 / 卡片 + **右侧独立胶囊**全图（`AppBottomNavExtraCapsule`，仅画布可用） |
 
-故事库进入/退出文件夹时，列表用约 280ms 的水平滑动 + 淡入淡出（`AnimatedSwitcher` + `SlideTransition`）。首页大标题仅在文案变化时淡入淡出（进出文件夹标题仍为「故事」时不重播，避免闪一下）。故事库四种布局（详细列表 / 简洁列表 / 网格 / 紧凑网格）与列表头像形状（圆 / 方 / 竖矩）见 [`LibraryDisplayController`](../lib/home/library_display_prefs.dart)；网格卡用 [`AppCoverTile`](../lib/foundation/widgets/app_cover_tile.dart)，头像用 [`AppShapedAvatar`](../lib/foundation/widgets/app_shaped_avatar.dart)。
+故事库进入/退出文件夹时，列表用约 280ms 的水平滑动 + 淡入淡出（`AnimatedSwitcher` + `SlideTransition`）。首页四分区不画 `AppPage` 标题；会话/故事为「搜索 → 工具行 → 列表」，工具行与搜索同用 `pagePadding`。故事库四种布局（详细列表 / 简洁列表 / 网格 / 紧凑网格）与列表头像形状（圆 / 方 / 竖矩）见 [`LibraryDisplayController`](../lib/home/library_display_prefs.dart)；网格卡用 [`AppCoverTile`](../lib/foundation/widgets/app_cover_tile.dart)，头像用 [`AppShapedAvatar`](../lib/foundation/widgets/app_shaped_avatar.dart)。
 
 窄屏底栏尺寸见 `AppLayout.bottomNavHeight` / `bottomNavHorizontalInset` / `bottomNavBottomInset` / `bottomNavBlurSigma`；胶囊圆角固定为高度一半，不跟控件圆角滑块走。胶囊以 `Stack` 叠在内容之上，四周留白透明；本体为半透明表面 + `BackdropFilter` 毛玻璃模糊（对齐新版 iOS 胶囊质感）。底栏项与侧栏项按下用统一 [`AppPressScale`](../lib/foundation/widgets/app_press_scale.dart)（缩至 `AppTheme.pressScale` **0.92**，`pressScaleDuration` **120ms**，`easeOutCubic`）。`AppPage` 不预扣底边，`AppPageBody` 与情节图画布读 `MediaQuery.padding.bottom`（壳层会加上胶囊高度）以免内容被挡。以通栏列表为主的页面用 [`AppPageBody.list`](../lib/foundation/widgets/app_page.dart)（仅上下 `pagePadding`）；多块列表无行间距时用 [`AppListTileStack`](../lib/foundation/widgets/app_list_tile.dart)。
 
@@ -57,11 +57,11 @@
 
 五个平台的内容都进入系统栏区域，不留一条独立的系统标题栏；顶栏填充色与页面背景一致。
 
-- 顶栏高度默认 **36**（`AppTheme.titleBandHeight`），比 Material 默认工具栏矮；macOS 若红绿灯更高，才跟着抬高。
-- **窄屏**（宽度 `< 600`，含桌面竖屏）：页面标题、返回与 `actions` 画在顶栏 band 内（`AppTextRole.subtitle`；返回钮 **32**），内容从顶栏下面开始——与手机同一套结构。
-- **宽屏**（宽度 `≥ 600`）：顶栏 band **不画**标题文案、返回与页面 `actions`（只留拖动 / 系统钮区域）；页面标题落到顶栏下方（上边距 `spaceXs`），用 `AppTextRole.pageTitle`（`headlineSmall` **24** / semibold），左侧圆形返回（`AppCircleButton` 默认 **40**），右侧为 `AppPage.actions`（与标题同行）。有返回/右侧按钮时该侧用 `titleChromePadding`（**8**）让图标更贴边；**仅标题**时左边距仍为 `pagePadding`（**16**），与正文齐。
-- 桌面窗口 chrome（不驱动业务布局分叉）：内容铺到红绿灯或自绘窗口按钮下面；macOS 顶栏让出红绿灯宽度（`leadingInset`）；Windows / Linux 隐藏系统标题栏，最小化/最大化/关闭画在顶栏右侧（仅当宽度够画时才预留 `trailingInset`），空白顶栏可拖动，双击切换最大化。手机 / 平板另有状态栏 `statusInset`。
-- 圆形图标按钮：`AppCircleButton` 默认 **40** 圆径（宽屏大标题行返回 / `actions`、封面换图、图内行内工具等）；窄屏 band 内返回为 **32**；**默认 `ghost`**：未按下时无底色，仅图标，按下/悬停仍有 ink；主色圆形 CTA 用 `filled`（`AppCircleButton.fab` 默认 **54** / 图标 **30**，如首页加号、故事详情「开始游玩」）；画布角上次要圆钮显式 `ghost` FAB（整理排版、加一站）。窄屏底栏时 FAB 用 [`AppFabLocation.aboveCompactBottomNav`](../lib/foundation/widgets/app_fab_location.dart) 抬高，水平仍贴右。
+- **双层顶栏**（[`AppPage`](../lib/foundation/widgets/app_page.dart)）：
+  1. **窗口 / 状态 chrome**：与页面同色背景。桌面为自定义标题栏（高度 `AppTheme.titleBandHeight` **44**，macOS 可抬高对齐红绿灯）；**禁止**在此层放返回、标题、`actions` 或任何业务文字/控件。移动端仅 `statusInset`（`titleBarHeight: 0`）。
+  2. **软件标题栏**（`AppTheme.pageTitleBarHeight` **44**）：在 chrome **下方**；非主页放返回（**32**）+ 标题（`AppTextRole.subtitle`）+ `actions`。主页 `showTitle: false` 时不画这一层。
+- 桌面窗口能力：macOS 红绿灯区可拖动；Windows / Linux 自绘最小化/最大化/关闭（宽度够时才画）；双击切换最大化。不驱动第二套业务布局。
+- 圆形图标按钮：`AppCircleButton` 默认 **40** 圆径（软件标题栏 `actions`、封面换图、图内行内工具等）；软件标题栏返回为 **32**；**默认 `ghost`**：未按下时无底色，仅图标，按下/悬停仍有 ink；主色圆形 CTA 用 `filled`（`AppCircleButton.fab` 默认 **54** / 图标 **30**，如首页加号、故事详情「开始游玩」）；画布角上次要圆钮显式 `ghost` FAB（整理排版、加一站）。窄屏底栏时 FAB 用 [`AppFabLocation.aboveCompactBottomNav`](../lib/foundation/widgets/app_fab_location.dart) 抬高，水平仍贴右。
 - 故事详情 [`AppDetailSection`](../lib/foundation/widgets/app_detail_section.dart)：扁平分区（无外卡）；标题行 icon+标题+编辑；条目上下 `spaceInline`、底用 [`AppListHairline`](../lib/foundation/widgets/app_list_hairline.dart)；条内文案 `compactLabel` / `compactBody`，标签 `compactTag`（主色浅底 chip）。封面 16:9 横向贴边、直角无圆角；右上角圆形钮可更换图片（存 `assets/cover.*`，`ProjectMeta.coverPath`）。窄屏底栏胶囊高度/边距见 `AppLayout.bottomNav*`。
 
 通道没有实现时（测试、还没接上的窗口）仍显示页面顶栏，不画窗口按钮。

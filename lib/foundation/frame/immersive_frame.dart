@@ -109,11 +109,12 @@ class ImmersiveScope extends InheritedWidget {
       metrics != oldWidget.metrics;
 }
 
-/// Hosts one immersive title band on every platform.
+/// Hosts window/status chrome metrics for every platform.
 ///
-/// Mobile extends into the status bar. Desktop asks the runner to remove the
-/// system title bar, then draws drag space and, on Windows and Linux, window
-/// buttons. A missing channel keeps the system title bar.
+/// Mobile: status inset only (software titles are drawn by [AppPage] below).
+/// Desktop: asks the runner to remove the system title bar, then provides an
+/// empty drag band (background only — no app widgets) and, on Windows and
+/// Linux, window buttons. A missing channel keeps the system title bar.
 ///
 /// Desktop also restores and remembers the outer window frame via
 /// [geometryStore].
@@ -255,9 +256,10 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
     final bandHeight =
         Theme.of(context).appBarTheme.toolbarHeight ?? AppTheme.titleBandHeight;
     if (!_desktop) {
+      // Status inset only — software title bar is drawn by [AppPage] below.
       return ImmersiveMetrics(
         active: true,
-        titleBarHeight: bandHeight,
+        titleBarHeight: 0,
         statusInset: MediaQuery.paddingOf(context).top,
       );
     }

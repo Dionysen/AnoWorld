@@ -34,7 +34,8 @@ void main() {
     expect(find.text('预设'), findsWidgets);
     expect(find.text('AI'), findsWidgets);
     expect(find.text('关于'), findsWidgets);
-    expect(find.text('这里还没有可改的选项'), findsOneWidget);
+    // Debug builds expose Advanced; release shows the empty caption instead.
+    expect(find.text('高级'), findsOneWidget);
     expect(find.text('玩家身份'), findsNothing);
 
     await tester.tap(find.text('预设').last);
@@ -126,7 +127,7 @@ void main() {
 
     await tester.tap(find.text('通用').first);
     await tester.pumpAndSettle();
-    expect(find.text('这里还没有可改的选项'), findsOneWidget);
+    expect(find.text('高级'), findsOneWidget);
     await tester.tap(find.text('AI').first);
     await tester.pumpAndSettle();
     expect(find.text('当前服务商'), findsWidgets);

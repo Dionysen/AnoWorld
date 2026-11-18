@@ -1052,19 +1052,48 @@ class WorksTabState extends State<WorksTab> {
             setState(() => _query = '');
           },
         ),
-        if (!selectionMode)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pagePadding,
-              0,
-              AppTheme.titleChromePadding,
-              AppTheme.spaceXs,
-            ),
-            child: SizedBox(
-              height: _WorksBreadcrumb.rowHeight,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            0,
+            AppTheme.pagePadding,
+            AppTheme.spaceXs,
+          ),
+          child: SizedBox(
+            height: _WorksBreadcrumb.rowHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (selectionMode) ...[
+                  AppIconButton(
+                    icon: Icons.close,
+                    tooltip: '取消多选',
+                    onPressed: () => widget.selection.exit(),
+                  ),
+                  const Spacer(),
+                  ...AppPage.spacedActions([
+                    AppIconButton(
+                      icon: widget.selection.hasSelection
+                          ? Icons.deselect
+                          : Icons.select_all,
+                      tooltip:
+                          widget.selection.hasSelection ? '取消全选' : '全选',
+                      onPressed: toggleSelectAllVisible,
+                    ),
+                    if (widget.selection.hasSelection)
+                      AppIconButton(
+                        icon: Icons.drive_file_move_outline,
+                        tooltip: '移到文件夹',
+                        onPressed: moveSelected,
+                      ),
+                    if (widget.selection.hasSelection)
+                      AppIconButton(
+                        icon: Icons.delete_outline,
+                        tooltip: '删除',
+                        onPressed: deleteSelected,
+                      ),
+                  ]),
+                ] else ...[
                   Expanded(
                     child: _WorksBreadcrumb(
                       crumbs: _breadcrumbs,
@@ -1090,9 +1119,10 @@ class WorksTabState extends State<WorksTab> {
                     ),
                   ]),
                 ],
-              ),
+              ],
             ),
           ),
+        ),
         if (_status != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.pagePadding),

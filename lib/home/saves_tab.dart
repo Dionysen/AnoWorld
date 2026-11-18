@@ -134,6 +134,11 @@ class SavesTabState extends State<SavesTab> {
     return _openRoute(ProjectHubPage(projectId: row.project.id));
   }
 
+  void _toggleSelectAllVisible() {
+    final ids = _visible.map((row) => row.slot.id).toList(growable: false);
+    widget.selection.toggleSelectAll(ids);
+  }
+
   Future<void> deleteSelected() async {
     final ids = widget.selection.selectedIds.toList(growable: false);
     if (ids.isEmpty) return;
@@ -288,6 +293,50 @@ class SavesTabState extends State<SavesTab> {
             _searchController.clear();
             setState(() => _query = '');
           },
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            0,
+            AppTheme.pagePadding,
+            AppTheme.spaceXs,
+          ),
+          child: SizedBox(
+            height: 36,
+            child: Row(
+              children: [
+                const Spacer(),
+                if (selectionMode) ...[
+                  AppIconButton(
+                    icon: Icons.close,
+                    tooltip: '取消多选',
+                    onPressed: () => widget.selection.exit(),
+                  ),
+                  const SizedBox(width: AppTheme.spaceSm),
+                  AppIconButton(
+                    icon: widget.selection.hasSelection
+                        ? Icons.deselect
+                        : Icons.select_all,
+                    tooltip: widget.selection.hasSelection ? '取消全选' : '全选',
+                    onPressed: _toggleSelectAllVisible,
+                  ),
+                  if (widget.selection.hasSelection) ...[
+                    const SizedBox(width: AppTheme.spaceSm),
+                    AppIconButton(
+                      icon: Icons.delete_outline,
+                      tooltip: '删除',
+                      onPressed: deleteSelected,
+                    ),
+                  ],
+                ] else
+                  AppIconButton(
+                    icon: Icons.checklist,
+                    tooltip: '多选',
+                    onPressed: () => widget.selection.enter(null),
+                  ),
+              ],
+            ),
+          ),
         ),
         Expanded(
           child: _loading

@@ -55,11 +55,19 @@ class AppColorTokens {
 
 /// Theme entry. Visual decisions are added here as pages need them.
 abstract final class AppTheme {
-  static const double titleBandHeight = 36;
+  /// Desktop custom window chrome (drag / traffic lights / window buttons).
+  /// Background only — never place app title, back, or actions in this band.
+  /// macOS may raise to clear traffic lights. Mobile chrome uses status inset
+  /// alone (see [ImmersiveFrame]); software titles use [pageTitleBarHeight].
+  static const double titleBandHeight = 44;
+
+  /// App title bar below window/status chrome (back + title + actions).
+  /// Aligns with common 44pt navigation-bar practice.
+  static const double pageTitleBarHeight = 44;
 
   static const Size windowMinSize = Size(
     WindowControlMetrics.stripWidth + 160,
-    titleBandHeight + 56 + 80,
+    titleBandHeight + pageTitleBarHeight + 56 + 80,
   );
 
   static const double spaceXs = 4;

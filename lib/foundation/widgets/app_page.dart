@@ -3,18 +3,20 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../frame/immersive_frame.dart';
-import '../layout/app_layout.dart';
 import '../theme/app_theme.dart';
 import 'app_circle_button.dart';
 import 'app_text.dart';
 
 /// Page shell. Business screens compose this instead of a scaffold or app bar.
 ///
-/// Chrome follows [AppLayout] width, not [TargetPlatform]:
-/// - Compact (`< railBreakpoint`): title, back, and [actions] stay in the
-///   immersive band (desktop portrait matches phone).
-/// - Expanded: [title] sits below the band (`pageTitle` / 24) with [onBack]
-///   on its left and [actions] on its right.
+/// Layout (top → bottom):
+/// 1. **Window / status chrome** — same fill as the page background. Desktop:
+///    empty drag band for traffic lights / window buttons (**no** app widgets
+///    or text). Mobile: status-bar inset only.
+/// 2. **Software title bar** (when [showTitle]) — back, title, [actions].
+/// 3. [body]
+///
+/// Home hubs pass [showTitle] false and put search / toolbars in [body].
 class AppPage extends StatelessWidget {
   const AppPage({
     super.key,
@@ -34,13 +36,12 @@ class AppPage extends StatelessWidget {
   final Widget? titleWidget;
   final Widget body;
 
-  /// Trailing controls aligned with the page title (large-title row when
-  /// expanded, chrome band when compact).
+  /// Trailing controls in the software title bar (same row as the title).
   final List<Widget> actions;
   final VoidCallback? onBack;
 
-  /// When false, keeps the immersive status band but hides title / back /
-  /// actions (e.g. stories tab puts its own search + toolbar in [body]).
+  /// When false, keeps window/status chrome but hides the software title bar
+  /// (e.g. home tabs put search + toolbar in [body]).
   final bool showTitle;
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
@@ -65,7 +66,6 @@ class AppPage extends StatelessWidget {
     final metrics = ImmersiveScope.metricsOf(context);
     final theme = Theme.of(context);
     final media = MediaQuery.of(context);
-    final titleSpacing = theme.appBarTheme.titleSpacing ?? 12;
     final barColor =
         theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
 
@@ -78,150 +78,85 @@ class AppPage extends StatelessWidget {
               FloatingActionButtonLocation.endFloat,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Never force a taller band than the viewport; shrink or hide instead
-          // of overflowing when the window is squeezed.
-          final barHeight = math.min(metrics.barHeight, constraints.maxHeight);
-          final showBar = barHeight > 0;
-          final showChromeRow =
-              showBar && barHeight >= metrics.statusInset + 20;
-          // Width left for the title row after chrome insets.
-          final rowWidth = math.max(
-            0.0,
-            constraints.maxWidth -
-                metrics.leadingInset -
-                metrics.trailingInset,
+          // Window/status chrome only — never place app title / back / actions
+          // here (desktop custom title bar is background + OS controls).
+          final chromeHeight =
+              math.min(metrics.barHeight, constraints.maxHeight);
+          final belowChrome =
+              math.max(0.0, constraints.maxHeight - chromeHeight);
+          final titleBarHeight = math.min(
+            AppTheme.pageTitleBarHeight,
+            belowChrome,
           );
-          final bodyArea = math.max(0.0, constraints.maxHeight - barHeight);
-          final largeTitle = AppLayout.useRail(constraints.maxWidth);
-          final showLargeTitle = showTitle && largeTitle && bodyArea >= 72;
-          // Compact: back in the band. Expanded: beside the large title below.
-          final showBarBack = showTitle &&
-              !showLargeTitle &&
-              onBack != null &&
-              rowWidth >= 36;
-          final showTitleText = showTitle &&
-              !showLargeTitle &&
-              rowWidth >= (showBarBack ? 52 : 24);
-          final titleReserve = metrics.leadingInset +
-              titleSpacing +
-              metrics.trailingInset +
-              (showBarBack ? 36.0 : 0.0) +
-              48;
-          final showBarActions = showTitle &&
-              !showLargeTitle &&
-              actions.isNotEmpty &&
-              rowWidth >= 48 &&
-              constraints.maxWidth >= titleReserve;
-          final showTitleActions = showTitle &&
-              showLargeTitle &&
-              actions.isNotEmpty &&
-              constraints.maxWidth >= 120;
-          final showTitleBack = showTitle &&
-              showLargeTitle &&
+          final showSoftwareTitle =
+              showTitle && titleBarHeight >= 28 && constraints.maxWidth >= 72;
+          final showBack = showSoftwareTitle &&
               onBack != null &&
               constraints.maxWidth >= 72;
+          final showTitleText =
+              showSoftwareTitle && constraints.maxWidth >= (showBack ? 96 : 48);
+          final showActions = showSoftwareTitle &&
+              actions.isNotEmpty &&
+              constraints.maxWidth >= 120;
 
-          Widget pageBody = body;
-          if (showLargeTitle) {
-            // Side icon buttons hug the edges; title-only rows keep the wider
-            // page inset so the heading still lines up with body content.
-            final titleLeftPad = showTitleBack
-                ? AppTheme.titleChromePadding
-                : AppTheme.pagePadding;
-            final titleRightPad = showTitleActions
-                ? AppTheme.titleChromePadding
-                : AppTheme.pagePadding;
-            pageBody = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    titleLeftPad,
-                    AppTheme.spaceXs,
-                    titleRightPad,
-                    AppTheme.spaceSm,
-                  ),
-                  child: Row(
-                    children: [
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        alignment: Alignment.centerLeft,
-                        child: showTitleBack
-                            ? Padding(
-                                padding: const EdgeInsets.only(
-                                  right: AppTheme.spaceSm,
-                                ),
-                                child: AppCircleButton(
-                                  icon: Icons.arrow_back,
-                                  tooltip: '返回',
-                                  onPressed: onBack,
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                      Expanded(
-                        child: titleWidget ??
-                            AppText(
-                              title,
-                              role: AppTextRole.pageTitle,
-                              maxLines: 1,
-                            ),
-                      ),
-                      if (showTitleActions) ...spacedActions(actions),
-                    ],
-                  ),
-                ),
-                Expanded(child: body),
-              ],
-            );
-          }
+          final titleLeftPad = showBack
+              ? AppTheme.titleChromePadding
+              : AppTheme.pagePadding;
+          final titleRightPad = showActions
+              ? AppTheme.titleChromePadding
+              : AppTheme.pagePadding;
 
           return Column(
             children: [
-              if (showBar)
+              if (chromeHeight > 0)
                 ColoredBox(
                   color: barColor,
                   child: SizedBox(
-                    height: barHeight,
+                    height: chromeHeight,
                     width: double.infinity,
-                    child: showChromeRow && showTitle
-                        ? Padding(
-                            padding: EdgeInsets.only(
-                              top: math.min(
-                                metrics.statusInset,
-                                math.max(0, barHeight - 20),
+                  ),
+                ),
+              if (showSoftwareTitle)
+                ColoredBox(
+                  color: barColor,
+                  child: SizedBox(
+                    height: titleBarHeight,
+                    width: double.infinity,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: titleLeftPad,
+                        right: titleRightPad,
+                      ),
+                      child: Row(
+                        children: [
+                          if (showBack)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                right: AppTheme.spaceSm,
                               ),
-                              left: metrics.leadingInset +
-                                  (showBarBack ? 0 : titleSpacing),
-                              right: metrics.trailingInset,
+                              child: AppCircleButton(
+                                icon: Icons.arrow_back,
+                                tooltip: '返回',
+                                onPressed: onBack,
+                                size: 32,
+                                iconSize: 18,
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                if (showBarBack)
-                                  AppCircleButton(
-                                    icon: Icons.arrow_back,
-                                    tooltip: '返回',
-                                    onPressed: onBack,
-                                    size: 32,
-                                    iconSize: 18,
+                          if (showTitleText)
+                            Expanded(
+                              child: titleWidget ??
+                                  AppText(
+                                    title,
+                                    role: AppTextRole.subtitle,
+                                    maxLines: 1,
                                   ),
-                                if (showTitleText)
-                                  Expanded(
-                                    child: titleWidget ??
-                                        AppText(
-                                          title,
-                                          role: AppTextRole.subtitle,
-                                          maxLines: 1,
-                                        ),
-                                  )
-                                else
-                                  const Spacer(),
-                                if (showBarActions) ...spacedActions(actions),
-                              ],
-                            ),
-                          )
-                        : null,
+                            )
+                          else
+                            const Spacer(),
+                          if (showActions) ...spacedActions(actions),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               Expanded(
@@ -232,7 +167,7 @@ class AppPage extends StatelessWidget {
                     left: media.padding.left,
                     right: media.padding.right,
                   ),
-                  child: pageBody,
+                  child: body,
                 ),
               ),
             ],
