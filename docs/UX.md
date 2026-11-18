@@ -50,7 +50,7 @@
 
 ## 首页（底栏：会话 / 故事 / 玩法 / 我）
 
-首页用 `AppNavShell` 四分区（窄屏悬浮胶囊底栏 / 宽屏左侧栏）：**会话** / **故事** / **玩法** / **我**。全局**设置**改在「我」页顶栏右侧齿轮进入，底栏不再有单独设置胶囊。Android 软键盘不缩小窗口，悬浮底栏与创作助手锚点留在屏幕物理底边（可被键盘盖住）；可滚动区与聊天输入框自行按 `viewInsets` 上移避让。
+首页用 `AppNavShell` 四分区（窄屏悬浮胶囊底栏 / 宽屏左侧栏）：**会话** / **故事** / **玩法** / **我**。全局**设置**改在「我」页顶栏右侧齿轮进入，底栏不再有单独设置胶囊。Android 软键盘不缩小窗口，悬浮底栏与创作助手锚点留在屏幕物理底边（可被键盘盖住）；可滚动区与聊天输入框自行按 `viewInsets` 上移避让。输入框失焦或点外侧空白处会收起软键盘（[`AppKeyboardScope`](../lib/foundation/focus/app_keyboard.dart) + 各封装输入框 `onTapOutside`）。
 
 - **会话**：已开启的游玩进度（视觉小说与聊天同一列表；按最近存档时间；副标题带玩法）；切到本页或从故事返回会刷新；点进直接续玩；「更多」可继续游玩 / 打开故事 / 删除这一条（只清进度）；空态「去故事」仍可用。
 - **创作助手**：故事分区及经 [`pushStoryRoute`](../lib/home/story_assistant_navigation.dart) 进栈的子页右下角常驻磨砂图标（与底栏胶囊同款玻璃壳）。点开时由锚点向左上展开为半屏圆角面板（[`CreateAssistantBloomShell`](../lib/home/create_assistant_bloom_shell.dart)）；面板底与圆形按钮之间留一小段间距，[`CreateAssistantBloomOutline`](../lib/home/create_assistant_bloom_outline.dart) 预置一条整体轮廓（面板 + 细腰 + 圆形锚点）模拟水面张力；点遮罩或再点图标收起。锚点与情节画布「加一站」等高（[`AppBottomChromeMetrics`](../lib/foundation/widgets/app_bottom_nav_icon_capsule.dart)），不改动画布右下角工具位置。

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../focus/app_keyboard.dart';
 import '../theme/app_theme.dart';
 import 'app_text.dart';
 
@@ -41,6 +42,7 @@ class AppTextField extends StatelessWidget {
       onChanged: onChanged,
       onEditingComplete: onEditingComplete,
       onSubmitted: onSubmitted,
+      onTapOutside: (_) => AppKeyboard.dismiss(),
       obscureText: obscureText,
       keyboardType: keyboardType ??
           (maxLines != 1 ? TextInputType.multiline : null),

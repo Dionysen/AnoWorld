@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 
+import '../focus/app_keyboard.dart';
 import '../theme/app_chat_chrome.dart';
 import '../theme/app_theme.dart';
 
@@ -67,6 +68,7 @@ class AppChatComposer extends StatelessWidget {
               child: TextField(
                 controller: controller,
                 focusNode: focusNode,
+                onTapOutside: (_) => AppKeyboard.dismiss(),
                 enabled: enabled && !isGenerating,
                 minLines: 1,
                 maxLines: 5,

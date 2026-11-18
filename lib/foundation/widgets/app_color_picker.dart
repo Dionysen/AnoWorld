@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../focus/app_keyboard.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_button.dart';
@@ -117,6 +118,7 @@ class _AppColorPickerDialogState extends State<_AppColorPickerDialog> {
                 Expanded(
                   child: TextField(
                     controller: _hex,
+                    onTapOutside: (_) => AppKeyboard.dismiss(),
                     maxLength: 7,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(

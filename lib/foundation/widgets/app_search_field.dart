@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../focus/app_keyboard.dart';
 import '../theme/app_theme.dart';
 import 'app_icon_button.dart';
 
@@ -35,6 +36,7 @@ class AppSearchField extends StatelessWidget {
         child: TextField(
           controller: controller,
           onChanged: onChanged,
+          onTapOutside: (_) => AppKeyboard.dismiss(),
           textInputAction: TextInputAction.search,
           style: Theme.of(context).textTheme.bodyMedium,
           decoration: InputDecoration(
