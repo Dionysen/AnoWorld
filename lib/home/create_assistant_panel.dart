@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -8,11 +10,19 @@ import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/home/create_assistant_draft.dart';
+import 'package:anoworld/home/create_assistant_draft_store.dart';
 import 'package:flutter/material.dart';
 
 /// Create-assistant conversation body (inside [CreateAssistantBloomShell]).
 class CreateAssistantPanel extends StatefulWidget {
-  const CreateAssistantPanel({super.key});
+  const CreateAssistantPanel({
+    super.key,
+    this.draftStore,
+  });
+
+  /// Injectable for tests; defaults to SharedPreferences-backed store.
+  final CreateAssistantDraftStore? draftStore;
 
   /// Minimum panel height before layout chrome + composer can fit.
   static const minLayoutHeight = 380;
@@ -23,11 +33,76 @@ class CreateAssistantPanel extends StatefulWidget {
 
 class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   final _composer = TextEditingController();
+  late final CreateAssistantDraftStore _store =
+      widget.draftStore ?? CreateAssistantDraftStore();
 
   String? _projectId;
   String _projectTitle = '';
   final List<_AssistantLine> _lines = [];
   bool _loadingStories = false;
+  bool _ready = false;
+  Timer? _composerDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _composer.addListener(_onComposerChanged);
+    unawaited(_restore());
+  }
+
+  Future<void> _restore() async {
+    final draft = await _store.load();
+    if (!mounted) return;
+    setState(() {
+      _projectId = draft.projectId;
+      _projectTitle = draft.projectTitle;
+      _lines
+        ..clear()
+        ..addAll(
+          draft.lines.map(
+            (line) => _AssistantLine(
+              role: line.role == 'user' ? _LineRole.user : _LineRole.assistant,
+              text: line.text,
+            ),
+          ),
+        );
+      _composer.text = draft.composer;
+      _ready = true;
+    });
+    if (!draft.isEmpty) {
+      AppLog.instance.info(
+        '创作助手草稿已恢复（${draft.lines.length} 条）',
+        tag: 'create.assistant',
+      );
+    }
+  }
+
+  void _onComposerChanged() {
+    _composerDebounce?.cancel();
+    _composerDebounce = Timer(const Duration(milliseconds: 400), () {
+      unawaited(_persist());
+    });
+  }
+
+  CreateAssistantDraft _snapshot() {
+    return CreateAssistantDraft(
+      projectId: _projectId,
+      projectTitle: _projectTitle,
+      composer: _composer.text,
+      lines: [
+        for (final line in _lines)
+          CreateAssistantDraftLine(
+            role: line.role == _LineRole.user ? 'user' : 'assistant',
+            text: line.text,
+          ),
+      ],
+    );
+  }
+
+  Future<void> _persist() async {
+    if (!_ready) return;
+    await _store.save(_snapshot());
+  }
 
   Future<void> _pickStory() async {
     setState(() => _loadingStories = true);
@@ -71,6 +146,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
         _projectId = summary.id;
         _projectTitle = summary.title;
       });
+      await _persist();
       AppLog.instance.info('创作助手选中故事：${summary.title}', tag: 'create.assistant');
     } catch (error, stack) {
       if (!mounted) return;
@@ -93,10 +169,11 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       _lines.add(
         const _AssistantLine(
           role: _LineRole.assistant,
-          text: '创作助手还在接入，暂时无法代写。你可以先在故事页里改设定与角色',
+          text: '创作助手还在完善，暂时没法代写。可以先在故事页改设定与角色',
         ),
       );
     });
+    unawaited(_persist());
     AppLog.instance.info(
       '创作助手消息（${_projectId ?? '未选故事'}）',
       tag: 'create.assistant',
@@ -105,6 +182,10 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 
   @override
   void dispose() {
+    _composerDebounce?.cancel();
+    _composer.removeListener(_onComposerChanged);
+    // Best-effort flush; store handles errors.
+    unawaited(_store.save(_snapshot()));
     _composer.dispose();
     super.dispose();
   }
@@ -172,50 +253,50 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
                 );
               }
               return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.pagePadding,
-                    vertical: AppTheme.spaceSm,
-                  ),
-                  itemCount: _lines.length,
-                  itemBuilder: (context, index) {
-                    final line = _lines[index];
-                    final isUser = line.role == _LineRole.user;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
-                      child: Align(
-                        alignment: isUser
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.sizeOf(context).width * 0.72,
-                          ),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: isUser
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer
-                                  : Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHigh,
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusMd,
-                              ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.pagePadding,
+                  vertical: AppTheme.spaceSm,
+                ),
+                itemCount: _lines.length,
+                itemBuilder: (context, index) {
+                  final line = _lines[index];
+                  final isUser = line.role == _LineRole.user;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
+                    child: Align(
+                      alignment: isUser
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.sizeOf(context).width * 0.72,
+                        ),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: isUser
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMd,
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(AppTheme.spaceSm),
-                              child: AppText(
-                                line.text,
-                                role: AppTextRole.body,
-                              ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppTheme.spaceSm),
+                            child: AppText(
+                              line.text,
+                              role: AppTextRole.body,
                             ),
                           ),
                         ),
                       ),
-                    );
-                  },
-                );
+                    ),
+                  );
+                },
+              );
             },
           ),
         ),

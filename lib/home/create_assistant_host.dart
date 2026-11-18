@@ -1,3 +1,4 @@
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
 import 'package:anoworld/home/create_assistant_bloom_shell.dart';
 import 'package:anoworld/home/create_assistant_panel.dart';
@@ -29,11 +30,13 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
   Future<void> _openBloom() async {
     if (_open) return;
     setState(() => _open = true);
+    AppLog.instance.info('创作助手展开', tag: 'create.assistant');
     await _bloom.forward();
   }
 
   Future<void> _closeBloom() async {
     if (!_open && _bloom.value == 0) return;
+    AppLog.instance.info('创作助手收起', tag: 'create.assistant');
     await _bloom.reverse();
     if (!mounted) return;
     setState(() => _open = false);
@@ -45,6 +48,12 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
     } else {
       _openBloom();
     }
+  }
+
+  void _dismissFromOutside() {
+    if (!_open) return;
+    AppLog.instance.info('创作助手点外侧收起', tag: 'create.assistant');
+    _closeBloom();
   }
 
   @override
@@ -71,10 +80,12 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
       children: [
         widget.child,
         if (_showBloom) ...[
+          // Full-screen dismiss layer under the bloom (pointer-down so it
+          // wins over competing scroll/gesture arenas).
           Positioned.fill(
-            child: GestureDetector(
+            child: Listener(
               behavior: HitTestBehavior.opaque,
-              onTap: _closeBloom,
+              onPointerDown: (_) => _dismissFromOutside(),
             ),
           ),
           Positioned(

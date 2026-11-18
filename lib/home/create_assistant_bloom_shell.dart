@@ -8,6 +8,7 @@ import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
 import 'package:anoworld/home/create_assistant_bloom_outline.dart';
 import 'package:anoworld/home/create_assistant_panel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 /// Panel that blooms from the assistant anchor (bottom-right circle → rounded rect).
 class CreateAssistantBloomShell extends StatelessWidget {
@@ -79,15 +80,28 @@ class CreateAssistantBloomShell extends StatelessWidget {
           neckStrength: u,
         );
 
+        // [_PathHitTarget] is the source of truth: empty corners of this box
+        // (below the panel, left of the anchor) must not absorb taps so the
+        // host dismiss barrier can close the assistant.
         return SizedBox(
           width: panelW,
           height: totalH,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CustomPaint(
-                painter: _BloomShadowPainter(path: path, color: shadowColor),
-                child: ClipPath(
+          child: _PathHitTarget(
+            path: path,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Shadow is paint-only; never participates in hit testing.
+                IgnorePointer(
+                  child: CustomPaint(
+                    painter: _BloomShadowPainter(
+                      path: path,
+                      color: shadowColor,
+                    ),
+                    size: Size(panelW, totalH),
+                  ),
+                ),
+                ClipPath(
                   clipper: _BloomShapeClipper(path),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(
@@ -153,18 +167,17 @@ class CreateAssistantBloomShell extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
+                IgnorePointer(
                   child: CustomPaint(
                     painter: _BloomBorderPainter(
                       path: path,
                       color: borderColor,
                     ),
+                    size: Size(panelW, totalH),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -181,6 +194,47 @@ class CreateAssistantBloomShell extends StatelessWidget {
   }
 }
 
+/// Only forwards hits that land inside [path]; otherwise the event falls
+/// through to widgets behind (the dismiss barrier).
+class _PathHitTarget extends SingleChildRenderObjectWidget {
+  const _PathHitTarget({required this.path, required super.child});
+
+  final Path path;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderPathHitTarget(path);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderPathHitTarget renderObject,
+  ) {
+    renderObject.path = path;
+  }
+}
+
+class _RenderPathHitTarget extends RenderProxyBox {
+  _RenderPathHitTarget(this._path);
+
+  Path _path;
+
+  Path get path => _path;
+
+  set path(Path value) {
+    if (identical(_path, value)) return;
+    _path = value;
+    // Hit-test only; no repaint needed.
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!_path.contains(position)) return false;
+    return super.hitTest(result, position: position);
+  }
+}
+
 class _BloomShapeClipper extends CustomClipper<Path> {
   _BloomShapeClipper(this.path);
 
@@ -190,7 +244,11 @@ class _BloomShapeClipper extends CustomClipper<Path> {
   Path getClip(Size size) => path;
 
   @override
-  bool shouldReclip(covariant _BloomShapeClipper oldClipper) => true;
+  bool hitTest(Offset position) => path.contains(position);
+
+  @override
+  bool shouldReclip(covariant _BloomShapeClipper oldClipper) =>
+      oldClipper.path != path;
 }
 
 class _BloomBorderPainter extends CustomPainter {
@@ -212,6 +270,9 @@ class _BloomBorderPainter extends CustomPainter {
         ..isAntiAlias = true,
     );
   }
+
+  @override
+  bool? hitTest(Offset position) => false;
 
   @override
   bool shouldRepaint(covariant _BloomBorderPainter oldDelegate) {
@@ -240,6 +301,9 @@ class _BloomShadowPainter extends CustomPainter {
       )
       ..restore();
   }
+
+  @override
+  bool? hitTest(Offset position) => false;
 
   @override
   bool shouldRepaint(covariant _BloomShadowPainter oldDelegate) {
