@@ -1,14 +1,11 @@
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
+import 'package:anoworld/home/create_assistant_bloom_shell.dart';
 import 'package:anoworld/home/create_assistant_panel.dart';
 import 'package:flutter/material.dart';
 
-/// Story-flow chrome: assistant anchored on the bottom-nav seam (absolute).
+/// Story-flow chrome: assistant blooms from the bottom-right anchor.
 class CreateAssistantHost extends StatefulWidget {
-  const CreateAssistantHost({
-    super.key,
-    required this.child,
-  });
+  const CreateAssistantHost({super.key, required this.child});
 
   final Widget child;
 
@@ -16,67 +13,89 @@ class CreateAssistantHost extends StatefulWidget {
   State<CreateAssistantHost> createState() => CreateAssistantHostState();
 }
 
-class CreateAssistantHostState extends State<CreateAssistantHost> {
-  final _panelKey = GlobalKey<CreateAssistantPanelState>();
+class CreateAssistantHostState extends State<CreateAssistantHost>
+    with SingleTickerProviderStateMixin {
+  static const _duration = Duration(milliseconds: 520);
+
+  late final AnimationController _bloom = AnimationController(
+    vsync: this,
+    duration: _duration,
+  );
+
   bool _open = false;
 
-  void _toggle() {
-    if (_open) {
-      _panelKey.currentState?.dismiss();
-      return;
-    }
+  bool get _showBloom => _open || _bloom.isAnimating;
+
+  Future<void> _openBloom() async {
+    if (_open) return;
     setState(() => _open = true);
+    await _bloom.forward();
   }
 
-  void _onDismissed() {
-    if (!_open) return;
+  Future<void> _closeBloom() async {
+    if (!_open && _bloom.value == 0) return;
+    await _bloom.reverse();
+    if (!mounted) return;
     setState(() => _open = false);
   }
 
-  void _close() => _panelKey.currentState?.dismiss();
+  void _toggleAnchor() {
+    if (_open) {
+      _closeBloom();
+    } else {
+      _openBloom();
+    }
+  }
+
+  @override
+  void dispose() {
+    _bloom.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final panel = _open
-        ? CreateAssistantPanel(
-            key: _panelKey,
-            onDismiss: _onDismissed,
-          )
-        : null;
+    final anchorBottom = AppBottomChromeMetrics.assistantButtonBottom(context);
+    final anchorRight = AppBottomChromeMetrics.assistantButtonRight;
+    final showCollapsedButton = !_showBloom;
 
     return Stack(
       fit: StackFit.expand,
       clipBehavior: Clip.none,
       children: [
         widget.child,
-        if (_open) ...[
+        if (_showBloom) ...[
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: _close,
+              onTap: _closeBloom,
             ),
           ),
           Positioned(
-            left: AppTheme.sheetInset,
-            right: AppTheme.sheetInset,
-            bottom: AppBottomChromeMetrics.dockedPanelBottom(context),
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: panel,
+            right: anchorRight,
+            bottom: anchorBottom,
+            child: CreateAssistantBloomShell(
+              progress: _bloom,
+              onTapAnchor: _toggleAnchor,
+              child: const CreateAssistantPanel(),
             ),
           ),
         ],
-        Positioned(
-          right: AppBottomChromeMetrics.assistantButtonRight,
-          bottom: AppBottomChromeMetrics.assistantButtonBottom(context),
-          child: AppBottomNavIconCapsule(
-            icon: Icons.auto_awesome_outlined,
-            selectedIcon: Icons.auto_awesome,
-            selected: _open,
-            tooltip: '创作助手',
-            onPressed: _toggle,
+        if (showCollapsedButton)
+          Positioned(
+            right: anchorRight,
+            bottom: anchorBottom,
+            child: AppBottomNavIconCapsule(
+              icon: Icons.auto_awesome_outlined,
+              selectedIcon: Icons.auto_awesome,
+              tooltip: '创作助手',
+              onPressed: () {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _openBloom();
+                });
+              },
+            ),
           ),
-        ),
       ],
     );
   }

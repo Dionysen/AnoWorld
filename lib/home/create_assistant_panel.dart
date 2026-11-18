@@ -2,7 +2,6 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
-import 'package:anoworld/foundation/widgets/app_docked_panel.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
@@ -11,14 +10,12 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/material.dart';
 
-/// Docked create-assistant shell (P1：占位对话，后续接 CreateAgentRunner).
+/// Create-assistant conversation body (inside [CreateAssistantBloomShell]).
 class CreateAssistantPanel extends StatefulWidget {
-  const CreateAssistantPanel({
-    super.key,
-    required this.onDismiss,
-  });
+  const CreateAssistantPanel({super.key});
 
-  final VoidCallback onDismiss;
+  /// Minimum panel height before layout chrome + composer can fit.
+  static const minLayoutHeight = 380;
 
   @override
   State<CreateAssistantPanel> createState() => CreateAssistantPanelState();
@@ -26,14 +23,11 @@ class CreateAssistantPanel extends StatefulWidget {
 
 class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   final _composer = TextEditingController();
-  final _panelKey = GlobalKey<AppDockedPanelState>();
 
   String? _projectId;
   String _projectTitle = '';
   final List<_AssistantLine> _lines = [];
   bool _loadingStories = false;
-
-  Future<void> dismiss() => _panelKey.currentState?.dismiss() ?? Future.value();
 
   Future<void> _pickStory() async {
     setState(() => _loadingStories = true);
@@ -120,99 +114,122 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     final storyLabel =
         _projectTitle.trim().isEmpty ? '未选择' : _projectTitle.trim();
 
-    return AppDockedPanel(
-      key: _panelKey,
-      heightFactor: 0.58,
-      onDismiss: widget.onDismiss,
-      header: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          0,
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxHeight < CreateAssistantPanel.minLayoutHeight) {
+          return const SizedBox.shrink();
+        }
+        return _buildBody(context, storyLabel);
+      },
+    );
+  }
+
+  Widget _buildBody(BuildContext context, String storyLabel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePadding,
+            AppTheme.spaceSm,
+            AppTheme.pagePadding,
+            AppTheme.spaceXs,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppText('创作助手', role: AppTextRole.subtitle),
+              const SizedBox(height: AppTheme.spaceXs),
+              const AppText(
+                '选一个故事，再在这里说你想改什么',
+                role: AppTextRole.caption,
+              ),
+              const SizedBox(height: AppTheme.spaceSm),
+              AppSelectField(
+                label: '当前故事',
+                value: storyLabel,
+                hint: '点选故事',
+                onTap: _loadingStories ? null : _pickStory,
+              ),
+            ],
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppText('创作助手', role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '选一个故事，再在这里说你想改什么',
-              role: AppTextRole.caption,
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppSelectField(
-              label: '当前故事',
-              value: storyLabel,
-              hint: '点选故事',
-              onTap: _loadingStories ? null : _pickStory,
-            ),
-          ],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _lines.isEmpty
-                ? const Center(
-                    child: AppEmptyState(
-                      message: '说说想补哪段设定或角色',
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (_lines.isEmpty) {
+                if (constraints.maxHeight < 48) {
+                  return const SizedBox.shrink();
+                }
+                if (constraints.maxHeight < 96) {
+                  return const Center(
+                    child: AppText(
+                      '说说想补哪段设定或角色',
+                      role: AppTextRole.caption,
+                      textAlign: TextAlign.center,
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.pagePadding,
-                      vertical: AppTheme.spaceSm,
-                    ),
-                    itemCount: _lines.length,
-                    itemBuilder: (context, index) {
-                      final line = _lines[index];
-                      final isUser = line.role == _LineRole.user;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
-                        child: Align(
-                          alignment: isUser
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: MediaQuery.sizeOf(context).width * 0.82,
-                            ),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: isUser
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHigh,
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusMd,
-                                ),
+                  );
+                }
+                return const Center(
+                  child: AppEmptyState(
+                    message: '说说想补哪段设定或角色',
+                  ),
+                );
+              }
+              return ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.pagePadding,
+                    vertical: AppTheme.spaceSm,
+                  ),
+                  itemCount: _lines.length,
+                  itemBuilder: (context, index) {
+                    final line = _lines[index];
+                    final isUser = line.role == _LineRole.user;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
+                      child: Align(
+                        alignment: isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.sizeOf(context).width * 0.72,
+                          ),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: isUser
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusMd,
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(AppTheme.spaceSm),
-                                child: AppText(
-                                  line.text,
-                                  role: AppTextRole.body,
-                                ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(AppTheme.spaceSm),
+                              child: AppText(
+                                line.text,
+                                role: AppTextRole.body,
                               ),
                             ),
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                );
+            },
           ),
-          AppChatComposer(
-            controller: _composer,
-            hintText: '想创作或整理什么…',
-            onSend: _send,
-          ),
-        ],
-      ),
+        ),
+        AppChatComposer(
+          controller: _composer,
+          hintText: '想创作或整理什么…',
+          onSend: _send,
+        ),
+      ],
     );
   }
 }
