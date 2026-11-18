@@ -14,6 +14,8 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/home/home_nav.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
+import 'package:anoworld/home/me_tab.dart';
+import 'package:anoworld/home/play_modes_tab.dart';
 import 'package:anoworld/home/saves_tab.dart';
 import 'package:anoworld/home/works_tab.dart';
 import 'package:anoworld/settings/settings_page.dart';
@@ -33,7 +35,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  HomeTab _tab = HomeTab.saves;
+  HomeTab _tab = HomeTab.sessions;
   final _savesSelection = LibrarySelectionController();
   final _worksSelection = LibrarySelectionController();
   final _savesKey = GlobalKey<SavesTabState>();
@@ -46,8 +48,11 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  LibrarySelectionController get _activeSelection =>
-      _tab == HomeTab.saves ? _savesSelection : _worksSelection;
+  LibrarySelectionController? get _activeSelection => switch (_tab) {
+        HomeTab.sessions => _savesSelection,
+        HomeTab.stories => _worksSelection,
+        HomeTab.playModes || HomeTab.me => null,
+      };
 
   Future<void> _openRoute(Widget page) async {
     await Navigator.of(context).push(
@@ -69,7 +74,7 @@ class _HomePageState extends State<HomePage> {
     _savesSelection.exit();
     _worksSelection.exit();
     setState(() => _tab = next);
-    if (next == HomeTab.saves) {
+    if (next == HomeTab.sessions) {
       _savesKey.currentState?.reload();
     }
   }
@@ -234,7 +239,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _titleSwitcher(String text) {
     // Key by visible text only — folder enter/exit keeps「故事」and must not
-    // remount / flash. Real title changes (存档↔故事、多选计数) fade.
+    // remount / flash. Real title changes (分区标题、多选计数) fade.
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 180),
       switchInCurve: Curves.easeOut,
@@ -253,30 +258,35 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final selection = _activeSelection;
-    final selectionMode = selection.selectionMode;
+    final selectionMode = selection?.selectionMode ?? false;
     final works = _worksKey.currentState;
 
-    final titleText = selectionMode
+    final titleText = selectionMode && selection != null
         ? (selection.selectedCount == 0
             ? '选择项目'
             : '已选 ${selection.selectedCount} 项')
-        : (_tab == HomeTab.saves ? '存档' : '故事');
+        : switch (_tab) {
+            HomeTab.sessions => '会话',
+            HomeTab.stories => '故事',
+            HomeTab.playModes => '玩法',
+            HomeTab.me => '我',
+          };
 
     final List<Widget> actions;
-    if (selectionMode) {
+    if (selectionMode && selection != null) {
       actions = [
         AppIconButton(
           icon: selection.hasSelection ? Icons.deselect : Icons.select_all,
           tooltip: selection.hasSelection ? '取消全选' : '全选',
           onPressed: () {
-            if (_tab == HomeTab.saves) {
+            if (_tab == HomeTab.sessions) {
               _selectAllSaves();
             } else {
               _worksKey.currentState?.toggleSelectAllVisible();
             }
           },
         ),
-        if (selection.hasSelection && _tab == HomeTab.works)
+        if (selection.hasSelection && _tab == HomeTab.stories)
           AppIconButton(
             icon: Icons.drive_file_move_outline,
             tooltip: '移到文件夹',
@@ -287,7 +297,7 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.delete_outline,
             tooltip: '删除',
             onPressed: () async {
-              if (_tab == HomeTab.saves) {
+              if (_tab == HomeTab.sessions) {
                 await _savesKey.currentState?.deleteSelected();
               } else {
                 await _worksKey.currentState?.deleteSelected();
@@ -295,7 +305,15 @@ class _HomePageState extends State<HomePage> {
             },
           ),
       ];
-    } else if (_tab == HomeTab.works) {
+    } else if (_tab == HomeTab.me) {
+      actions = [
+        AppIconButton(
+          icon: Icons.settings_outlined,
+          tooltip: '设置',
+          onPressed: () => _openRoute(const SettingsPage()),
+        ),
+      ];
+    } else if (_tab == HomeTab.stories) {
       actions = [
         AppIconButton(
           icon: Icons.folder_open,
@@ -308,7 +326,7 @@ class _HomePageState extends State<HomePage> {
           onPressed: _showWorksMore,
         ),
       ];
-    } else {
+    } else if (_tab == HomeTab.sessions) {
       actions = [
         AppIconButton(
           icon: Icons.checklist,
@@ -319,18 +337,20 @@ class _HomePageState extends State<HomePage> {
           },
         ),
       ];
+    } else {
+      actions = const [];
     }
 
     return PopScope(
       canPop: !selectionMode && (works?.browsePath.isEmpty ?? true),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (_tab == HomeTab.works &&
+        if (_tab == HomeTab.stories &&
             (_worksKey.currentState?.handleSystemBack() ?? false)) {
           setState(() {});
           return;
         }
-        if (selectionMode) {
+        if (selectionMode && selection != null) {
           selection.exit();
           setState(() {});
         }
@@ -341,28 +361,31 @@ class _HomePageState extends State<HomePage> {
           return AppPage(
         title: titleText,
         titleWidget: _titleSwitcher(titleText),
-        onBack: selectionMode
+        onBack: selectionMode && selection != null
             ? () {
                 selection.exit();
                 setState(() {});
               }
-            : (_tab == HomeTab.works && (works?.browsePath.isNotEmpty ?? false)
+            : (_tab == HomeTab.stories &&
+                    (works?.browsePath.isNotEmpty ?? false)
                 ? () {
                     _worksKey.currentState?.handleSystemBack();
                     setState(() {});
                   }
                 : null),
         actions: actions,
-        floatingActionButton: selectionMode
+        floatingActionButton: selectionMode ||
+                _tab == HomeTab.playModes ||
+                _tab == HomeTab.me
             ? null
             : SizedBox.square(
                 dimension: AppCircleButton.fabDiameter,
                 child: AppCircleButton.fab(
                   icon: Icons.add,
-                  tooltip: _tab == HomeTab.saves ? '去故事列表' : '开始创作',
+                  tooltip: _tab == HomeTab.sessions ? '去故事' : '开始创作',
                   onPressed: () {
-                    if (_tab == HomeTab.saves) {
-                      _selectTab(HomeTab.works.tabIndex);
+                    if (_tab == HomeTab.sessions) {
+                      _selectTab(HomeTab.stories.tabIndex);
                     } else {
                       _showCreateSheet();
                     }
@@ -377,19 +400,13 @@ class _HomePageState extends State<HomePage> {
           selectedIndex: _tab.tabIndex,
           onDestinationSelected: _selectTab,
           railTopInset: 0,
-          bottomNavExtra: AppBottomNavExtraCapsule(
-            icon: Icons.settings_outlined,
-            selectedIcon: Icons.settings,
-            label: '设置',
-            onPressed: () => _openRoute(const SettingsPage()),
-          ),
           body: IndexedStack(
             index: _tab.tabIndex,
             children: [
               SavesTab(
                 key: _savesKey,
                 selection: _savesSelection,
-                onBrowseWorks: () => _selectTab(HomeTab.works.tabIndex),
+                onBrowseWorks: () => _selectTab(HomeTab.stories.tabIndex),
                 onSelectionChromeChanged: () => setState(() {}),
               ),
               WorksTab(
@@ -399,6 +416,8 @@ class _HomePageState extends State<HomePage> {
                 onSelectionChromeChanged: () => setState(() {}),
                 onBrowsePathChanged: (_) => setState(() {}),
               ),
+              const PlayModesTab(),
+              const MeTab(),
             ],
           ),
         ),

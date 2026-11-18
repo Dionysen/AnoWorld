@@ -18,13 +18,15 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('home shows bottom nav for saves and works', (tester) async {
+  testWidgets('home shows four bottom nav destinations', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('存档'), findsWidgets);
+    expect(find.text('会话'), findsWidgets);
     expect(find.text('故事'), findsWidgets);
-    expect(find.text('还没有存档'), findsOneWidget);
+    expect(find.text('玩法'), findsWidgets);
+    expect(find.text('我'), findsWidgets);
+    expect(find.text('还没有进行中的会话'), findsOneWidget);
   });
 
   testWidgets('works tab lists seeded projects and opens hub', (tester) async {
@@ -96,15 +98,17 @@ void main() {
     expect(find.byTooltip('开始游玩'), findsOneWidget);
   });
 
-  testWidgets('settings capsule opens settings with section nav', (tester) async {
+  testWidgets('me tab settings opens settings with section nav', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 720));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-  expect(find.byTooltip('设置'), findsNothing);
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    expect(find.byTooltip('设置'), findsNothing);
+    await tester.tap(find.text('我').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
 
     expect(find.text('设置'), findsWidgets);

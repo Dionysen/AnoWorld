@@ -281,7 +281,7 @@ class SavesTabState extends State<SavesTab> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppSearchField(
-          hint: '搜索存档',
+          hint: '搜索会话',
           controller: _searchController,
           onChanged: (value) => setState(() => _query = value),
           onClear: () {
@@ -312,14 +312,14 @@ class SavesTabState extends State<SavesTab> {
                             padding: const EdgeInsets.all(AppTheme.pagePadding),
                             child: AppEmptyState(
                               message: _query.trim().isEmpty
-                                  ? '还没有存档'
-                                  : '没有匹配的存档',
+                                  ? '还没有进行中的会话'
+                                  : '没有匹配的会话',
                               detail: _query.trim().isEmpty
-                                  ? '在故事里开始游玩后会出现在这里'
+                                  ? '开玩视觉小说或聊天后会出现在这里'
                                   : '换个关键词试试',
                               action: _query.trim().isEmpty
                                   ? AppButton(
-                                      label: '去故事列表',
+                                      label: '去故事',
                                       onPressed: widget.onBrowseWorks,
                                       variant: AppButtonVariant.secondary,
                                     )
