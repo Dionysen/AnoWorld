@@ -170,7 +170,7 @@
 
 | 入口 | 用户在改什么 | 编辑页 |
 | --- | --- | --- |
-| 世界书 | 世界事实条目：常驻或关键词唤起 | [`WorldBookEditorPage`](../lib/create/world_book_editor_page.dart) |
+| 世界书 | 世界事实条目：常驻或关键词唤起；长按多选批量删；编辑抽屉右上保存 | [`WorldBookEditorPage`](../lib/create/world_book_editor_page.dart) |
 | 角色 | 姓名、简介、性格等；**至多勾一名主角** | [`CastEditorPage`](../lib/create/cast_editor_page.dart) |
 | 情节走向 | 大站与分支（原节点画布） | [`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart) |
 
