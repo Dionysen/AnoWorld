@@ -9,6 +9,7 @@ import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/persona/user_persona.dart';
 import 'package:anoworld/foundation/fonts/file_system_font_repository.dart';
 import 'package:anoworld/foundation/fonts/system_font.dart';
@@ -216,6 +217,7 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setActivePersona(String id) async {
     if (!personas.personas.any((p) => p.id == id)) return;
+    AppLog.instance.info('切换当前身份：$id', tag: 'persona');
     await updatePersonas(personas.copyWith(activePersonaId: id));
   }
 
@@ -235,6 +237,7 @@ class SettingsController extends ChangeNotifier {
     await updatePersonas(
       next.copyWith(activePersonaId: persona.id),
     );
+    AppLog.instance.info('添加身份：${persona.id}', tag: 'persona');
     return persona;
   }
 
@@ -245,14 +248,22 @@ class SettingsController extends ChangeNotifier {
           : p;
     }).toList(growable: false);
     await updatePersonas(personas.copyWith(personas: list));
+    AppLog.instance.info('保存身份：${persona.id}', tag: 'persona');
   }
 
   Future<void> deletePersona(String id) async {
     final target = personas.personas.where((p) => p.id == id).firstOrNull;
-    if (target == null || target.isDefault) return;
+    if (target == null || target.isDefault) {
+      AppLog.instance.warning(
+        '无法删除身份：$id',
+        tag: 'persona',
+      );
+      return;
+    }
     final list =
         personas.personas.where((p) => p.id != id).toList(growable: false);
     await updatePersonas(personas.withPersonas(list));
+    AppLog.instance.info('删除身份：$id', tag: 'persona');
   }
 
   Future<void> setDefaultPersona(String id) async {

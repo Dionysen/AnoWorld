@@ -1,8 +1,11 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/persona/user_persona.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_sheet.dart';
+import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 
@@ -21,6 +24,7 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
   late final TextEditingController _system;
   late final TextEditingController _postHistory;
   bool _saving = false;
+  bool _deleting = false;
 
   @override
   void initState() {
@@ -42,7 +46,7 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || _deleting) return;
     final controller = AppScope.settingsOf(context);
     final existing = widget.persona;
     final name = _name.text.trim();
@@ -81,16 +85,87 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
         );
       }
       if (mounted) Navigator.of(context).maybePop();
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '保存身份失败',
+        tag: 'persona.edit',
+        error: error,
+        stackTrace: stack,
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final existing = widget.persona;
+    if (existing == null || existing.isDefault || _saving || _deleting) return;
+    final confirmed = await showAppSheet<bool>(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.pagePadding,
+          AppTheme.spaceSm,
+          AppTheme.pagePadding,
+          AppTheme.pagePadding,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppText('删除「${existing.name}」？', role: AppTextRole.subtitle),
+            const SizedBox(height: AppTheme.spaceXs),
+            const AppText(
+              '删掉后不能恢复',
+              role: AppTextRole.caption,
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: '取消',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spaceSm),
+                Expanded(
+                  child: AppButton(
+                    label: '删除',
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deleting = true);
+    try {
+      await AppScope.settingsOf(context).deletePersona(existing.id);
+      if (mounted) Navigator.of(context).maybePop();
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '删除身份失败',
+        tag: 'persona.edit',
+        error: error,
+        stackTrace: stack,
+      );
+    } finally {
+      if (mounted) setState(() => _deleting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final editing = widget.persona != null;
+    final canDelete = editing && !(widget.persona?.isDefault ?? true);
+    final busy = _saving || _deleting;
     return AppPage(
-      title: editing ? '编辑身份' : '新建身份',
+      title: editing ? '编辑身份' : '添加身份',
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody(
         children: [
@@ -101,7 +176,7 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '身份说明',
+            label: '简介',
             controller: _description,
             minLines: 3,
             maxLines: 8,
@@ -109,26 +184,35 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '专用系统说明',
+            label: '专用说明',
             controller: _system,
             minLines: 2,
             maxLines: 6,
-            hint: '可选，沿用酒馆写法',
+            hint: '可选，额外告诉模型的身份设定',
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '历史后说明',
+            label: '补充说明',
             controller: _postHistory,
             minLines: 2,
             maxLines: 6,
-            hint: '可选，对应 jailbreak 段',
+            hint: '可选，对话后追加的提醒',
           ),
           const SizedBox(height: AppTheme.spaceLg),
           AppButton(
             label: _saving ? '保存中…' : '保存',
             expanded: true,
-            onPressed: _saving ? null : _save,
+            onPressed: busy ? null : _save,
           ),
+          if (canDelete) ...[
+            const SizedBox(height: AppTheme.spaceMd),
+            AppButton(
+              label: _deleting ? '删除中…' : '删除',
+              variant: AppButtonVariant.secondary,
+              expanded: true,
+              onPressed: busy ? null : _delete,
+            ),
+          ],
         ],
       ),
     );

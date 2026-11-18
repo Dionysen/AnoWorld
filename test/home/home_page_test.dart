@@ -120,6 +120,24 @@ void main() {
     expect(find.text('关于'), findsWidgets);
   });
 
+  testWidgets('me tab current user opens persona hub', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('我').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('User'), findsOneWidget);
+    await tester.tap(find.text('User'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('玩家身份'), findsWidgets);
+    expect(find.text('添加身份'), findsOneWidget);
+  });
+
   testWidgets('create entry opens from works sheet', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
