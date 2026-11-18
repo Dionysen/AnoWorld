@@ -11,6 +11,7 @@ import 'package:anoworld/domain/card_import/card_organize_mapper.dart';
 import 'package:anoworld/domain/card_import/card_organize_models.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 
 class CardOrganizeAction {
   CardOrganizeAction({
@@ -47,6 +48,10 @@ class CardOrganizeAction {
     }
 
     final user = _buildUserMessage(draft, sourceRows);
+    AppLog.instance.info(
+      '开始分类整理：世界书 ${draft.worldBookItems.length} 条，角色 ${draft.castItems.length} 个',
+      tag: 'card.organize',
+    );
 
     Object? lastError;
     try {
@@ -57,18 +62,46 @@ class CardOrganizeAction {
         generation: ctx.generation,
         user: user,
       );
-      if (_isUsefulProposal(llm)) return llm;
-    } catch (error) {
+      if (_isUsefulProposal(llm)) {
+        AppLog.instance.info(
+          '模型整理完成：${llm.changes.length} 条变更',
+          tag: 'card.organize',
+        );
+        return llm;
+      }
+      AppLog.instance.warning(
+        '模型结果不可用，尝试规则整理',
+        tag: 'card.organize',
+      );
+    } catch (error, stack) {
       lastError = error;
+      AppLog.instance.error(
+        '模型整理失败',
+        tag: 'card.organize',
+        error: error,
+        stackTrace: stack,
+      );
     }
 
     final ruleOps = heuristic.buildOperations(draft);
     if (ruleOps.isNotEmpty) {
       try {
         final ruled = mapper.applyOperations(draft, ruleOps);
-        if (ruled.changes.isNotEmpty) return ruled;
-      } catch (error) {
+        if (ruled.changes.isNotEmpty) {
+          AppLog.instance.info(
+            '规则整理完成：${ruled.changes.length} 条变更',
+            tag: 'card.organize',
+          );
+          return ruled;
+        }
+      } catch (error, stack) {
         lastError = error;
+        AppLog.instance.error(
+          '规则整理失败',
+          tag: 'card.organize',
+          error: error,
+          stackTrace: stack,
+        );
       }
     }
 

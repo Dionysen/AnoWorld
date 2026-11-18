@@ -10,6 +10,7 @@ import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/card_import/st_character_card_parser.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
@@ -114,20 +115,36 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
         _busy = false;
         _status = '已读入 ${cards.length} 张卡，可勾选要留下的内容';
       });
+      AppLog.instance.info(
+        '读入角色卡 ${cards.length} 张 → ${draft.title}',
+        tag: 'card.import',
+      );
     } on StCharacterCardParseException catch (error) {
       if (!mounted) return;
+      AppLog.instance.warning(error.message, tag: 'card.import');
       setState(() {
         _busy = false;
         _status = error.message;
       });
     } on PlatformException catch (error) {
       if (!mounted) return;
+      AppLog.instance.error(
+        '读卡平台异常',
+        tag: 'card.import',
+        error: error,
+      );
       setState(() {
         _busy = false;
         _status = _platformReadError(error);
       });
-    } catch (error) {
+    } catch (error, stack) {
       if (!mounted) return;
+      AppLog.instance.error(
+        '读卡失败',
+        tag: 'card.import',
+        error: error,
+        stackTrace: stack,
+      );
       setState(() {
         _busy = false;
         _status = '读卡失败：$error';
@@ -238,12 +255,19 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       }
     } on CardOrganizeException catch (error) {
       if (!mounted) return;
+      AppLog.instance.warning(error.message, tag: 'card.import');
       setState(() {
         _busy = false;
         _status = error.message;
       });
-    } catch (error) {
+    } catch (error, stack) {
       if (!mounted) return;
+      AppLog.instance.error(
+        '整理失败',
+        tag: 'card.import',
+        error: error,
+        stackTrace: stack,
+      );
       setState(() {
         _busy = false;
         _status = '整理失败：$error';

@@ -1,0 +1,53 @@
+---
+description: 新功能或改行为时按需接入 AppLog（info / warning / error，带 tag）
+alwaysApply: true
+---
+
+# 诊断日志（AppLog）
+
+基础设施：[`lib/foundation/logging/app_log.dart`](mdc:lib/foundation/logging/app_log.dart)（`AppLog.instance`）。Debug 下缓冲 + 应用内 **设置 → 通用 → 高级 → 诊断日志**；控制台同步输出。Release 仅 **error** 写控制台，不落内存缓冲。
+
+## 何时必须加
+
+新增或修改**用户可感知流程、IO、网络/AI 调用、导入导出、持久化、多步骤管线**时，在同一轮改动里补上日志（不是事后补）：
+
+| 级别 | 用途 |
+| --- | --- |
+| `info` | 流程开始/成功结束、关键分支结果（用简短可读文案，不要贴整段 prompt/正文） |
+| `warning` | 可预期失败、用户可恢复（校验不通过、空结果、降级到备用路径） |
+| `error` | 非预期异常；`catch` 里带 `error:` 与 `stackTrace:` |
+
+## tag 约定
+
+- 用小写点分：`card.import`、`card.organize`、`create.tool`、`play.chat`、`lifecycle`
+- 同一模块复用同一 tag，便于筛日志
+
+## 写法示例
+
+```dart
+AppLog.instance.info('开始分类整理：世界书 $n 条', tag: 'card.organize');
+
+AppLog.instance.warning('模型未返回有效操作，尝试规则整理', tag: 'card.organize');
+
+try {
+  // ...
+} catch (error, stack) {
+  AppLog.instance.error(
+    '读卡失败',
+    tag: 'card.import',
+    error: error,
+    stackTrace: stack,
+  );
+  rethrow; // 或转为用户可见错误，按现有页面习惯
+}
+```
+
+## 禁止
+
+- 密钥、完整 API Key、完整请求/响应 body、角色卡全文
+- 高频循环内 `info`（每 token、每帧）
+- 用 `print` / 裸 `debugPrint` 代替 `AppLog`（全局错误钩子除外）
+
+## 自检
+
+离开任务前问：这条改动若用户报「没反应 / 报错」，仅靠 **诊断日志** 能否看出走到哪一步、失败原因？不能则补 `info` 或 `error`。

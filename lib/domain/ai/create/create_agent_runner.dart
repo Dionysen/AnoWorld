@@ -1,6 +1,7 @@
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_registry.dart';
 import 'package:anoworld/domain/ai/create/create_tool_result.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 
 class CreatePipelineStepResult {
   const CreatePipelineStepResult({
@@ -27,8 +28,16 @@ class CreateAgentRunner {
     required String toolName,
     required CreateToolContext ctx,
     Map<String, dynamic> args = const {},
-  }) {
-    return _registry.invoke(toolName, ctx, args: args);
+  }) async {
+    AppLog.instance.info('调用 $toolName', tag: 'create.tool');
+    final result = await _registry.invoke(toolName, ctx, args: args);
+    if (!result.ok) {
+      AppLog.instance.warning(
+        '$toolName：${result.errorMessage ?? '失败'}',
+        tag: 'create.tool',
+      );
+    }
+    return result;
   }
 
   Future<List<CreatePipelineStepResult>> runPipeline({

@@ -1,16 +1,43 @@
-import 'package:anoworld/foundation/widgets/app_empty_state.dart';
+import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/settings/advanced_settings_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// General settings section (placeholder until more global prefs land).
+/// General settings section.
 class GeneralSettingsPanel extends StatelessWidget {
   const GeneralSettingsPanel({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const AppPageGutter(
-      child: AppEmptyState(
-        message: '这里还没有可改的选项',
+    if (!kDebugMode) {
+      return const AppPageGutter(
+        child: AppSectionHeader(
+          '通用',
+          subtitle: '这里还没有可改的选项',
+        ),
+      );
+    }
+
+    return AppPageGutter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const AppSectionHeader('通用'),
+          AppListTile(
+            title: '高级',
+            subtitle: '诊断日志等开发选项',
+            icon: Icons.construction_outlined,
+            onTap: () {
+              Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AdvancedSettingsPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
