@@ -241,40 +241,74 @@ class _WorldBookEntrySheetState extends State<_WorldBookEntrySheet> {
   late final TextEditingController _title;
   late final TextEditingController _body;
   late final TextEditingController _keys;
+  late final WorldBookEntry _baseline;
   late bool _alwaysOn;
 
   @override
   void initState() {
     super.initState();
+    _baseline = widget.draft;
     _title = TextEditingController(text: widget.draft.title);
     _body = TextEditingController(text: widget.draft.body);
     _keys = TextEditingController(text: widget.draft.keys.join('、'));
     _alwaysOn = widget.draft.alwaysOn;
+    for (final c in [_title, _body, _keys]) {
+      c.addListener(_markDirty);
+    }
   }
+
+  void _markDirty() => setState(() {});
 
   @override
   void dispose() {
+    for (final c in [_title, _body, _keys]) {
+      c.removeListener(_markDirty);
+    }
     _title.dispose();
     _body.dispose();
     _keys.dispose();
     super.dispose();
   }
 
+  List<String> _parseKeys() => _keys.text
+      .split(RegExp(r'[,，、\s]+'))
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList(growable: false);
+
+  WorldBookEntry _snapshot() {
+    final nextKeys = _alwaysOn ? const <String>[] : _parseKeys();
+    return widget.draft.copyWith(
+      title: _title.text.trim(),
+      body: _body.text.trim(),
+      alwaysOn: _alwaysOn,
+      keys: nextKeys,
+    );
+  }
+
+  bool get _isDirty => !_entriesEqual(_snapshot(), _baseline);
+
+  static bool _entriesEqual(WorldBookEntry a, WorldBookEntry b) {
+    return a.title == b.title &&
+        a.body == b.body &&
+        a.alwaysOn == b.alwaysOn &&
+        _listEqual(a.keys, b.keys);
+  }
+
+  static bool _listEqual(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   void _save() {
-    final nextKeys = _keys.text
-        .split(RegExp(r'[,，、\s]+'))
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList(growable: false);
+    final next = _snapshot();
     Navigator.of(context).pop(
       _EntrySheetResult.save(
-        widget.draft.copyWith(
-          title: _title.text.trim().isEmpty
-              ? '未命名设定'
-              : _title.text.trim(),
-          body: _body.text.trim(),
-          alwaysOn: _alwaysOn,
-          keys: _alwaysOn ? const <String>[] : nextKeys,
+        next.copyWith(
+          title: next.title.isEmpty ? '未命名设定' : next.title,
         ),
       ),
     );
@@ -283,106 +317,62 @@ class _WorldBookEntrySheetState extends State<_WorldBookEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final existing = widget.existing;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            AppTheme.spaceXs,
-            AppTheme.pagePadding,
-            0,
-          ),
-          child: AppText(
-            existing == null ? '新设定' : '编辑设定',
-            role: AppTextRole.subtitle,
-          ),
+    return AppSheetEditForm(
+      title: existing == null ? '新设定' : '编辑设定',
+      isDirty: _isDirty,
+      onSave: _save,
+      body: AppSheetScrollBody(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.pagePadding,
+          0,
+          AppTheme.pagePadding,
+          AppTheme.spaceMd,
         ),
-        const SizedBox(height: AppTheme.spaceMd),
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.pagePadding,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AppTextField(
-                      label: '标题',
-                      controller: _title,
-                      hint: '世界观、客栈、城门规则…',
-                    ),
-                    const SizedBox(height: AppTheme.spaceMd),
-                    AppTextField(
-                      label: '正文',
-                      controller: _body,
-                      minLines: 4,
-                      maxLines: 10,
-                      hint: '写给故事用的完整说明，单独成段也能读懂',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppTheme.spaceMd),
-              AppListTile(
-                title: '始终带上',
-                subtitle: '基调、硬规则适合打开',
-                icon: Icons.push_pin_outlined,
-                trailing: AppSwitch(
-                  value: _alwaysOn,
-                  onChanged: (value) => setState(() => _alwaysOn = value),
-                ),
-              ),
-              if (!_alwaysOn)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.pagePadding,
-                    AppTheme.spaceMd,
-                    AppTheme.pagePadding,
-                    0,
-                  ),
-                  child: AppTextField(
-                    label: '关键词',
-                    controller: _keys,
-                    hint: '用顿号或逗号分开',
-                  ),
-                ),
-            ],
+        children: [
+          AppTextField(
+            label: '标题',
+            controller: _title,
+            hint: '世界观、客栈、城门规则…',
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            AppTheme.spaceMd,
-            AppTheme.pagePadding,
-            AppTheme.spaceMd,
+          const SizedBox(height: AppTheme.spaceMd),
+          AppTextField(
+            label: '正文',
+            controller: _body,
+            minLines: 4,
+            maxLines: 10,
+            hint: '写给故事用的完整说明，单独成段也能读懂',
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppButton(
-                label: '保存',
-                expanded: true,
-                onPressed: _save,
+          const SizedBox(height: AppTheme.spaceMd),
+          AppListTile(
+            title: '始终带上',
+            subtitle: '基调、硬规则适合打开',
+            icon: Icons.push_pin_outlined,
+            trailing: AppSwitch(
+              value: _alwaysOn,
+              onChanged: (value) => setState(() => _alwaysOn = value),
+            ),
+          ),
+          if (!_alwaysOn) ...[
+            const SizedBox(height: AppTheme.spaceMd),
+            AppTextField(
+              label: '关键词',
+              controller: _keys,
+              hint: '用顿号或逗号分开',
+            ),
+          ],
+          if (existing != null) ...[
+            const SizedBox(height: AppTheme.spaceLg),
+            AppButton(
+              label: '删除这条',
+              expanded: true,
+              variant: AppButtonVariant.ghost,
+              onPressed: () => Navigator.of(context).pop(
+                const _EntrySheetResult.delete(),
               ),
-              if (existing != null) ...[
-                const SizedBox(height: AppTheme.spaceSm),
-                AppButton(
-                  label: '删除这条',
-                  expanded: true,
-                  variant: AppButtonVariant.ghost,
-                  onPressed: () => Navigator.of(context).pop(
-                    const _EntrySheetResult.delete(),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

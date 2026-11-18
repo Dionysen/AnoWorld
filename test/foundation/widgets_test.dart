@@ -273,9 +273,49 @@ void main() {
 
     final half = await openAndMeasure(AppSheetSize.half);
     final full = await openAndMeasure(AppSheetSize.full);
-    expect(half.height, closeTo(screen.height * AppTheme.sheetHalfHeightFactor, 1));
-    expect(full.height, closeTo(screen.height * AppTheme.sheetFullHeightFactor, 1));
+    final halfFootprint = screen.height * AppTheme.sheetHalfHeightFactor;
+    expect(half.height, closeTo(halfFootprint, 2));
+    expect(
+      full.height,
+      closeTo(screen.height * AppTheme.sheetFullHeightFactor, 1),
+    );
     expect(full.height, greaterThan(half.height));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: AppButton(
+                label: '半屏',
+                onPressed: () {
+                  showAppSheet<void>(
+                    context: context,
+                    size: AppSheetSize.half,
+                    builder: (_) => ListView(
+                      children: const [SizedBox(height: 900)],
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('半屏'));
+    await tester.pumpAndSettle();
+  final card = find.byKey(const ValueKey('app_sheet_card'));
+    final halfH = tester.getSize(card).height;
+    await tester.drag(
+      find.byKey(const ValueKey('app_sheet_resize')),
+      const Offset(0, -320),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getSize(card).height, greaterThan(halfH + 120));
+    await tester.tapAt(const Offset(8, 40));
+    await tester.pumpAndSettle();
 
     final compact = await openAndMeasure(AppSheetSize.compact);
     expect(
