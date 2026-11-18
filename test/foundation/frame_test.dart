@@ -23,7 +23,7 @@ void main() {
         await tester.pumpWidget(testApp());
         await tester.pumpAndSettle();
 
-        expect(find.text('存档'), findsWidgets);
+        expect(find.text('会话'), findsWidgets);
         expect(find.byIcon(Icons.close), findsNothing);
       } finally {
         debugDefaultTargetPlatformOverride = null;
@@ -31,10 +31,11 @@ void main() {
     },
   );
 
-  testWidgets('page leaves room for the title band and the leading inset', (
+  testWidgets('compact page keeps title in the band with leading inset', (
     tester,
   ) async {
     const bodyKey = Key('body');
+    await tester.binding.setSurfaceSize(const Size(390, 844));
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.data,
@@ -51,6 +52,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
 
     expect(tester.getTopLeft(find.byKey(bodyKey)).dy, 52);
     expect(
@@ -63,50 +65,88 @@ void main() {
       title.style?.color,
       theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface,
     );
+    await tester.binding.setSurfaceSize(null);
   });
 
-  testWidgets('desktop page title sits below the chrome band', (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-    const bodyKey = Key('body');
-    try {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.data,
-          home: const ImmersiveScope(
-            metrics: ImmersiveMetrics(
-              active: true,
-              titleBarHeight: 36,
-              leadingInset: 78,
-            ),
-            child: AppPage(
-              title: '设置',
-              onBack: _noop,
-              body: SizedBox.expand(key: bodyKey),
+  testWidgets(
+    'narrow desktop matches compact band title (not large title)',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      const bodyKey = Key('body');
+      try {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.data,
+            home: const ImmersiveScope(
+              metrics: ImmersiveMetrics(
+                active: true,
+                titleBarHeight: 36,
+                leadingInset: 78,
+              ),
+              child: AppPage(
+                title: '设置',
+                onBack: _noop,
+                body: SizedBox.expand(key: bodyKey),
+              ),
             ),
           ),
+        );
+        await tester.pump();
+
+        final titleTop = tester.getTopLeft(find.text('设置')).dy;
+        final bodyTop = tester.getTopLeft(find.byKey(bodyKey)).dy;
+        expect(titleTop, lessThan(36));
+        expect(bodyTop, 36);
+        expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+        final title = tester.widget<Text>(find.text('设置'));
+        expect(title.style?.fontSize, isNot(24));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        await tester.binding.setSurfaceSize(null);
+      }
+    },
+  );
+
+  testWidgets('wide page title sits below the chrome band', (tester) async {
+    const bodyKey = Key('body');
+    await tester.binding.setSurfaceSize(const Size(900, 700));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const ImmersiveScope(
+          metrics: ImmersiveMetrics(
+            active: true,
+            titleBarHeight: 36,
+            leadingInset: 78,
+          ),
+          child: AppPage(
+            title: '设置',
+            onBack: _noop,
+            body: SizedBox.expand(key: bodyKey),
+          ),
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      final titleTop = tester.getTopLeft(find.text('设置')).dy;
-      final bodyTop = tester.getTopLeft(find.byKey(bodyKey)).dy;
-      expect(titleTop, greaterThanOrEqualTo(36));
-      expect(bodyTop, greaterThan(titleTop));
-      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-      expect(
-        tester.getCenter(find.byIcon(Icons.arrow_back)).dx,
-        lessThan(tester.getCenter(find.text('设置')).dx),
-      );
-      expect(
-        tester.getCenter(find.byIcon(Icons.arrow_back)).dy,
-        closeTo(tester.getCenter(find.text('设置')).dy, 8),
-      );
+    final titleTop = tester.getTopLeft(find.text('设置')).dy;
+    final bodyTop = tester.getTopLeft(find.byKey(bodyKey)).dy;
+    expect(titleTop, greaterThanOrEqualTo(36));
+    expect(bodyTop, greaterThan(titleTop));
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    expect(
+      tester.getCenter(find.byIcon(Icons.arrow_back)).dx,
+      lessThan(tester.getCenter(find.text('设置')).dx),
+    );
+    expect(
+      tester.getCenter(find.byIcon(Icons.arrow_back)).dy,
+      closeTo(tester.getCenter(find.text('设置')).dy, 8),
+    );
 
-      final title = tester.widget<Text>(find.text('设置'));
-      expect(title.style?.fontSize, 24);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
+    final title = tester.widget<Text>(find.text('设置'));
+    expect(title.style?.fontSize, 24);
+    await tester.binding.setSurfaceSize(null);
   });
 
   testWidgets('page does not overflow in a tiny viewport', (tester) async {

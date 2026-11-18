@@ -1,0 +1,35 @@
+---
+description: 同宽度同壳层——桌面竖屏/窄窗与手机 UI 完全一致；导航与标题按宽度断点，不按平台
+alwaysApply: true
+---
+
+# 宽度驱动壳层（桌面竖屏 ≡ 手机）
+
+## 不变量
+
+- **同宽度 ⇒ 同壳层**。桌面竖屏 / 窄窗与手机必须同一套导航与页面标题结构。
+- 断点：[`AppLayout.railBreakpoint`](mdc:lib/foundation/layout/app_layout.dart)（**600**）。
+  - **Compact**（`< 600`）：悬浮胶囊底栏；`AppPage` 标题 / 返回 / `actions` 在顶栏 band 内。
+  - **Expanded**（`≥ 600`）：左侧栏；`AppPage` 大标题在 band 下方（`pageTitle`）。
+- 切换依据是 **窗口/布局宽度**（或 `forceCompact`），**禁止**用 `TargetPlatform` / `Platform.is*` / `kIsWeb` 决定导航形态或标题位置。
+
+## 允许的平台差（仅能力层）
+
+窗口拖动与红绿灯 / 最小化最大化关闭、`leadingInset` / 实际画出时的 `trailingInset`、键盘 Enter 发送、撤销快捷键、系统字体枚举与文件导入。这些不构成第二套页面布局。
+
+## 禁止
+
+```dart
+// ❌ 按平台开大标题 / 换导航
+if (defaultTargetPlatform == TargetPlatform.macOS) { /* large title */ }
+
+// ✅ 按宽度（与 AppNavShell 同一断点）
+final expanded = AppLayout.useRail(constraints.maxWidth);
+```
+
+- 禁止「桌面专用」业务页布局或第二套顶栏。
+- Win/Linux：`trailingInset` 仅在窗口钮实际绘制时预留，勿在极窄窗空占右侧。
+
+## 自检
+
+改壳层 / `AppPage` / 导航前问：把桌面窗口缩到手机宽度后，结构是否仍与手机一致？若只有桌面才出现大标题或侧栏，则违规。细节见 [docs/Style.md](mdc:docs/Style.md)「响应式导航」与「沉浸式标题栏」。

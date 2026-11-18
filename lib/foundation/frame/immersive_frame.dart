@@ -266,11 +266,17 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
     }
     final controls = _windows || _linux;
     final titleBarHeight = _macOS ? _titleBarHeight : bandHeight;
+    // Reserve trailing inset only when window buttons are actually drawn so
+    // narrow/portrait desktop matches mobile content width as closely as
+    // OS chrome allows.
+    final width = MediaQuery.sizeOf(context).width;
+    final showControls =
+        controls && width >= WindowControlMetrics.stripWidth + 24;
     return ImmersiveMetrics(
       active: true,
       titleBarHeight: titleBarHeight,
       leadingInset: _macOS ? _leadingInset : 0,
-      trailingInset: controls ? WindowControlMetrics.stripWidth : 0,
+      trailingInset: showControls ? WindowControlMetrics.stripWidth : 0,
       showsWindowControls: controls,
       maximized: _maximized,
     );

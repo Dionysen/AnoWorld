@@ -1,18 +1,20 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../frame/immersive_frame.dart';
+import '../layout/app_layout.dart';
 import '../theme/app_theme.dart';
 import 'app_circle_button.dart';
 import 'app_text.dart';
 
 /// Page shell. Business screens compose this instead of a scaffold or app bar.
 ///
-/// On desktop, [title] sits below the chrome band (24 / pageTitle) with [onBack]
-/// on its left and [actions] on its right (same row as the title). On phone and
-/// tablet, title, back, and [actions] stay in the band.
+/// Chrome follows [AppLayout] width, not [TargetPlatform]:
+/// - Compact (`< railBreakpoint`): title, back, and [actions] stay in the
+///   immersive band (desktop portrait matches phone).
+/// - Expanded: [title] sits below the band (`pageTitle` / 24) with [onBack]
+///   on its left and [actions] on its right.
 class AppPage extends StatelessWidget {
   const AppPage({
     super.key,
@@ -32,8 +34,8 @@ class AppPage extends StatelessWidget {
   final Widget? titleWidget;
   final Widget body;
 
-  /// Trailing controls aligned with the page title (large-title row on desktop,
-  /// chrome band on phone/tablet).
+  /// Trailing controls aligned with the page title (large-title row when
+  /// expanded, chrome band when compact).
   final List<Widget> actions;
   final VoidCallback? onBack;
 
@@ -42,17 +44,6 @@ class AppPage extends StatelessWidget {
   final bool showTitle;
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
-
-  static bool get _desktopLargeTitle {
-    if (kIsWeb) return false;
-    return switch (defaultTargetPlatform) {
-      TargetPlatform.macOS ||
-      TargetPlatform.windows ||
-      TargetPlatform.linux =>
-        true,
-      _ => false,
-    };
-  }
 
   /// Insert [AppTheme.spaceSm] between action widgets.
   ///
@@ -77,7 +68,6 @@ class AppPage extends StatelessWidget {
     final titleSpacing = theme.appBarTheme.titleSpacing ?? 12;
     final barColor =
         theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
-    final largeTitle = _desktopLargeTitle;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -102,9 +92,9 @@ class AppPage extends StatelessWidget {
                 metrics.trailingInset,
           );
           final bodyArea = math.max(0.0, constraints.maxHeight - barHeight);
+          final largeTitle = AppLayout.useRail(constraints.maxWidth);
           final showLargeTitle = showTitle && largeTitle && bodyArea >= 72;
-          // Back in the chrome band only on phone/tablet; desktop puts it
-          // beside the large title below.
+          // Compact: back in the band. Expanded: beside the large title below.
           final showBarBack = showTitle &&
               !showLargeTitle &&
               onBack != null &&
