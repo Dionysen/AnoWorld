@@ -1,16 +1,10 @@
 import 'package:anoworld/app/app_scope.dart';
-import 'package:anoworld/create/create_entry_page.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
-import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
-import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
-import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/home/create_assistant_host.dart';
 import 'package:anoworld/home/home_nav.dart';
-import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
 import 'package:anoworld/home/me_tab.dart';
 import 'package:anoworld/home/play_modes_tab.dart';
@@ -77,164 +71,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _showCreateSheet() async {
-    final action = await showAppSheet<String>(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppText('开始创作', role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceMd),
-            AppButton(
-              label: '新建空白故事',
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('blank'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '导入角色卡',
-              variant: AppButtonVariant.secondary,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('card'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '粘贴故事',
-              variant: AppButtonVariant.secondary,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('novel'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '分阶段提示词',
-              variant: AppButtonVariant.secondary,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('staged'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '新建文件夹',
-              variant: AppButtonVariant.ghost,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('folder'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '试用「雨夜投宿」',
-              variant: AppButtonVariant.ghost,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('sample'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (!mounted || action == null) return;
-    final works = _worksKey.currentState;
-    switch (action) {
-      case 'blank':
-        await works?.createBlank();
-      case 'card':
-        await works?.openCreateEntry(CreateEntryKind.characterCard);
-      case 'novel':
-        await works?.openCreateEntry(CreateEntryKind.novel);
-      case 'staged':
-        await works?.openCreateEntry(CreateEntryKind.stagedPrompts);
-      case 'folder':
-        await works?.createFolder();
-      case 'sample':
-        await works?.addSample();
-    }
-  }
-
-  Future<void> _showWorksMore() async {
-    final works = _worksKey.currentState;
-    final display = AppScope.libraryDisplayOf(context).prefs;
-    final action = await showAppSheet<String>(
-      context: context,
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pagePadding,
-              AppTheme.spaceSm,
-              AppTheme.pagePadding,
-              AppTheme.spaceSm,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppButton(
-                  label: '导入故事包',
-                  expanded: true,
-                  onPressed: () => Navigator.of(ctx).pop('import'),
-                ),
-                const SizedBox(height: AppTheme.spaceSm),
-                AppButton(
-                  label: '新建文件夹',
-                  variant: AppButtonVariant.secondary,
-                  expanded: true,
-                  onPressed: () => Navigator.of(ctx).pop('folder'),
-                ),
-              ],
-            ),
-          ),
-          AppListTile(
-            title: '显示方式',
-            subtitle: display.viewMode.label,
-            icon: display.viewMode.icon,
-            onTap: () => Navigator.of(ctx).pop('view_mode'),
-          ),
-          if (display.viewMode == LibraryViewMode.list)
-            AppListTile(
-              title: '头像形状',
-              subtitle: display.avatarShape.label,
-              icon: display.avatarShape.icon,
-              onTap: () => Navigator.of(ctx).pop('avatar_shape'),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pagePadding,
-              AppTheme.spaceSm,
-              AppTheme.pagePadding,
-              AppTheme.pagePadding,
-            ),
-            child: AppButton(
-              label: '多选',
-              variant: AppButtonVariant.ghost,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('select'),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || action == null) return;
-    switch (action) {
-      case 'import':
-        await works?.importPack();
-      case 'folder':
-        await works?.createFolder();
-      case 'view_mode':
-        await works?.showViewModePicker();
-      case 'avatar_shape':
-        await works?.showAvatarShapePicker();
-      case 'select':
-        _worksSelection.enter(null);
-        setState(() {});
-    }
-  }
-
   Widget _titleSwitcher(String text) {
     // Key by visible text only — folder enter/exit keeps「故事」and must not
     // remount / flash. Real title changes (分区标题、多选计数) fade.
@@ -259,6 +95,7 @@ class _HomePageState extends State<HomePage> {
     final selectionMode = selection?.selectionMode ?? false;
     final works = _worksKey.currentState;
 
+    final hideStoriesTitle = _tab == HomeTab.stories && !selectionMode;
     final titleText = selectionMode && selection != null
         ? (selection.selectedCount == 0
             ? '选择项目'
@@ -309,24 +146,6 @@ class _HomePageState extends State<HomePage> {
           icon: Icons.settings_outlined,
           tooltip: '设置',
           onPressed: () => _openRoute(const SettingsPage()),
-        ),
-      ];
-    } else if (_tab == HomeTab.stories) {
-      actions = [
-        AppIconButton(
-          icon: Icons.add,
-          tooltip: '开始创作',
-          onPressed: _showCreateSheet,
-        ),
-        AppIconButton(
-          icon: Icons.folder_open,
-          tooltip: '导入故事包',
-          onPressed: () => _worksKey.currentState?.importPack(),
-        ),
-        AppIconButton(
-          icon: Icons.more_vert,
-          tooltip: '故事选项',
-          onPressed: _showWorksMore,
         ),
       ];
     } else if (_tab == HomeTab.sessions) {
@@ -393,19 +212,14 @@ class _HomePageState extends State<HomePage> {
 
           return AppPage(
             title: titleText,
-            titleWidget: _titleSwitcher(titleText),
+            titleWidget: hideStoriesTitle ? null : _titleSwitcher(titleText),
+            showTitle: !hideStoriesTitle,
             onBack: selectionMode && selection != null
                 ? () {
                     selection.exit();
                     setState(() {});
                   }
-                : (_tab == HomeTab.stories &&
-                        (works?.browsePath.isNotEmpty ?? false)
-                    ? () {
-                        _worksKey.currentState?.handleSystemBack();
-                        setState(() {});
-                      }
-                    : null),
+                : null,
             actions: actions,
             body: body,
           );

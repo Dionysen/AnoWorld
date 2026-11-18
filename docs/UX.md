@@ -54,8 +54,7 @@
 
 - **会话**：已开启的游玩进度（视觉小说与聊天同一列表；按最近存档时间；副标题带玩法）；列表顶为胶囊搜索框（[`AppSearchField`](../lib/foundation/widgets/app_search_field.dart)，不跟外观圆角滑块）；切到本页或从故事返回会刷新；点进直接续玩；「更多」可继续游玩 / 打开故事 / 删除这一条（只清进度）；空态「去故事」仍可用。
 - **创作助手**：故事分区及经 [`pushStoryRoute`](../lib/home/story_assistant_navigation.dart) 进栈的子页右下角常驻磨砂图标（与底栏胶囊同款玻璃壳）。点开时由锚点向左上展开为半屏圆角面板（[`CreateAssistantBloomShell`](../lib/home/create_assistant_bloom_shell.dart)）；面板底与圆形按钮之间留一小段间距，[`CreateAssistantBloomOutline`](../lib/home/create_assistant_bloom_outline.dart) 预置一条整体轮廓（面板 + 细腰 + 圆形锚点）模拟水面张力；点遮罩或再点图标收起。锚点与情节画布「加一站」等高（[`AppBottomChromeMetrics`](../lib/foundation/widgets/app_bottom_nav_icon_capsule.dart)），不改动画布右下角工具位置。
-- **故事** 顶栏 **+** 打开原「开始创作」菜单（新建 / 导入卡 / 粘贴等）。
-- **故事**：故事库列表 + 文件夹（行为同前）；点文件夹进入下一层（内容左右滑入/滑出）；**面包屑常显**；顶上同款胶囊搜索、多选、移动到文件夹、删除；加号打开创作菜单。顶栏「更多」可改显示方式与头像形状。
+- **故事**：无分区大标题；顶部胶囊搜索，其下一行左为**面包屑**、右为 **+ / 导入 / 更多**（水平对齐）。点文件夹进入下一层（内容左右滑入/滑出）；更多里可改显示方式与头像形状、进多选；多选时顶栏改回标题与批量操作。
 - **玩法**：占位空态，后续集中选开场/模式。
 - **我**：玩家身份（[`PersonaSettingsPanel`](../lib/settings/persona_settings_panel.dart)）；右上角进入设置壳。
 

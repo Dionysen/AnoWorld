@@ -21,6 +21,7 @@ class AppPage extends StatelessWidget {
     this.titleWidget,
     this.actions = const [],
     this.onBack,
+    this.showTitle = true,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
   });
@@ -35,6 +36,10 @@ class AppPage extends StatelessWidget {
   /// chrome band on phone/tablet).
   final List<Widget> actions;
   final VoidCallback? onBack;
+
+  /// When false, keeps the immersive status band but hides title / back /
+  /// actions (e.g. stories tab puts its own search + toolbar in [body]).
+  final bool showTitle;
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
 
@@ -97,25 +102,32 @@ class AppPage extends StatelessWidget {
                 metrics.trailingInset,
           );
           final bodyArea = math.max(0.0, constraints.maxHeight - barHeight);
-          final showLargeTitle = largeTitle && bodyArea >= 72;
+          final showLargeTitle = showTitle && largeTitle && bodyArea >= 72;
           // Back in the chrome band only on phone/tablet; desktop puts it
           // beside the large title below.
-          final showBarBack =
-              !showLargeTitle && onBack != null && rowWidth >= 36;
-          final showTitleText =
-              !showLargeTitle && rowWidth >= (showBarBack ? 52 : 24);
+          final showBarBack = showTitle &&
+              !showLargeTitle &&
+              onBack != null &&
+              rowWidth >= 36;
+          final showTitleText = showTitle &&
+              !showLargeTitle &&
+              rowWidth >= (showBarBack ? 52 : 24);
           final titleReserve = metrics.leadingInset +
               titleSpacing +
               metrics.trailingInset +
               (showBarBack ? 36.0 : 0.0) +
               48;
-          final showBarActions = !showLargeTitle &&
+          final showBarActions = showTitle &&
+              !showLargeTitle &&
               actions.isNotEmpty &&
               rowWidth >= 48 &&
               constraints.maxWidth >= titleReserve;
-          final showTitleActions =
-              showLargeTitle && actions.isNotEmpty && constraints.maxWidth >= 120;
-          final showTitleBack = showLargeTitle &&
+          final showTitleActions = showTitle &&
+              showLargeTitle &&
+              actions.isNotEmpty &&
+              constraints.maxWidth >= 120;
+          final showTitleBack = showTitle &&
+              showLargeTitle &&
               onBack != null &&
               constraints.maxWidth >= 72;
 
@@ -183,7 +195,7 @@ class AppPage extends StatelessWidget {
                   child: SizedBox(
                     height: barHeight,
                     width: double.infinity,
-                    child: showChromeRow
+                    child: showChromeRow && showTitle
                         ? Padding(
                             padding: EdgeInsets.only(
                               top: math.min(

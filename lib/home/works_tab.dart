@@ -9,7 +9,9 @@ import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
+import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_search_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -912,6 +914,161 @@ class WorksTabState extends State<WorksTab> {
     );
   }
 
+  Future<void> showCreateSheet() async {
+    final action = await showAppSheet<String>(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.pagePadding,
+          AppTheme.spaceSm,
+          AppTheme.pagePadding,
+          AppTheme.pagePadding,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const AppText('开始创作', role: AppTextRole.subtitle),
+            const SizedBox(height: AppTheme.spaceMd),
+            AppButton(
+              label: '新建空白故事',
+              expanded: true,
+              onPressed: () => Navigator.of(ctx).pop('blank'),
+            ),
+            const SizedBox(height: AppTheme.spaceSm),
+            AppButton(
+              label: '导入角色卡',
+              variant: AppButtonVariant.secondary,
+              expanded: true,
+              onPressed: () => Navigator.of(ctx).pop('card'),
+            ),
+            const SizedBox(height: AppTheme.spaceSm),
+            AppButton(
+              label: '粘贴故事',
+              variant: AppButtonVariant.secondary,
+              expanded: true,
+              onPressed: () => Navigator.of(ctx).pop('novel'),
+            ),
+            const SizedBox(height: AppTheme.spaceSm),
+            AppButton(
+              label: '分阶段提示词',
+              variant: AppButtonVariant.secondary,
+              expanded: true,
+              onPressed: () => Navigator.of(ctx).pop('staged'),
+            ),
+            const SizedBox(height: AppTheme.spaceSm),
+            AppButton(
+              label: '新建文件夹',
+              variant: AppButtonVariant.ghost,
+              expanded: true,
+              onPressed: () => Navigator.of(ctx).pop('folder'),
+            ),
+            const SizedBox(height: AppTheme.spaceSm),
+            AppButton(
+              label: '试用「雨夜投宿」',
+              variant: AppButtonVariant.ghost,
+              expanded: true,
+              onPressed: () => Navigator.of(ctx).pop('sample'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'blank':
+        await createBlank();
+      case 'card':
+        await openCreateEntry(CreateEntryKind.characterCard);
+      case 'novel':
+        await openCreateEntry(CreateEntryKind.novel);
+      case 'staged':
+        await openCreateEntry(CreateEntryKind.stagedPrompts);
+      case 'folder':
+        await createFolder();
+      case 'sample':
+        await addSample();
+    }
+  }
+
+  Future<void> showMoreMenu() async {
+    final display = AppScope.libraryDisplayOf(context).prefs;
+    final action = await showAppSheet<String>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppButton(
+                  label: '导入故事包',
+                  expanded: true,
+                  onPressed: () => Navigator.of(ctx).pop('import'),
+                ),
+                const SizedBox(height: AppTheme.spaceSm),
+                AppButton(
+                  label: '新建文件夹',
+                  variant: AppButtonVariant.secondary,
+                  expanded: true,
+                  onPressed: () => Navigator.of(ctx).pop('folder'),
+                ),
+              ],
+            ),
+          ),
+          AppListTile(
+            title: '显示方式',
+            subtitle: display.viewMode.label,
+            icon: display.viewMode.icon,
+            onTap: () => Navigator.of(ctx).pop('view_mode'),
+          ),
+          if (display.viewMode == LibraryViewMode.list)
+            AppListTile(
+              title: '头像形状',
+              subtitle: display.avatarShape.label,
+              icon: display.avatarShape.icon,
+              onTap: () => Navigator.of(ctx).pop('avatar_shape'),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+              AppTheme.pagePadding,
+              AppTheme.pagePadding,
+            ),
+            child: AppButton(
+              label: '多选',
+              variant: AppButtonVariant.ghost,
+              expanded: true,
+              onPressed: () => Navigator.of(ctx).pop('select'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'import':
+        await importPack();
+      case 'folder':
+        await createFolder();
+      case 'view_mode':
+        await showViewModePicker();
+      case 'avatar_shape':
+        await showAvatarShapePicker();
+      case 'select':
+        widget.selection.enter(null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectionMode = widget.selection.selectionMode;
@@ -922,12 +1079,6 @@ class WorksTabState extends State<WorksTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!selectionMode)
-          _WorksBreadcrumb(
-            crumbs: _breadcrumbs,
-            onRoot: () => jumpBreadcrumb(-1),
-            onCrumb: jumpBreadcrumb,
-          ),
         AppSearchField(
           hint: '搜索故事',
           controller: _searchController,
@@ -942,6 +1093,47 @@ class WorksTabState extends State<WorksTab> {
             setState(() => _query = '');
           },
         ),
+        if (!selectionMode)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              0,
+              AppTheme.titleChromePadding,
+              AppTheme.spaceXs,
+            ),
+            child: SizedBox(
+              height: _WorksBreadcrumb.rowHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: _WorksBreadcrumb(
+                      crumbs: _breadcrumbs,
+                      onRoot: () => jumpBreadcrumb(-1),
+                      onCrumb: jumpBreadcrumb,
+                    ),
+                  ),
+                  ...AppPage.spacedActions([
+                    AppIconButton(
+                      icon: Icons.add,
+                      tooltip: '开始创作',
+                      onPressed: showCreateSheet,
+                    ),
+                    AppIconButton(
+                      icon: Icons.folder_open,
+                      tooltip: '导入故事包',
+                      onPressed: importPack,
+                    ),
+                    AppIconButton(
+                      icon: Icons.more_vert,
+                      tooltip: '故事选项',
+                      onPressed: showMoreMenu,
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ),
         if (_status != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.pagePadding),
@@ -996,7 +1188,7 @@ class _WorksBreadcrumb extends StatelessWidget {
     required this.onCrumb,
   });
 
-  static const double _rowHeight = 36;
+  static const double rowHeight = 36;
   static const double _chipHeight = 28;
 
   final List<ProjectFolder> crumbs;
@@ -1016,37 +1208,33 @@ class _WorksBreadcrumb extends StatelessWidget {
     );
     final atRoot = crumbs.isEmpty;
 
-    return SizedBox(
-      height: _rowHeight,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppTheme.pagePadding),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _BreadcrumbChip(
-              label: '故事',
-              style: atRoot ? active : muted,
-              filled: true,
-              height: _chipHeight,
-              onTap: atRoot ? null : onRoot,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _BreadcrumbChip(
+            label: '故事',
+            style: atRoot ? active : muted,
+            filled: true,
+            height: _chipHeight,
+            onTap: atRoot ? null : onRoot,
+          ),
+          for (var i = 0; i < crumbs.length; i++) ...[
+            Icon(
+              Icons.chevron_right,
+              size: 16,
+              color: scheme.onSurfaceVariant,
             ),
-            for (var i = 0; i < crumbs.length; i++) ...[
-              Icon(
-                Icons.chevron_right,
-                size: 16,
-                color: scheme.onSurfaceVariant,
-              ),
-              _BreadcrumbChip(
-                label: crumbs[i].name,
-                style: i == crumbs.length - 1 ? active : muted,
-                filled: false,
-                height: _chipHeight,
-                onTap: i == crumbs.length - 1 ? null : () => onCrumb(i),
-              ),
-            ],
+            _BreadcrumbChip(
+              label: crumbs[i].name,
+              style: i == crumbs.length - 1 ? active : muted,
+              filled: false,
+              height: _chipHeight,
+              onTap: i == crumbs.length - 1 ? null : () => onCrumb(i),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
