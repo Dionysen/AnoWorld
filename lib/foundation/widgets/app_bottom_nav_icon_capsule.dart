@@ -109,6 +109,11 @@ class AppBottomNavIconCapsule extends StatelessWidget {
 
 /// Screen-absolute coordinates for the story assistant chrome action.
 abstract final class AppBottomChromeMetrics {
+  /// How far to shift floating chrome down so it stays on the physical screen
+  /// bottom while [adjustResize] / Scaffold shortens the body for the IME.
+  static double keyboardPinOffset(BuildContext context) =>
+      MediaQuery.viewInsetsOf(context).bottom;
+
   /// Vertical center aligned with graph viewport end actions (「加一站」).
   static double assistantButtonBottom(BuildContext context) {
     final viewBottom = MediaQuery.viewPaddingOf(context).bottom;

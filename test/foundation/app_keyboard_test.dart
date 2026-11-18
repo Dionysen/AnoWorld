@@ -4,26 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('focused AppTextField counts as text input focus', (tester) async {
+  testWidgets('AppKeyboard.dismiss unfocuses text field', (tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
       MaterialApp(
-        home: AppKeyboardScope(
-          child: Scaffold(
-            body: Column(
-              children: [
-                AppTextField(
-                  label: '测试',
-                  controller: TextEditingController(text: 'a'),
-                ),
-                const SizedBox(
-                  height: 200,
-                  child: ColoredBox(color: Color(0xFF112233)),
-                ),
-              ],
-            ),
+        home: Scaffold(
+          body: Column(
+            children: [
+              AppTextField(
+                label: '测试',
+                controller: TextEditingController(text: 'a'),
+              ),
+              const SizedBox(
+                height: 200,
+                child: ColoredBox(color: Color(0xFF112233)),
+              ),
+            ],
           ),
         ),
       ),
@@ -31,10 +29,13 @@ void main() {
 
     await tester.tap(find.byType(TextField));
     await tester.pump();
-    expect(AppKeyboard.isTextInputFocused, isTrue);
+    expect(FocusManager.instance.primaryFocus?.hasFocus, isTrue);
 
-    await tester.tapAt(const Offset(50, 500));
+    AppKeyboard.dismiss();
     await tester.pump();
-    expect(AppKeyboard.isTextInputFocused, isFalse);
+    expect(
+      FocusManager.instance.primaryFocus?.context?.widget is EditableText,
+      isFalse,
+    );
   });
 }

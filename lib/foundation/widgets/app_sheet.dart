@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import '../focus/app_keyboard.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_button.dart';
@@ -54,89 +55,122 @@ Future<T?> showAppSheet<T>({
     enableDrag: enableDrag && !canExpand,
     backgroundColor: Colors.transparent,
     elevation: 0,
-    builder: (sheetContext) {
-      final dismissHostKey = GlobalKey<_AppSheetDismissHostState>();
-      final media = MediaQuery.of(sheetContext);
-      final theme = Theme.of(sheetContext);
-      final tokens = AppUiTokens.of(sheetContext);
-      final bottomPad = media.padding.bottom +
-          AppTheme.sheetInset +
-          media.viewInsets.bottom;
-      final screenH = media.size.height;
-      final screenW = media.size.width;
-      final cardWidth = math.min(
-        AppTheme.sheetMaxWidth,
-        screenW - AppTheme.sheetInset * 2,
+    builder: (sheetContext) => _AppSheetFrame(
+      heightFactor: heightFactor,
+      canExpand: canExpand,
+      enableDrag: enableDrag,
+      builder: builder,
+    ),
+  );
+}
+
+/// Owns dismiss [GlobalKey] across rebuilds so IME [viewInsets] lifts do not
+/// remount the sheet body (which would re-fire autofocus).
+class _AppSheetFrame extends StatefulWidget {
+  const _AppSheetFrame({
+    required this.heightFactor,
+    required this.canExpand,
+    required this.enableDrag,
+    required this.builder,
+  });
+
+  final double? heightFactor;
+  final bool canExpand;
+  final bool enableDrag;
+  final WidgetBuilder builder;
+
+  @override
+  State<_AppSheetFrame> createState() => _AppSheetFrameState();
+}
+
+class _AppSheetFrameState extends State<_AppSheetFrame> {
+  final GlobalKey<_AppSheetDismissHostState> _dismissHostKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    // Aspect-specific reads (NativeTavern-style viewInsets lift). Stable
+    // [_dismissHostKey] keeps field State across IME inset rebuilds.
+    final padding = MediaQuery.paddingOf(context);
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    final size = MediaQuery.sizeOf(context);
+    final theme = Theme.of(context);
+    final tokens = AppUiTokens.of(context);
+    final bottomPad =
+        padding.bottom + AppTheme.sheetInset + viewInsets.bottom;
+    final screenH = size.height;
+    final screenW = size.width;
+    final cardWidth = math.min(
+      AppTheme.sheetMaxWidth,
+      screenW - AppTheme.sheetInset * 2,
+    );
+    final horizontalInset = math.max(0.0, (screenW - cardWidth) / 2);
+
+    Widget handle = const AppSheetDragHandle();
+    if (!widget.enableDrag) {
+      handle = AppSheetDragToDismiss(child: handle);
+    }
+
+    final Widget sheetBody;
+    if (widget.canExpand) {
+      sheetBody = _ExpandableAppSheet(
+        onRequestDismiss: () => _dismissHostKey.currentState?.dismiss(),
+        initialExtent: widget.heightFactor!,
+        maxExtent: AppTheme.sheetFullHeightFactor,
+        horizontalInset: horizontalInset,
+        bottomPad: bottomPad,
+        screenHeight: screenH,
+        theme: theme,
+        tokens: tokens,
+        cardWidth: cardWidth,
+        handle: handle,
+        builder: widget.builder,
       );
-      final horizontalInset = math.max(0.0, (screenW - cardWidth) / 2);
+    } else {
+      final cardHeight =
+          widget.heightFactor == null ? null : screenH * widget.heightFactor!;
 
-      Widget handle = const AppSheetDragHandle();
-      if (!enableDrag) {
-        handle = AppSheetDragToDismiss(child: handle);
-      }
-
-      Widget sheetBody;
-      if (canExpand) {
-        sheetBody = _ExpandableAppSheet(
-          onRequestDismiss: () => dismissHostKey.currentState?.dismiss(),
-          initialExtent: heightFactor!,
-          maxExtent: AppTheme.sheetFullHeightFactor,
-          horizontalInset: horizontalInset,
-          bottomPad: bottomPad,
-          screenHeight: screenH,
-          theme: theme,
-          tokens: tokens,
-          cardWidth: cardWidth,
-          handle: handle,
-          builder: builder,
-        );
-      } else {
-        final cardHeight =
-            heightFactor == null ? null : screenH * heightFactor;
-
-        sheetBody = Positioned(
-          left: 0,
-          right: 0,
-          bottom: bottomPad,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: GestureDetector(
-              onTap: () {},
-              child: _AppSheetCard(
-                theme: theme,
-                tokens: tokens,
-                cardWidth: cardWidth,
-                cardHeight: cardHeight,
-                handle: handle,
-                expandBody: cardHeight != null,
-                child: builder(sheetContext),
-              ),
+      sheetBody = Positioned(
+        left: 0,
+        right: 0,
+        bottom: bottomPad,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: GestureDetector(
+            onTap: () {},
+            child: _AppSheetCard(
+              theme: theme,
+              tokens: tokens,
+              cardWidth: cardWidth,
+              cardHeight: cardHeight,
+              handle: handle,
+              expandBody: cardHeight != null,
+              child: widget.builder(context),
             ),
-          ),
-        );
-      }
-
-      return AppSheetDismissHost(
-        key: dismissHostKey,
-        sheetContext: sheetContext,
-        child: SizedBox(
-          width: screenW,
-          height: screenH,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => dismissHostKey.currentState?.dismiss(),
-                ),
-              ),
-              sheetBody,
-            ],
           ),
         ),
       );
-    },
-  );
+    }
+
+    return AppSheetDismissHost(
+      key: _dismissHostKey,
+      sheetContext: context,
+      child: SizedBox(
+        width: screenW,
+        height: screenH,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _dismissHostKey.currentState?.onBarrierTap(),
+              ),
+            ),
+            sheetBody,
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Coordinates sheet dismiss (barrier, drag, back) with [AppSheetEditForm].
@@ -171,6 +205,21 @@ class _AppSheetDismissHostState extends State<AppSheetDismissHost> {
   final ValueNotifier<_DismissGuard> _guard =
       ValueNotifier(const _DismissGuard());
 
+  /// Ignores barrier taps until the opening pointer / previous-sheet handoff
+  /// has finished; otherwise chained sheets flash open then dismiss.
+  bool _barrierArmed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _barrierArmed = true;
+      });
+    });
+  }
+
   @override
   void dispose() {
     _guard.dispose();
@@ -192,9 +241,15 @@ class _AppSheetDismissHostState extends State<AppSheetDismissHost> {
     _guard.value = const _DismissGuard();
   }
 
+  void onBarrierTap() {
+    if (!_barrierArmed) return;
+    dismiss();
+  }
+
   Future<void> dismiss() async {
     final guard = _guard.value;
     if (!guard.blockPop) {
+      AppKeyboard.dismiss();
       if (mounted) Navigator.of(widget.sheetContext).pop();
       return;
     }
@@ -202,6 +257,7 @@ class _AppSheetDismissHostState extends State<AppSheetDismissHost> {
     if (confirm == null) return;
     final discard = await confirm();
     if (discard && mounted) {
+      AppKeyboard.dismiss();
       Navigator.of(widget.sheetContext).pop();
     }
   }

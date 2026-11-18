@@ -13,7 +13,6 @@ import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/repositories/settings_repository.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/foundation/ai/variables_service.dart';
-import 'package:anoworld/foundation/focus/app_keyboard.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/home/home_page.dart';
@@ -106,11 +105,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
             darkTheme: AppTheme.dark(appearance),
             themeMode: appearance.mode.material,
             builder: (context, child) {
-              return AppKeyboardScope(
-                child: ImmersiveFrame(
-                  child: child ?? const SizedBox.shrink(),
-                ),
-              );
+              return ImmersiveFrame(child: child ?? const SizedBox.shrink());
             },
             home: HomePage(pickImportDirectory: widget.pickImportDirectory),
           );

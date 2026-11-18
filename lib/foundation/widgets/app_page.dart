@@ -80,7 +80,7 @@ class AppPage extends StatelessWidget {
     final largeTitle = _desktopLargeTitle;
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: theme.scaffoldBackgroundColor,
       floatingActionButton: floatingActionButton,
       floatingActionButtonLocation:

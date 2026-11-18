@@ -55,6 +55,7 @@ class AppTextField extends StatelessWidget {
     );
     if (label.isEmpty) return field;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppText(label, role: AppTextRole.caption),

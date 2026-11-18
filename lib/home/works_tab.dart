@@ -12,10 +12,10 @@ import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_prompt_dialog.dart';
 import 'package:anoworld/foundation/widgets/app_search_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
-import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:anoworld/home/library_browse_views.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
@@ -280,55 +280,14 @@ class WorksTabState extends State<WorksTab> {
   Future<String?> _promptFolderName({
     required String title,
     String initial = '',
-  }) async {
-    final controller = TextEditingController(text: initial);
-    final result = await showAppSheet<String>(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppText(title, role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceMd),
-            AppTextField(
-              label: '名称',
-              controller: controller,
-              hint: '文件夹名称',
-            ),
-            const SizedBox(height: AppTheme.spaceMd),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: '取消',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(ctx).pop(),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spaceSm),
-                Expanded(
-                  child: AppButton(
-                    label: '确定',
-                    onPressed: () =>
-                        Navigator.of(ctx).pop(controller.text.trim()),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+  }) {
+    return showAppPromptDialog(
+      context,
+      title: title,
+      label: '名称',
+      initial: initial,
+      hint: '文件夹名称',
     );
-    controller.dispose();
-    if (result == null || result.isEmpty) return null;
-    return result;
   }
 
   Future<void> createFolder() async {

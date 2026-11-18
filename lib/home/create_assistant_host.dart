@@ -55,7 +55,13 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
 
   @override
   Widget build(BuildContext context) {
-    final anchorBottom = AppBottomChromeMetrics.assistantButtonBottom(context);
+    // Collapsed chip pins to the physical bottom under the IME; open panel
+    // stays in the resized body so the composer can sit above the keyboard.
+    final keyboardPin = _showBloom
+        ? 0.0
+        : AppBottomChromeMetrics.keyboardPinOffset(context);
+    final anchorBottom =
+        AppBottomChromeMetrics.assistantButtonBottom(context) - keyboardPin;
     final anchorRight = AppBottomChromeMetrics.assistantButtonRight;
     final showCollapsedButton = !_showBloom;
 

@@ -7,6 +7,7 @@ import '../layout/app_layout.dart';
 import '../theme/app_shapes.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
+import 'app_bottom_nav_icon_capsule.dart';
 import 'app_press_scale.dart';
 
 class AppNavItem {
@@ -114,9 +115,10 @@ class AppNavShell extends StatelessWidget {
           const barClearance = AppLayout.bottomNavHeight +
               AppLayout.bottomNavBottomInset +
               AppTheme.spaceSm;
-          final bodyBottom = media.padding.bottom +
-              barClearance +
-              media.viewInsets.bottom;
+          // Body follows IME; floating capsule stays on the physical bottom
+          // (may sit under the keyboard) so it does not jump with dialogs.
+          final keyboardPin = AppBottomChromeMetrics.keyboardPinOffset(context);
+          final bodyBottom = media.padding.bottom + barClearance;
           return Stack(
             fit: StackFit.expand,
             clipBehavior: Clip.none,
@@ -138,20 +140,23 @@ class AppNavShell extends StatelessWidget {
                 Positioned(
                   left: AppTheme.sheetInset,
                   right: AppTheme.sheetInset,
-                  bottom: barClearance,
+                  bottom: barClearance - keyboardPin,
                   child: Align(
                     alignment: Alignment.bottomCenter,
                     child: bottomPanel,
                   ),
                 ),
               ],
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: _BottomNav(
-                  destinations: destinations,
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: onDestinationSelected,
-                  extra: bottomNavExtra,
+              Transform.translate(
+                offset: Offset(0, keyboardPin),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _BottomNav(
+                    destinations: destinations,
+                    selectedIndex: selectedIndex,
+                    onDestinationSelected: onDestinationSelected,
+                    extra: bottomNavExtra,
+                  ),
                 ),
               ),
             ],

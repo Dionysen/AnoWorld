@@ -50,11 +50,11 @@
 
 ## 首页（底栏：会话 / 故事 / 玩法 / 我）
 
-首页用 `AppNavShell` 四分区（窄屏悬浮胶囊底栏 / 宽屏左侧栏）：**会话** / **故事** / **玩法** / **我**。全局**设置**改在「我」页顶栏右侧齿轮进入，底栏不再有单独设置胶囊。Android 软键盘不缩小窗口，悬浮底栏与创作助手锚点留在屏幕物理底边（可被键盘盖住）；可滚动区与聊天输入框自行按 `viewInsets` 上移避让。输入框失焦或点外侧空白处会收起软键盘（[`AppKeyboardScope`](../lib/foundation/focus/app_keyboard.dart) + 各封装输入框 `onTapOutside`）。
+首页用 `AppNavShell` 四分区（窄屏悬浮胶囊底栏 / 宽屏左侧栏）：**会话** / **故事** / **玩法** / **我**。全局**设置**改在「我」页顶栏右侧齿轮进入，底栏不再有单独设置胶囊。软键盘对齐 NativeTavern：Android `adjustResize`，[`AppPage`](../lib/foundation/widgets/app_page.dart) 默认随键盘收缩；正文与居中对话框上移避让。悬浮底栏与收起态创作助手按 [`keyboardPinOffset`](../lib/foundation/widgets/app_bottom_nav_icon_capsule.dart) 钉在屏幕物理底边（可被键盘盖住，不跟着对话框弹跳）；展开的创作助手面板仍留在可视区内。抽屉按 `viewInsets` 上移；收起只 [`unfocus`](../lib/foundation/focus/app_keyboard.dart)。
 
 - **会话**：已开启的游玩进度（视觉小说与聊天同一列表；按最近存档时间；副标题带玩法）；列表顶为胶囊搜索框（[`AppSearchField`](../lib/foundation/widgets/app_search_field.dart)，不跟外观圆角滑块）；切到本页或从故事返回会刷新；点进直接续玩；「更多」可继续游玩 / 打开故事 / 删除这一条（只清进度）；空态「去故事」仍可用。
 - **创作助手**：故事分区及经 [`pushStoryRoute`](../lib/home/story_assistant_navigation.dart) 进栈的子页右下角常驻磨砂图标（与底栏胶囊同款玻璃壳）。点开时由锚点向左上展开为半屏圆角面板（[`CreateAssistantBloomShell`](../lib/home/create_assistant_bloom_shell.dart)）；面板底与圆形按钮之间留一小段间距，[`CreateAssistantBloomOutline`](../lib/home/create_assistant_bloom_outline.dart) 预置一条整体轮廓（面板 + 细腰 + 圆形锚点）模拟水面张力；点遮罩或再点图标收起。锚点与情节画布「加一站」等高（[`AppBottomChromeMetrics`](../lib/foundation/widgets/app_bottom_nav_icon_capsule.dart)），不改动画布右下角工具位置。
-- **故事**：无分区大标题；顶部胶囊搜索，其下一行左为**面包屑**、右为 **+ / 导入 / 更多**（水平对齐）。点文件夹进入下一层（内容左右滑入/滑出）；更多里可改显示方式与头像形状、进多选；多选时顶栏改回标题与批量操作。
+- **故事**：无分区大标题；顶部胶囊搜索，其下一行左为**面包屑**、右为 **+ / 导入 / 更多**（水平对齐）。点文件夹进入下一层（内容左右滑入/滑出）；新建/重命名文件夹用屏幕居中对话框（[`showAppPromptDialog`](../lib/foundation/widgets/app_prompt_dialog.dart)，对齐 NativeTavern `AlertDialog`）；更多里可改显示方式与头像形状、进多选；多选时顶栏改回标题与批量操作。
 - **玩法**：占位空态，后续集中选开场/模式。
 - **我**：玩家身份（[`PersonaSettingsPanel`](../lib/settings/persona_settings_panel.dart)）；右上角进入设置壳。
 
