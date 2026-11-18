@@ -114,14 +114,16 @@ class AppNavShell extends StatelessWidget {
           const barClearance = AppLayout.bottomNavHeight +
               AppLayout.bottomNavBottomInset +
               AppTheme.spaceSm;
+          final bodyBottom = media.padding.bottom +
+              barClearance +
+              media.viewInsets.bottom;
           return Stack(
             fit: StackFit.expand,
+            clipBehavior: Clip.none,
             children: [
               MediaQuery(
                 data: media.copyWith(
-                  padding: media.padding.copyWith(
-                    bottom: media.padding.bottom + barClearance,
-                  ),
+                  padding: media.padding.copyWith(bottom: bodyBottom),
                 ),
                 child: body,
               ),

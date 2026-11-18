@@ -261,6 +261,7 @@ abstract final class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         titleSpacing: 12,
+        titleTextStyle: sized(16, weight: FontWeight.w600, color: tokens.onCanvas),
       ),
       textTheme: TextTheme(
         headlineSmall:

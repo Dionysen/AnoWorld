@@ -219,10 +219,15 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
             },
           ),
         ),
-        AppChatComposer(
-          controller: _composer,
-          hintText: '想创作或整理什么…',
-          onSend: _send,
+        Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: AppChatComposer(
+            controller: _composer,
+            hintText: '想创作或整理什么…',
+            onSend: _send,
+          ),
         ),
       ],
     );

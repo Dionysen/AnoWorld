@@ -72,15 +72,10 @@ class AppPage extends StatelessWidget {
     final titleSpacing = theme.appBarTheme.titleSpacing ?? 12;
     final barColor =
         theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
-    final titleStyle = (theme.appBarTheme.titleTextStyle ??
-            theme.textTheme.titleMedium)
-        ?.copyWith(
-          color:
-              theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface,
-        );
     final largeTitle = _desktopLargeTitle;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: theme.scaffoldBackgroundColor,
       floatingActionButton: floatingActionButton,
       floatingActionButtonLocation:
@@ -212,11 +207,10 @@ class AppPage extends StatelessWidget {
                                 if (showTitleText)
                                   Expanded(
                                     child: titleWidget ??
-                                        Text(
+                                        AppText(
                                           title,
+                                          role: AppTextRole.subtitle,
                                           maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: titleStyle,
                                         ),
                                   )
                                 else
@@ -271,12 +265,13 @@ class AppPageBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mediaBottom = MediaQuery.paddingOf(context).bottom;
+    final keyboardBottom = MediaQuery.viewInsetsOf(context).bottom;
     return LayoutBuilder(
       builder: (context, constraints) {
         final resolved = padding.resolve(Directionality.of(context));
         return SingleChildScrollView(
           padding: resolved.copyWith(
-            bottom: resolved.bottom + mediaBottom,
+            bottom: resolved.bottom + mediaBottom + keyboardBottom,
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(minWidth: constraints.maxWidth),
