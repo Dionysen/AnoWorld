@@ -49,7 +49,7 @@ void main() {
     expect(find.byTooltip('开始游玩'), findsOneWidget);
     expect(find.byTooltip('继续创作'), findsOneWidget);
     expect(find.text('少年离家，雨夜投宿。'), findsWidgets);
-    expect(find.text('背景设定'), findsOneWidget);
+    expect(find.text('世界书'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);
   });
 

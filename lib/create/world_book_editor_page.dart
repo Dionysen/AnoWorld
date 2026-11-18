@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
-import 'package:anoworld/domain/models/background.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -19,17 +19,17 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 
-/// Edit world-fact entries (always-on + keyword-triggered).
-class BackgroundEditorPage extends StatefulWidget {
-  const BackgroundEditorPage({super.key, required this.projectId});
+/// Edit world-book entries (always-on + keyword-triggered).
+class WorldBookEditorPage extends StatefulWidget {
+  const WorldBookEditorPage({super.key, required this.projectId});
 
   final String projectId;
 
   @override
-  State<BackgroundEditorPage> createState() => _BackgroundEditorPageState();
+  State<WorldBookEditorPage> createState() => _WorldBookEditorPageState();
 }
 
-class _BackgroundEditorPageState extends State<BackgroundEditorPage> {
+class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
   Project? _project;
   Object? _error;
   bool _loading = true;
@@ -80,10 +80,10 @@ class _BackgroundEditorPageState extends State<BackgroundEditorPage> {
     setState(() => _project = stamped);
   }
 
-  void _scheduleSave(Background background) {
+  void _scheduleSave(WorldBook worldBook) {
     final current = _project;
     if (current == null) return;
-    final next = current.copyWith(background: background);
+    final next = current.copyWith(worldBook: worldBook);
     setState(() => _project = next);
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(milliseconds: 280), () async {
@@ -92,22 +92,22 @@ class _BackgroundEditorPageState extends State<BackgroundEditorPage> {
     });
   }
 
-  String _subtitle(BackgroundEntry entry) {
+  String _subtitle(WorldBookEntry entry) {
     if (entry.alwaysOn) return '常驻';
     if (entry.keys.isEmpty) return '按需 · 还没写关键词';
     return '按需 · ${entry.keys.join('、')}';
   }
 
-  void _replaceEntries(List<BackgroundEntry> entries) {
-    _scheduleSave(Background(entries: List.unmodifiable(entries)));
+  void _replaceEntries(List<WorldBookEntry> entries) {
+    _scheduleSave(WorldBook(entries: List.unmodifiable(entries)));
   }
 
-  Future<void> _editEntry({BackgroundEntry? existing}) async {
+  Future<void> _editEntry({WorldBookEntry? existing}) async {
     final project = _project;
     if (project == null) return;
     final draft = existing ??
-        BackgroundEntry(
-          id: newEntityId('bg'),
+        WorldBookEntry(
+          id: newEntityId('wb'),
           title: '',
           body: '',
           alwaysOn: true,
@@ -254,7 +254,7 @@ class _BackgroundEditorPageState extends State<BackgroundEditorPage> {
     keys.dispose();
     if (result == null || !mounted) return;
 
-    final entries = [...project.background.entries];
+    final entries = [...project.worldBook.entries];
     if (result.delete) {
       entries.removeWhere((e) => e.id == draft.id);
     } else {
@@ -272,9 +272,9 @@ class _BackgroundEditorPageState extends State<BackgroundEditorPage> {
   @override
   Widget build(BuildContext context) {
     final project = _project;
-    final entries = project?.background.entries ?? const <BackgroundEntry>[];
+    final entries = project?.worldBook.entries ?? const <WorldBookEntry>[];
     return AppPage(
-      title: '背景设定',
+      title: '世界书',
       onBack: () => Navigator.of(context).maybePop(),
       actions: [
         AppCircleButton(
@@ -348,6 +348,6 @@ class _EntrySheetResult {
       : entry = null,
         delete = true;
 
-  final BackgroundEntry? entry;
+  final WorldBookEntry? entry;
   final bool delete;
 }

@@ -1,5 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
-import 'package:anoworld/create/background_editor_page.dart';
+import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -13,7 +13,7 @@ import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/material.dart';
 
-/// Creation cross-section: pick Background / Cast / Main to edit.
+/// Creation cross-section: pick WorldBook / Cast / Main to edit.
 class CreateHubPage extends StatefulWidget {
   const CreateHubPage({super.key, required this.projectId});
 
@@ -71,11 +71,11 @@ class _CreateHubPageState extends State<CreateHubPage> {
     if (mounted) await _load();
   }
 
-  String _backgroundSubtitle(Project project) {
-    final count = project.background.entries.length;
+  String _worldBookSubtitle(Project project) {
+    final count = project.worldBook.entries.length;
     if (count == 0) return '还没有设定条目';
     final always =
-        project.background.entries.where((e) => e.alwaysOn).length;
+        project.worldBook.entries.where((e) => e.alwaysOn).length;
     return '$count 条设定，其中 $always 条常驻';
   }
 
@@ -131,12 +131,12 @@ class _CreateHubPageState extends State<CreateHubPage> {
             AppListTileStack(
               tiles: [
                 AppListTile(
-                  title: '背景设定',
-                  subtitle: _backgroundSubtitle(project),
+                  title: '世界书',
+                  subtitle: _worldBookSubtitle(project),
                   icon: Icons.public_outlined,
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(
-                    BackgroundEditorPage(projectId: widget.projectId),
+                    WorldBookEditorPage(projectId: widget.projectId),
                   ),
                 ),
                 AppListTile(

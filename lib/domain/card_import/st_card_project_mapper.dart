@@ -1,5 +1,5 @@
 import 'package:anoworld/domain/card_import/st_character_card.dart';
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
@@ -32,18 +32,18 @@ class StCardImportItem<T> {
   }
 }
 
-/// Editable import draft: maps ST cards → Background / Cast.
+/// Editable import draft: maps ST cards → WorldBook / Cast.
 class StCardImportDraft {
   const StCardImportDraft({
     required this.title,
     required this.castItems,
-    required this.backgroundItems,
+    required this.worldBookItems,
     this.cardAiNote,
   });
 
   final String title;
   final List<StCardImportItem<CastMember>> castItems;
-  final List<StCardImportItem<BackgroundEntry>> backgroundItems;
+  final List<StCardImportItem<WorldBookEntry>> worldBookItems;
 
   /// 卡内 system/post-history 提示（不写进故事包，仅导入页说明）。
   final String? cardAiNote;
@@ -51,13 +51,13 @@ class StCardImportDraft {
   StCardImportDraft copyWith({
     String? title,
     List<StCardImportItem<CastMember>>? castItems,
-    List<StCardImportItem<BackgroundEntry>>? backgroundItems,
+    List<StCardImportItem<WorldBookEntry>>? worldBookItems,
     String? cardAiNote,
   }) {
     return StCardImportDraft(
       title: title ?? this.title,
       castItems: castItems ?? this.castItems,
-      backgroundItems: backgroundItems ?? this.backgroundItems,
+      worldBookItems: worldBookItems ?? this.worldBookItems,
       cardAiNote: cardAiNote ?? this.cardAiNote,
     );
   }
@@ -78,12 +78,12 @@ class StCardImportDraft {
         .where((item) => item.included)
         .map((item) => item.value)
         .toList(growable: false);
-    final entries = backgroundItems
+    final entries = worldBookItems
         .where((item) => item.included)
         .map((item) => item.value)
         .toList(growable: false);
     return blank.copyWith(
-      background: Background(entries: entries),
+      worldBook: WorldBook(entries: entries),
       cast: cast,
     );
   }
@@ -99,7 +99,7 @@ class StCardProjectMapper {
     }
     final primary = cards.first;
     final castItems = <StCardImportItem<CastMember>>[];
-    final backgroundItems = <StCardImportItem<BackgroundEntry>>[];
+    final worldBookItems = <StCardImportItem<WorldBookEntry>>[];
 
     for (var cardIndex = 0; cardIndex < cards.length; cardIndex++) {
       final card = cards[cardIndex];
@@ -129,12 +129,12 @@ class StCardProjectMapper {
 
       if (card.scenario.trim().isNotEmpty) {
         final id = newEntityId('bg');
-        backgroundItems.add(
+        worldBookItems.add(
           StCardImportItem(
             id: id,
             title: cards.length == 1 ? '情景' : '情景 · ${card.name}',
             preview: _preview(card.scenario),
-            value: BackgroundEntry(
+            value: WorldBookEntry(
               id: id,
               title: cards.length == 1 ? '情景' : '情景 · ${card.name}',
               body: card.scenario.trim(),
@@ -146,12 +146,12 @@ class StCardProjectMapper {
 
       if (card.firstMes.trim().isNotEmpty) {
         final id = newEntityId('bg');
-        backgroundItems.add(
+        worldBookItems.add(
           StCardImportItem(
             id: id,
             title: cards.length == 1 ? '开场素材' : '开场素材 · ${card.name}',
             preview: _preview(card.firstMes),
-            value: BackgroundEntry(
+            value: WorldBookEntry(
               id: id,
               title: cards.length == 1 ? '开场素材' : '开场素材 · ${card.name}',
               body: card.firstMes.trim(),
@@ -165,12 +165,12 @@ class StCardProjectMapper {
         final text = card.alternateGreetings[i].trim();
         if (text.isEmpty) continue;
         final id = newEntityId('bg');
-        backgroundItems.add(
+        worldBookItems.add(
           StCardImportItem(
             id: id,
             title: '备选开场 ${i + 1}',
             preview: _preview(text),
-            value: BackgroundEntry(
+            value: WorldBookEntry(
               id: id,
               title: '备选开场 ${i + 1}',
               body: text,
@@ -186,12 +186,12 @@ class StCardProjectMapper {
         if (!entry.enabled || entry.content.trim().isEmpty) continue;
         final id = newEntityId('bg');
         final title = _bookTitle(entry);
-        backgroundItems.add(
+        worldBookItems.add(
           StCardImportItem(
             id: id,
             title: title,
             preview: _preview(entry.content),
-            value: BackgroundEntry(
+            value: WorldBookEntry(
               id: id,
               title: title,
               body: entry.content.trim(),
@@ -206,7 +206,7 @@ class StCardProjectMapper {
     return StCardImportDraft(
       title: primary.name,
       castItems: castItems,
-      backgroundItems: backgroundItems,
+      worldBookItems: worldBookItems,
       cardAiNote: _cardAiNote(cards),
     );
   }

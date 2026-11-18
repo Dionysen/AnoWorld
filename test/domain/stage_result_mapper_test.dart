@@ -1,5 +1,5 @@
 import 'package:anoworld/domain/ai/stage_result_mapper.dart';
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -9,15 +9,15 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const mapper = StageResultMapper();
 
-  test('maps background sections from fenced json', () {
-    final background = mapper.backgroundFromRaw('''
+  test('maps world book sections from fenced json', () {
+    final worldBook = mapper.worldBookFromRaw('''
 ```json
 {"sections":[{"title":"世界观","body":"边城雨夜"}]}
 ```
 ''');
-    expect(background.entries, hasLength(1));
-    expect(background.entries.first.body, '边城雨夜');
-    expect(background.entries.first.alwaysOn, isTrue);
+    expect(worldBook.entries, hasLength(1));
+    expect(worldBook.entries.first.body, '边城雨夜');
+    expect(worldBook.entries.first.alwaysOn, isTrue);
   });
 
   test('maps cast list', () {
@@ -58,9 +58,9 @@ void main() {
         createdAt: DateTime.utc(2024),
         updatedAt: DateTime.utc(2024),
       ),
-      background: const Background(
+      worldBook: const WorldBook(
         entries: [
-          BackgroundEntry(
+          WorldBookEntry(
             id: 'bg',
             title: '世界观',
             body: '边城',

@@ -65,9 +65,9 @@ void main() {
     expect(find.byType(CreateHubPage), findsOneWidget);
     final project = await repo.open('p_from_card');
     expect(project.cast.single.name, '掌柜');
-    expect(project.background.entries, isNotEmpty);
+    expect(project.worldBook.entries, isNotEmpty);
     expect(
-      project.background.entries.any((e) => e.title == '情景'),
+      project.worldBook.entries.any((e) => e.title == '情景'),
       isTrue,
     );
   });

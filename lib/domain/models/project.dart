@@ -1,15 +1,21 @@
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart' show CastMember, protagonistOf;
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project_asset.dart';
 import 'package:anoworld/domain/models/side.dart';
 
+Map<String, dynamic> _worldBookJson(Map<String, dynamic> json) {
+  final legacy = json.optionalMap('background');
+  if (legacy != null) return legacy;
+  return json.requireMap('worldBook');
+}
+
 /// On-disk / in-memory work package (docs/Core.md Project).
 class Project {
   const Project({
     required this.meta,
-    required this.background,
+    required this.worldBook,
     required this.cast,
     required this.main,
     this.side = const SideBundle(),
@@ -17,7 +23,7 @@ class Project {
   });
 
   final ProjectMeta meta;
-  final Background background;
+  final WorldBook worldBook;
   final List<CastMember> cast;
   final MainStory main;
   final SideBundle side;
@@ -42,7 +48,7 @@ class Project {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'meta': meta.toJson(),
-        'background': background.toJson(),
+        'worldBook': worldBook.toJson(),
         'cast': cast.map((c) => c.toJson()).toList(growable: false),
         'main': main.toJson(),
         'side': side.toJson(),
@@ -53,7 +59,7 @@ class Project {
     // Legacy v1: `presets` / `activePresetId` are ignored (global AiPreset).
     return Project(
       meta: ProjectMeta.fromJson(json.requireMap('meta')),
-      background: Background.fromJson(json.requireMap('background')),
+      worldBook: WorldBook.fromJson(_worldBookJson(json)),
       cast: json
           .requireList('cast')
           .map((item) => CastMember.fromJson(asJsonMap(item, path: 'cast[]')))
@@ -74,7 +80,7 @@ class Project {
 
   Project copyWith({
     ProjectMeta? meta,
-    Background? background,
+    WorldBook? worldBook,
     List<CastMember>? cast,
     MainStory? main,
     SideBundle? side,
@@ -82,7 +88,7 @@ class Project {
   }) {
     return Project(
       meta: meta ?? this.meta,
-      background: background ?? this.background,
+      worldBook: worldBook ?? this.worldBook,
       cast: cast ?? this.cast,
       main: main ?? this.main,
       side: side ?? this.side,

@@ -65,7 +65,7 @@
 - **AI**：写故事与生图分开选服务商（半屏浮层抽屉，标题与说明固定不随列表滚）。服务地址、密钥为整行列表项（左标题/说明，右显示当前值；密钥打码），点开抽屉编辑后保存；切换服务商会记住上次内容。能自动查找模型的，填好后会拉出列表；点「模型」选用，也可点「查找模型」。文本通道另有 **思考程度**（自动 / 最低 / 低 / 中 / 高 / 最高）。
 - **预设**（[`AiPresetPanel`](../lib/settings/ai_preset_panel.dart)）：顶行 **预设**（副标题「控制输出风格和边界」，右显示当前名称，点开半屏抽屉选内置/自定义/导入）；其下 **采样**（无副标题）直接列出生成项（单次输出、上下文、温度、Top P、流式），**高级采样**点进子页（[`AdvancedSamplingPage`](../lib/settings/advanced_sampling_page.dart)）；再下 **预设提示词**（[`PromptManagerPanel`](../lib/settings/prompt_manager_panel.dart)）段列表全部显示，可拖动手柄改顺序；不可编辑段可点进只读查看。套用预设会写入 `AiSettings.generation` 与 `AiPresetCatalog.promptManager`，在面板内改动即为当前生效值。
 - **AI**（[`AiSettingsPanel`](../lib/settings/ai_settings_panel.dart)）：文本/生图 **服务地址、密钥、模型**；文本另有 **思考程度**（[`AiReasoningEffort`](../lib/domain/settings/ai_settings.dart)，请求时 OpenAI 用 `reasoning_effort`、OpenRouter 用 `reasoning.effort`）。写故事/游玩/分步创建走全局 [`AiPromptContext`](../lib/domain/ai/ai_prompt_context.dart)（预设 + 通用里的 Persona + 故事背景）。
-- **预设 · 预设提示词**：与 ST 相同的段类型与 `prompt_order`；左侧拖动手柄可改顺序；可编辑段点进改文案，不可编辑段点进只读查看；游玩与创作拼装时把 **背景设定** 当世界书、**角色**当卡字段注入对应段（实现渐进对齐）。
+- **预设 · 预设提示词**：与 ST 相同的段类型与 `prompt_order`；左侧拖动手柄可改顺序；可编辑段点进改文案，不可编辑段点进只读查看；游玩与创作拼装时用 **世界书**、**角色**当卡字段注入对应段（实现渐进对齐）。
 - **玩家身份（Persona）**（[`PersonaSettingsPanel`](../lib/settings/persona_settings_panel.dart)，**通用** 分区）：与酒馆相同——可建多套、选当前一套；名字与描述参与 `{{user}}` 等宏。
 - **宏 / 变量**：预设与世界书、角色、对白模板里的 `{{…}}` 按酒馆规则展开（含常用宏与变量语法，实现对照 NT）。
 - **关于**：应用图标与一句话说明。
@@ -81,7 +81,7 @@
 ### 用户做的事
 
 1. 选择角色卡文件（可多张：第一张作主角与故事名，其余当配角）。
-2. 看「读到了这些」：角色、背景设定条目；用开关划掉不要的（卡内 system 等不写入故事，提示去设置调全局提示词）。
+2. 看「读到了这些」：角色、世界书条目；用开关划掉不要的（卡内 system 等不写入故事，提示去设置调全局提示词）。
 3. 点「写入故事」：生成故事并打开创作截面，继续改设定 / 角色 / 情节。
 4. （后续）再生成短脉络骨架并开玩——本阶段不挡写入。
 
@@ -89,9 +89,9 @@
 
 | 卡里常见内容 | 填到 |
 | --- | --- |
-| `scenario` | 背景设定 · 常驻「情景」 |
-| `character_book` 启用条目 | 背景设定条目（`constant`→常驻，否则带关键词） |
-| `first_mes` | 背景设定 · 常驻「开场素材」 |
+| `scenario` | 世界书 · 常驻「情景」 |
+| `character_book` 启用条目 | 世界书条目（`constant`→常驻，否则带关键词） |
+| `first_mes` | 世界书 · 常驻「开场素材」 |
 | `alternate_greetings` | 备选开场（默认不勾选） |
 | `name` / `description` / `personality` / `mes_example` | 角色 |
 | `system_prompt` / `post_history_instructions` | 不写入故事包；导入后可提示粘贴到设置 → 提示词 |
@@ -160,7 +160,7 @@
 
 ## 故事详情（点进一个故事）
 
-从故事库点一个故事进入 [`ProjectHubPage`](../lib/project/project_hub_page.dart)：上方**封面**横向贴边、直角（默认可首字占位；右上角可换本地图片）；下方扁平分区 **背景设定**、**角色**、**情节走向**（无外卡；改 AI 气质去设置）。每区标题行带编辑；条目以发丝线分隔（标题、标签、正文，设定块对齐世界书式常驻/关键词标签），单条正文默认三行预览，右侧**展开**与**复制**。右上角 **继续创作**；右下角 **开始游玩** 用 [`AppCircleButton.fab`](../lib/foundation/widgets/app_circle_button.dart)（先弹出玩法选择）。
+从故事库点一个故事进入 [`ProjectHubPage`](../lib/project/project_hub_page.dart)：上方**封面**横向贴边、直角（默认可首字占位；右上角可换本地图片）；下方扁平分区 **世界书**、**角色**、**情节走向**（无外卡；改 AI 气质去设置）。每区标题行带编辑；条目以发丝线分隔（标题、标签、正文，世界书条目对齐酒馆式常驻/关键词标签），单条正文默认三行预览，右侧**展开**与**复制**。右上角 **继续创作**；右下角 **开始游玩** 用 [`AppCircleButton.fab`](../lib/foundation/widgets/app_circle_button.dart)（先弹出玩法选择）。
 
 ## 创作截面（故事内）
 
@@ -168,7 +168,7 @@
 
 | 入口 | 用户在改什么 | 编辑页 |
 | --- | --- | --- |
-| 背景设定 | 世界事实条目：常驻或关键词唤起（世界书） | [`BackgroundEditorPage`](../lib/create/background_editor_page.dart) |
+| 世界书 | 世界事实条目：常驻或关键词唤起 | [`WorldBookEditorPage`](../lib/create/world_book_editor_page.dart) |
 | 角色 | 姓名、简介、性格等；**至多勾一名主角** | [`CastEditorPage`](../lib/create/cast_editor_page.dart) |
 | 情节走向 | 大站与分支（原节点画布） | [`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart) |
 
@@ -180,7 +180,7 @@
 
 | 用户觉得 | 打开的界面 | 背后改的数据 |
 | --- | --- | --- |
-| 人设/世界观偏了 | 创作截面 → 背景设定 / 角色 | Background / Cast |
+| 人设/世界观偏了 | 创作截面 → 世界书 / 角色 | WorldBook / Cast |
 | 这一站目标不对 / 分支不对 | 创作截面 → 情节走向 | nodes / edges / synopsis |
 | 过程戏这段不对 | 游玩中「重来这一段」或创作里预写钩子 | 区间会话 / 可选预写 Beats |
 | 想多一个结局或岔路 | 创作截面 → 情节走向 | nodes / edges |

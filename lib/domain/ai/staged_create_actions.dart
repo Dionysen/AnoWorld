@@ -1,7 +1,7 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/stage_result_mapper.dart';
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -20,7 +20,7 @@ class StagedCreateActions {
   final ProjectValidator validator;
   final int maxFormatRetries;
 
-  Future<Background> generateWorld({
+  Future<WorldBook> generateWorld({
     required AiPromptContext ctx,
     required String prompt,
   }) {
@@ -29,23 +29,23 @@ class StagedCreateActions {
       ctx: ctx,
       system: system,
       user: '用户提示：\n${prompt.trim()}',
-      map: mapper.backgroundFromRaw,
+      map: mapper.worldBookFromRaw,
     );
   }
 
   Future<List<CastMember>> generateCast({
     required AiPromptContext ctx,
     required String prompt,
-    required Background background,
+    required WorldBook worldBook,
   }) {
     final system = ctx.assembleSystem(
-      worldInfoBefore: background.combinedText,
+      worldInfoBefore: worldBook.combinedText,
       taskSuffix: _castSchema,
     );
     return _completeMapped(
       ctx: ctx,
       system: system,
-      user: '已有设定：\n${background.combinedText}\n\n用户提示：\n${prompt.trim()}',
+      user: '已有设定：\n${worldBook.combinedText}\n\n用户提示：\n${prompt.trim()}',
       map: mapper.castFromRaw,
     );
   }
@@ -53,7 +53,7 @@ class StagedCreateActions {
   Future<MainStory> generateMain({
     required AiPromptContext ctx,
     required String prompt,
-    required Background background,
+    required WorldBook worldBook,
     required List<CastMember> cast,
   }) async {
     final castLines = cast
@@ -66,7 +66,7 @@ class StagedCreateActions {
         createdAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       ),
-      background: background,
+      worldBook: worldBook,
       cast: cast,
       main: const MainStory(
         summary: '',
@@ -83,7 +83,7 @@ class StagedCreateActions {
     final main = await _completeMapped(
       ctx: ctx,
       system: system,
-      user: '已有设定：\n${background.combinedText}\n\n'
+      user: '已有设定：\n${worldBook.combinedText}\n\n'
           '角色：\n$castLines\n\n用户提示：\n${prompt.trim()}',
       map: (raw) => mapper.mainFromRaw(raw, cast: cast),
     );
@@ -96,9 +96,9 @@ class StagedCreateActions {
     return main;
   }
 
-  Project applyWorld(Project project, Background background) {
+  Project applyWorldBook(Project project, WorldBook worldBook) {
     return project.copyWith(
-      background: background,
+      worldBook: worldBook,
       meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
     );
   }

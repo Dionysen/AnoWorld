@@ -1,7 +1,7 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/staged_create_actions.dart';
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -36,7 +36,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
   final _prompt = TextEditingController();
   final _preview = TextEditingController();
 
-  Background? _background;
+  WorldBook? _worldBook;
   List<CastMember>? _cast;
   MainStory? _main;
   bool _hasPreview = false;
@@ -100,8 +100,8 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
     _hasPreview = true;
   }
 
-  String _formatBackground(Background background) {
-    return background.entries
+  String _formatWorldBook(WorldBook worldBook) {
+    return worldBook.entries
         .map((s) => '【${s.title}】\n${s.body}')
         .join('\n\n');
   }
@@ -151,15 +151,15 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
     return buf.toString();
   }
 
-  Background? _backgroundFromPreview() {
+  WorldBook? _worldBookFromPreview() {
     final text = _preview.text.trim();
-    if (text.isEmpty || _background == null) return _background;
+    if (text.isEmpty || _worldBook == null) return _worldBook;
     // Keep entry ids; replace bodies from editable blob best-effort by whole text.
-    if (_background!.entries.length == 1) {
-      final only = _background!.entries.first;
-      return Background(
+    if (_worldBook!.entries.length == 1) {
+      final only = _worldBook!.entries.first;
+      return WorldBook(
         entries: [
-          BackgroundEntry(
+          WorldBookEntry(
             id: only.id,
             title: only.title,
             body: text,
@@ -169,10 +169,10 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
         ],
       );
     }
-    return Background(
+    return WorldBook(
       entries: [
-        BackgroundEntry(
-          id: _background!.entries.first.id,
+        WorldBookEntry(
+          id: _worldBook!.entries.first.id,
           title: '设定',
           body: text,
           alwaysOn: true,
@@ -213,50 +213,50 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
       final ctx = AppScope.settingsOf(context).textPromptContext();
       switch (_stage) {
         case _Stage.world:
-          final background = await actions.generateWorld(
+          final worldBook = await actions.generateWorld(
             ctx: ctx,
             prompt: prompt,
           );
-          final next = actions.applyWorld(project, background);
+          final next = actions.applyWorldBook(project, worldBook);
           await _persist(next);
           if (!mounted) return;
           setState(() {
-            _background = background;
-            _showPreview(_formatBackground(background));
+            _worldBook = worldBook;
+            _showPreview(_formatWorldBook(worldBook));
             _status = null;
           });
         case _Stage.cast:
-          final background = _backgroundFromPreview() ?? _background;
-          if (background == null || background.entries.isEmpty) {
+          final worldBook = _worldBookFromPreview() ?? _worldBook;
+          if (worldBook == null || worldBook.entries.isEmpty) {
             setState(() => _status = '请先完成世界设定');
             return;
           }
           final cast = await actions.generateCast(
             ctx: ctx,
             prompt: prompt,
-            background: background,
+            worldBook: worldBook,
           );
-          var next = actions.applyWorld(project, background);
+          var next = actions.applyWorldBook(project, worldBook);
           next = actions.applyCast(next, cast);
           await _persist(next);
           if (!mounted) return;
           setState(() {
-            _background = background;
+            _worldBook = worldBook;
             _cast = cast;
             _showPreview(_formatCast(cast));
             _status = null;
           });
         case _Stage.main:
-          final background = _background ?? project.background;
+          final worldBook = _worldBook ?? project.worldBook;
           final cast = _cast ?? project.cast;
-          if (background.entries.isEmpty || cast.isEmpty) {
+          if (worldBook.entries.isEmpty || cast.isEmpty) {
             setState(() => _status = '请先完成设定和角色');
             return;
           }
           final main = await actions.generateMain(
             ctx: ctx,
             prompt: prompt,
-            background: background,
+            worldBook: worldBook,
             cast: cast,
           );
           final next = actions.applyMain(project, main);
@@ -285,16 +285,16 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
 
     switch (_stage) {
       case _Stage.world:
-        final background = _backgroundFromPreview();
-        if (background == null || background.entries.isEmpty) {
+        final worldBook = _worldBookFromPreview();
+        if (worldBook == null || worldBook.entries.isEmpty) {
           setState(() => _status = '请先生成设定');
           return;
         }
-        final next = _actions().applyWorld(project, background);
+        final next = _actions().applyWorldBook(project, worldBook);
         await _persist(next);
         if (!mounted) return;
         setState(() {
-          _background = background;
+          _worldBook = worldBook;
           _stage = _Stage.cast;
           _prompt.clear();
           _hasPreview = false;
@@ -353,12 +353,12 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
               value: _stage,
               onChanged: (value) {
                 if (_busy) return;
-                if (value == _Stage.cast && _background == null) {
+                if (value == _Stage.cast && _worldBook == null) {
                   setState(() => _status = '请先完成世界');
                   return;
                 }
                 if (value == _Stage.main &&
-                    (_background == null || _cast == null)) {
+                    (_worldBook == null || _cast == null)) {
                   setState(() => _status = '请先完成世界和人物');
                   return;
                 }

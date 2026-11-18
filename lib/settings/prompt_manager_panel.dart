@@ -120,7 +120,7 @@ class PromptManagerPanel extends StatelessWidget {
       PromptSectionType.persona => '写故事时用当前玩家身份填充',
       PromptSectionType.worldInfo ||
       PromptSectionType.worldInfoAfter =>
-        '写故事时用当前故事的背景设定填充',
+        '写故事时用当前故事的世界书填充',
       PromptSectionType.chatHistory => '写故事时自动带上对话历史',
       PromptSectionType.authorNote => '暂无作者备注',
       _ => '这段会在写故事时自动带上',

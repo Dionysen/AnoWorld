@@ -26,7 +26,7 @@ class AiPromptContext {
     required String taskSuffix,
     String worldInfoAfter = '',
   }) {
-    final lore = project?.background.combinedText ?? worldInfoBefore;
+    final lore = project?.worldBook.combinedText ?? worldInfoBefore;
     final macro = MacroContextBuilder().build(
       persona: persona,
       protagonist: project?.protagonist,

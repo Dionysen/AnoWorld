@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
-import 'package:anoworld/create/background_editor_page.dart';
+import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/data/project/project_cover_files.dart';
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -221,24 +221,24 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     if (mounted) await _load();
   }
 
-  List<AppDetailEntry> _backgroundEntries(Project project) {
-    final entries = project.background.entries;
+  List<AppDetailEntry> _worldBookEntries(Project project) {
+    final entries = project.worldBook.entries;
     if (entries.isEmpty) return const [];
     final always = entries.where((e) => e.alwaysOn);
     final keyed = entries.where((e) => !e.alwaysOn);
-    return [...always, ...keyed].map(_backgroundEntry).toList(growable: false);
+    return [...always, ...keyed].map(_worldBookEntry).toList(growable: false);
   }
 
-  static AppDetailEntry _backgroundEntry(BackgroundEntry entry) {
+  static AppDetailEntry _worldBookEntry(WorldBookEntry entry) {
     final title = entry.title.trim();
     return AppDetailEntry(
       title: title.isEmpty ? '未命名条目' : title,
-      tags: _backgroundTags(entry),
+      tags: _worldBookTags(entry),
       body: entry.body.trim(),
     );
   }
 
-  static List<String> _backgroundTags(BackgroundEntry entry) {
+  static List<String> _worldBookTags(WorldBookEntry entry) {
     if (entry.alwaysOn) return const <String>['常驻'];
     if (entry.keys.isEmpty) return const <String>['按需'];
     return entry.keys;
@@ -415,12 +415,12 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             ),
             const SizedBox(height: AppTheme.spaceLg),
             AppDetailSection(
-              title: '背景设定',
+              title: '世界书',
               icon: Icons.public_outlined,
-              entries: _backgroundEntries(project),
+              entries: _worldBookEntries(project),
               emptyHint: '还没有世界观与设定',
               onEdit: () => _openEditor(
-                BackgroundEditorPage(projectId: widget.projectId),
+                WorldBookEditorPage(projectId: widget.projectId),
               ),
             ),
             const SizedBox(height: AppTheme.spaceLg),

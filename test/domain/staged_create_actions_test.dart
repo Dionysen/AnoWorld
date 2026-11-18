@@ -3,7 +3,7 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/staged_create_actions.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
@@ -44,20 +44,20 @@ void main() {
         promptManager: PromptManagerConfig.defaultConfig(),
       );
 
-  test('generateWorld maps and applyWorld only changes background', () async {
+  test('generateWorld maps and applyWorldBook only changes worldBook', () async {
     final client = _ScriptedTextClient([
       '{"sections":[{"title":"世界观","body":"雨夜边城"}]}',
     ]);
     final actions = StagedCreateActions(textClient: client);
-    final background = await actions.generateWorld(
+    final worldBook = await actions.generateWorld(
       ctx: ctx(),
       prompt: '雨夜边城',
     );
-    expect(background.entries.first.body, '雨夜边城');
+    expect(worldBook.entries.first.body, '雨夜边城');
 
     final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
-    final next = actions.applyWorld(blank, background);
-    expect(next.background.entries.first.body, '雨夜边城');
+    final next = actions.applyWorldBook(blank, worldBook);
+    expect(next.worldBook.entries.first.body, '雨夜边城');
     expect(next.cast, blank.cast);
     expect(next.main.startNodeId, blank.main.startNodeId);
   });
@@ -68,11 +68,11 @@ void main() {
       '{"sections":[{"title":"世界观","body":"修好了"}]}',
     ]);
     final actions = StagedCreateActions(textClient: client);
-    final background = await actions.generateWorld(
+    final worldBook = await actions.generateWorld(
       ctx: ctx(),
       prompt: '提示',
     );
-    expect(background.entries.first.body, '修好了');
+    expect(worldBook.entries.first.body, '修好了');
     expect(client.calls, 2);
     expect(client.users.last, contains('只输出合法 JSON'));
   });
@@ -95,9 +95,9 @@ void main() {
     final main = await actions.generateMain(
       ctx: ctx(),
       prompt: '出城',
-      background: const Background(
+      worldBook: const WorldBook(
         entries: [
-          BackgroundEntry(
+          WorldBookEntry(
             id: 'bg',
             title: '世界',
             body: '边城',

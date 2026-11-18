@@ -1,4 +1,4 @@
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/story_node_kind.dart';
@@ -8,7 +8,7 @@ import 'package:anoworld/foundation/ai/json_candidate.dart';
 class StageResultMapper {
   const StageResultMapper();
 
-  Background backgroundFromRaw(String raw) {
+  WorldBook worldBookFromRaw(String raw) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) {
       throw const StageMapException('设定结果不是有效 JSON');
@@ -18,7 +18,7 @@ class StageResultMapper {
     if (sectionsRaw is! List || sectionsRaw.isEmpty) {
       throw const StageMapException('设定里没有可用的段落');
     }
-    final entries = <BackgroundEntry>[];
+    final entries = <WorldBookEntry>[];
     for (var i = 0; i < sectionsRaw.length; i++) {
       final item = sectionsRaw[i];
       if (item is! Map) continue;
@@ -27,7 +27,7 @@ class StageResultMapper {
       final body = _stringOf(row['body']) ?? '';
       if (body.trim().isEmpty) continue;
       entries.add(
-        BackgroundEntry(
+        WorldBookEntry(
           id: _stringOf(row['id']) ?? 'bg_$i',
           title: title.trim(),
           body: body.trim(),
@@ -38,7 +38,7 @@ class StageResultMapper {
     if (entries.isEmpty) {
       throw const StageMapException('设定里没有可用的段落');
     }
-    return Background(entries: entries);
+    return WorldBook(entries: entries);
   }
 
   List<CastMember> castFromRaw(String raw) {

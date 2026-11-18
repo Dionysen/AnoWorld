@@ -1,4 +1,4 @@
-import 'package:anoworld/create/background_editor_page.dart';
+import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
@@ -25,7 +25,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('背景设定'), findsOneWidget);
+    expect(find.text('世界书'), findsOneWidget);
     expect(find.text('角色'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);
   });
@@ -51,7 +51,7 @@ void main() {
       expect(find.byType(CreateHubPage), findsOneWidget);
     }
 
-    await openAndBack('背景设定', BackgroundEditorPage);
+    await openAndBack('世界书', WorldBookEditorPage);
     await openAndBack('角色', CastEditorPage);
 
     await tester.tap(find.text('情节走向'));

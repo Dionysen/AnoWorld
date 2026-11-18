@@ -63,7 +63,7 @@ class BridgeGenerateAction {
     final user = '''
 当前站：${node.title}
 本站目标：${node.synopsis ?? ''}
-设定摘要：${project.background.combinedText}
+设定摘要：${project.worldBook.combinedText}
 角色：${project.cast.map((c) => c.name).join('、')}
 玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
 $nextStationBlock

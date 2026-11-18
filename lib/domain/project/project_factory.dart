@@ -1,4 +1,4 @@
-import 'package:anoworld/domain/models/background.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -100,7 +100,7 @@ class ProjectFactory {
         createdAt: stamp,
         updatedAt: stamp,
       ),
-      background: const Background(),
+      worldBook: const WorldBook(),
       cast: const <CastMember>[],
       main: ensurePlayableMain(
         const MainStory(
@@ -130,9 +130,9 @@ class ProjectFactory {
         createdAt: stamp,
         updatedAt: stamp,
       ),
-      background: const Background(
-        entries: <BackgroundEntry>[
-          BackgroundEntry(
+      worldBook: const WorldBook(
+        entries: <WorldBookEntry>[
+          WorldBookEntry(
             id: 'bg_world',
             title: '世界观',
             body: '边陲小城外常有过路旅人；雨夜客栈是唯一歇脚处。',

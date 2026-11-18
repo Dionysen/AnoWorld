@@ -35,17 +35,17 @@ void main() {
     expect(draft.castItems.first.value.isProtagonist, isTrue);
     expect(draft.castItems.first.value.exampleLines, isNotEmpty);
 
-    final titles = draft.backgroundItems.map((e) => e.title).toList();
+    final titles = draft.worldBookItems.map((e) => e.title).toList();
     expect(titles, containsAll(['情景', '开场素材', '客栈规矩']));
     expect(
-      draft.backgroundItems.any((e) => e.value.body == '关掉的'),
+      draft.worldBookItems.any((e) => e.value.body == '关掉的'),
       isFalse,
     );
 
     final project = draft.toProject(id: 'p_card');
     expect(project.meta.title, '掌柜');
     expect(project.cast.single.name, '掌柜');
-    expect(project.background.entries.length, greaterThanOrEqualTo(3));
+    expect(project.worldBook.entries.length, greaterThanOrEqualTo(3));
     expect(draft.cardAiNote, contains('少系统腔'));
   });
 
@@ -58,7 +58,7 @@ void main() {
     expect(draft.castItems.first.value.isProtagonist, isTrue);
     expect(draft.castItems.last.value.isProtagonist, isFalse);
     expect(
-      draft.backgroundItems.any((e) => e.title.contains('情景')),
+      draft.worldBookItems.any((e) => e.title.contains('情景')),
       isTrue,
     );
   });

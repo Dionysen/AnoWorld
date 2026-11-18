@@ -18,7 +18,7 @@ void main() {
       testScoped(
         home: Scaffold(
           body: AppDetailSection(
-            title: '背景设定',
+            title: '世界书',
             icon: Icons.public_outlined,
             entries: [
               AppDetailEntry(
@@ -60,7 +60,7 @@ void main() {
             child: SizedBox(
               width: 120,
               child: AppDetailSection(
-                title: '背景设定',
+                title: '世界书',
                 icon: Icons.public_outlined,
                 entries: const [
                   AppDetailEntry(
@@ -100,7 +100,7 @@ void main() {
       testScoped(
         home: Scaffold(
           body: AppDetailSection(
-            title: '背景设定',
+            title: '世界书',
             icon: Icons.public_outlined,
             entries: const [
               AppDetailEntry(

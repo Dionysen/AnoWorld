@@ -1,22 +1,21 @@
 import 'package:anoworld/domain/models/json_map.dart';
 
-/// World facts for a project.
+/// World facts for a project (酒馆式世界书条目).
 ///
-/// Entries are the AnoWorld take on lorebook-style chunks: some always inject
-/// (基调 / 硬规则), others trigger by keywords during bridge generation.
+/// Entries inject always-on (基调 / 硬规则) or by keyword during generation.
 /// Not a SillyTavern World Info engine — no recursion, regex keys, or insert
 /// depth matrix.
-class Background {
-  const Background({this.entries = const <BackgroundEntry>[]});
+class WorldBook {
+  const WorldBook({this.entries = const <WorldBookEntry>[]});
 
-  final List<BackgroundEntry> entries;
+  final List<WorldBookEntry> entries;
 
   /// Always-on entries first, then the rest (stable for prompts / previews).
   String get combinedText {
     if (entries.isEmpty) return '';
     final always = entries.where((e) => e.alwaysOn);
     final keyed = entries.where((e) => !e.alwaysOn);
-    return <BackgroundEntry>[...always, ...keyed]
+    return <WorldBookEntry>[...always, ...keyed]
         .map(_formatEntry)
         .join('\n\n');
   }
@@ -26,7 +25,7 @@ class Background {
     return blocks.join('\n\n');
   }
 
-  static String _formatEntry(BackgroundEntry entry) {
+  static String _formatEntry(WorldBookEntry entry) {
     if (entry.title.isEmpty) return entry.body;
     return '## ${entry.title}\n${entry.body}';
   }
@@ -35,13 +34,13 @@ class Background {
         'entries': entries.map((e) => e.toJson()).toList(growable: false),
       };
 
-  factory Background.fromJson(Map<String, dynamic> json) {
+  factory WorldBook.fromJson(Map<String, dynamic> json) {
     final rawEntries = json.optionalList('entries');
     if (rawEntries.isNotEmpty) {
-      return Background(
+      return WorldBook(
         entries: rawEntries
             .map(
-              (item) => BackgroundEntry.fromJson(
+              (item) => WorldBookEntry.fromJson(
                 asJsonMap(item, path: 'entries[]'),
               ),
             )
@@ -50,12 +49,12 @@ class Background {
     }
     // Legacy: sections[] → always-on entries.
     final rawSections = json.optionalList('sections');
-    if (rawSections.isEmpty) return const Background();
-    return Background(
+    if (rawSections.isEmpty) return const WorldBook();
+    return WorldBook(
       entries: rawSections
           .map((item) {
             final map = asJsonMap(item, path: 'sections[]');
-            return BackgroundEntry(
+            return WorldBookEntry(
               id: map.requireString('id'),
               title: map.requireString('title'),
               body: map.requireString('body'),
@@ -66,13 +65,13 @@ class Background {
     );
   }
 
-  Background copyWith({List<BackgroundEntry>? entries}) {
-    return Background(entries: entries ?? this.entries);
+  WorldBook copyWith({List<WorldBookEntry>? entries}) {
+    return WorldBook(entries: entries ?? this.entries);
   }
 }
 
-class BackgroundEntry {
-  const BackgroundEntry({
+class WorldBookEntry {
+  const WorldBookEntry({
     required this.id,
     required this.title,
     required this.body,
@@ -98,8 +97,8 @@ class BackgroundEntry {
         'alwaysOn': alwaysOn,
       };
 
-  factory BackgroundEntry.fromJson(Map<String, dynamic> json) {
-    return BackgroundEntry(
+  factory WorldBookEntry.fromJson(Map<String, dynamic> json) {
+    return WorldBookEntry(
       id: json.requireString('id'),
       title: json.requireString('title'),
       body: json.requireString('body'),
@@ -108,14 +107,14 @@ class BackgroundEntry {
     );
   }
 
-  BackgroundEntry copyWith({
+  WorldBookEntry copyWith({
     String? id,
     String? title,
     String? body,
     List<String>? keys,
     bool? alwaysOn,
   }) {
-    return BackgroundEntry(
+    return WorldBookEntry(
       id: id ?? this.id,
       title: title ?? this.title,
       body: body ?? this.body,

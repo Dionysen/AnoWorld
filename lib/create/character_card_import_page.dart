@@ -180,13 +180,13 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
     });
   }
 
-  void _setBackgroundIncluded(String id, bool included) {
+  void _setWorldBookIncluded(String id, bool included) {
     final draft = _draft;
     if (draft == null) return;
     setState(() {
       _draft = draft.copyWith(
-        backgroundItems: [
-          for (final item in draft.backgroundItems)
+        worldBookItems: [
+          for (final item in draft.worldBookItems)
             if (item.id == id) item.copyWith(included: included) else item,
         ],
       );
@@ -305,11 +305,11 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
             ),
             const SizedBox(height: AppTheme.spaceLg),
             const AppSectionHeader(
-              '背景设定',
+              '世界书',
               subtitle: '情景、开场素材与角色书条目',
               gutter: true,
             ),
-            if (draft.backgroundItems.isEmpty)
+            if (draft.worldBookItems.isEmpty)
               const AppPageGutter(
                 child: AppText(
                   '这张卡没有可摘的设定条目',
@@ -319,7 +319,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
             else
               AppListTileStack(
                 tiles: [
-                  for (final item in draft.backgroundItems)
+                  for (final item in draft.worldBookItems)
                     AppListTile(
                       title: item.title,
                       subtitle: item.preview,
@@ -329,10 +329,10 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
                       trailing: AppSwitch(
                         value: item.included,
                         onChanged: (value) =>
-                            _setBackgroundIncluded(item.id, value),
+                            _setWorldBookIncluded(item.id, value),
                       ),
                       onTap: () =>
-                          _setBackgroundIncluded(item.id, !item.included),
+                          _setWorldBookIncluded(item.id, !item.included),
                     ),
                 ],
               ),
