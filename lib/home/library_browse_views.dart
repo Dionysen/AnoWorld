@@ -4,6 +4,7 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_cover_tile.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_press_scale.dart';
 import 'package:anoworld/foundation/widgets/app_shaped_avatar.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
@@ -22,6 +23,7 @@ class LibraryBrowseViews extends StatelessWidget {
     required this.onFolderMenu,
     required this.onProjectMenu,
     required this.formatUpdated,
+    this.onCreate,
   });
 
   final LibraryViewMode viewMode;
@@ -34,6 +36,9 @@ class LibraryBrowseViews extends StatelessWidget {
   final ValueChanged<ProjectFolder> onFolderMenu;
   final ValueChanged<ProjectSummary> onProjectMenu;
   final String Function(DateTime) formatUpdated;
+
+  /// When set, a story-shaped “add” tile is appended after folders/projects.
+  final VoidCallback? onCreate;
 
   EdgeInsets _listPadding(BuildContext context, {bool horizontal = false}) {
     final mediaBottom = MediaQuery.paddingOf(context).bottom;
@@ -51,6 +56,14 @@ class LibraryBrowseViews extends StatelessWidget {
         LibraryAvatarShape.square => AppAvatarGeometry.square,
         LibraryAvatarShape.rectangle => AppAvatarGeometry.rectangle,
       };
+
+  bool get _showCreate => onCreate != null;
+
+  int get _baseCount => folders.length + projects.length;
+
+  int get _itemCount => _baseCount + (_showCreate ? 1 : 0);
+
+  bool _isCreateIndex(int index) => _showCreate && index == _baseCount;
 
   String _folderSubtitle(ProjectFolder folder) {
     final parts = [
@@ -148,6 +161,18 @@ class LibraryBrowseViews extends StatelessWidget {
     );
   }
 
+  Widget _createCover(BuildContext context, {required bool compact}) {
+    final scheme = Theme.of(context).colorScheme;
+    // Icon only — tile Material supplies the fill so Ink hover/press shows.
+    return Center(
+      child: Icon(
+        Icons.add,
+        size: compact ? 36 : 48,
+        color: scheme.onSurfaceVariant,
+      ),
+    );
+  }
+
   Widget _selectionBadge(BuildContext context, bool selected) {
     final scheme = Theme.of(context).colorScheme;
     return Positioned(
@@ -198,14 +223,74 @@ class LibraryBrowseViews extends StatelessWidget {
     };
   }
 
+  static const createControlKey = ValueKey<String>('library_create');
+
+  Widget _createListTile(BuildContext context, {required bool compact}) {
+    final scheme = Theme.of(context).colorScheme;
+    final geometry = compact ? AppAvatarGeometry.circle : _geometry;
+    final size = compact ? 40.0 : 56.0;
+    final height = geometry.heightFor(size);
+    final radius = geometry.radiusFor(size);
+    final ShapeBorder border = switch (geometry) {
+      AppAvatarGeometry.circle => const CircleBorder(),
+      AppAvatarGeometry.square || AppAvatarGeometry.rectangle =>
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.pagePadding,
+        vertical: AppTheme.spaceXs,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Tooltip(
+          message: '添加',
+          child: AppPressScale(
+            child: Material(
+              key: createControlKey,
+              color: scheme.surfaceContainerHighest,
+              shape: border,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onCreate,
+                customBorder: border,
+                overlayColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.pressed)) {
+                    return scheme.onSurface.withValues(alpha: 0.14);
+                  }
+                  if (states.contains(WidgetState.hovered) ||
+                      states.contains(WidgetState.focused)) {
+                    return scheme.onSurface.withValues(alpha: 0.08);
+                  }
+                  return null;
+                }),
+                child: SizedBox(
+                  width: size,
+                  height: height,
+                  child: Icon(
+                    Icons.add,
+                    color: scheme.onSurfaceVariant,
+                    size: compact ? 22 : 26,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _detailList(BuildContext context) {
     final selectionMode = selection.selectionMode;
-    final itemCount = folders.length + projects.length;
     return ListView.separated(
       padding: _listPadding(context),
-      itemCount: itemCount,
+      itemCount: _itemCount,
       separatorBuilder: (_, _) => const SizedBox.shrink(),
       itemBuilder: (context, index) {
+        if (_isCreateIndex(index)) {
+          return _createListTile(context, compact: false);
+        }
         if (index < folders.length) {
           final folder = folders[index];
           final selected = selection.isSelected(folder.id);
@@ -262,11 +347,13 @@ class LibraryBrowseViews extends StatelessWidget {
 
   Widget _simpleList(BuildContext context) {
     final selectionMode = selection.selectionMode;
-    final itemCount = folders.length + projects.length;
     return ListView.builder(
       padding: _listPadding(context),
-      itemCount: itemCount,
+      itemCount: _itemCount,
       itemBuilder: (context, index) {
+        if (_isCreateIndex(index)) {
+          return _createListTile(context, compact: true);
+        }
         if (index < folders.length) {
           final folder = folders[index];
           final selected = selection.isSelected(folder.id);
@@ -320,7 +407,6 @@ class LibraryBrowseViews extends StatelessWidget {
 
   Widget _grid(BuildContext context, {required bool compact}) {
     final selectionMode = selection.selectionMode;
-    final itemCount = folders.length + projects.length;
     final minTile = compact ? 110.0 : 140.0;
     final spacing = compact ? 8.0 : 10.0;
     final aspect = compact ? 0.65 : 0.72;
@@ -343,8 +429,19 @@ class LibraryBrowseViews extends StatelessWidget {
             crossAxisSpacing: spacing,
             mainAxisSpacing: spacing,
           ),
-          itemCount: itemCount,
+          itemCount: _itemCount,
           itemBuilder: (context, index) {
+            if (_isCreateIndex(index)) {
+              return KeyedSubtree(
+                key: createControlKey,
+                child: AppCoverTile(
+                  compact: compact,
+                  cover: _createCover(context, compact: compact),
+                  onTap: onCreate,
+                  semanticLabel: '添加',
+                ),
+              );
+            }
             if (index < folders.length) {
               final folder = folders[index];
               final selected = selection.isSelected(folder.id);

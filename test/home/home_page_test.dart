@@ -89,9 +89,11 @@ void main() {
     await tester.tap(find.text('故事').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('开始创作'));
+    final create = find.byKey(const ValueKey<String>('library_create'));
+    await tester.ensureVisible(create);
+    await tester.tap(create);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('新建空白故事').last);
+    await tester.tap(find.text('新建空白故事'));
     await tester.pumpAndSettle();
 
     expect(find.text('未命名故事'), findsWidgets);
@@ -124,7 +126,9 @@ void main() {
 
     await tester.tap(find.text('故事').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('开始创作'));
+    final create = find.byKey(const ValueKey<String>('library_create'));
+    await tester.ensureVisible(create);
+    await tester.tap(create);
     await tester.pumpAndSettle();
     await tester.tap(find.text('粘贴故事'));
     await tester.pumpAndSettle();

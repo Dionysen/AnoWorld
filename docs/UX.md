@@ -54,7 +54,7 @@
 
 - **会话**：已开启的游玩进度（视觉小说与聊天同一列表；按最近存档时间；副标题带玩法）；最上胶囊搜索（[`AppSearchField`](../lib/foundation/widgets/app_search_field.dart)，不跟外观圆角滑块），下一行右侧**多选**；多选时同行换为取消 / 全选 / 删除。切到本页或从故事返回会刷新；点进直接续玩；「更多」可继续游玩 / 打开故事 / 删除这一条（只清进度）；空态「去故事」仍可用。
 - **创作助手**：故事分区及经 [`pushStoryRoute`](../lib/home/story_assistant_navigation.dart) 进栈的子页右下角常驻磨砂图标（与底栏胶囊同款玻璃壳）。点开时由锚点向左上展开为半屏圆角面板（[`CreateAssistantBloomShell`](../lib/home/create_assistant_bloom_shell.dart)）；面板底与圆形按钮之间留一小段间距，[`CreateAssistantBloomOutline`](../lib/home/create_assistant_bloom_outline.dart) 预置一条整体轮廓（面板 + 细腰 + 圆形锚点）模拟水面张力；点遮罩或再点图标收起。锚点与情节画布「加一站」等高（[`AppBottomChromeMetrics`](../lib/foundation/widgets/app_bottom_nav_icon_capsule.dart)），不改动画布右下角工具位置。
-- **故事**：无分区标题；最上胶囊搜索，下一行左为**面包屑**、右为 **+ / 导入 / 更多**。点文件夹进入下一层（内容左右滑入/滑出）；新建/重命名文件夹用屏幕居中对话框（[`showAppPromptDialog`](../lib/foundation/widgets/app_prompt_dialog.dart)，对齐 NativeTavern `AlertDialog`）；更多里可改显示方式与头像形状、进多选；多选时同一行换为取消 / 全选 / 移到 / 删除。
+- **故事**：无分区标题；最上胶囊搜索，下一行左为**面包屑**、右为**更多**。列表/网格**末尾**有故事形加号按钮（无文字、无底栏，整块可点，语义标签「添加」）；点开半屏菜单，选项一律 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart)：新建空白故事 / 粘贴故事 / 分阶段提示词 / 导入角色卡 / 导入故事包 / 新建文件夹 / 试用「雨夜投宿」。点文件夹进入下一层；新建/重命名文件夹用屏幕居中对话框（[`showAppPromptDialog`](../lib/foundation/widgets/app_prompt_dialog.dart)）；更多里改显示方式与头像形状、进多选；多选时工具行换为取消 / 全选 / 移到 / 删除，并隐藏该加号按钮。
 - **我**：无分区标题；内容区顶部右侧齿轮进设置；其下为 Persona 列表。
 - **玩法**：占位空态，后续集中选开场/模式。
 - **我**：玩家身份（[`PersonaSettingsPanel`](../lib/settings/persona_settings_panel.dart)）；右上角进入设置壳。
@@ -80,7 +80,7 @@
 
 **用户想要的感觉**：选一个卡 → 看软件读懂了什么 → 勾选留下 → 写入故事再改。
 
-**当前实现**：故事页加号「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」或「AI 分类整理」（预览后应用）；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
+**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」或「AI 分类整理」（预览后应用）；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
 
 ### 用户做的事
 
@@ -138,7 +138,7 @@
 
 ## 路径 3：从空白开始，分阶段写提示词
 
-**入口已接通**（路径 2 仍为占位）：故事页加号「分阶段提示词」→ [`StagedCreatePage`](../lib/create/staged_create_page.dart)。需在设置 → AI 配好写故事服务（[`OpenAiChatClient`](../lib/foundation/ai/openai_chat_client.dart) + [`StagedCreateActions`](../lib/domain/ai/staged_create_actions.dart)）。
+**入口已接通**（路径 2 仍为占位）：故事页「添加」→「分阶段提示词」→ [`StagedCreatePage`](../lib/create/staged_create_page.dart)。需在设置 → AI 配好写故事服务（[`OpenAiChatClient`](../lib/foundation/ai/openai_chat_client.dart) + [`StagedCreateActions`](../lib/domain/ai/staged_create_actions.dart)）。
 
 **目标体验**：每个阶段只写一两句人话；阶段 3 产出的是**脉络骨架**（概括 + 大站 + 分支），开玩后站间由 AI 实时演。
 

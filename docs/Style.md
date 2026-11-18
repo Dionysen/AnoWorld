@@ -49,7 +49,7 @@
 | 设置 | 宽度 `≥ 600` | **左侧导航栏**；同样 chrome 下软件标题栏 |
 | 情节走向 | 任意宽度（`forceCompact: true`） | **主胶囊**画布 / 卡片 + **右侧独立胶囊**全图（`AppBottomNavExtraCapsule`，仅画布可用） |
 
-故事库进入/退出文件夹时，列表用约 280ms 的水平滑动 + 淡入淡出（`AnimatedSwitcher` + `SlideTransition`）。首页四分区不画 `AppPage` 标题；会话/故事为「搜索 → 工具行 → 列表」，工具行与搜索同用 `pagePadding`。故事库四种布局（详细列表 / 简洁列表 / 网格 / 紧凑网格）与列表头像形状（圆 / 方 / 竖矩）见 [`LibraryDisplayController`](../lib/home/library_display_prefs.dart)；网格卡用 [`AppCoverTile`](../lib/foundation/widgets/app_cover_tile.dart)，头像用 [`AppShapedAvatar`](../lib/foundation/widgets/app_shaped_avatar.dart)。
+故事库进入/退出文件夹时，列表用约 280ms 的水平滑动 + 淡入淡出（`AnimatedSwitcher` + `SlideTransition`）。首页四分区不画 `AppPage` 标题；会话/故事为「搜索 → 工具行 → 列表」，工具行与搜索同用 `pagePadding`。故事库四种布局（详细列表 / 简洁列表 / 网格 / 紧凑网格）与列表头像形状（圆 / 方 / 竖矩）见 [`LibraryDisplayController`](../lib/home/library_display_prefs.dart)；网格卡用 [`AppCoverTile`](../lib/foundation/widgets/app_cover_tile.dart)，头像用 [`AppShapedAvatar`](../lib/foundation/widgets/app_shaped_avatar.dart)。故事列表末尾加号控件与故事同形（网格为无底栏封面卡，列表为同形头像钮，皆无文案）；带 `AppPressScale` 与 Ink hover/按下反馈；点开菜单项统一 `AppListTile`。
 
 窄屏底栏尺寸见 `AppLayout.bottomNavHeight` / `bottomNavHorizontalInset` / `bottomNavBottomInset` / `bottomNavBlurSigma`；胶囊圆角固定为高度一半，不跟控件圆角滑块走。胶囊以 `Stack` 叠在内容之上，四周留白透明；本体为半透明表面 + `BackdropFilter` 毛玻璃模糊（对齐新版 iOS 胶囊质感）。底栏项与侧栏项按下用统一 [`AppPressScale`](../lib/foundation/widgets/app_press_scale.dart)（缩至 `AppTheme.pressScale` **0.92**，`pressScaleDuration` **120ms**，`easeOutCubic`）。`AppPage` 不预扣底边，`AppPageBody` 与情节图画布读 `MediaQuery.padding.bottom`（壳层会加上胶囊高度）以免内容被挡。以通栏列表为主的页面用 [`AppPageBody.list`](../lib/foundation/widgets/app_page.dart)（仅上下 `pagePadding`）；多块列表无行间距时用 [`AppListTileStack`](../lib/foundation/widgets/app_list_tile.dart)。
 
