@@ -139,11 +139,6 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const AppText('创作助手', role: AppTextRole.subtitle),
-              const SizedBox(height: AppTheme.spaceXs),
-              const AppText(
-                '选一个故事，再在这里说你想改什么',
-                role: AppTextRole.caption,
-              ),
               const SizedBox(height: AppTheme.spaceSm),
               AppSelectField(
                 label: '当前故事',

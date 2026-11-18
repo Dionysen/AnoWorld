@@ -15,7 +15,7 @@ class CreateAssistantHost extends StatefulWidget {
 
 class CreateAssistantHostState extends State<CreateAssistantHost>
     with SingleTickerProviderStateMixin {
-  static const _duration = Duration(milliseconds: 520);
+  static const _duration = Duration(milliseconds: 150);
 
   late final AnimationController _bloom = AnimationController(
     vsync: this,
