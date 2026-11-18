@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../focus/app_keyboard.dart';
+import '../theme/app_continuous_input_border.dart';
 import '../theme/app_theme.dart';
 import 'app_icon_button.dart';
 
 /// Compact search row for list screens (no separate label).
+///
+/// Always a capsule (radius = field height / 2); ignores appearance corner
+/// radius so it stays pill-shaped like the bottom nav chrome.
 class AppSearchField extends StatelessWidget {
   const AppSearchField({
     super.key,
@@ -26,27 +30,50 @@ class AppSearchField extends StatelessWidget {
   final VoidCallback? onClear;
   final EdgeInsetsGeometry padding;
 
+  /// Fixed field height; capsule radius is half of this.
+  static const double height = AppTheme.buttonHeight;
+
+  static BorderRadius get capsuleRadius =>
+      BorderRadius.circular(height / 2);
+
+  static AppContinuousInputBorder _border(Color color) {
+    return AppContinuousInputBorder(
+      borderRadius: capsuleRadius,
+      borderSide: BorderSide(color: color),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final hasText = controller?.text.isNotEmpty == true;
+    final outline = scheme.outline.withValues(alpha: 0.55);
+    final focused = scheme.primary;
+
     return Padding(
       padding: padding,
       child: SizedBox(
-        height: AppTheme.buttonHeight,
+        height: height,
         child: TextField(
           controller: controller,
           onChanged: onChanged,
           onTapOutside: (_) => AppKeyboard.dismiss(),
           textInputAction: TextInputAction.search,
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: theme.textTheme.bodyMedium,
           decoration: InputDecoration(
             hintText: hint,
+            filled: true,
+            fillColor: scheme.surfaceContainerHighest,
             isDense: true,
             contentPadding: EdgeInsets.zero,
+            border: _border(outline),
+            enabledBorder: _border(outline),
+            focusedBorder: _border(focused),
             prefixIcon: const Icon(Icons.search, size: 18),
             prefixIconConstraints: const BoxConstraints(
-              minWidth: AppTheme.buttonHeight,
-              minHeight: AppTheme.buttonHeight,
+              minWidth: height,
+              minHeight: height,
             ),
             suffixIcon: hasText && onClear != null
                 ? AppIconButton(
@@ -56,7 +83,7 @@ class AppSearchField extends StatelessWidget {
                   )
                 : null,
             suffixIconConstraints: const BoxConstraints(
-              minHeight: AppTheme.buttonHeight,
+              minHeight: height,
             ),
           ),
         ),
