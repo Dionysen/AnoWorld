@@ -1,10 +1,11 @@
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/plot_element_category.dart';
+import 'package:anoworld/domain/models/plot_element_pack.dart';
 import 'package:anoworld/domain/settings/built_in_plot_elements.dart';
 
 /// Global plot-element library: seeds + overrides + deletions + custom rows,
-/// plus the categories used to group them in the library UI.
+/// plus the categories and packs used to group them in the library UI.
 class PlotElementCatalog {
   PlotElementCatalog({
     Map<String, PlotElementOverride>? overrides,
@@ -12,11 +13,13 @@ class PlotElementCatalog {
     List<PlotElement>? custom,
     List<PlotElementCategory>? customCategories,
     Map<String, String>? categoryRenames,
+    List<PlotElementPack>? packs,
   }) : overrides = Map.unmodifiable(overrides ?? const {}),
        deletedBuiltInIds = Set.unmodifiable(deletedBuiltInIds ?? const {}),
        custom = List.unmodifiable(custom ?? const []),
        customCategories = List.unmodifiable(customCategories ?? const []),
-       categoryRenames = Map.unmodifiable(categoryRenames ?? const {});
+       categoryRenames = Map.unmodifiable(categoryRenames ?? const {}),
+       packs = List.unmodifiable(packs ?? const []);
 
   final Map<String, PlotElementOverride> overrides;
   final Set<String> deletedBuiltInIds;
@@ -27,6 +30,9 @@ class PlotElementCatalog {
 
   /// Renamed built-in categories (id → new name).
   final Map<String, String> categoryRenames;
+
+  /// User-created element bundles, applied as a whole in stories.
+  final List<PlotElementPack> packs;
 
   /// Label for elements with no (or no longer existing) category.
   static const String uncategorizedLabel = '未分类';
@@ -117,6 +123,48 @@ class PlotElementCatalog {
 
   PlotElement? byId(String id) => _byId[id];
 
+  late final Map<String, PlotElementPack> _packById = {
+    for (final pack in packs) pack.id: pack,
+  };
+
+  PlotElementPack? packById(String id) => _packById[id];
+
+  /// Resolvable rows of [pack]; ids of deleted elements are skipped.
+  List<PlotElement> elementsOfPack(PlotElementPack pack) =>
+      resolveSelected(pack.elementIds);
+
+  /// Adds or replaces a pack; drops ids that no longer exist in the library.
+  PlotElementCatalog upsertPack(PlotElementPack pack) {
+    final name = pack.name.trim();
+    if (name.isEmpty) return this;
+    final ids = <String>[];
+    for (final id in pack.elementIds) {
+      if (byId(id) != null && !ids.contains(id)) ids.add(id);
+    }
+    final row = pack.copyWith(name: name, elementIds: List.unmodifiable(ids));
+    final next = packs.toList(growable: true);
+    final index = next.indexWhere((p) => p.id == row.id);
+    if (index >= 0) {
+      next[index] = row;
+    } else {
+      next.add(row);
+    }
+    return copyWith(packs: next);
+  }
+
+  PlotElementCatalog deletePack(String id) {
+    if (packById(id) == null) return this;
+    return copyWith(
+      packs: packs.where((p) => p.id != id).toList(growable: false),
+    );
+  }
+
+  PlotElementCatalog renamePack(String id, String name) {
+    final pack = packById(id);
+    if (pack == null) return this;
+    return upsertPack(pack.copyWith(name: name));
+  }
+
   /// Resolve selected story ids to elements (skip missing).
   List<PlotElement> resolveSelected(Iterable<String> ids) {
     final out = <PlotElement>[];
@@ -149,6 +197,7 @@ class PlotElementCatalog {
     List<PlotElement>? custom,
     List<PlotElementCategory>? customCategories,
     Map<String, String>? categoryRenames,
+    List<PlotElementPack>? packs,
   }) {
     return PlotElementCatalog(
       overrides: overrides ?? this.overrides,
@@ -156,6 +205,7 @@ class PlotElementCatalog {
       custom: custom ?? this.custom,
       customCategories: customCategories ?? this.customCategories,
       categoryRenames: categoryRenames ?? this.categoryRenames,
+      packs: packs ?? this.packs,
     );
   }
 
@@ -214,14 +264,32 @@ class PlotElementCatalog {
   }
 
   PlotElementCatalog delete(String id) {
+    List<PlotElementPack>? nextPacks;
+    if (packs.any((pack) => pack.contains(id))) {
+      nextPacks = [
+        for (final pack in packs)
+          pack.contains(id)
+              ? pack.copyWith(
+                  elementIds: List.unmodifiable(
+                    pack.elementIds.where((e) => e != id),
+                  ),
+                )
+              : pack,
+      ];
+    }
     if (isBuiltInId(id)) {
       final nextDeleted = Set<String>.from(deletedBuiltInIds)..add(id);
       final nextOverrides = Map<String, PlotElementOverride>.from(overrides)
         ..remove(id);
-      return copyWith(deletedBuiltInIds: nextDeleted, overrides: nextOverrides);
+      return copyWith(
+        deletedBuiltInIds: nextDeleted,
+        overrides: nextOverrides,
+        packs: nextPacks,
+      );
     }
     return copyWith(
       custom: custom.where((e) => e.id != id).toList(growable: false),
+      packs: nextPacks,
     );
   }
 
@@ -300,6 +368,7 @@ class PlotElementCatalog {
         .map((e) => e.toJson())
         .toList(growable: false),
     'categoryRenames': categoryRenames,
+    'packs': packs.map((e) => e.toJson()).toList(growable: false),
   };
 
   factory PlotElementCatalog.fromJson(Map<String, dynamic>? json) {
@@ -330,12 +399,17 @@ class PlotElementCatalog {
         if (entry.value is String && entry.key.isNotEmpty)
           entry.key: (entry.value as String).trim(),
     }..removeWhere((_, name) => name.isEmpty);
+    final packs = <PlotElementPack>[
+      for (final item in json.optionalList('packs'))
+        PlotElementPack.fromJson(asJsonMap(item, path: 'packs[]')),
+    ].where((pack) => pack.name.isNotEmpty).toList(growable: false);
     return PlotElementCatalog(
       overrides: overrides,
       deletedBuiltInIds: deleted,
       custom: custom,
       customCategories: customCategories,
       categoryRenames: categoryRenames,
+      packs: packs,
     );
   }
 }

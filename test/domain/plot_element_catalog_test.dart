@@ -1,5 +1,6 @@
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/plot_element_category.dart';
+import 'package:anoworld/domain/models/plot_element_pack.dart';
 import 'package:anoworld/domain/settings/built_in_plot_elements.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -207,5 +208,81 @@ void main() {
       }).categoryId,
       isEmpty,
     );
+  });
+
+  test('packs keep known ids only and resolve to rows', () {
+    final seed = BuiltInPlotElements.all.first;
+    final other = BuiltInPlotElements.all[1];
+    final catalog = PlotElementCatalog().upsertPack(
+      PlotElementPack(
+        id: 'pe_pack_a',
+        name: '  雨夜  ',
+        elementIds: ['pe_missing', seed.id, seed.id, other.id],
+      ),
+    );
+
+    final pack = catalog.packs.single;
+    expect(pack.name, '雨夜');
+    expect(pack.elementIds, [seed.id, other.id]);
+    expect(catalog.packById(pack.id)?.name, '雨夜');
+    expect(
+      catalog.elementsOfPack(pack).map((e) => e.id),
+      [seed.id, other.id],
+    );
+  });
+
+  test('renaming and deleting element prunes pack references', () {
+    final seed = BuiltInPlotElements.all.first;
+    var catalog = PlotElementCatalog().upsertPack(
+      PlotElementPack(id: 'pe_pack_b', name: '甲', elementIds: [seed.id]),
+    );
+
+    catalog = catalog.renamePack('pe_pack_b', ' 乙 ');
+    expect(catalog.packById('pe_pack_b')?.name, '乙');
+
+    catalog = catalog.delete(seed.id);
+    expect(catalog.packById('pe_pack_b')?.elementIds, isEmpty);
+    expect(catalog.elementsOfPack(catalog.packById('pe_pack_b')!), isEmpty);
+
+    catalog = catalog.deletePack('pe_pack_b');
+    expect(catalog.packs, isEmpty);
+  });
+
+  test('packs survive json round-trip and batch restore', () {
+    final seed = BuiltInPlotElements.all.first;
+    final custom = const PlotElement(
+      id: 'pe_pack_row',
+      keyword: '自建',
+      description: '用户条目',
+    );
+    final original = PlotElementCatalog()
+        .upsertCustom(custom)
+        .upsertPack(
+          PlotElementPack(
+            id: 'pe_pack_c',
+            name: '校园日常',
+            elementIds: [seed.id, custom.id],
+          ),
+        );
+
+    final restored = PlotElementCatalog.fromJson(original.toJson());
+    expect(restored.packs.single.name, '校园日常');
+    expect(restored.packs.single.elementIds, [seed.id, custom.id]);
+
+    final restoredAll = restored
+        .delete(seed.id)
+        .restoreAllBuiltIns();
+    expect(restoredAll.packs.single.name, '校园日常');
+    expect(restoredAll.packs.single.elementIds, [custom.id]);
+  });
+
+  test('withIds applies and clears a whole pack at once', () {
+    const selection = PlotElementSelection(selectedIds: ['a', 'b']);
+    final applied = selection.withIds(['b', 'c', 'c'], selected: true);
+    expect(applied.selectedIds, ['a', 'b', 'c']);
+
+    final cleared = applied.withIds(['a', 'c'], selected: false);
+    expect(cleared.selectedIds, ['b']);
+    expect(selection.withIds(const [], selected: true), selection);
   });
 }

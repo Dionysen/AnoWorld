@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
+import 'package:anoworld/domain/models/plot_element_pack.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -17,6 +18,7 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/plot_elements_library_page.dart';
+import 'package:anoworld/play/plot_element_pack_ui.dart';
 import 'package:flutter/material.dart';
 
 /// Story-side plot-element picker: toggle ids from the global library only.
@@ -29,7 +31,7 @@ class PlotElementsPickPage extends StatefulWidget {
   State<PlotElementsPickPage> createState() => _PlotElementsPickPageState();
 }
 
-enum _PickTab { all, categorized }
+enum _PickTab { all, categorized, packs }
 
 class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
   Project? _project;
@@ -100,6 +102,18 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     _scheduleSave(current.plotElements.withToggle(id, selected: selected));
   }
 
+  /// Applies a pack as a whole: every element of it turns on (or off) at once.
+  void _togglePack(
+    PlotElementCatalog catalog,
+    PlotElementPack pack, {
+    required bool selected,
+  }) {
+    final current = _project;
+    if (current == null) return;
+    final ids = catalog.elementsOfPack(pack).map((e) => e.id);
+    _scheduleSave(current.plotElements.withIds(ids, selected: selected));
+  }
+
   Future<void> _openLibrary() async {
     await pushStoryRoute<void>(context, const PlotElementsLibraryPage());
     if (mounted) setState(() {});
@@ -149,6 +163,36 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
       ),
       showDivider: showDivider,
       onTap: () => _toggle(element.id, !selected),
+    );
+  }
+
+  Widget _packRow(
+    PlotElementCatalog catalog,
+    PlotElementPack pack,
+    List<String> selectedIds, {
+    bool showDivider = false,
+  }) {
+    final elements = catalog.elementsOfPack(pack);
+    final applied = elements.where((e) => selectedIds.contains(e.id)).length;
+    final allApplied = elements.isNotEmpty && applied == elements.length;
+    final subtitle = applied == 0
+        ? describePlotElementPack(catalog, pack)
+        : '已选 $applied / ${elements.length} 条';
+    return AppListTile(
+      key: ValueKey(pack.id),
+      title: pack.name,
+      subtitle: subtitle,
+      icon: Icons.inventory_2_outlined,
+      trailing: AppSwitch(
+        value: allApplied,
+        onChanged: elements.isEmpty
+            ? null
+            : (value) => _togglePack(catalog, pack, selected: value),
+      ),
+      showDivider: showDivider,
+      onTap: elements.isEmpty
+          ? null
+          : () => _togglePack(catalog, pack, selected: !allApplied),
     );
   }
 
@@ -219,6 +263,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
         options: const [
           AppSegmentOption(value: _PickTab.all, label: '全部'),
           AppSegmentOption(value: _PickTab.categorized, label: '分类'),
+          AppSegmentOption(value: _PickTab.packs, label: '包'),
         ],
       ),
       if (_loading)
@@ -266,6 +311,33 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
           rows[index],
           selectedIds,
           showDivider: index < rows.length - 1,
+        ),
+      );
+    }
+    if (_tab == _PickTab.packs) {
+      final packs = catalog.packs;
+      return AppPageLazyList(
+        header: [
+          ...header,
+          if (packs.isEmpty)
+            AppPageGutter(
+              child: AppEmptyState(
+                message: '还没有包',
+                detail: '去剧情元素库把常用元素打包',
+                action: AppButton(
+                  label: '去管理库',
+                  onPressed: _openLibrary,
+                  variant: AppButtonVariant.secondary,
+                ),
+              ),
+            ),
+        ],
+        itemCount: packs.length,
+        itemBuilder: (context, index) => _packRow(
+          catalog,
+          packs[index],
+          selectedIds,
+          showDivider: index < packs.length - 1,
         ),
       );
     }

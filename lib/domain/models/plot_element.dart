@@ -119,4 +119,22 @@ class PlotElementSelection {
     }
     return PlotElementSelection(selectedIds: List.unmodifiable(next));
   }
+
+  /// Applies (or clears) a whole set of ids at once, e.g. a plot-element pack.
+  PlotElementSelection withIds(
+    Iterable<String> ids, {
+    required bool selected,
+  }) {
+    final targets = ids.toSet();
+    if (targets.isEmpty) return this;
+    final next = selectedIds.toList(growable: true);
+    if (selected) {
+      for (final id in targets) {
+        if (!next.contains(id)) next.add(id);
+      }
+    } else {
+      next.removeWhere(targets.contains);
+    }
+    return PlotElementSelection(selectedIds: List.unmodifiable(next));
+  }
 }

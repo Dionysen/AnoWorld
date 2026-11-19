@@ -19,6 +19,8 @@ import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
 import 'package:anoworld/play/plot_element_category_page.dart';
 import 'package:anoworld/play/plot_element_category_ui.dart';
 import 'package:anoworld/play/plot_element_editor.dart';
+import 'package:anoworld/play/plot_element_pack_page.dart';
+import 'package:anoworld/play/plot_element_pack_ui.dart';
 import 'package:flutter/material.dart';
 
 /// Global plot-element library (CRUD). Managed under 玩法; stories only pick.
@@ -30,7 +32,7 @@ class PlotElementsLibraryPage extends StatefulWidget {
       _PlotElementsLibraryPageState();
 }
 
-enum _LibraryTab { all, categorized }
+enum _LibraryTab { all, categorized, packs }
 
 class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
   var _tab = _LibraryTab.all;
@@ -70,6 +72,18 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
     final name = await askPlotElementCategoryName(context, title: '新分类');
     if (name == null || !mounted) return;
     await _settings.addPlotElementCategory(name);
+  }
+
+  Future<void> _createPack() async {
+    final name = await askPlotElementPackName(context, title: '新包');
+    if (name == null || !mounted) return;
+    final pack = await _settings.addPlotElementPack(name);
+    if (!mounted) return;
+    await _openPack(pack.id);
+  }
+
+  Future<void> _openPack(String packId) async {
+    await pushAppSlide(context, PlotElementPackPage(packId: packId));
   }
 
   Future<void> _openCategory(String categoryId) async {
@@ -157,11 +171,18 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
               tooltip: '加一条',
               onPressed: () => _edit(),
             ),
-            AppCircleButton(
-              icon: Icons.create_new_folder_outlined,
-              tooltip: '新建分类',
-              onPressed: _createCategory,
-            ),
+            if (_tab == _LibraryTab.packs)
+              AppCircleButton(
+                icon: Icons.playlist_add,
+                tooltip: '新建包',
+                onPressed: _createPack,
+              )
+            else
+              AppCircleButton(
+                icon: Icons.create_new_folder_outlined,
+                tooltip: '新建分类',
+                onPressed: _createCategory,
+              ),
           ],
           body: _buildBody(catalog, rows),
         );
@@ -177,6 +198,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
         options: const [
           AppSegmentOption(value: _LibraryTab.all, label: '全部'),
           AppSegmentOption(value: _LibraryTab.categorized, label: '分类'),
+          AppSegmentOption(value: _LibraryTab.packs, label: '包'),
         ],
       ),
       if (rows.isEmpty)
@@ -190,47 +212,69 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
               variant: AppButtonVariant.secondary,
             ),
           ),
+        )
+      else if (_tab == _LibraryTab.packs && catalog.packs.isEmpty)
+        AppPageGutter(
+          child: AppEmptyState(
+            message: '还没有包',
+            detail: '把常用的元素打包，创作时一次勾上',
+            action: AppButton(
+              label: '新建包',
+              onPressed: _createPack,
+              variant: AppButtonVariant.secondary,
+            ),
+          ),
         ),
     ];
-    if (rows.isEmpty) {
-      return AppPageLazyList(
-        header: header,
-        itemCount: 0,
-        itemBuilder: (context, index) => const SizedBox.shrink(),
-      );
-    }
-    if (_tab == _LibraryTab.all) {
-      return AppPageLazyList(
-        header: header,
-        itemCount: rows.length,
-        itemBuilder: (context, index) {
-          final row = rows[index];
-          return AppListTile(
-            key: ValueKey(row.id),
-            title: row.keyword.isEmpty ? '未命名' : row.keyword,
-            subtitle: _rowSubtitle(catalog, row),
-            icon: Icons.theater_comedy_outlined,
-            trailing: const AppForwardIcon(),
-            showDivider: index < rows.length - 1,
-            onTap: () => _edit(existing: row),
-          );
-        },
-      );
-    }
     final categoryRows = _categoryEntries(catalog);
+    final packRows = catalog.packs;
+    final itemCount = rows.isEmpty
+        ? 0
+        : switch (_tab) {
+            _LibraryTab.all => rows.length,
+            _LibraryTab.categorized => categoryRows.length,
+            _LibraryTab.packs => packRows.length,
+          };
     return AppPageLazyList(
       header: header,
-      itemCount: categoryRows.length,
+      itemCount: itemCount,
       itemBuilder: (context, index) {
-        final entry = categoryRows[index];
-        return AppListTile(
-          title: entry.name,
-          subtitle: _countLabel(entry.count),
-          icon: entry.id.isEmpty ? Icons.label_outline : Icons.folder_outlined,
-          trailing: const AppForwardIcon(),
-          showDivider: index < categoryRows.length - 1,
-          onTap: () => _openCategory(entry.id),
-        );
+        switch (_tab) {
+          case _LibraryTab.all:
+            final row = rows[index];
+            return AppListTile(
+              key: ValueKey(row.id),
+              title: row.keyword.isEmpty ? '未命名' : row.keyword,
+              subtitle: _rowSubtitle(catalog, row),
+              icon: Icons.theater_comedy_outlined,
+              trailing: const AppForwardIcon(),
+              showDivider: index < itemCount - 1,
+              onTap: () => _edit(existing: row),
+            );
+          case _LibraryTab.categorized:
+            final entry = categoryRows[index];
+            return AppListTile(
+              title: entry.name,
+              subtitle: _countLabel(entry.count),
+              icon: entry.id.isEmpty
+                  ? Icons.label_outline
+                  : Icons.folder_outlined,
+              trailing: const AppForwardIcon(),
+              showDivider: index < itemCount - 1,
+              onTap: () => _openCategory(entry.id),
+            );
+          case _LibraryTab.packs:
+            final pack = packRows[index];
+            return AppListTile(
+              key: ValueKey(pack.id),
+              title: pack.name,
+              subtitle: describePlotElementPack(catalog, pack),
+              icon: Icons.inventory_2_outlined,
+              trailing: const AppForwardIcon(),
+              showDivider: index < itemCount - 1,
+              onTap: () => _openPack(pack.id),
+            );
+        }
       },
     );
   }

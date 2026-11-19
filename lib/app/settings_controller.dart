@@ -7,6 +7,7 @@ import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/ai_preset_state.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/plot_element_category.dart';
+import 'package:anoworld/domain/models/plot_element_pack.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
@@ -160,6 +161,41 @@ class SettingsController extends ChangeNotifier {
     if (identical(next, plotElements)) return;
     await updatePlotElements(next);
     AppLog.instance.info('重命名剧情元素分类：$id → $trimmed', tag: 'plot.elements');
+  }
+
+  Future<PlotElementPack> addPlotElementPack(String name) async {
+    final pack = PlotElementPack(
+      id: newEntityId('pe_pack'),
+      name: name.trim(),
+    );
+    await savePlotElementPack(pack);
+    return pack;
+  }
+
+  Future<void> savePlotElementPack(PlotElementPack pack) async {
+    final next = plotElements.upsertPack(pack);
+    if (identical(next, plotElements)) return;
+    await updatePlotElements(next);
+    AppLog.instance.info(
+      '保存剧情元素包：${pack.name}（${pack.count} 条）',
+      tag: 'plot.elements',
+    );
+  }
+
+  Future<void> renamePlotElementPack(String id, String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final next = plotElements.renamePack(id, trimmed);
+    if (identical(next, plotElements)) return;
+    await updatePlotElements(next);
+    AppLog.instance.info('重命名剧情元素包：$id → $trimmed', tag: 'plot.elements');
+  }
+
+  Future<void> deletePlotElementPack(String id) async {
+    final next = plotElements.deletePack(id);
+    if (identical(next, plotElements)) return;
+    await updatePlotElements(next);
+    AppLog.instance.info('删除剧情元素包：$id', tag: 'plot.elements');
   }
 
   Future<void> deletePlotElement(String id) async {

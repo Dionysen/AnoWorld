@@ -1,5 +1,7 @@
+import 'package:anoworld/domain/models/plot_element_pack.dart';
 import 'package:anoworld/home/play_modes_tab.dart';
 import 'package:anoworld/play/plot_element_category_page.dart';
+import 'package:anoworld/play/plot_element_pack_page.dart';
 import 'package:anoworld/play/plot_elements_library_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -96,6 +98,73 @@ void main() {
     await tester.tap(find.byTooltip('加一条'));
     await tester.pumpAndSettle();
     expect(find.text('新剧情元素'), findsOneWidget);
+  });
+
+  testWidgets('pack tab creates a pack and toggles its elements', (
+    tester,
+  ) async {
+    final settings = testSettingsController();
+    await tester.pumpWidget(
+      testScoped(settings: settings, home: const PlotElementsLibraryPage()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('包'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('还没有包'), findsOneWidget);
+    expect(find.byTooltip('新建包'), findsOneWidget);
+    expect(find.byTooltip('新建分类'), findsNothing);
+    expect(find.byTooltip('加一条'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('新建包'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '雨夜包');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlotElementPackPage), findsOneWidget);
+    expect(settings.plotElements.packs.single.name, '雨夜包');
+    expect(find.text('还空着'), findsOneWidget);
+
+    await tester.tap(find.text('救助流浪猫'));
+    await tester.pumpAndSettle();
+    expect(settings.plotElements.packs.single.elementIds, ['pe_stray_cat']);
+    expect(find.text('1 条'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('重命名包'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '雨夜悬疑');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(settings.plotElements.packs.single.name, '雨夜悬疑');
+  });
+
+  testWidgets('pack tab lists packs with their element preview', (
+    tester,
+  ) async {
+    final settings = testSettingsController();
+    await settings.updatePlotElements(
+      settings.plotElements.upsertPack(
+        const PlotElementPack(
+          id: 'pe_pack_list',
+          name: '雨夜包',
+          elementIds: ['pe_stray_cat', 'pe_shared_umbrella'],
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      testScoped(settings: settings, home: const PlotElementsLibraryPage()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('包'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('雨夜包'), findsOneWidget);
+    expect(find.textContaining('2 条'), findsOneWidget);
+    expect(find.text('还没有包'), findsNothing);
   });
 
   testWidgets('more menu only keeps restore-all', (tester) async {
