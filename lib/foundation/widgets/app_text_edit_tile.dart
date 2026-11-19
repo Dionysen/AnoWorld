@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_button.dart';
 import 'app_disclosure_icon.dart';
@@ -25,7 +26,7 @@ class AppTextEditTile extends StatelessWidget {
     this.textInputAction,
     this.minLines,
     this.maxLines = 1,
-    this.emptyLabel = '未填写',
+    this.emptyLabel,
     this.nested = false,
     this.showDivider = true,
   });
@@ -41,7 +42,9 @@ class AppTextEditTile extends StatelessWidget {
   final TextInputAction? textInputAction;
   final int? minLines;
   final int? maxLines;
-  final String emptyLabel;
+
+  /// Shown when [value] is blank; defaults to the shared "not filled" copy.
+  final String? emptyLabel;
   final bool nested;
   final bool showDivider;
 
@@ -79,7 +82,7 @@ class AppTextEditTile extends StatelessWidget {
     final shown = displayValue(
       value,
       obscureText: obscureText,
-      emptyLabel: emptyLabel,
+      emptyLabel: emptyLabel ?? context.ui.notFilled,
     );
     return AppListTile(
       title: title,
@@ -216,7 +219,7 @@ class _AppTextEditSheetBodyState extends State<_AppTextEditSheetBody> {
             children: [
               Expanded(
                 child: AppButton(
-                  label: '取消',
+                  label: context.ui.cancel,
                   variant: AppButtonVariant.secondary,
                   onPressed: () => Navigator.of(context).pop(),
                 ),
@@ -224,7 +227,7 @@ class _AppTextEditSheetBodyState extends State<_AppTextEditSheetBody> {
               const SizedBox(width: AppTheme.spaceSm),
               Expanded(
                 child: AppButton(
-                  label: '保存',
+                  label: context.ui.save,
                   onPressed: _save,
                 ),
               ),

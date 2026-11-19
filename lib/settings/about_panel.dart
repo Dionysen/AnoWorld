@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/theme/app_shapes.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
@@ -6,14 +7,10 @@ import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/widgets.dart';
 
-/// Product blurb shown under 关于.
+/// Brand facts that do not change with language.
 abstract final class AppAbout {
   static const name = 'AnoWorld';
-  static const versionLabel = '版本 1.0.0';
-  static const tagline = '视觉小说创作器 + 运行时';
-  static const description =
-      '本地配置文本与生图 AI，结构化创作剧本，用聊天式或视觉小说式双模式验本与游玩。'
-      'SillyTavern 角色卡仅作素材入口，不是兼容目标。';
+  static const version = '1.0.0';
   static const iconAsset = 'assets/branding/app_icon.png';
 }
 
@@ -22,12 +19,13 @@ class AboutPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final radius = AppUiTokens.of(context).radius;
     return AppPageGutter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AppSectionHeader('关于'),
+          AppSectionHeader(strings.settingsSectionAbout),
           const SizedBox(height: AppTheme.spaceSm),
           Center(
             child: ClipPath(
@@ -47,16 +45,16 @@ class AboutPanel extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spaceXs),
-          const AppText(
-            AppAbout.tagline,
+          AppText(
+            strings.appTagline,
             role: AppTextRole.subtitle,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spaceMd),
-          const AppText(AppAbout.description, role: AppTextRole.body),
+          AppText(strings.appDescription, role: AppTextRole.body),
           const SizedBox(height: AppTheme.spaceMd),
-          const AppText(
-            AppAbout.versionLabel,
+          AppText(
+            strings.appVersion(AppAbout.version),
             role: AppTextRole.caption,
             textAlign: TextAlign.center,
           ),

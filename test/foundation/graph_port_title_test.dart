@@ -2,22 +2,34 @@ import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_port_title.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const _unnamed = 'Untitled';
+const _add = 'Add';
+
+String _display(String? label, {bool pending = false}) {
+  return GraphPortTitle.display(
+    label,
+    pending: pending,
+    emptyWired: _unnamed,
+    emptyPending: _add,
+  );
+}
+
 void main() {
   test('display truncates after 15 characters', () {
-    expect(GraphPortTitle.display('继续'), '继续');
+    expect(_display('继续'), '继续');
     expect(
-      GraphPortTitle.display('一二三四五六七八九十一二三四五六'),
+      _display('一二三四五六七八九十一二三四五六'),
       '一二三四五六七八九十一二三四五…',
     );
     expect(
-      GraphPortTitle.display('一二三四五六七八九十一二三四五'),
+      _display('一二三四五六七八九十一二三四五'),
       '一二三四五六七八九十一二三四五',
     );
   });
 
   test('empty pending and wired fallbacks', () {
-    expect(GraphPortTitle.display(null, pending: true), '添加');
-    expect(GraphPortTitle.display('', pending: false), '未命名');
+    expect(_display(null, pending: true), _add);
+    expect(_display('', pending: false), _unnamed);
   });
 
   test('node width grows with longer port titles', () {

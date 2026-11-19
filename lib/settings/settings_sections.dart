@@ -1,17 +1,12 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
+import 'package:anoworld/settings/settings_display_labels.dart';
 import 'package:flutter/material.dart';
 
 enum SettingsSection { general, appearance, ai, about }
 
 extension SettingsSectionX on SettingsSection {
   String get id => name;
-
-  String get label => switch (this) {
-        SettingsSection.general => '通用',
-        SettingsSection.appearance => '外观',
-        SettingsSection.ai => 'AI',
-        SettingsSection.about => '关于',
-      };
 
   IconData get icon => switch (this) {
         SettingsSection.general => Icons.tune_outlined,
@@ -35,11 +30,11 @@ extension SettingsSectionX on SettingsSection {
   }
 }
 
-List<AppNavItem> get settingsNavItems => [
+List<AppNavItem> settingsNavItems(AppStrings strings) => [
       for (final section in SettingsSection.values)
         AppNavItem(
           id: section.id,
-          label: section.label,
+          label: settingsSectionLabel(strings, section),
           icon: section.icon,
           selectedIcon: section.selectedIcon,
         ),

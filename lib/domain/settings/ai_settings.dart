@@ -16,19 +16,6 @@ enum AiTextProviderKind {
 }
 
 extension AiTextProviderKindX on AiTextProviderKind {
-  String get label => switch (this) {
-        AiTextProviderKind.openAiCompatible => '自定义',
-        AiTextProviderKind.openai => 'OpenAI',
-        AiTextProviderKind.deepSeek => 'DeepSeek',
-        AiTextProviderKind.openRouter => 'OpenRouter',
-        AiTextProviderKind.qwen => '通义千问',
-        AiTextProviderKind.siliconFlow => '硅基流动',
-        AiTextProviderKind.moonshot => 'Moonshot',
-        AiTextProviderKind.zai => '智谱',
-        AiTextProviderKind.miniMax => 'MiniMax',
-        AiTextProviderKind.ollama => 'Ollama',
-      };
-
   String get defaultBaseUrl => switch (this) {
         AiTextProviderKind.openAiCompatible => 'http://localhost:8080/v1',
         AiTextProviderKind.openai => 'https://api.openai.com/v1',
@@ -81,17 +68,6 @@ enum AiImageProviderKind {
 }
 
 extension AiImageProviderKindX on AiImageProviderKind {
-  String get label => switch (this) {
-        AiImageProviderKind.openAiCompatible => '自定义 / OAI 生图',
-        AiImageProviderKind.openai => 'OpenAI Images',
-        AiImageProviderKind.openaiChat => 'OAI Chat 生图',
-        AiImageProviderKind.siliconFlow => '硅基流动',
-        AiImageProviderKind.pollinations => 'Pollinations（免费）',
-        AiImageProviderKind.novelai => 'NovelAI',
-        AiImageProviderKind.automatic1111 => 'Automatic1111',
-        AiImageProviderKind.comfyui => 'ComfyUI',
-      };
-
   String get defaultBaseUrl => switch (this) {
         AiImageProviderKind.openAiCompatible => 'http://localhost:8080/v1',
         AiImageProviderKind.openai => 'https://api.openai.com/v1',
@@ -173,16 +149,6 @@ enum AiReasoningEffort {
   medium,
   high,
   max;
-
-  /// User-facing short label.
-  String get label => switch (this) {
-        auto => '自动',
-        min => '最低',
-        low => '低',
-        medium => '中',
-        high => '高',
-        max => '最高',
-      };
 
   /// OpenAI-compatible `reasoning_effort` value; `null` means omit the field.
   String? get openAiReasoningEffort => switch (this) {

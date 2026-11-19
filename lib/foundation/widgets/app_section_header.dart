@@ -10,6 +10,7 @@ class AppSectionHeader extends StatelessWidget {
     super.key,
     this.subtitle,
     this.gutter = false,
+    this.trailing,
   });
 
   final String label;
@@ -22,8 +23,12 @@ class AppSectionHeader extends StatelessWidget {
   /// on edge-to-edge settings pages.
   final bool gutter;
 
+  /// Control aligned to the right of [label] (icon button, switch, …).
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
+    final labelText = AppText(label, role: AppTextRole.subtitle);
     Widget header = Padding(
       padding: EdgeInsets.only(
         bottom: subtitle == null ? AppTheme.spaceSm : AppTheme.spaceMd,
@@ -31,7 +36,15 @@ class AppSectionHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppText(label, role: AppTextRole.subtitle),
+          if (trailing == null)
+            labelText
+          else
+            Row(
+              children: [
+                Expanded(child: labelText),
+                trailing!,
+              ],
+            ),
           if (subtitle != null) ...[
             const SizedBox(height: AppTheme.spaceXs),
             AppText(subtitle!, role: AppTextRole.caption),

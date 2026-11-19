@@ -20,11 +20,14 @@ abstract final class GraphPortTitle {
   static const double _rowGap = AppTheme.spaceXs;
 
   /// Truncates to [maxChars] characters; appends `…` when clipped.
+  ///
+  /// [emptyWired] / [emptyPending] supply the placeholder text for unlabeled
+  /// ports; callers pass localized copy.
   static String display(
     String? label, {
-    bool pending = false,
-    String emptyWired = '未命名',
-    String emptyPending = '添加',
+    required bool pending,
+    required String emptyWired,
+    required String emptyPending,
   }) {
     final raw = label?.trim() ?? '';
     final full = raw.isEmpty ? (pending ? emptyPending : emptyWired) : raw;

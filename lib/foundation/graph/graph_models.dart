@@ -1,7 +1,6 @@
 import 'dart:ui' show Color, Offset;
 
 import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
-import 'package:anoworld/foundation/graph/graph_node_card.dart';
 import 'package:anoworld/foundation/graph/graph_port_title.dart';
 
 /// One output socket on a node (may map to an existing edge, or a pending add).
@@ -24,9 +23,21 @@ class GraphOutputPort {
     pending: true,
   );
 
+  /// Neutral placeholder used only to measure unlabeled port width.
+  static const String measureLabel = '0000';
+
   /// Canvas button text (max [GraphPortTitle.maxChars], then ellipsis).
-  String get displayLabel =>
-      GraphPortTitle.display(label, pending: pending);
+  String displayLabel({
+    required String emptyWired,
+    required String emptyPending,
+  }) {
+    return GraphPortTitle.display(
+      label,
+      pending: pending,
+      emptyWired: emptyWired,
+      emptyPending: emptyPending,
+    );
+  }
 }
 
 /// Portable graph node placement (no product/business fields).
@@ -80,7 +91,10 @@ class GraphNodeData {
           for (final port in (outputs.isEmpty
               ? const [GraphOutputPort.pendingPort]
               : outputs))
-            port.displayLabel,
+            port.displayLabel(
+              emptyWired: GraphOutputPort.measureLabel,
+              emptyPending: GraphOutputPort.measureLabel,
+            ),
         ],
         hasInputLabel:
             inputLabel != null && inputLabel!.trim().isNotEmpty,

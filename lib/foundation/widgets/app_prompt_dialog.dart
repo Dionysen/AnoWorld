@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_button.dart';
@@ -13,8 +14,8 @@ Future<String?> showAppPromptDialog(
   required String label,
   String initial = '',
   String? hint,
-  String confirmLabel = '确定',
-  String cancelLabel = '取消',
+  String? confirmLabel,
+  String? cancelLabel,
   bool autofocus = true,
 }) {
   return showDialog<String>(
@@ -24,8 +25,8 @@ Future<String?> showAppPromptDialog(
       label: label,
       initial: initial,
       hint: hint,
-      confirmLabel: confirmLabel,
-      cancelLabel: cancelLabel,
+      confirmLabel: confirmLabel ?? ctx.ui.confirm,
+      cancelLabel: cancelLabel ?? ctx.ui.cancel,
       autofocus: autofocus,
     ),
   );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_detail_entry.dart';
@@ -75,7 +76,7 @@ class _AppDetailSectionState extends State<AppDetailSection> {
     final scheme = Theme.of(context).colorScheme;
     final visible = _visibleEntries;
     final isEmpty = visible.isEmpty;
-    final emptyHint = widget.emptyHint ?? '这里还没有内容';
+    final emptyHint = widget.emptyHint ?? context.ui.emptyContent;
     final subtitle = widget.subtitle?.trim() ?? '';
     final cap = widget.initialVisibleCount < 1 ? 1 : widget.initialVisibleCount;
     final capped = !_showAll && visible.length > cap;
@@ -91,7 +92,7 @@ class _AppDetailSectionState extends State<AppDetailSection> {
               final compact = constraints.maxWidth < 112;
               final edit = AppIconButton(
                 icon: Icons.edit_outlined,
-                tooltip: '编辑',
+                tooltip: context.ui.edit,
                 size: compact ? 28 : 36,
                 iconSize: compact ? 16 : 20,
                 onPressed: widget.onEdit,
@@ -169,7 +170,7 @@ class _AppDetailSectionState extends State<AppDetailSection> {
             ),
           if (hiddenCount > 0)
             AppListTile(
-              title: '还有 $hiddenCount 条',
+              title: context.ui.moreEntries(hiddenCount),
               onTap: () => setState(() => _showAll = true),
             ),
         ],
@@ -251,17 +252,19 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
   }
 
   Future<void> _copy() async {
-    final text = widget.entry.clipboardText;
+    final ui = context.ui;
+    final text = widget.entry.clipboardText(ui.listSeparator);
     if (text.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    showAppToast(context, '已复制：${widget.entry.copyLabel}');
+    showAppToast(context, ui.copiedEntry(widget.entry.copyLabel(ui.entry)));
   }
 
   static const double _entryActionSize = 28;
   static const double _entryActionIcon = 16;
 
   List<Widget> _entryActions({
+    required AppLocalizations ui,
     required bool hasCopy,
     required bool canExpand,
   }) {
@@ -269,7 +272,7 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
       if (hasCopy)
         AppIconButton(
           icon: Icons.copy_outlined,
-          tooltip: '复制',
+          tooltip: ui.copy,
           size: _entryActionSize,
           iconSize: _entryActionIcon,
           onPressed: _copy,
@@ -277,7 +280,7 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
       if (canExpand)
         AppIconButton(
           icon: _expanded ? Icons.expand_less : Icons.expand_more,
-          tooltip: _expanded ? '收起' : '展开',
+          tooltip: _expanded ? ui.collapse : ui.expand,
           size: _entryActionSize,
           iconSize: _entryActionIcon,
           onPressed: () => setState(() => _expanded = !_expanded),
@@ -355,11 +358,15 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
   Widget build(BuildContext context) {
     final title = widget.entry.title.trim();
     final body = widget.entry.body.trim();
-    final hasCopy = widget.entry.clipboardText.isNotEmpty;
+    final hasCopy = widget.entry.hasClipboardText;
     final canExpand = _bodyLikelyOverflows(body);
     final showFull = _expanded || !canExpand;
     final displayBody = showFull ? body : _previewBody(body);
-    final actions = _entryActions(hasCopy: hasCopy, canExpand: canExpand);
+    final actions = _entryActions(
+      ui: context.ui,
+      hasCopy: hasCopy,
+      canExpand: canExpand,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

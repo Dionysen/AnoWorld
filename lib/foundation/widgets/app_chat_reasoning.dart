@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_disclosure_icon.dart';
@@ -11,12 +12,14 @@ class AppChatReasoning extends StatefulWidget {
   const AppChatReasoning({
     super.key,
     required this.reasoning,
-    this.label = '思考过程',
+    this.label,
     this.initiallyExpanded = false,
   });
 
   final String reasoning;
-  final String label;
+
+  /// Header label; defaults to the shared "thinking" copy.
+  final String? label;
   final bool initiallyExpanded;
 
   @override
@@ -82,13 +85,13 @@ class _AppChatReasoningState extends State<AppChatReasoning> {
                       const SizedBox(width: AppTheme.spaceXs),
                       Expanded(
                         child: AppText(
-                          widget.label,
+                          widget.label ?? context.ui.thinking,
                           role: AppTextRole.caption,
                           maxLines: 1,
                         ),
                       ),
                       IconButton(
-                        tooltip: '复制',
+                        tooltip: context.ui.copy,
                         visualDensity: VisualDensity.compact,
                         constraints: const BoxConstraints(
                           minWidth: 32,

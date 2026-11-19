@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/settings/about_panel.dart';
 import 'package:anoworld/settings/settings_page.dart';
@@ -46,8 +47,13 @@ void main() {
 
     await tester.tap(find.text('关于').last);
     await tester.pumpAndSettle();
-    expect(find.text(AppAbout.versionLabel), findsOneWidget);
-    expect(find.text(AppAbout.tagline), findsOneWidget);
+    expect(
+      find.text(
+        AppStringsSetup.fallback.appVersion(AppAbout.version),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text(AppStringsSetup.fallback.appTagline), findsOneWidget);
   });
 
   testWidgets('appearance can switch preset and ui prefs', (tester) async {

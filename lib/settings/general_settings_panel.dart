@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
@@ -12,11 +13,12 @@ class GeneralSettingsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     if (!kDebugMode) {
-      return const AppPageGutter(
+      return AppPageGutter(
         child: AppSectionHeader(
-          '通用',
-          subtitle: '这里还没有可改的选项',
+          strings.settingsSectionGeneral,
+          subtitle: strings.settingsNothingToChange,
         ),
       );
     }
@@ -25,10 +27,10 @@ class GeneralSettingsPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AppSectionHeader('通用'),
+          AppSectionHeader(strings.settingsSectionGeneral),
           AppListTile(
-            title: '高级',
-            subtitle: '诊断日志等开发选项',
+            title: strings.advancedTitle,
+            subtitle: strings.advancedHint,
             icon: Icons.construction_outlined,
             onTap: () {
               pushAppSlide(context, const AdvancedSettingsPage());

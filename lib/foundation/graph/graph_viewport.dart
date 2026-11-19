@@ -6,6 +6,7 @@ import 'package:anoworld/foundation/graph/graph_grid_painter.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_chip.dart';
 import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
+import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
@@ -536,7 +537,7 @@ class _GraphViewportState extends State<GraphViewport>
                       if (widget.onArrange != null) ...[
                         AppCircleButton.fab(
                           icon: Icons.dashboard_customize_outlined,
-                          tooltip: '整理排版',
+                          tooltip: context.ui.tidyLayout,
                           variant: AppCircleButtonVariant.ghost,
                           onPressed: widget.onArrange,
                         ),
@@ -546,7 +547,7 @@ class _GraphViewportState extends State<GraphViewport>
                       if (widget.onAddNode != null)
                         AppCircleButton.fab(
                           icon: Icons.add,
-                          tooltip: '加一站',
+                          tooltip: context.ui.addStation,
                           variant: AppCircleButtonVariant.ghost,
                           onPressed: widget.onAddNode,
                         ),
@@ -581,7 +582,7 @@ class _SelectionActionBar extends StatelessWidget {
         if (onCopy != null) ...[
           AppCircleButton(
             icon: Icons.copy_outlined,
-            tooltip: '复制',
+            tooltip: context.ui.copy,
             onPressed: () => onCopy!(nodeId),
           ),
           if (onOpen != null || onDelete != null)
@@ -590,7 +591,7 @@ class _SelectionActionBar extends StatelessWidget {
         if (onOpen != null) ...[
           AppCircleButton(
             icon: Icons.edit_outlined,
-            tooltip: '编辑',
+            tooltip: context.ui.edit,
             onPressed: () => onOpen!(nodeId),
           ),
           if (onDelete != null) const SizedBox(width: AppTheme.spaceSm),
@@ -598,7 +599,7 @@ class _SelectionActionBar extends StatelessWidget {
         if (onDelete != null)
           AppCircleButton(
             icon: Icons.delete_outline,
-            tooltip: '删除',
+            tooltip: context.ui.delete,
             variant: AppCircleButtonVariant.danger,
             onPressed: () => onDelete!(nodeId),
           ),

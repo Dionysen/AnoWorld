@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
@@ -14,23 +15,12 @@ import 'package:flutter/material.dart';
 class PromptManagerPanel extends StatelessWidget {
   const PromptManagerPanel({super.key});
 
-  static String sectionLabel(PromptSection section) {
-    return switch (section.type) {
-      PromptSectionType.systemPrompt => '系统提示',
-      PromptSectionType.persona => '玩家身份',
-      PromptSectionType.characterDescription => '角色描述',
-      PromptSectionType.characterPersonality => '角色性格',
-      PromptSectionType.characterScenario => '场景',
-      PromptSectionType.exampleMessages => '示例对白',
-      PromptSectionType.worldInfo => '设定（前）',
-      PromptSectionType.worldInfoAfter => '设定（后）',
-      PromptSectionType.authorNote => '作者备注',
-      PromptSectionType.postHistoryInstructions => '历史后指令',
-      PromptSectionType.nsfw => '成人向提示',
-      PromptSectionType.chatHistory => '对话历史',
-      PromptSectionType.enhanceDefinitions => '强化定义',
-      PromptSectionType.custom => section.name,
-    };
+  static String sectionLabel(AppStrings strings, PromptSection section) {
+    if (section.type == PromptSectionType.custom) {
+      final name = section.name.trim();
+      if (name.isNotEmpty) return name;
+    }
+    return strings.promptSectionName(section.type);
   }
 
   static String _sectionKey(PromptSection section) {
@@ -42,6 +32,7 @@ class PromptManagerPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
+    final strings = context.strings;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
@@ -63,7 +54,7 @@ class PromptManagerPanel extends StatelessWidget {
               key: ValueKey(_sectionKey(section)),
               index: index,
               section: section,
-              label: sectionLabel(section),
+              label: sectionLabel(strings, section),
               config: config,
             );
           },
@@ -88,12 +79,12 @@ class PromptManagerPanel extends StatelessWidget {
     BuildContext context,
     PromptSection section,
   ) async {
-    final body = _readOnlyBody(section);
+    final body = _readOnlyBody(context.strings, section);
     await Navigator.of(context).push<void>(
       AppSlidePageRoute<void>(
         builder: (context) {
           return AppPage(
-            title: sectionLabel(section),
+            title: sectionLabel(context.strings, section),
             onBack: () => Navigator.of(context).pop(),
             body: AppPageBody.list(
               children: [
@@ -111,20 +102,20 @@ class PromptManagerPanel extends StatelessWidget {
     );
   }
 
-  static String _readOnlyBody(PromptSection section) {
+  static String _readOnlyBody(AppStrings strings, PromptSection section) {
     if (section.isCharacterOwned) {
-      return '内容由当前故事角色填充，这里不能改';
+      return strings.filledByCastReadOnly;
     }
     final text = section.effectiveContent.trim();
     if (text.isNotEmpty) return text;
     return switch (section.type) {
-      PromptSectionType.persona => '写故事时用当前玩家身份填充',
+      PromptSectionType.persona => strings.filledByPersona,
       PromptSectionType.worldInfo ||
       PromptSectionType.worldInfoAfter =>
-        '写故事时用当前故事的世界书填充',
-      PromptSectionType.chatHistory => '写故事时自动带上对话历史',
-      PromptSectionType.authorNote => '暂无作者备注',
-      _ => '这段会在写故事时自动带上',
+        strings.filledByWorldBook,
+      PromptSectionType.chatHistory => strings.filledByHistory,
+      PromptSectionType.authorNote => strings.emptyAuthorNote,
+      _ => strings.filledAutomatically,
     };
   }
 
@@ -133,19 +124,20 @@ class PromptManagerPanel extends StatelessWidget {
     int index,
     PromptSection section,
   ) async {
+    final strings = context.strings;
     final controller = AppScope.settingsOf(context);
     final draft = TextEditingController(text: section.content ?? '');
     final saved = await Navigator.of(context).push<bool>(
       AppSlidePageRoute<bool>(
         builder: (context) {
           return AppPage(
-            title: sectionLabel(section),
+            title: sectionLabel(strings, section),
             onBack: () => Navigator.of(context).pop(false),
             body: AppPageBody.list(
               children: [
                 AppPageGutter(
                   child: AppTextField(
-                    label: '内容',
+                    label: strings.contentLabel,
                     controller: draft,
                     minLines: 8,
                     maxLines: 24,
@@ -153,7 +145,7 @@ class PromptManagerPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTheme.spaceMd),
                 AppListTile(
-                  title: '保存',
+                  title: strings.save,
                   icon: Icons.check_outlined,
                   onTap: () => Navigator.of(context).pop(true),
                   showDivider: false,
@@ -195,8 +187,8 @@ class _SectionRow extends StatelessWidget {
     return AppListTile(
       title: label,
       subtitle: section.isCharacterOwned
-          ? '内容由当前故事角色填充'
-          : (editable ? '点按编辑文案' : '点按查看'),
+          ? context.strings.filledByCast
+          : (editable ? context.strings.tapToEdit : context.strings.tapToView),
       leading: ReorderableDragStartListener(
         index: index,
         child: Icon(

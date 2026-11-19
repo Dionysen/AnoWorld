@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_button.dart';
 import 'app_sheet.dart';
 import 'app_text.dart';
 
-/// Compact sheet confirm dialog (取消 + one action); true when confirmed.
+/// Compact sheet confirm dialog (cancel + one action); true when confirmed.
 Future<bool> showAppConfirmSheet(
   BuildContext context, {
   required String title,
@@ -34,7 +35,7 @@ Future<bool> showAppConfirmSheet(
             children: [
               Expanded(
                 child: AppButton(
-                  label: '取消',
+                  label: ctx.ui.cancel,
                   variant: AppButtonVariant.secondary,
                   onPressed: () => Navigator.of(ctx).pop(false),
                 ),

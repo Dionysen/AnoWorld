@@ -5,6 +5,8 @@ import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_visual.dart';
 import 'package:anoworld/foundation/graph/graph_port.dart';
 import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
+import 'package:anoworld/foundation/l10n/app_localizations.dart';
+import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/material.dart';
 
 /// Bird's-eye navigator: node thumbnails with a fixed center viewport frame.
@@ -102,7 +104,12 @@ class _GraphOverviewMapState extends State<GraphOverviewMap> {
   @override
   Widget build(BuildContext context) {
     if (widget.nodes.isEmpty) {
-      return const Center(child: Text('还没有情节站'));
+      return Center(
+        child: AppText(
+          context.ui.graphEmpty,
+          role: AppTextRole.caption,
+        ),
+      );
     }
 
     final theme = Theme.of(context);

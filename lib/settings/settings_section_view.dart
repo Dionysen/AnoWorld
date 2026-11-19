@@ -1,9 +1,11 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/settings/about_panel.dart';
 import 'package:anoworld/settings/ai_settings_panel.dart';
 import 'package:anoworld/settings/appearance_settings_panel.dart';
 import 'package:anoworld/settings/general_settings_panel.dart';
+import 'package:anoworld/settings/settings_display_labels.dart';
 import 'package:anoworld/settings/settings_sections.dart';
 import 'package:flutter/widgets.dart';
 
@@ -36,7 +38,7 @@ class SettingsSectionView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppPage(
-      title: section.label,
+      title: settingsSectionLabel(context.strings, section),
       onBack: onBack,
       body: AppPageBody.list(
         children: [

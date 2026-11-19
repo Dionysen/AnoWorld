@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/domain/card_import/card_organize_action.dart';
@@ -12,6 +12,7 @@ import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/card_import/st_character_card_parser.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
+import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
@@ -39,9 +40,7 @@ class PickedCharacterCardFile {
   final String name;
   final String? path;
   final Uint8List? bytes;
-}
-
-/// Path 1: pick SillyTavern cards → confirm mapped material → write project.
+}/// Path 1: pick SillyTavern cards → confirm mapped material → write project.
 class CharacterCardImportPage extends StatefulWidget {
   const CharacterCardImportPage({
     super.key,
@@ -114,7 +113,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       setState(() {
         _draft = draft;
         _busy = false;
-        _status = '已读入 ${cards.length} 张卡，可勾选要留下的内容';
+        _status = context.strings.cardReadCount(cards.length);
       });
       AppLog.instance.info(
         '读入角色卡 ${cards.length} 张 → ${draft.title}',
@@ -136,7 +135,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       );
       setState(() {
         _busy = false;
-        _status = _platformReadError(error);
+        _status = _platformReadError(context.strings, error);
       });
     } catch (error, stack) {
       if (!mounted) return;
@@ -148,28 +147,29 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       );
       setState(() {
         _busy = false;
-        _status = '读卡失败：$error';
+        _status = context.strings.cardReadFailed(error);
       });
     }
   }
 
-  static String _platformReadError(PlatformException error) {
+  static String _platformReadError(AppStrings strings, PlatformException error) {
     final code = error.code.toUpperCase();
     if (code.contains('ENTITLEMENT') ||
         (error.message ?? '').toUpperCase().contains('ENTITLEMENT')) {
-      return '无法读取所选文件，请完全退出应用后重开再试';
+      return strings.cardReadUnavailable;
     }
-    return '读卡失败：${error.message ?? error.code}';
+    return strings.cardReadFailed(error.message ?? error.code);
   }
 
   Future<StCharacterCard> _parseFile(PickedCharacterCardFile file) async {
+    final strings = context.strings;
     final lower = file.name.toLowerCase();
     final label = file.name;
     if (lower.endsWith('.png')) {
       final bytes = file.bytes ??
           (file.path == null ? null : await File(file.path!).readAsBytes());
       if (bytes == null) {
-        throw StCharacterCardParseException('无法读取 ${file.name}');
+        throw StCharacterCardParseException(strings.cardCannotRead(file.name));
       }
       return widget.parser.parsePngBytes(bytes, sourceLabel: label);
     }
@@ -181,12 +181,12 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
         raw = await File(file.path!).readAsString();
       }
       if (raw == null) {
-        throw StCharacterCardParseException('无法读取 ${file.name}');
+        throw StCharacterCardParseException(strings.cardCannotRead(file.name));
       }
       return widget.parser.parseJsonString(raw, sourceLabel: label);
     }
     throw StCharacterCardParseException(
-      '暂只支持 .json / .png（${p.extension(file.name)}）',
+      strings.cardUnsupportedFormat(p.extension(file.name)),
     );
   }
 
@@ -219,12 +219,13 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
   Future<void> _sanitizeDraft() async {
     final draft = _draft;
     if (draft == null || _busy) return;
+    final strings = context.strings;
     final result = _sanitizeAction.run(draft);
     setState(() {
       _draft = result.draft;
       _status = result.changedFieldCount == 0
-          ? '格式已是 Markdown，无需再清'
-          : '已调整 ${result.changedFieldCount} 处排版';
+          ? strings.cardSanitizeNoChange
+          : strings.cardSanitizeChanged(result.changedFieldCount);
     });
   }
 
@@ -244,14 +245,16 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       if (!mounted) return;
       setState(() => _busy = false);
       if (proposal.changes.isEmpty) {
-        setState(() => _status = '模型未建议改动，换模型重试或手动改角色/设定');
+        setState(() => _status = context.strings.cardOrganizeNoChange);
         return;
       }
       final applied = await _showOrganizePreview(proposal);
       if (applied == true && mounted) {
         setState(() {
           _draft = proposal.draftAfter;
-          _status = '已应用 ${proposal.changes.length} 条整理';
+          _status = context.strings.cardOrganizeApplied(
+            proposal.changes.length,
+          );
         });
       }
     } on CardOrganizeException catch (error) {
@@ -271,7 +274,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       );
       setState(() {
         _busy = false;
-        _status = '整理失败：$error';
+        _status = context.strings.cardOrganizeFailed(error);
       });
     }
   }
@@ -286,7 +289,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
             children: [
               Expanded(
                 child: AppButton(
-                  label: '取消',
+                  label: sheetContext.ui.cancel,
                   variant: AppButtonVariant.secondary,
                   onPressed: () => Navigator.of(sheetContext).pop(false),
                 ),
@@ -294,7 +297,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
               const SizedBox(width: AppTheme.spaceSm),
               Expanded(
                 child: AppButton(
-                  label: '应用',
+                  label: sheetContext.strings.cardApply,
                   onPressed: () => Navigator.of(sheetContext).pop(true),
                 ),
               ),
@@ -302,10 +305,13 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
           ),
         ],
         children: [
-          const AppText('整理预览', role: AppTextRole.subtitle),
+          AppText(
+            sheetContext.strings.cardOrganizePreviewTitle,
+            role: AppTextRole.subtitle,
+          ),
           const SizedBox(height: AppTheme.spaceXs),
-          const AppText(
-            '只归类素材，不替你编剧情',
+          AppText(
+            sheetContext.strings.cardOrganizePreviewHint,
             role: AppTextRole.caption,
           ),
           const SizedBox(height: AppTheme.spaceMd),
@@ -323,9 +329,10 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
   Future<void> _writeProject() async {
     final draft = _draft;
     if (draft == null || _busy) return;
+    final strings = context.strings;
     final titled = draft.copyWith(title: _title.text.trim());
     if (!titled.castItems.any((e) => e.included)) {
-      setState(() => _status = '至少留下一个角色');
+      setState(() => _status = strings.cardNeedOneCast);
       return;
     }
     setState(() {
@@ -346,22 +353,23 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _status = '写入失败：$error';
+        _status = strings.cardWriteFailed(error);
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final draft = _draft;
     return AppPage(
-      title: '导入角色卡',
+      title: strings.importCard,
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody.list(
         children: [
-          const AppSectionHeader(
-            '从酒馆卡摘素材',
-            subtitle: '只取设定与角色，不跑插件和正则',
+          AppSectionHeader(
+            strings.cardImportSection,
+            subtitle: strings.cardImportSectionHint,
             gutter: true,
           ),
           AppPageGutter(
@@ -369,13 +377,15 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AppButton(
-                  label: draft == null ? '选择角色卡' : '重新选卡',
+                  label: draft == null
+                      ? strings.cardPickCards
+                      : strings.cardRepick,
                   onPressed: _busy ? null : _pickCards,
                   expanded: true,
                 ),
                 const SizedBox(height: AppTheme.spaceSm),
-                const AppText(
-                  '可选多张：第一张作主角与故事名，其余当配角',
+                AppText(
+                  strings.cardPickHint,
                   role: AppTextRole.caption,
                 ),
                 if (_status != null) ...[
@@ -384,13 +394,13 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
                 ],
                 if (_busy && draft == null) ...[
                   const SizedBox(height: AppTheme.spaceMd),
-                  const AppText('读取中…', role: AppTextRole.caption),
+                  AppText(strings.cardReading, role: AppTextRole.caption),
                 ],
                 if (draft == null && !_busy) ...[
                   const SizedBox(height: AppTheme.spaceLg),
-                  const AppEmptyState(
-                    message: '还没有读入角色卡',
-                    detail: '支持 .json 与带角色数据的 .png',
+                  AppEmptyState(
+                    message: strings.cardEmptyTitle,
+                    detail: strings.cardEmptyDetail,
                   ),
                 ],
               ],
@@ -400,14 +410,14 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
             const SizedBox(height: AppTheme.spaceLg),
             AppPageGutter(
               child: AppTextField(
-                label: '故事名',
+                label: strings.cardStoryNameLabel,
                 controller: _title,
               ),
             ),
             const SizedBox(height: AppTheme.spaceLg),
-            const AppSectionHeader(
-              '整理',
-              subtitle: '去掉网页标记，保留 Markdown；可归到角色与设定',
+            AppSectionHeader(
+              strings.cardTidySection,
+              subtitle: strings.cardTidyHint,
               gutter: true,
             ),
             AppPageGutter(
@@ -415,14 +425,14 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppButton(
-                    label: '清理格式',
+                    label: strings.cardSanitize,
                     variant: AppButtonVariant.secondary,
                     onPressed: _busy ? null : _sanitizeDraft,
                     expanded: true,
                   ),
                   const SizedBox(height: AppTheme.spaceSm),
                   AppButton(
-                    label: 'AI 分类整理',
+                    label: strings.cardOrganize,
                     onPressed: _busy ? null : _organizeDraft,
                     expanded: true,
                   ),
@@ -430,9 +440,9 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
               ),
             ),
             const SizedBox(height: AppTheme.spaceLg),
-            const AppSectionHeader(
-              '角色',
-              subtitle: '描述、性格与示例对白',
+            AppSectionHeader(
+              strings.cardCastSection,
+              subtitle: strings.cardCastSectionHint,
               gutter: true,
             ),
             AppListTileStack(
@@ -451,15 +461,15 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
               ],
             ),
             const SizedBox(height: AppTheme.spaceLg),
-            const AppSectionHeader(
-              '世界书',
-              subtitle: '情景、开场素材与角色书条目',
+            AppSectionHeader(
+              strings.cardWorldBookSection,
+              subtitle: strings.cardWorldBookSectionHint,
               gutter: true,
             ),
             if (draft.worldBookItems.isEmpty)
-              const AppPageGutter(
+              AppPageGutter(
                 child: AppText(
-                  '这张卡没有可摘的设定条目',
+                  strings.cardNoWorldBookEntries,
                   role: AppTextRole.caption,
                 ),
               )
@@ -485,9 +495,9 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
               ),
             if (draft.cardAiNote != null) ...[
               const SizedBox(height: AppTheme.spaceLg),
-              const AppSectionHeader(
-                '卡内 AI 说明',
-                subtitle: '不会写进故事，写对白请在设置里改 AI 预设',
+              AppSectionHeader(
+                strings.cardAiNoteSection,
+                subtitle: strings.cardAiNoteHint,
                 gutter: true,
               ),
               AppPageGutter(
@@ -500,13 +510,13 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppButton(
-                    label: '写入故事',
+                    label: strings.cardWrite,
                     onPressed: _busy ? null : _writeProject,
                     expanded: true,
                   ),
                   const SizedBox(height: AppTheme.spaceSm),
-                  const AppText(
-                    '写入后可在创作里继续改设定、角色与情节',
+                  AppText(
+                    strings.cardWriteHint,
                     role: AppTextRole.caption,
                   ),
                 ],

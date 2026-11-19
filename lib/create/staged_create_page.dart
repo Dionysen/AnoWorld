@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/staged_create_actions.dart';
 import 'package:anoworld/domain/models/world_book.dart';
@@ -57,8 +58,9 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
 
   Future<void> _boot() async {
     try {
-      final project =
-          await AppScope.projectsOf(context).create(title: '未命名故事');
+      final project = await AppScope.projectsOf(
+        context,
+      ).create(title: context.strings.untitledStory);
       if (!mounted) return;
       setState(() {
         _project = project;
@@ -70,7 +72,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
       if (!mounted) return;
       setState(() {
         _booting = false;
-        _status = '创建故事失败：$error';
+        _status = context.strings.createStoryFailed(error);
       });
     }
   }
@@ -78,22 +80,22 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
   StagedCreateActions _actions() =>
       StagedCreateActions(textClient: AppScope.textClientOf(context));
 
-  String get _stageTitle => switch (_stage) {
-        _Stage.world => '世界',
-        _Stage.cast => '人物',
-        _Stage.main => '走向',
+  String _stageTitle(AppStrings strings) => switch (_stage) {
+        _Stage.world => strings.stagedWorld,
+        _Stage.cast => strings.stagedCast,
+        _Stage.main => strings.stagedMain,
       };
 
-  String get _exampleHint => switch (_stage) {
-        _Stage.world => '例如：雨夜的边城，人们靠传闻活着',
-        _Stage.cast => '例如：少年想离开，客栈老板知道出路',
-        _Stage.main => '例如：今晚必须出城，在客栈做一个选择',
+  String _exampleHint(AppStrings strings) => switch (_stage) {
+        _Stage.world => strings.stagedWorldHint,
+        _Stage.cast => strings.stagedCastHint,
+        _Stage.main => strings.stagedMainHint,
       };
 
-  String get _promptLabel => switch (_stage) {
-        _Stage.world => '写一两句世界',
-        _Stage.cast => '写一两句人物',
-        _Stage.main => '写一两句走向',
+  String _promptLabel(AppStrings strings) => switch (_stage) {
+        _Stage.world => strings.stagedWorldPrompt,
+        _Stage.cast => strings.stagedCastPrompt,
+        _Stage.main => strings.stagedMainPrompt,
       };
 
   void _showPreview(String text) {
@@ -191,22 +193,23 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
   Future<void> _generate() async {
     final project = _project;
     if (project == null || _busy) return;
+    final strings = context.strings;
     final prompt = _prompt.text.trim();
     if (prompt.isEmpty) {
-      setState(() => _status = '先写一两句提示');
+      setState(() => _status = strings.stagedNeedPrompt);
       return;
     }
 
     final endpoint = AppScope.settingsOf(context).ai.text;
     if (!endpoint.isConfigured ||
         (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
-      setState(() => _status = '请先在设置里配好写故事的服务');
+      setState(() => _status = strings.stagedNeedService);
       return;
     }
 
     setState(() {
       _busy = true;
-      _status = '正在生成…';
+      _status = strings.stagedGenerating;
     });
 
     try {
@@ -229,7 +232,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
         case _Stage.cast:
           final worldBook = _worldBookFromPreview() ?? _worldBook;
           if (worldBook == null || worldBook.entries.isEmpty) {
-            setState(() => _status = '请先完成世界设定');
+            setState(() => _status = strings.stagedNeedWorldFirst);
             return;
           }
           final cast = await actions.generateCast(
@@ -251,7 +254,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
           final worldBook = _worldBook ?? project.worldBook;
           final cast = _cast ?? project.cast;
           if (worldBook.entries.isEmpty || cast.isEmpty) {
-            setState(() => _status = '请先完成设定和角色');
+            setState(() => _status = strings.stagedNeedWorldAndCast);
             return;
           }
           final main = await actions.generateMain(
@@ -274,7 +277,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
       setState(() => _status = error.message);
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '生成失败，请稍后重试');
+      setState(() => _status = strings.stagedGenerateFailed);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -283,12 +286,13 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
   Future<void> _nextOrPlay() async {
     final project = _project;
     if (project == null) return;
+    final strings = context.strings;
 
     switch (_stage) {
       case _Stage.world:
         final worldBook = _worldBookFromPreview();
         if (worldBook == null || worldBook.entries.isEmpty) {
-          setState(() => _status = '请先生成设定');
+          setState(() => _status = strings.stagedNeedWorldDone);
           return;
         }
         final next = _actions().applyWorldBook(project, worldBook);
@@ -305,7 +309,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
       case _Stage.cast:
         final cast = _cast;
         if (cast == null || cast.isEmpty) {
-          setState(() => _status = '请先生成角色');
+          setState(() => _status = strings.stagedNeedCastDone);
           return;
         }
         setState(() {
@@ -318,7 +322,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
       case _Stage.main:
         final main = _main;
         if (main == null || main.nodes.isEmpty) {
-          setState(() => _status = '请先生成走向');
+          setState(() => _status = strings.stagedNeedMainDone);
           return;
         }
         final latest = _project;
@@ -339,25 +343,26 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     return AppPage(
-      title: '分阶段提示词',
+      title: strings.stagedPrompts,
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody(
         children: [
           if (_booting)
-            const AppText('正在准备故事…', role: AppTextRole.caption)
+            AppText(strings.stagedBooting, role: AppTextRole.caption)
           else ...[
             AppSegmented<_Stage>(
               value: _stage,
               onChanged: (value) {
                 if (_busy) return;
                 if (value == _Stage.cast && _worldBook == null) {
-                  setState(() => _status = '请先完成世界');
+                  setState(() => _status = strings.stagedNeedWorldFirst);
                   return;
                 }
                 if (value == _Stage.main &&
                     (_worldBook == null || _cast == null)) {
-                  setState(() => _status = '请先完成世界和人物');
+                  setState(() => _status = strings.stagedNeedWorldAndCast);
                   return;
                 }
                 setState(() {
@@ -368,43 +373,47 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
                   _status = null;
                 });
               },
-              options: const [
-                AppSegmentOption(value: _Stage.world, label: '世界'),
-                AppSegmentOption(value: _Stage.cast, label: '人物'),
-                AppSegmentOption(value: _Stage.main, label: '走向'),
+              options: [
+                AppSegmentOption(value: _Stage.world, label: strings.stagedWorld),
+                AppSegmentOption(value: _Stage.cast, label: strings.stagedCast),
+                AppSegmentOption(value: _Stage.main, label: strings.stagedMain),
               ],
             ),
             const SizedBox(height: AppTheme.spaceLg),
             AppSectionHeader(
-              _stageTitle,
-              subtitle: _exampleHint,
+              _stageTitle(strings),
+              subtitle: _exampleHint(strings),
             ),
             AppTextField(
-              label: _promptLabel,
+              label: _promptLabel(strings),
               controller: _prompt,
-              hint: _exampleHint,
+              hint: _exampleHint(strings),
               minLines: 2,
               maxLines: 4,
             ),
             const SizedBox(height: AppTheme.spaceGroup),
             AppButton(
               label: _busy
-                  ? '生成中…'
-                  : (_hasPreview ? '重写这一阶段' : '生成'),
+                  ? strings.stagedGeneratingShort
+                  : (_hasPreview
+                        ? strings.stagedRegenerate
+                        : strings.stagedGenerate),
               onPressed: _busy ? null : _generate,
               expanded: true,
             ),
             if (_hasPreview) ...[
               const SizedBox(height: AppTheme.spaceLg),
               AppTextField(
-                label: '预览（可改）',
+                label: strings.stagedPreviewLabel,
                 controller: _preview,
                 minLines: 6,
                 maxLines: 12,
               ),
               const SizedBox(height: AppTheme.spaceGroup),
               AppButton(
-                label: _stage == _Stage.main ? '开始游玩' : '下一步',
+                label: _stage == _Stage.main
+                    ? strings.stagedPlay
+                    : strings.stagedNext,
                 onPressed: _busy ? null : _nextOrPlay,
                 expanded: true,
               ),

@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
+import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
@@ -106,10 +108,10 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
     });
   }
 
-  String _subtitle(WorldBookEntry entry) {
-    if (entry.alwaysOn) return '常驻';
-    if (entry.keys.isEmpty) return '按需 · 还没写关键词';
-    return '按需 · ${entry.keys.join('、')}';
+  String _subtitle(AppStrings strings, WorldBookEntry entry) {
+    if (entry.alwaysOn) return strings.tagAlwaysOn;
+    if (entry.keys.isEmpty) return strings.worldBookNoKeywords;
+    return strings.worldBookKeywords(entry.keys.join(strings.listSeparator));
   }
 
   void _replaceEntries(List<WorldBookEntry> entries) {
@@ -159,6 +161,7 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
   }
 
   Future<bool> _confirmDelete({required String title, required String detail}) async {
+    final ui = context.ui;
     final confirmed = await showAppSheet<bool>(
           context: context,
           builder: (ctx) => Padding(
@@ -180,7 +183,7 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
                   children: [
                     Expanded(
                       child: AppButton(
-                        label: '取消',
+                        label: ui.cancel,
                         variant: AppButtonVariant.secondary,
                         onPressed: () => Navigator.of(ctx).pop(false),
                       ),
@@ -188,7 +191,7 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
                     const SizedBox(width: AppTheme.spaceSm),
                     Expanded(
                       child: AppButton(
-                        label: '删除',
+                        label: ui.delete,
                         variant: AppButtonVariant.danger,
                         onPressed: () => Navigator.of(ctx).pop(true),
                       ),
@@ -205,9 +208,12 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
   Future<void> _deleteSelected() async {
     final ids = _selection.ids.toList(growable: false);
     if (ids.isEmpty) return;
+    final strings = context.strings;
     final confirmed = await _confirmDelete(
-      title: ids.length == 1 ? '删除这条设定？' : '删除这 ${ids.length} 条设定？',
-      detail: '删掉后无法恢复',
+      title: ids.length == 1
+          ? strings.worldBookDeleteOneTitle
+          : strings.worldBookDeleteManyTitle(ids.length),
+      detail: strings.worldBookDeleteDetail,
     );
     if (!confirmed || !mounted) return;
     _removeEntriesById(ids);
@@ -231,19 +237,25 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
+    final ui = context.ui;
     final project = _project;
     final entries = project?.worldBook.entries ?? const <WorldBookEntry>[];
     final selectionMode = _selection.active;
     final title = selectionMode
-        ? (_selection.count == 0 ? '选择条目' : '已选 ${_selection.count} 条')
-        : '世界书';
+        ? (_selection.count == 0
+              ? strings.worldBookSelectEntries
+              : strings.worldBookSelectedCount(_selection.count))
+        : strings.worldBookTitle;
 
     final List<Widget> actions;
     if (selectionMode) {
       actions = [
         AppIconButton(
           icon: _selection.hasSelection ? Icons.deselect : Icons.select_all,
-          tooltip: _selection.hasSelection ? '取消全选' : '全选',
+          tooltip: _selection.hasSelection
+              ? strings.worldBookDeselectAll
+              : strings.worldBookSelectAll,
           onPressed: project == null
               ? null
               : () => _selection.toggleAll(entries.map((e) => e.id)),
@@ -251,7 +263,7 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
         if (_selection.hasSelection)
           AppIconButton(
             icon: Icons.delete_outline,
-            tooltip: '删除',
+            tooltip: ui.delete,
             danger: true,
             onPressed: _deleteSelected,
           ),
@@ -260,7 +272,7 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
       actions = [
         AppCircleButton(
           icon: Icons.add,
-          tooltip: '加一条设定',
+          tooltip: strings.worldBookAddEntry,
           onPressed: _loading || _error != null ? null : () => _editEntry(),
         ),
       ];
@@ -281,34 +293,34 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
       body: AppPageBody.list(
         children: [
           if (_loading)
-            const AppPageGutter(
-              child: AppText('加载中…', role: AppTextRole.caption),
+            AppPageGutter(
+              child: AppText(ui.loading, role: AppTextRole.caption),
             )
           else if (_error != null)
             AppPageGutter(
               child: AppEmptyState(
-                message: '无法打开设定',
+                message: strings.worldBookOpenFailed,
                 detail: _error.toString(),
                 action: AppButton(
-                  label: '重试',
+                  label: ui.retry,
                   onPressed: _load,
                   variant: AppButtonVariant.secondary,
                 ),
               ),
             )
           else if (project != null) ...[
-            const AppSectionHeader(
-              '设定条目',
-              subtitle: '常驻会一直带上；其他条目靠关键词唤起',
+            AppSectionHeader(
+              strings.worldBookEntriesSection,
+              subtitle: strings.worldBookSectionHint,
               gutter: true,
             ),
             if (entries.isEmpty)
               AppPageGutter(
                 child: AppEmptyState(
-                  message: '还没有设定',
-                  detail: '先写世界基调，再补地名与规则',
+                  message: strings.worldBookEmpty,
+                  detail: strings.worldBookEmptyDetail,
                   action: AppButton(
-                    label: '加一条',
+                    label: strings.addOne,
                     onPressed: () => _editEntry(),
                     variant: AppButtonVariant.secondary,
                   ),
@@ -323,9 +335,9 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
                     AppListTile(
                       title:
                           entries[i].title.isEmpty
-                              ? '未命名设定'
+                              ? strings.worldBookUnnamedEntry
                               : entries[i].title,
-                      subtitle: _subtitle(entries[i]),
+                      subtitle: _subtitle(strings, entries[i]),
                       leading: _entryLeading(
                         entries[i],
                         selected: _selection.isSelected(entries[i].id),
@@ -449,7 +461,9 @@ class _WorldBookEntrySheetState extends State<_WorldBookEntrySheet> {
     Navigator.of(context).pop(
       _EntrySheetResult(
         next.copyWith(
-          title: next.title.isEmpty ? '未命名设定' : next.title,
+          title: next.title.isEmpty
+              ? context.strings.worldBookUnnamedEntry
+              : next.title,
         ),
       ),
     );
@@ -457,9 +471,12 @@ class _WorldBookEntrySheetState extends State<_WorldBookEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final existing = widget.existing;
     return AppSheetEditForm(
-      title: existing == null ? '新设定' : '编辑设定',
+      title: existing == null
+          ? strings.worldBookNewEntry
+          : strings.worldBookEditEntry,
       isDirty: _isDirty,
       onSave: _save,
       body: AppSheetScrollBody(
@@ -471,22 +488,22 @@ class _WorldBookEntrySheetState extends State<_WorldBookEntrySheet> {
         ),
         children: [
           AppTextField(
-            label: '标题',
+            label: strings.titleLabel,
             controller: _title,
-            hint: '世界观、客栈、城门规则…',
+            hint: strings.worldBookTitleHint,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '正文',
+            label: strings.bodyLabel,
             controller: _body,
             minLines: 4,
             maxLines: 10,
-            hint: '写给故事用的完整说明，单独成段也能读懂',
+            hint: strings.worldBookBodyHint,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppListTile(
-            title: '始终带上',
-            subtitle: '基调、硬规则适合打开',
+            title: strings.worldBookAlwaysOn,
+            subtitle: strings.worldBookAlwaysOnHint,
             icon: Icons.push_pin_outlined,
             trailing: AppSwitch(
               value: _alwaysOn,
@@ -496,9 +513,9 @@ class _WorldBookEntrySheetState extends State<_WorldBookEntrySheet> {
           if (!_alwaysOn) ...[
             const SizedBox(height: AppTheme.spaceMd),
             AppTextField(
-              label: '关键词',
+              label: strings.keywordLabel,
               controller: _keys,
-              hint: '用顿号或逗号分开',
+              hint: strings.worldBookKeywordsHint,
             ),
           ],
         ],

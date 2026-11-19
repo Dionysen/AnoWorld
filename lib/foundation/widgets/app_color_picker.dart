@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../focus/app_keyboard.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_button.dart';
@@ -11,13 +12,13 @@ import 'app_section_header.dart';
 Future<Color?> showAppColorPicker(
   BuildContext context, {
   required Color initialColor,
-  String title = '颜色',
+  String? title,
 }) {
   return showDialog<Color>(
     context: context,
     builder: (context) => _AppColorPickerDialog(
       initialColor: initialColor,
-      title: title,
+      title: title ?? context.ui.colorTitle,
     ),
   );
 }
@@ -140,12 +141,12 @@ class _AppColorPickerDialogState extends State<_AppColorPickerDialog> {
       ),
       actions: [
         AppButton(
-          label: '取消',
+          label: context.ui.cancel,
           variant: AppButtonVariant.secondary,
           onPressed: () => Navigator.of(context).pop(),
         ),
         AppButton(
-          label: '完成',
+          label: context.ui.done,
           onPressed: () => Navigator.of(context).pop(color),
         ),
       ],

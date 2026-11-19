@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -13,24 +14,25 @@ class AdvancedSettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     return AppPage(
-      title: '高级',
+      title: strings.advancedTitle,
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageGutter(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppSectionHeader(
-              '诊断',
-              subtitle: '供开发排查，正式版不显示本页',
+            AppSectionHeader(
+              strings.diagnosticsSection,
+              subtitle: strings.diagnosticsHint,
             ),
             ListenableBuilder(
               listenable: AppLog.instance,
               builder: (context, _) {
                 final n = AppLog.instance.length;
                 return AppListTile(
-                  title: '诊断日志',
-                  subtitle: n > 0 ? '共 $n 条' : '暂无记录',
+                  title: strings.diagnosticsLogTitle,
+                  subtitle: n > 0 ? strings.logCount(n) : strings.logNone,
                   icon: Icons.article_outlined,
                   onTap: () {
                     pushAppSlide(context, const AppLogViewerPage());

@@ -1,4 +1,9 @@
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/domain/settings/appearance_settings.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
+import 'package:anoworld/foundation/logging/app_log_level.dart';
+import 'package:anoworld/foundation/theme/theme_tokens.dart';
 import 'package:flutter/widgets.dart';
 
 /// Simplified Chinese copy.
@@ -45,6 +50,117 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get discardEditsDetail => '还没保存的改动会丢掉';
+
+  @override
+  String get back => '返回';
+
+  @override
+  String get done => '完成';
+
+  @override
+  String get confirm => '确定';
+
+  @override
+  String get search => '搜索';
+
+  @override
+  String get searchFonts => '搜索字体';
+
+  @override
+  String get clear => '清除';
+
+  @override
+  String get copy => '复制';
+
+  @override
+  String get edit => '编辑';
+
+  @override
+  String get expand => '展开';
+
+  @override
+  String get collapse => '收起';
+
+  @override
+  String get remove => '移除';
+
+  @override
+  String get add => '添加';
+
+  @override
+  String get send => '发送';
+
+  @override
+  String get stop => '停止';
+
+  @override
+  String get inputMessage => '输入消息';
+
+  @override
+  String get thinking => '思考过程';
+
+  @override
+  String get emptyContent => '这里还没有内容';
+
+  @override
+  String get notFilled => '未填写';
+
+  @override
+  String get currentBadge => '当前';
+
+  @override
+  String get colorTitle => '颜色';
+
+  @override
+  String get entry => '条目';
+
+  @override
+  String copiedEntry(String label) => '已复制：$label';
+
+  @override
+  String moreEntries(int count) => '还有 $count 条';
+
+  @override
+  String get tidyLayout => '整理排版';
+
+  @override
+  String get addStation => '加一站';
+
+  @override
+  String get graphEmpty => '还没有情节站';
+
+  @override
+  String get fontSystemDefault => '系统默认';
+
+  @override
+  String get fontImported => '已导入';
+
+  @override
+  String get fontImportDone => '字体已导入到应用字体库';
+
+  @override
+  String get fontImportFailed => '无法导入该字体文件';
+
+  @override
+  String get fontRemoved => '已从应用字体库中移除';
+
+  @override
+  String get fontRemoveFailed => '无法删除该字体';
+
+  @override
+  String get fontPickFile => '选择字体文件…';
+
+  @override
+  String get fontLoading => '加载字体…';
+
+  @override
+  String get fontDeleteTitle => '删除字体？';
+
+  @override
+  String fontDeleteDetail(String family) => '从应用字体库中移除「$family」以释放空间？';
+
+  @override
+  String get fontRemoveAction => '从库中移除';
 
   // Shared rows.
 
@@ -302,6 +418,9 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get addAction => '添加';
+
+  @override
+  String get importAction => '导入';
 
   @override
   String get plotElementsHubHint => '全局库，给故事勾着用';
@@ -742,6 +861,12 @@ class AppStringsZh extends AppStrings {
   String get chooseModel => '选择模型';
 
   @override
+  String get chooseModelHint => '写对白与剧情用';
+
+  @override
+  String get backAction => '返回';
+
+  @override
   String get replyChoices => '回复选项';
 
   @override
@@ -749,6 +874,465 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get startChat => '开始对话';
+
+  // Story editors.
+
+  @override
+  String get titleLabel => '标题';
+
+  @override
+  String get bodyLabel => '正文';
+
+  @override
+  String get undoAction => '撤销';
+
+  @override
+  String get redoAction => '重做';
+
+  @override
+  String get createEntrySection => '创作入口';
+
+  @override
+  String get createEntryBlurbCard => '导入角色卡，填入设定与角色';
+
+  @override
+  String get createEntryBlurbNovel => '粘贴剧情，拆成可玩内容';
+
+  @override
+  String get createEntryBlurbStaged => '按世界 → 人物 → 走向逐步填写';
+
+  @override
+  String get createEntryComingSoon => '这条创作路径马上就好';
+
+  @override
+  String get createEntryComingSoonDetail => '可先导入角色卡或用分阶段提示词';
+
+  @override
+  String get worldBookNoKeywords => '按需 · 还没写关键词';
+
+  @override
+  String worldBookKeywords(String keywords) => '按需 · $keywords';
+
+  @override
+  String get worldBookSelectEntries => '选择条目';
+
+  @override
+  String worldBookSelectedCount(int count) => '已选 $count 条';
+
+  @override
+  String get worldBookSelectAll => '全选';
+
+  @override
+  String get worldBookDeselectAll => '取消全选';
+
+  @override
+  String get worldBookAddEntry => '加一条设定';
+
+  @override
+  String get worldBookOpenFailed => '无法打开设定';
+
+  @override
+  String get worldBookSectionHint => '常驻会一直带上；其他条目靠关键词唤起';
+
+  @override
+  String get worldBookEntriesSection => '设定条目';
+
+  @override
+  String get worldBookEmptyDetail => '先写世界基调，再补地名与规则';
+
+  @override
+  String get worldBookUnnamedEntry => '未命名设定';
+
+  @override
+  String get worldBookNewEntry => '新设定';
+
+  @override
+  String get worldBookEditEntry => '编辑设定';
+
+  @override
+  String get worldBookTitleHint => '世界观、客栈、城门规则…';
+
+  @override
+  String get worldBookBodyHint => '写给故事用的完整说明，单独成段也能读懂';
+
+  @override
+  String get worldBookAlwaysOn => '始终带上';
+
+  @override
+  String get worldBookAlwaysOnHint => '基调、硬规则适合打开';
+
+  @override
+  String get worldBookKeywordsHint => '用顿号或逗号分开';
+
+  @override
+  String get worldBookDeleteOneTitle => '删除这条设定？';
+
+  @override
+  String worldBookDeleteManyTitle(int count) => '删除这 $count 条设定？';
+
+  @override
+  String get worldBookDeleteDetail => '删掉后无法恢复';
+
+  @override
+  String get castAddMember => '加一个角色';
+
+  @override
+  String get castAddOne => '加一个';
+
+  @override
+  String get castOpenFailed => '无法打开角色';
+
+  @override
+  String get castSection => '登场人物';
+
+  @override
+  String get castSectionHint => '可勾选一名主角，作为酒馆里的当前角色';
+
+  @override
+  String get castEmptyDetail => '先加主角和关键配角';
+
+  @override
+  String get castNoSummary => '还没写简介';
+
+  @override
+  String castProtagonist(String summary) => '主角 · $summary';
+
+  @override
+  String get castNewMember => '新角色';
+
+  @override
+  String get castEditMember => '编辑角色';
+
+  @override
+  String get castNameLabel => '名字';
+
+  @override
+  String get castSummaryLabel => '简介';
+
+  @override
+  String get castPersonalityLabel => '性格';
+
+  @override
+  String get castSpeechLabel => '说话方式';
+
+  @override
+  String get castExamplesLabel => '示例对白';
+
+  @override
+  String get castExamplesHint => '一行一句';
+
+  @override
+  String get castProtagonistLabel => '主角';
+
+  @override
+  String get castProtagonistHint => '酒馆里「当前角色」的名字与设定来源';
+
+  @override
+  String get castDeleteMember => '删除这个角色';
+
+  @override
+  String get castUnnamedMember => '未命名角色';
+
+  @override
+  String get mainGraphCanvas => '画布';
+
+  @override
+  String get mainGraphCard => '卡片';
+
+  @override
+  String get mainGraphOverview => '全图';
+
+  @override
+  String get mainGraphMenuSection => '画布';
+
+  @override
+  String get mainGraphShowGrid => '显示网格';
+
+  @override
+  String get mainGraphShowGridHint => '缩放时自动调整间距';
+
+  @override
+  String get mainGraphInputPort => '进入';
+
+  @override
+  String get mainGraphBranchLabel => '岔路';
+
+  @override
+  String get mainGraphContinueLabel => '继续';
+
+  @override
+  String get mainGraphNewNodeTitle => '新情节';
+
+  @override
+  String get mainGraphNewNodeSynopsis => '写清这一站要发生什么';
+
+  @override
+  String get mainGraphDeleteNodeTitle => '删除这一站？';
+
+  @override
+  String mainGraphDeleteNodeDetail(String title) => '「$title」和连到它的线都会去掉';
+
+  @override
+  String get mainGraphDeleteNodeDetailEmpty => '连到它的线也会一起去掉';
+
+  @override
+  String mainGraphLeadsTo(String title) => '通向$title';
+
+  @override
+  String get mainGraphNodeSheetTitle => '这一站';
+
+  @override
+  String get mainGraphNodeGoalLabel => '本站目标';
+
+  @override
+  String get mainGraphNodeKindLabel => '种类';
+
+  @override
+  String get mainGraphOutgoingLabel => '连出去';
+
+  @override
+  String get mainGraphNoOutgoing => '还没有连线：从右侧插头拖到下一站左侧';
+
+  @override
+  String get nodeKindOpening => '开场';
+
+  @override
+  String get nodeKindScene => '过程';
+
+  @override
+  String get nodeKindTurning => '转折';
+
+  @override
+  String get nodeKindEnding => '结束';
+
+  @override
+  String get mainGraphDeleteNodeAction => '删除这一站';
+
+  @override
+  String get mainGraphEdgeSheetTitle => '这条路';
+
+  @override
+  String get mainGraphEdgeDetailLabel => '详细说明';
+
+  @override
+  String get mainGraphEdgeDetailHint => '可以只写关键词，再让 AI 帮你展开';
+
+  @override
+  String get mainGraphEdgeWriting => '正在写…';
+
+  @override
+  String get mainGraphExpandWithAi => '让 AI 写详细一点';
+
+  @override
+  String get mainGraphDeleteEdge => '删掉这条连线';
+
+  @override
+  String get mainGraphExpandFailed => '没写出来，请稍后再试';
+
+  @override
+  String get mainGraphConnectTip => '拖到下一站左侧插头，就能连上';
+
+  @override
+  String get mainGraphOverviewTitle => '走向全览';
+
+  @override
+  String get mainGraphOverviewHint => '滑动地图移动镜头，点外侧或拖标题收起';
+
+  @override
+  String get mainGraphOpenFailed => '打不开情节图';
+
+  @override
+  String get noStory => '没有故事';
+
+  @override
+  String get cardImportSection => '从酒馆卡摘素材';
+
+  @override
+  String get cardImportSectionHint => '只取设定与角色，不跑插件和正则';
+
+  @override
+  String get cardPickCards => '选择角色卡';
+
+  @override
+  String get cardRepick => '重新选卡';
+
+  @override
+  String get cardPickHint => '可选多张：第一张作主角与故事名，其余当配角';
+
+  @override
+  String get cardReading => '读取中…';
+
+  @override
+  String get cardEmptyTitle => '还没有读入角色卡';
+
+  @override
+  String get cardEmptyDetail => '支持 .json 与带角色数据的 .png';
+
+  @override
+  String get cardStoryNameLabel => '故事名';
+
+  @override
+  String get cardTidySection => '整理';
+
+  @override
+  String get cardTidyHint => '去掉网页标记，保留 Markdown；可归到角色与设定';
+
+  @override
+  String get cardSanitize => '清理格式';
+
+  @override
+  String get cardOrganize => 'AI 分类整理';
+
+  @override
+  String get cardCastSection => '角色';
+
+  @override
+  String get cardCastSectionHint => '描述、性格与示例对白';
+
+  @override
+  String get cardWorldBookSection => '世界书';
+
+  @override
+  String get cardWorldBookSectionHint => '情景、开场素材与角色书条目';
+
+  @override
+  String get cardNoWorldBookEntries => '这张卡没有可摘的设定条目';
+
+  @override
+  String get cardAiNoteSection => '卡内 AI 说明';
+
+  @override
+  String get cardAiNoteHint => '不会写进故事，写对白请在设置里改 AI 预设';
+
+  @override
+  String get cardWrite => '写入故事';
+
+  @override
+  String get cardWriteHint => '写入后可在创作里继续改设定、角色与情节';
+
+  @override
+  String get cardOrganizePreviewTitle => '整理预览';
+
+  @override
+  String get cardOrganizePreviewHint => '只归类素材，不替你编剧情';
+
+  @override
+  String get cardApply => '应用';
+
+  @override
+  String cardReadCount(int count) => '已读入 $count 张卡，可勾选要留下的内容';
+
+  @override
+  String get cardSanitizeNoChange => '格式已是 Markdown，无需再清';
+
+  @override
+  String cardSanitizeChanged(int count) => '已调整 $count 处排版';
+
+  @override
+  String get cardOrganizeNoChange => '模型未建议改动，换模型重试或手动改角色/设定';
+
+  @override
+  String cardOrganizeApplied(int count) => '已应用 $count 条整理';
+
+  @override
+  String get cardNeedOneCast => '至少留下一个角色';
+
+  @override
+  String get cardReadUnavailable => '无法读取所选文件，请完全退出应用后重开再试';
+
+  @override
+  String cardReadFailed(Object error) => '读卡失败：$error';
+
+  @override
+  String cardWriteFailed(Object error) => '写入失败：$error';
+
+  @override
+  String cardOrganizeFailed(Object error) => '整理失败：$error';
+
+  @override
+  String cardCannotRead(String file) => '无法读取 $file';
+
+  @override
+  String cardUnsupportedFormat(String extension) =>
+      '暂只支持 .json / .png（$extension）';
+
+  @override
+  String get stagedWorld => '世界';
+
+  @override
+  String get stagedCast => '人物';
+
+  @override
+  String get stagedMain => '走向';
+
+  @override
+  String get stagedWorldHint => '例如：雨夜的边城，人们靠传闻活着';
+
+  @override
+  String get stagedCastHint => '例如：少年想离开，客栈老板知道出路';
+
+  @override
+  String get stagedMainHint => '例如：今晚必须出城，在客栈做一个选择';
+
+  @override
+  String get stagedWorldPrompt => '写一两句世界';
+
+  @override
+  String get stagedCastPrompt => '写一两句人物';
+
+  @override
+  String get stagedMainPrompt => '写一两句走向';
+
+  @override
+  String get stagedNeedPrompt => '先写一两句提示';
+
+  @override
+  String get stagedNeedService => '请先在设置里配好写故事的服务';
+
+  @override
+  String get stagedGenerating => '正在生成…';
+
+  @override
+  String get stagedNeedWorldFirst => '请先完成世界设定';
+
+  @override
+  String get stagedNeedWorldAndCast => '请先完成设定和角色';
+
+  @override
+  String get stagedNeedWorldDone => '请先生成设定';
+
+  @override
+  String get stagedNeedCastDone => '请先生成角色';
+
+  @override
+  String get stagedNeedMainDone => '请先生成走向';
+
+  @override
+  String get stagedGenerateFailed => '生成失败，请稍后重试';
+
+  @override
+  String createStoryFailed(Object error) => '创建故事失败：$error';
+
+  @override
+  String get stagedBooting => '正在准备故事…';
+
+  @override
+  String get stagedGenerate => '生成';
+
+  @override
+  String get stagedRegenerate => '重写这一阶段';
+
+  @override
+  String get stagedGeneratingShort => '生成中…';
+
+  @override
+  String get stagedPreviewLabel => '预览（可改）';
+
+  @override
+  String get stagedPlay => '开始游玩';
+
+  @override
+  String get stagedNext => '下一步';
 
   // Create assistant.
 
@@ -898,4 +1482,665 @@ class AppStringsZh extends AppStrings {
 
   @override
   String cannotResume(Object error) => '无法继续：$error';
+
+  // Settings shell.
+
+  @override
+  String get settingsSectionGeneral => '通用';
+
+  @override
+  String get settingsSectionAppearance => '外观';
+
+  @override
+  String get settingsSectionAi => 'AI';
+
+  @override
+  String get settingsSectionAbout => '关于';
+
+  @override
+  String get settingsNothingToChange => '这里还没有可改的选项';
+
+  @override
+  String get advancedTitle => '高级';
+
+  @override
+  String get advancedHint => '诊断日志等开发选项';
+
+  @override
+  String get diagnosticsSection => '诊断';
+
+  @override
+  String get diagnosticsHint => '供开发排查，正式版不显示本页';
+
+  @override
+  String get diagnosticsLogTitle => '诊断日志';
+
+  @override
+  String get logsEmpty => '暂无日志';
+
+  @override
+  String get clearAction => '清空';
+
+  @override
+  String logCount(int count) => '共 $count 条';
+
+  @override
+  String get logNone => '暂无记录';
+
+  @override
+  String get copiedToast => '已复制';
+
+  @override
+  String logLevelName(AppLogLevel level) => switch (level) {
+        AppLogLevel.info => '信息',
+        AppLogLevel.warning => '警告',
+        AppLogLevel.error => '错误',
+      };
+
+  // About.
+
+  @override
+  String get appTagline => '视觉小说创作器 + 运行时';
+
+  @override
+  String get appDescription =>
+      '本地配置文本与生图 AI，结构化创作剧本，用聊天式或视觉小说式双模式验本与游玩。'
+      'SillyTavern 角色卡仅作素材入口，不是兼容目标';
+
+  @override
+  String appVersion(String version) => '版本 $version';
+
+  // Appearance.
+
+  @override
+  String get themeSection => '主题';
+
+  @override
+  String get themeModeLabel => '主题模式';
+
+  @override
+  String get themeModeHint => '跟随系统、浅色或深色';
+
+  @override
+  String get themeColorLabel => '主题颜色';
+
+  @override
+  String get themeColorHint => '浅色与深色各记一套';
+
+  @override
+  String get customColorsLabel => '自定义颜色';
+
+  @override
+  String get customColorsHint => '调整当前配色';
+
+  @override
+  String get interfaceSection => '界面';
+
+  @override
+  String get fontLabel => '字体';
+
+  @override
+  String get fontHint => '系统字体或导入文件';
+
+  @override
+  String get fontSizeLabel => '字体大小';
+
+  @override
+  String get cornerRadiusLabel => '圆角大小';
+
+  @override
+  String get currentTag => '当前';
+
+  @override
+  String get inUseTag => '使用中';
+
+  @override
+  String get lightSlotTag => '亮色';
+
+  @override
+  String get darkSlotTag => '暗色';
+
+  @override
+  String get customTag => '自定义';
+
+  @override
+  String get manageAction => '管理';
+
+  @override
+  String get copyAction => '复制';
+
+  @override
+  String get saveAsTheme => '保存为主题';
+
+  @override
+  String get restoreDefaults => '恢复默认';
+
+  @override
+  String get saveAsThemeTitle => '保存为主题颜色';
+
+  @override
+  String defaultThemeName(int number) => '主题 $number';
+
+  @override
+  String get themeNameLabel => '主题名称';
+
+  @override
+  String copyName(String name) => '$name 副本';
+
+  @override
+  String get renameThemeTitle => '重命名主题';
+
+  @override
+  String get deleteThemeTitle => '删除主题？';
+
+  @override
+  String deleteThemeDetail(String name) => '删除「$name」后无法恢复';
+
+  @override
+  String themeModeName(AppThemeModeSetting mode) => switch (mode) {
+        AppThemeModeSetting.system => '跟随系统',
+        AppThemeModeSetting.light => '浅色',
+        AppThemeModeSetting.dark => '深色',
+      };
+
+  @override
+  String themePresetName(ThemePreset preset) => switch (preset) {
+        ThemePreset.light => '浅色',
+        ThemePreset.grey => '灰色',
+        ThemePreset.slate => '石板',
+        ThemePreset.claude => 'Claude Code',
+        ThemePreset.mint => '薄荷',
+        ThemePreset.purple => '紫色',
+        ThemePreset.hermes => 'Hermes',
+        ThemePreset.ocean => '海洋',
+        ThemePreset.darkModern => '深色现代',
+        ThemePreset.graphite => '石墨',
+        ThemePreset.forest => '深林',
+        ThemePreset.espresso => '咖啡',
+        ThemePreset.midnight => '午夜',
+        ThemePreset.dusk => '暮色',
+        ThemePreset.cursorDark => 'Cursor 深色',
+      };
+
+  @override
+  String themeTokenName(ThemeToken token) => switch (token) {
+        ThemeToken.editorSurface => '应用背景',
+        ThemeToken.sidebarSurface => '面板背景',
+        ThemeToken.controlSurface => '按钮和输入框',
+        ThemeToken.border => '边框',
+        ThemeToken.divider => '分割线',
+        ThemeToken.primaryText => '主文字',
+        ThemeToken.mutedText => '次要文字',
+        ThemeToken.accent => '强调色',
+        ThemeToken.secondaryAccent => '次要强调色',
+        ThemeToken.tertiaryAccent => '辅助强调色',
+        ThemeToken.cursor => '光标',
+        ThemeToken.chatBackground => '聊天背景',
+        ThemeToken.characterBubble => '角色气泡',
+        ThemeToken.userBubble => '我的气泡',
+        ThemeToken.chatText => '消息文字',
+        ThemeToken.dialogueText => '对白文字',
+      };
+
+  @override
+  String themeTokenHint(ThemeToken token) => switch (token) {
+        ThemeToken.editorSurface => '窗口底色',
+        ThemeToken.sidebarSurface => '侧栏与弹层',
+        ThemeToken.controlSurface => '按钮、菜单、输入框',
+        ThemeToken.border => '控件描边',
+        ThemeToken.divider => '列表分隔线',
+        ThemeToken.primaryText => '标题与正文',
+        ThemeToken.mutedText => '提示与说明',
+        ThemeToken.accent => '选中与高亮',
+        ThemeToken.secondaryAccent => '第二强调',
+        ThemeToken.tertiaryAccent => '第三强调',
+        ThemeToken.cursor => '输入光标',
+        ThemeToken.chatBackground => '聊天页底色',
+        ThemeToken.characterBubble => '角色气泡',
+        ThemeToken.userBubble => '我的气泡',
+        ThemeToken.chatText => '叙述文字',
+        ThemeToken.dialogueText => '引号对白',
+      };
+
+  // AI channels.
+
+  @override
+  String get textChannelTitle => '文本 AI';
+
+  @override
+  String get textChannelHint => '写对白与剧情';
+
+  @override
+  String get imageChannelTitle => '生图 AI';
+
+  @override
+  String get imageChannelHint => '生成插画，与文本分开';
+
+  @override
+  String get pickProviderTitle => '选择供应商';
+
+  @override
+  String get pickProviderHint => '写故事与生图请分开选择';
+
+  @override
+  String get currentProvider => '当前服务商';
+
+  @override
+  String get changeAction => '更换';
+
+  @override
+  String get baseUrlLabel => '服务地址';
+
+  @override
+  String get baseUrlHint => '接口根地址';
+
+  @override
+  String get baseUrlEmpty => '未填写';
+
+  @override
+  String get apiKeyLabel => '密钥';
+
+  @override
+  String get apiKeyHint => '访问服务用';
+
+  @override
+  String get modelLabel => '模型';
+
+  @override
+  String get tapToChoose => '点这里选择';
+
+  @override
+  String get probingShort => '正在查找…';
+
+  @override
+  String get modelNotChosen => '未选择';
+
+  @override
+  String get modelHintNone => '点这里选择，或先查找可用模型';
+
+  @override
+  String foundModelsShort(int count) => '已找到 $count 个';
+
+  @override
+  String get reasoningLabel => '思考程度';
+
+  @override
+  String get reasoningHint => '影响会想多久再回答';
+
+  @override
+  String get probeModels => '查找模型';
+
+  @override
+  String get probeModelsRunning => '正在查找模型';
+
+  @override
+  String get probeModelsHint => '重新拉取可用列表';
+
+  @override
+  String get probeHintNeedsKey => '填好服务地址和密钥后，会自动查找可用模型';
+
+  @override
+  String get probeHintNoKey => '填好服务地址后，会自动查找可用模型';
+
+  @override
+  String get probeHintManual => '请手动填写模型，或点「查找模型」使用常用列表';
+
+  @override
+  String get probingModels => '正在查找可用模型…';
+
+  @override
+  String foundModels(int count) => '找到 $count 个可用模型';
+
+  @override
+  String get probeFallbackModels => '暂时连不上服务，已改用常用模型列表';
+
+  @override
+  String probeFailed(Object error) => '查找失败：$error';
+
+  @override
+  String textProviderName(AiTextProviderKind kind) => switch (kind) {
+        AiTextProviderKind.openAiCompatible => '自定义',
+        AiTextProviderKind.openai => 'OpenAI',
+        AiTextProviderKind.deepSeek => 'DeepSeek',
+        AiTextProviderKind.openRouter => 'OpenRouter',
+        AiTextProviderKind.qwen => '通义千问',
+        AiTextProviderKind.siliconFlow => '硅基流动',
+        AiTextProviderKind.moonshot => 'Moonshot',
+        AiTextProviderKind.zai => '智谱',
+        AiTextProviderKind.miniMax => 'MiniMax',
+        AiTextProviderKind.ollama => 'Ollama',
+      };
+
+  @override
+  String imageProviderName(AiImageProviderKind kind) => switch (kind) {
+        AiImageProviderKind.openAiCompatible => '自定义 / 生图',
+        AiImageProviderKind.openai => 'OpenAI Images',
+        AiImageProviderKind.openaiChat => '对话生图',
+        AiImageProviderKind.siliconFlow => '硅基流动',
+        AiImageProviderKind.pollinations => 'Pollinations（免费）',
+        AiImageProviderKind.novelai => 'NovelAI',
+        AiImageProviderKind.automatic1111 => 'Automatic1111',
+        AiImageProviderKind.comfyui => 'ComfyUI',
+      };
+
+  @override
+  String reasoningEffortName(AiReasoningEffort effort) => switch (effort) {
+        AiReasoningEffort.auto => '自动',
+        AiReasoningEffort.min => '最低',
+        AiReasoningEffort.low => '低',
+        AiReasoningEffort.medium => '中',
+        AiReasoningEffort.high => '高',
+        AiReasoningEffort.max => '最高',
+      };
+
+  // AI preset.
+
+  @override
+  String get presetRowHint => '控制输出风格和边界';
+
+  @override
+  String get pickPresetTitle => '选择预设';
+
+  @override
+  String get pickPresetHint => '内置或已导入的自定义';
+
+  @override
+  String get presetBuiltInGroup => '内置';
+
+  @override
+  String get presetMineGroup => '我的';
+
+  @override
+  String get presetNotChosen => '尚未选用';
+
+  @override
+  String presetApplied(String name) => '已套用：$name';
+
+  @override
+  String get presetNewAction => '新建预设';
+
+  @override
+  String get presetSaveCurrentAction => '保存当前设置为预设';
+
+  @override
+  String get presetRenameAction => '重命名当前预设';
+
+  @override
+  String get presetDeleteAction => '删除当前预设';
+
+  @override
+  String get presetImportAction => '导入预设';
+
+  @override
+  String get presetExportAction => '导出预设';
+
+  @override
+  String get presetNewName => '新预设';
+
+  @override
+  String presetCreated(String name) => '已新建：$name';
+
+  @override
+  String get presetRenameTitle => '重命名预设';
+
+  @override
+  String presetRenamed(String name) => '已改名：$name';
+
+  @override
+  String get presetRenameBuiltInHint => '内置预设不能改名，先保存为自己的';
+
+  @override
+  String presetDeleteTitle(String name) => '删除「$name」？';
+
+  @override
+  String get presetDeleteDetail => '只删这套预设，故事和当前设置不受影响';
+
+  @override
+  String get presetDeleteBuiltInHint => '内置预设不能删除';
+
+  @override
+  String get presetNoActive => '还没有选用预设';
+
+  @override
+  String get presetRestoreOrderAction => '恢复默认顺序';
+
+  @override
+  String get presetOrderRestored => '已恢复默认顺序';
+
+  @override
+  String get myPresetName => '我的预设';
+
+  @override
+  String presetSaved(String name) => '已保存：$name';
+
+  @override
+  String get presetDeleted => '已删除';
+
+  @override
+  String get invalidPresetFile => '不是合法的预设文件';
+
+  @override
+  String presetImported(String name) => '已导入并套用：$name';
+
+  @override
+  String presetImportFailed(Object error) => '导入失败：$error';
+
+  @override
+  String get exportPresetDialog => '导出预设';
+
+  @override
+  String get confirmAction => '确定';
+
+  @override
+  String get samplingSection => '采样';
+
+  @override
+  String get presetPromptsSection => '预设提示词';
+
+  @override
+  String get presetDefaultName => '均衡';
+
+  @override
+  String get presetCreativeName => '更发散';
+
+  @override
+  String get presetPreciseName => '更克制';
+
+  @override
+  String get presetDeterministicName => '更稳定';
+
+  @override
+  String get presetLongformName => '偏长篇';
+
+  @override
+  String get presetMirostatName => 'Mirostat 采样';
+
+  @override
+  String get presetDefaultHint => '日常写故事';
+
+  @override
+  String get presetCreativeHint => '想象力更大胆';
+
+  @override
+  String get presetPreciseHint => '少跑题、少废话';
+
+  @override
+  String get presetDeterministicHint => '同样输入更接近同样结果';
+
+  @override
+  String get presetLongformHint => '单次输出可以更长';
+
+  @override
+  String get presetMirostatHint => '按 Mirostat 调随机性';
+
+  // Sampling.
+
+  @override
+  String get maxOutputLabel => '单次最长输出';
+
+  @override
+  String get contextLengthLabel => '上下文长度';
+
+  @override
+  String get temperatureLabel => '温度';
+
+  @override
+  String get streamOutput => '流式输出';
+
+  @override
+  String get streamOutputHint => '边生成边返回';
+
+  @override
+  String get advancedSampling => '高级采样';
+
+  @override
+  String get advancedSamplingHint => 'Top K、惩罚、Mirostat 等';
+
+  @override
+  String get advancedSamplingTitle => '高级采样';
+
+  @override
+  String get repetitionPenalty => '重复惩罚';
+
+  @override
+  String get penaltyRange => '惩罚范围';
+
+  @override
+  String get frequencyPenalty => '频率惩罚';
+
+  @override
+  String get presencePenalty => '存在惩罚';
+
+  @override
+  String get mirostatMode => 'Mirostat 模式';
+
+  @override
+  String get randomSeed => '随机种子';
+
+  @override
+  String get randomSeedHint => '-1 表示每次随机';
+
+  @override
+  String get stopSequences => '停止序列';
+
+  @override
+  String get stopSequencesHint => '每行一条';
+
+  @override
+  String get notSet => '未设置';
+
+  // Prompt sections.
+
+  @override
+  String get promptSectionsTitle => '提示词分段';
+
+  @override
+  String get promptOrderSection => '顺序与开关';
+
+  @override
+  String get promptOrderHint => '写故事时按序拼进系统提示';
+
+  @override
+  String get contentLabel => '内容';
+
+  @override
+  String get tapToEdit => '点按编辑文案';
+
+  @override
+  String get tapToView => '点按查看';
+
+  @override
+  String get filledByCast => '内容由当前故事角色填充';
+
+  @override
+  String get filledByCastReadOnly => '内容由当前故事角色填充，这里不能改';
+
+  @override
+  String get filledByPersona => '写故事时用当前玩家身份填充';
+
+  @override
+  String get filledByWorldBook => '写故事时用当前故事的世界书填充';
+
+  @override
+  String get filledByHistory => '写故事时自动带上对话历史';
+
+  @override
+  String get emptyAuthorNote => '暂无作者备注';
+
+  @override
+  String get filledAutomatically => '这段会在写故事时自动带上';
+
+  @override
+  String promptSectionName(PromptSectionType type) => switch (type) {
+        PromptSectionType.systemPrompt => '系统提示',
+        PromptSectionType.persona => '玩家身份',
+        PromptSectionType.characterDescription => '角色描述',
+        PromptSectionType.characterPersonality => '角色性格',
+        PromptSectionType.characterScenario => '场景',
+        PromptSectionType.exampleMessages => '示例对白',
+        PromptSectionType.worldInfo => '设定（前）',
+        PromptSectionType.worldInfoAfter => '设定（后）',
+        PromptSectionType.authorNote => '作者备注',
+        PromptSectionType.postHistoryInstructions => '历史后指令',
+        PromptSectionType.nsfw => '成人向提示',
+        PromptSectionType.chatHistory => '对话历史',
+        PromptSectionType.enhanceDefinitions => '强化定义',
+        PromptSectionType.custom => '自定义',
+      };
+
+  // Player persona.
+
+  @override
+  String get personaTitle => '玩家身份';
+
+  @override
+  String get addPersona => '添加身份';
+
+  @override
+  String get personasEmpty => '还没有身份';
+
+  @override
+  String get personasEmptyHint => '添加一套，写故事和游玩时会用到';
+
+  @override
+  String get personaInUse => '正在使用';
+
+  @override
+  String personaInUseWith(String summary) => '正在使用 · $summary';
+
+  @override
+  String deletePersonaTitle(String name) => '删除「$name」？';
+
+  @override
+  String get deletePersonaHint => '删掉后不能恢复';
+
+  @override
+  String get editPersona => '编辑身份';
+
+  @override
+  String get personaNameLabel => '名字';
+
+  @override
+  String get personaAboutLabel => '简介';
+
+  @override
+  String get personaAboutHint => '你在故事里是谁、怎么说话';
+
+  @override
+  String get personaSystemLabel => '专用说明';
+
+  @override
+  String get personaSystemHint => '可选，额外告诉模型的身份设定';
+
+  @override
+  String get personaPostLabel => '补充说明';
+
+  @override
+  String get personaPostHint => '可选，对话后追加的提醒';
+
+  @override
+  String get savingDots => '保存中…';
+
+  @override
+  String get deletingDots => '删除中…';
 }

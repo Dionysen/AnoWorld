@@ -1,7 +1,8 @@
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_prompt_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/test_app.dart';
 
 void main() {
   testWidgets('showAppPromptDialog returns trimmed text on confirm', (
@@ -12,8 +13,7 @@ void main() {
 
     String? result;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.data,
+      testLocalized(
         home: Scaffold(
           body: Builder(
             builder: (context) {

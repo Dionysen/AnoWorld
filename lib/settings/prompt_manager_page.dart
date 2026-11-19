@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/settings/prompt_manager_panel.dart';
@@ -9,17 +10,18 @@ class PromptManagerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     return AppPage(
-      title: '提示词分段',
+      title: strings.promptSectionsTitle,
       onBack: () => Navigator.of(context).maybePop(),
-      body: const AppPageBody.list(
+      body: AppPageBody.list(
         children: [
           AppSectionHeader(
-            '顺序与开关',
-            subtitle: '写故事时按序拼进系统提示',
+            strings.promptOrderSection,
+            subtitle: strings.promptOrderHint,
             gutter: true,
           ),
-          PromptManagerPanel(),
+          const PromptManagerPanel(),
         ],
       ),
     );

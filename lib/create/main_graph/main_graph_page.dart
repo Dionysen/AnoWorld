@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/data/project/graph_node_thumbnail_files.dart';
 import 'package:anoworld/create/main_graph/main_graph_view_nav.dart';
+import 'package:anoworld/create/main_graph/story_node_kind_labels.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/expand_edge_detail_action.dart';
@@ -18,6 +20,7 @@ import 'package:anoworld/foundation/graph/graph_overview_map.dart';
 import 'package:anoworld/foundation/graph/graph_viewport.dart';
 import 'package:anoworld/foundation/graph/graph_viewport_controller.dart';
 import 'package:anoworld/foundation/history/undo_stack.dart';
+import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
@@ -220,6 +223,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   void _redo() => _history.redo();
 
   Future<void> _openMoreMenu() async {
+    final strings = context.strings;
     await showAppSheet<void>(
       context: context,
       size: AppSheetSize.compact,
@@ -230,18 +234,18 @@ class _MainGraphPageState extends State<MainGraphPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
                     AppTheme.pagePadding,
                     AppTheme.spaceXs,
                     AppTheme.pagePadding,
                     0,
                   ),
-                  child: AppSectionHeader('画布'),
+                  child: AppSectionHeader(strings.mainGraphMenuSection),
                 ),
                 AppListTile(
-                  title: '显示网格',
-                  subtitle: '缩放时自动调整间距',
+                  title: strings.mainGraphShowGrid,
+                  subtitle: strings.mainGraphShowGridHint,
                   icon: Icons.grid_on_outlined,
                   trailing: AppSwitch(
                     value: _showGrid,
@@ -313,17 +317,18 @@ class _MainGraphPageState extends State<MainGraphPage> {
   }
 
   List<GraphNodeData> _graphNodes(MainStory main) {
+    final strings = context.strings;
     return [
       for (final node in main.nodes)
         GraphNodeData(
           id: node.id,
           label: node.title,
           subtitle: node.synopsis,
-          badgeLabel: StoryNodeKind.fromTags(node.tags).label,
+          badgeLabel: nodeKindLabel(strings, StoryNodeKind.fromTags(node.tags)),
           badgeColor: StoryNodeKindStyle.color(
             StoryNodeKind.fromTags(node.tags),
           ),
-          inputLabel: '进入',
+          inputLabel: strings.mainGraphInputPort,
           x: node.layout?.x ?? 40,
           y: node.layout?.y ?? 40,
           outputs: [
@@ -332,16 +337,22 @@ class _MainGraphPageState extends State<MainGraphPage> {
                 id: edge.id,
                 label: edge.label?.trim().isNotEmpty == true
                     ? edge.label
-                    : (edge.kind == EdgeKind.branch ? '岔路' : '继续'),
+                    : _edgeFallbackLabel(strings, edge.kind),
               ),
-            const GraphOutputPort(
+            GraphOutputPort(
               id: GraphOutputPort.pendingId,
               pending: true,
-              label: '添加',
+              label: strings.add,
             ),
           ],
         ),
     ];
+  }
+
+  String _edgeFallbackLabel(AppStrings strings, EdgeKind kind) {
+    return kind == EdgeKind.branch
+        ? strings.mainGraphBranchLabel
+        : strings.mainGraphContinueLabel;
   }
 
   List<GraphEdgeData> _graphEdges(MainStory main) {
@@ -377,14 +388,15 @@ class _MainGraphPageState extends State<MainGraphPage> {
 
   Future<void> _addNode() async {
     final project = _project;
+    final strings = context.strings;
     if (project == null) return;
     final main = project.main;
     final id = MainGraphOps.newNodeId(main);
     final count = main.nodes.length;
     final node = StoryNode(
       id: id,
-      title: '新情节',
-      synopsis: '写清这一站要发生什么',
+      title: strings.mainGraphNewNodeTitle,
+      synopsis: strings.mainGraphNewNodeSynopsis,
       beatIds: const [],
       layout: NodeLayout(
         x: 40 + (count % 4) * 200.0,
@@ -416,6 +428,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
   }
 
   Future<bool> _confirmDeleteNode(String title) async {
+    final strings = context.strings;
+    final ui = context.ui;
     final confirmed = await showAppSheet<bool>(
       context: context,
       builder: (sheetContext) {
@@ -430,11 +444,11 @@ class _MainGraphPageState extends State<MainGraphPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const AppSectionHeader('删除这一站？'),
+              AppSectionHeader(strings.mainGraphDeleteNodeTitle),
               AppText(
                 title.trim().isEmpty
-                    ? '连到它的线也会一起去掉'
-                    : '「$title」和连到它的线都会去掉',
+                    ? strings.mainGraphDeleteNodeDetailEmpty
+                    : strings.mainGraphDeleteNodeDetail(title),
                 role: AppTextRole.body,
               ),
               const SizedBox(height: AppTheme.spaceMd),
@@ -442,7 +456,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                 children: [
                   Expanded(
                     child: AppButton(
-                      label: '取消',
+                      label: ui.cancel,
                       variant: AppButtonVariant.secondary,
                       onPressed: () => Navigator.pop(sheetContext, false),
                     ),
@@ -450,7 +464,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   const SizedBox(width: AppTheme.spaceSm),
                   Expanded(
                     child: AppButton(
-                      label: '删除',
+                      label: ui.delete,
                       variant: AppButtonVariant.danger,
                       onPressed: () => Navigator.pop(sheetContext, true),
                     ),
@@ -531,6 +545,8 @@ class _MainGraphPageState extends State<MainGraphPage> {
     final synopsis = TextEditingController(text: node.synopsis ?? '');
     var kind = StoryNodeKind.fromTags(node.tags);
     final outs = _ops.outgoing(project.main, nodeId);
+    final strings = context.strings;
+    final ui = context.ui;
 
     await showAppSheet<void>(
       context: context,
@@ -544,19 +560,19 @@ class _MainGraphPageState extends State<MainGraphPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const AppSectionHeader('这一站'),
-                  AppTextField(label: '标题', controller: title),
+                  AppSectionHeader(strings.mainGraphNodeSheetTitle),
+                  AppTextField(label: strings.titleLabel, controller: title),
                   const SizedBox(height: AppTheme.spaceSm),
                   AppTextField(
-                    label: '本站目标',
+                    label: strings.mainGraphNodeGoalLabel,
                     controller: synopsis,
                     minLines: 2,
                     maxLines: 4,
                   ),
                   const SizedBox(height: AppTheme.spaceMd),
                   AppSelectField(
-                    label: '种类',
-                    value: kind.label,
+                    label: strings.mainGraphNodeKindLabel,
+                    value: nodeKindLabel(strings, kind),
                     onTap: () async {
                       final picked = await showAppSheet<StoryNodeKind>(
                         context: ctx,
@@ -568,7 +584,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                             children: [
                               for (final k in StoryNodeKind.values)
                                 AppListTile(
-                                  title: k.label,
+                                  title: nodeKindLabel(strings, k),
                                   onTap: () =>
                                       Navigator.of(pickCtx).pop(k),
                                 ),
@@ -583,11 +599,14 @@ class _MainGraphPageState extends State<MainGraphPage> {
                     },
                   ),
                   const SizedBox(height: AppTheme.spaceMd),
-                  const AppText('连出去', role: AppTextRole.caption),
+                  AppText(
+                    strings.mainGraphOutgoingLabel,
+                    role: AppTextRole.caption,
+                  ),
                   const SizedBox(height: AppTheme.spaceXs),
                   if (outs.isEmpty)
-                    const AppText(
-                      '还没有连线：从右侧插头拖到下一站左侧',
+                    AppText(
+                      strings.mainGraphNoOutgoing,
                       role: AppTextRole.caption,
                     )
                   else
@@ -595,10 +614,10 @@ class _MainGraphPageState extends State<MainGraphPage> {
                       final to = project.main.nodeById(e.to)?.title ?? e.to;
                       final title = e.label?.trim().isNotEmpty == true
                           ? e.label!
-                          : (e.kind == EdgeKind.branch ? '岔路' : '继续');
+                          : _edgeFallbackLabel(strings, e.kind);
                       return AppListTile(
                         title: title,
-                        subtitle: '通向$to',
+                        subtitle: strings.mainGraphLeadsTo(to),
                         onTap: () async {
                           Navigator.of(ctx).pop();
                           await _openEdgeEditor(e.id);
@@ -607,7 +626,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                     }),
                   const SizedBox(height: AppTheme.spaceMd),
                   AppButton(
-                    label: '保存',
+                    label: ui.save,
                     onPressed: () async {
                       final main = _ops.updateNodeMeta(
                         project.main,
@@ -625,7 +644,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   ),
                   const SizedBox(height: AppTheme.spaceSm),
                   AppButton(
-                    label: '删除这一站',
+                    label: strings.mainGraphDeleteNodeAction,
                     variant: AppButtonVariant.danger,
                     onPressed: project.main.nodes.length <= 1
                         ? null
@@ -689,7 +708,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   }
 
   void _tipAddOutput() {
-    showAppToast(context, '拖到下一站左侧插头，就能连上');
+    showAppToast(context, context.strings.mainGraphConnectTip);
   }
 
   Widget _buildCanvas(MainStory main) {
@@ -768,19 +787,20 @@ class _MainGraphPageState extends State<MainGraphPage> {
 
   Widget? _buildOverviewPanel(MainStory main) {
     if (!_overviewOpen || _cardMode) return null;
+    final strings = context.strings;
     return AppDockedPanel(
       key: _overviewPanelKey,
       onDismiss: _onOverviewDismissed,
-      header: const Padding(
-        padding: EdgeInsets.fromLTRB(
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(
           AppTheme.pagePadding,
           0,
           AppTheme.pagePadding,
           0,
         ),
         child: AppSectionHeader(
-          '走向全览',
-          subtitle: '滑动地图移动镜头，点外侧或拖标题收起',
+          strings.mainGraphOverviewTitle,
+          subtitle: strings.mainGraphOverviewHint,
         ),
       ),
       child: Padding(
@@ -801,6 +821,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   }
 
   Widget _buildEditor(Project project) {
+    final strings = context.strings;
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
@@ -820,7 +841,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
       child: Focus(
         autofocus: true,
         child: AppNavShell(
-          destinations: mainGraphViewNavItems,
+          destinations: mainGraphViewNavItems(strings),
           selectedIndex: _cardMode ? 1 : 0,
           onDestinationSelected: (index) => _setViewMode(index, project),
           forceCompact: true,
@@ -828,7 +849,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
           bottomNavExtra: AppBottomNavExtraCapsule(
             icon: Icons.map_outlined,
             selectedIcon: Icons.map,
-            label: '全图',
+            label: strings.mainGraphOverview,
             enabled: !_cardMode,
             selected: _overviewOpen,
             onPressed: _toggleOverview,
@@ -852,33 +873,35 @@ class _MainGraphPageState extends State<MainGraphPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
+    final ui = context.ui;
     final project = _project;
     final editorReady = !_loading && _error == null && project != null;
     return AppPage(
-      title: '情节走向',
+      title: strings.mainTitle,
       onBack: () => Navigator.of(context).maybePop(),
       actions: [
         AppCircleButton(
           icon: Icons.undo,
-          tooltip: '撤销',
+          tooltip: strings.undoAction,
           onPressed: editorReady && _history.canUndo ? _undo : null,
         ),
         AppCircleButton(
           icon: Icons.redo,
-          tooltip: '重做',
+          tooltip: strings.redoAction,
           onPressed: editorReady && _history.canRedo ? _redo : null,
         ),
         AppCircleButton(
           icon: Icons.more_horiz,
-          tooltip: '更多',
+          tooltip: ui.more,
           onPressed: editorReady ? _openMoreMenu : null,
         ),
       ],
       body: _loading
-          ? const AppPageBody.list(
+          ? AppPageBody.list(
               children: [
                 AppPageGutter(
-                  child: AppText('加载中…', role: AppTextRole.caption),
+                  child: AppText(ui.loading, role: AppTextRole.caption),
                 ),
               ],
             )
@@ -887,10 +910,10 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   children: [
                     AppPageGutter(
                       child: AppEmptyState(
-                        message: '打不开情节图',
+                        message: strings.mainGraphOpenFailed,
                         detail: _error.toString(),
                         action: AppButton(
-                          label: '重试',
+                          label: ui.retry,
                           onPressed: _load,
                           variant: AppButtonVariant.secondary,
                         ),
@@ -899,10 +922,10 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   ],
                 )
               : project == null
-                  ? const AppPageBody.list(
+                  ? AppPageBody.list(
                       children: [
                         AppPageGutter(
-                          child: AppEmptyState(message: '没有故事'),
+                          child: AppEmptyState(message: strings.noStory),
                         ),
                       ],
                     )
@@ -939,14 +962,17 @@ class _EdgeEditorBodyState extends State<_EdgeEditorBody> {
   @override
   void initState() {
     super.initState();
-    final fallback =
-        widget.edge.kind == EdgeKind.branch ? '岔路' : '继续';
-    _title = TextEditingController(
-      text: widget.edge.label?.trim().isNotEmpty == true
-          ? widget.edge.label!
-          : fallback,
-    );
+    _title = TextEditingController(text: widget.edge.label?.trim() ?? '');
     _detail = TextEditingController(text: widget.edge.detail ?? '');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_title.text.isNotEmpty) return;
+    _title.text = widget.edge.kind == EdgeKind.branch
+        ? context.strings.mainGraphBranchLabel
+        : context.strings.mainGraphContinueLabel;
   }
 
   @override
@@ -989,7 +1015,7 @@ class _EdgeEditorBodyState extends State<_EdgeEditorBody> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _aiError = '没写出来，请稍后再试';
+        _aiError = context.strings.mainGraphExpandFailed;
         _busy = false;
       });
     }
@@ -997,26 +1023,30 @@ class _EdgeEditorBodyState extends State<_EdgeEditorBody> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
+    final ui = context.ui;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spaceMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppSectionHeader(
-            '这条路',
-            subtitle: '通向${widget.to?.title ?? widget.edge.to}',
+            strings.mainGraphEdgeSheetTitle,
+            subtitle: strings.mainGraphLeadsTo(
+              widget.to?.title ?? widget.edge.to,
+            ),
           ),
-          AppTextField(label: '标题', controller: _title),
+          AppTextField(label: strings.titleLabel, controller: _title),
           const SizedBox(height: AppTheme.spaceSm),
           AppTextField(
-            label: '详细说明',
+            label: strings.mainGraphEdgeDetailLabel,
             controller: _detail,
             minLines: 3,
             maxLines: 8,
           ),
           const SizedBox(height: AppTheme.spaceXs),
-          const AppText(
-            '可以只写关键词，再让 AI 帮你展开',
+          AppText(
+            strings.mainGraphEdgeDetailHint,
             role: AppTextRole.caption,
           ),
           if (_aiError != null) ...[
@@ -1025,14 +1055,16 @@ class _EdgeEditorBodyState extends State<_EdgeEditorBody> {
           ],
           const SizedBox(height: AppTheme.spaceMd),
           AppButton(
-            label: _busy ? '正在写…' : '让 AI 写详细一点',
+            label: _busy
+                ? strings.mainGraphEdgeWriting
+                : strings.mainGraphExpandWithAi,
             variant: AppButtonVariant.secondary,
             onPressed: _busy ? null : _expandWithAi,
             expanded: true,
           ),
           const SizedBox(height: AppTheme.spaceSm),
           AppButton(
-            label: '保存',
+            label: ui.save,
             onPressed: _busy
                 ? null
                 : () async {
@@ -1052,7 +1084,7 @@ class _EdgeEditorBodyState extends State<_EdgeEditorBody> {
           ),
           const SizedBox(height: AppTheme.spaceSm),
           AppButton(
-            label: '删掉这条连线',
+            label: strings.mainGraphDeleteEdge,
             variant: AppButtonVariant.ghost,
             onPressed: _busy
                 ? null

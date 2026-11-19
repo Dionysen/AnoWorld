@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_model_catalog.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -39,16 +40,16 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
                 AppTheme.pagePadding,
                 AppTheme.spaceXs,
                 AppTheme.pagePadding,
                 0,
               ),
               child: AppSectionHeader(
-                '选择供应商',
-                subtitle: '写故事与生图请分开选择',
+                context.strings.pickProviderTitle,
+                subtitle: context.strings.pickProviderHint,
               ),
             ),
             Expanded(
@@ -69,7 +70,10 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
                     icon: Icons.dns_outlined,
                     onTap: () => Navigator.of(context).pop(option),
                     trailing: option == current
-                        ? const AppText('当前', role: AppTextRole.caption)
+                        ? AppText(
+                            context.strings.currentTag,
+                            role: AppTextRole.caption,
+                          )
                         : null,
                   );
                 },
@@ -99,7 +103,7 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
                 final kind = await _pickProvider<AiTextProviderKind>(
                   current: ai.text.kind,
                   options: AiTextProviderKind.values,
-                  labelOf: (k) => k.label,
+                  labelOf: (k) => context.strings.textProviderName(k),
                   urlOf: (k) => k.defaultBaseUrl,
                 );
                 if (kind == null || !mounted) return;
@@ -115,7 +119,7 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
                 final kind = await _pickProvider<AiImageProviderKind>(
                   current: ai.image.kind,
                   options: AiImageProviderKind.values,
-                  labelOf: (k) => k.label,
+                  labelOf: (k) => context.strings.imageProviderName(k),
                   urlOf: (k) => k.defaultBaseUrl,
                 );
                 if (kind == null || !mounted) return;
@@ -216,8 +220,8 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
     if (!_canProbe) {
       setState(() {
         _probeStatus = widget.endpoint.needsApiKey
-            ? '填好服务地址和密钥后，会自动查找可用模型'
-            : '填好服务地址后，会自动查找可用模型';
+            ? context.strings.probeHintNeedsKey
+            : context.strings.probeHintNoKey;
       });
       return;
     }
@@ -227,7 +231,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
     }
     setState(() {
       _probing = true;
-      _probeStatus = '正在查找可用模型…';
+      _probeStatus = context.strings.probingModels;
     });
     try {
       final models = await widget.catalog
@@ -239,7 +243,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
         _models = models;
         _probing = false;
         _lastProbedSignature = signature;
-        _probeStatus = '找到 ${models.length} 个可用模型';
+        _probeStatus = context.strings.foundModels(models.length);
       });
       if (shouldPickDefault) {
         widget.onChanged(_endpoint.copyWith(model: models.first));
@@ -250,7 +254,7 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
         _probing = false;
         _probeStatus = error is AiModelCatalogException
             ? error.message
-            : '查找失败：$error';
+            : context.strings.probeFailed(error);
       });
     }
   }
@@ -280,20 +284,28 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     return _ChannelScaffold(
-      title: '文本 AI',
-      caption: '写对白与剧情',
-      providerLabel: widget.endpoint.kind.label,
+      title: strings.textChannelTitle,
+      caption: strings.textChannelHint,
+      providerLabel: strings.textProviderName(widget.endpoint.kind),
       onPickKind: widget.onPickKind,
       baseUrl: widget.endpoint.baseUrl,
       apiKey: widget.endpoint.apiKey,
       defaultBaseUrl: widget.endpoint.kind.defaultBaseUrl,
       needsApiKey: widget.endpoint.needsApiKey,
       model: widget.endpoint.model,
-      modelHint: _modelHint(widget.endpoint.model, _probing, _models),
+      modelHint: _modelHint(
+        strings,
+        widget.endpoint.model,
+        _probing,
+        _models,
+      ),
       probing: _probing,
       probeStatus: _probeStatus,
-      reasoningEffortLabel: widget.endpoint.reasoningEffort.label,
+      reasoningEffortLabel: strings.reasoningEffortName(
+        widget.endpoint.reasoningEffort,
+      ),
       onPickReasoningEffort: _pickReasoningEffort,
       onBaseSubmitted: (value) {
         widget.onChanged(_endpoint.copyWith(baseUrl: value));
@@ -396,8 +408,8 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     if (!_canProbe) {
       setState(() {
         _probeStatus = widget.endpoint.needsApiKey
-            ? '填好服务地址和密钥后，会自动查找可用模型'
-            : '请手动填写模型，或点「查找模型」使用常用列表';
+            ? context.strings.probeHintNeedsKey
+            : context.strings.probeHintManual;
       });
       return;
     }
@@ -407,7 +419,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     }
     setState(() {
       _probing = true;
-      _probeStatus = '正在查找可用模型…';
+      _probeStatus = context.strings.probingModels;
     });
     try {
       List<String> models;
@@ -424,7 +436,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
         _models = models;
         _probing = false;
         _lastProbedSignature = signature;
-        _probeStatus = '找到 ${models.length} 个可用模型';
+        _probeStatus = context.strings.foundModels(models.length);
       });
       if (shouldPickDefault) {
         widget.onChanged(_endpoint.copyWith(model: models.first));
@@ -437,7 +449,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
           _models = fallback;
           _probing = false;
           _lastProbedSignature = signature;
-          _probeStatus = '暂时连不上服务，已改用常用模型列表';
+          _probeStatus = context.strings.probeFallbackModels;
         });
         return;
       }
@@ -445,7 +457,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
         _probing = false;
         _probeStatus = error is AiModelCatalogException
             ? error.message
-            : '查找失败：$error';
+            : context.strings.probeFailed(error);
       });
     }
   }
@@ -466,17 +478,23 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     return _ChannelScaffold(
-      title: '生图 AI',
-      caption: '生成插画，与文本分开',
-      providerLabel: widget.endpoint.kind.label,
+      title: strings.imageChannelTitle,
+      caption: strings.imageChannelHint,
+      providerLabel: strings.imageProviderName(widget.endpoint.kind),
       onPickKind: widget.onPickKind,
       baseUrl: widget.endpoint.baseUrl,
       apiKey: widget.endpoint.apiKey,
       defaultBaseUrl: widget.endpoint.kind.defaultBaseUrl,
       needsApiKey: widget.endpoint.needsApiKey,
       model: widget.endpoint.model,
-      modelHint: _modelHint(widget.endpoint.model, _probing, _models),
+      modelHint: _modelHint(
+        strings,
+        widget.endpoint.model,
+        _probing,
+        _models,
+      ),
       probing: _probing,
       probeStatus: _probeStatus,
       onBaseSubmitted: (value) {
@@ -534,8 +552,9 @@ class _ChannelScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final modelTrailing = model.trim().isEmpty
-        ? (modelHint ?? '未选择')
+        ? (modelHint ?? strings.modelNotChosen)
         : model.trim();
     final showEffort = onPickReasoningEffort != null;
     return Column(
@@ -548,25 +567,30 @@ class _ChannelScaffold extends StatelessWidget {
         const SizedBox(height: AppTheme.spaceSm),
         AppListTile(
           title: providerLabel,
-          subtitle: '当前服务商',
+          subtitle: strings.currentProvider,
           icon: Icons.cloud_outlined,
           onTap: onPickKind,
-          trailing: const AppText('更换', role: AppTextRole.caption),
+          trailing: AppText(
+            strings.changeAction,
+            role: AppTextRole.caption,
+          ),
         ),
         AppTextEditTile(
-          title: '服务地址',
-          subtitle: '接口根地址',
+          title: strings.baseUrlLabel,
+          subtitle: strings.baseUrlHint,
           icon: Icons.link_outlined,
           value: baseUrl,
           hint: defaultBaseUrl,
-          emptyLabel: defaultBaseUrl.isEmpty ? '未填写' : defaultBaseUrl,
+          emptyLabel: defaultBaseUrl.isEmpty
+              ? strings.baseUrlEmpty
+              : defaultBaseUrl,
           keyboardType: TextInputType.url,
           onSubmitted: onBaseSubmitted,
         ),
         if (needsApiKey)
           AppTextEditTile(
-            title: '密钥',
-            subtitle: '访问服务用',
+            title: strings.apiKeyLabel,
+            subtitle: strings.apiKeyHint,
             icon: Icons.key_outlined,
             value: apiKey,
             hint: 'sk-…',
@@ -574,8 +598,8 @@ class _ChannelScaffold extends StatelessWidget {
             onSubmitted: onKeySubmitted,
           ),
         AppListTile(
-          title: '模型',
-          subtitle: probing ? '正在查找…' : '点这里选择',
+          title: strings.modelLabel,
+          subtitle: probing ? strings.probingShort : strings.tapToChoose,
           icon: Icons.smart_toy_outlined,
           onTap: onPickModel,
           trailing: Row(
@@ -598,15 +622,17 @@ class _ChannelScaffold extends StatelessWidget {
         ),
         if (showEffort)
           AppListTile(
-            title: '思考程度',
-            subtitle: '影响会想多久再回答',
+            title: strings.reasoningLabel,
+            subtitle: strings.reasoningHint,
             icon: Icons.psychology_outlined,
             onTap: onPickReasoningEffort,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 AppText(
-                  reasoningEffortLabel ?? '自动',
+                  reasoningEffortLabel ?? strings.reasoningEffortName(
+                    AiReasoningEffort.auto,
+                  ),
                   role: AppTextRole.caption,
                   maxLines: 1,
                 ),
@@ -616,8 +642,8 @@ class _ChannelScaffold extends StatelessWidget {
             ),
           ),
         AppListTile(
-          title: probing ? '正在查找模型' : '查找模型',
-          subtitle: probeStatus ?? '重新拉取可用列表',
+          title: probing ? strings.probeModelsRunning : strings.probeModels,
+          subtitle: probeStatus ?? strings.probeModelsHint,
           icon: Icons.refresh_outlined,
           onTap: onProbe,
           showDivider: false,
@@ -627,9 +653,14 @@ class _ChannelScaffold extends StatelessWidget {
   }
 }
 
-String? _modelHint(String model, bool probing, List<String> models) {
+String? _modelHint(
+  AppStrings strings,
+  String model,
+  bool probing,
+  List<String> models,
+) {
   if (model.trim().isNotEmpty) return null;
-  if (probing) return '正在查找…';
-  if (models.isEmpty) return '点这里选择，或先查找可用模型';
-  return '已找到 ${models.length} 个';
+  if (probing) return strings.probingShort;
+  if (models.isEmpty) return strings.modelHintNone;
+  return strings.foundModelsShort(models.length);
 }

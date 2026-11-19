@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/persona/user_persona.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -100,6 +101,7 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
   Future<void> _delete() async {
     final existing = widget.persona;
     if (existing == null || existing.isDefault || _saving || _deleting) return;
+    final strings = context.strings;
     final confirmed = await showAppSheet<bool>(
       context: context,
       builder: (ctx) => Padding(
@@ -113,10 +115,13 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppText('删除「${existing.name}」？', role: AppTextRole.subtitle),
+            AppText(
+              strings.deletePersonaTitle(existing.name),
+              role: AppTextRole.subtitle,
+            ),
             const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '删掉后不能恢复',
+            AppText(
+              strings.deletePersonaHint,
               role: AppTextRole.caption,
             ),
             const SizedBox(height: AppTheme.spaceMd),
@@ -124,7 +129,7 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
               children: [
                 Expanded(
                   child: AppButton(
-                    label: '取消',
+                    label: strings.cancel,
                     variant: AppButtonVariant.secondary,
                     onPressed: () => Navigator.of(ctx).pop(false),
                   ),
@@ -132,7 +137,7 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
                 const SizedBox(width: AppTheme.spaceSm),
                 Expanded(
                   child: AppButton(
-                    label: '删除',
+                    label: strings.delete,
                     variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
@@ -162,53 +167,54 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final editing = widget.persona != null;
     final canDelete = editing && !(widget.persona?.isDefault ?? true);
     final busy = _saving || _deleting;
     return AppPage(
-      title: editing ? '编辑身份' : '添加身份',
+      title: editing ? strings.editPersona : strings.addPersona,
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody(
         children: [
           AppTextField(
-            label: '名字',
+            label: strings.personaNameLabel,
             controller: _name,
             textInputAction: TextInputAction.next,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '简介',
+            label: strings.personaAboutLabel,
             controller: _description,
             minLines: 3,
             maxLines: 8,
-            hint: '你在故事里是谁、怎么说话',
+            hint: strings.personaAboutHint,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '专用说明',
+            label: strings.personaSystemLabel,
             controller: _system,
             minLines: 2,
             maxLines: 6,
-            hint: '可选，额外告诉模型的身份设定',
+            hint: strings.personaSystemHint,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '补充说明',
+            label: strings.personaPostLabel,
             controller: _postHistory,
             minLines: 2,
             maxLines: 6,
-            hint: '可选，对话后追加的提醒',
+            hint: strings.personaPostHint,
           ),
           const SizedBox(height: AppTheme.spaceLg),
           AppButton(
-            label: _saving ? '保存中…' : '保存',
+            label: _saving ? strings.savingDots : strings.save,
             expanded: true,
             onPressed: busy ? null : _save,
           ),
           if (canDelete) ...[
             const SizedBox(height: AppTheme.spaceMd),
             AppButton(
-              label: _deleting ? '删除中…' : '删除',
+              label: _deleting ? strings.deletingDots : strings.delete,
               variant: AppButtonVariant.danger,
               expanded: true,
               onPressed: busy ? null : _delete,

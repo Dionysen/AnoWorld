@@ -4,11 +4,13 @@ import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/test_app.dart';
+
 // AppChatBubbleRole is exported from app_chat_bubble.dart.
 
 void main() {
   Widget wrap(Widget child) {
-    return MaterialApp(
+    return testLocalized(
       theme: AppTheme.dataFor(brightness: Brightness.dark),
       home: Scaffold(body: child),
     );

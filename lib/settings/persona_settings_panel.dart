@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/persona/user_persona.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -26,6 +27,7 @@ class PersonaSettingsPanel extends StatelessWidget {
     UserPersona persona,
   ) async {
     if (persona.isDefault) return;
+    final strings = context.strings;
     final confirmed = await showAppSheet<bool>(
       context: context,
       builder: (ctx) => Padding(
@@ -39,10 +41,13 @@ class PersonaSettingsPanel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppText('删除「${persona.name}」？', role: AppTextRole.subtitle),
+            AppText(
+              strings.deletePersonaTitle(persona.name),
+              role: AppTextRole.subtitle,
+            ),
             const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '删掉后不能恢复',
+            AppText(
+              strings.deletePersonaHint,
               role: AppTextRole.caption,
             ),
             const SizedBox(height: AppTheme.spaceMd),
@@ -50,7 +55,7 @@ class PersonaSettingsPanel extends StatelessWidget {
               children: [
                 Expanded(
                   child: AppButton(
-                    label: '取消',
+                    label: strings.cancel,
                     variant: AppButtonVariant.secondary,
                     onPressed: () => Navigator.of(ctx).pop(false),
                   ),
@@ -58,7 +63,7 @@ class PersonaSettingsPanel extends StatelessWidget {
                 const SizedBox(width: AppTheme.spaceSm),
                 Expanded(
                   child: AppButton(
-                    label: '删除',
+                    label: strings.delete,
                     variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
@@ -77,6 +82,7 @@ class PersonaSettingsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
     final scheme = Theme.of(context).colorScheme;
+    final strings = context.strings;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
@@ -88,7 +94,7 @@ class PersonaSettingsPanel extends StatelessWidget {
           children: [
             AppPageGutter(
               child: AppButton(
-                label: '添加身份',
+                label: strings.addPersona,
                 variant: AppButtonVariant.secondary,
                 expanded: true,
                 onPressed: () => _openEditor(context),
@@ -96,17 +102,17 @@ class PersonaSettingsPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppTheme.spaceMd),
             if (list.isEmpty)
-              const AppPageGutter(
+              AppPageGutter(
                 child: AppEmptyState(
-                  message: '还没有身份',
-                  detail: '添加一套，写故事和游玩时会用到',
+                  message: strings.personasEmpty,
+                  detail: strings.personasEmptyHint,
                 ),
               )
             else
               for (final persona in list)
                 AppListTile(
                   title: persona.name,
-                  subtitle: _subtitle(persona, active?.id),
+                  subtitle: _subtitle(strings, persona, active?.id),
                   leading: AppPersonAvatar(
                     size: 40,
                     semanticLabel: persona.name,
@@ -145,14 +151,18 @@ class PersonaSettingsPanel extends StatelessWidget {
     );
   }
 
-  static String? _subtitle(UserPersona persona, String? activeId) {
+  static String? _subtitle(
+    AppStrings strings,
+    UserPersona persona,
+    String? activeId,
+  ) {
     final desc = persona.description.trim();
     if (desc.isEmpty) {
-      if (persona.id == activeId) return '正在使用';
+      if (persona.id == activeId) return strings.personaInUse;
       return null;
     }
     final short = desc.length > 36 ? '${desc.substring(0, 36)}…' : desc;
-    if (persona.id == activeId) return '正在使用 · $short';
+    if (persona.id == activeId) return strings.personaInUseWith(short);
     return short;
   }
 }

@@ -1,5 +1,10 @@
 import 'package:anoworld/app/l10n/app_strings_zh.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/domain/settings/appearance_settings.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/foundation/l10n/app_localizations.dart';
+import 'package:anoworld/foundation/logging/app_log_level.dart';
+import 'package:anoworld/foundation/theme/theme_tokens.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -136,6 +141,7 @@ abstract class AppStrings extends AppLocalizations {
   String storyCount(int count);
   String get emptyFolder;
   String get addAction;
+  String get importAction;
   String get plotElementsHubHint;
   String get aiPresetTitle;
   String get aiPresetHubHint;
@@ -285,9 +291,172 @@ abstract class AppStrings extends AppLocalizations {
   String castWithSlot(String name, String slot);
   String get backToBottom;
   String get chooseModel;
+  String get chooseModelHint;
+  String get backAction;
   String get replyChoices;
   String get refreshChoices;
   String get startChat;
+
+  // Story editors (设定 / 角色 / 情节走向 / 导入角色卡 / 分阶段提示词).
+
+  String get titleLabel;
+  String get bodyLabel;
+  String get undoAction;
+  String get redoAction;
+
+  String get createEntrySection;
+  String get createEntryBlurbCard;
+  String get createEntryBlurbNovel;
+  String get createEntryBlurbStaged;
+  String get createEntryComingSoon;
+  String get createEntryComingSoonDetail;
+
+  String get worldBookNoKeywords;
+  String worldBookKeywords(String keywords);
+  String get worldBookEntriesSection;
+  String get worldBookSelectEntries;
+  String worldBookSelectedCount(int count);
+  String get worldBookSelectAll;
+  String get worldBookDeselectAll;
+  String get worldBookAddEntry;
+  String get worldBookOpenFailed;
+  String get worldBookSectionHint;
+  String get worldBookEmptyDetail;
+  String get worldBookUnnamedEntry;
+  String get worldBookNewEntry;
+  String get worldBookEditEntry;
+  String get worldBookTitleHint;
+  String get worldBookBodyHint;
+  String get worldBookAlwaysOn;
+  String get worldBookAlwaysOnHint;
+  String get worldBookKeywordsHint;
+  String get worldBookDeleteOneTitle;
+  String worldBookDeleteManyTitle(int count);
+  String get worldBookDeleteDetail;
+
+  String get castAddMember;
+  String get castAddOne;
+  String get castOpenFailed;
+  String get castSection;
+  String get castSectionHint;
+  String get castEmptyDetail;
+  String get castNoSummary;
+  String castProtagonist(String summary);
+  String get castNewMember;
+  String get castEditMember;
+  String get castNameLabel;
+  String get castSummaryLabel;
+  String get castPersonalityLabel;
+  String get castSpeechLabel;
+  String get castExamplesLabel;
+  String get castExamplesHint;
+  String get castProtagonistLabel;
+  String get castProtagonistHint;
+  String get castDeleteMember;
+  String get castUnnamedMember;
+
+  String get mainGraphCanvas;
+  String get mainGraphCard;
+  String get mainGraphOverview;
+  String get mainGraphMenuSection;
+  String get mainGraphShowGrid;
+  String get mainGraphShowGridHint;
+  String get mainGraphInputPort;
+  String get mainGraphBranchLabel;
+  String get mainGraphContinueLabel;
+  String get mainGraphNewNodeTitle;
+  String get mainGraphNewNodeSynopsis;
+  String get mainGraphDeleteNodeTitle;
+  String mainGraphDeleteNodeDetail(String title);
+  String get mainGraphDeleteNodeDetailEmpty;
+  String get nodeKindOpening;
+  String get nodeKindScene;
+  String get nodeKindTurning;
+  String get nodeKindEnding;
+  String get mainGraphNodeSheetTitle;
+  String get mainGraphNodeGoalLabel;
+  String get mainGraphNodeKindLabel;
+  String get mainGraphOutgoingLabel;
+  String get mainGraphNoOutgoing;
+  String mainGraphLeadsTo(String title);
+  String get mainGraphDeleteNodeAction;
+  String get mainGraphEdgeSheetTitle;
+  String get mainGraphEdgeDetailLabel;
+  String get mainGraphEdgeDetailHint;
+  String get mainGraphEdgeWriting;
+  String get mainGraphExpandWithAi;
+  String get mainGraphDeleteEdge;
+  String get mainGraphExpandFailed;
+  String get mainGraphConnectTip;
+  String get mainGraphOverviewTitle;
+  String get mainGraphOverviewHint;
+  String get mainGraphOpenFailed;
+  String get noStory;
+
+  String get cardImportSection;
+  String get cardImportSectionHint;
+  String get cardPickCards;
+  String get cardRepick;
+  String get cardPickHint;
+  String get cardReading;
+  String get cardEmptyTitle;
+  String get cardEmptyDetail;
+  String get cardStoryNameLabel;
+  String get cardTidySection;
+  String get cardTidyHint;
+  String get cardSanitize;
+  String get cardOrganize;
+  String get cardCastSection;
+  String get cardCastSectionHint;
+  String get cardWorldBookSection;
+  String get cardWorldBookSectionHint;
+  String get cardNoWorldBookEntries;
+  String get cardAiNoteSection;
+  String get cardAiNoteHint;
+  String get cardWrite;
+  String get cardWriteHint;
+  String get cardOrganizePreviewTitle;
+  String get cardOrganizePreviewHint;
+  String get cardApply;
+  String cardReadCount(int count);
+  String get cardSanitizeNoChange;
+  String cardSanitizeChanged(int count);
+  String get cardOrganizeNoChange;
+  String cardOrganizeApplied(int count);
+  String get cardNeedOneCast;
+  String get cardReadUnavailable;
+  String cardReadFailed(Object error);
+  String cardWriteFailed(Object error);
+  String cardOrganizeFailed(Object error);
+  String cardCannotRead(String file);
+  String cardUnsupportedFormat(String extension);
+
+  String get stagedWorld;
+  String get stagedCast;
+  String get stagedMain;
+  String get stagedWorldHint;
+  String get stagedCastHint;
+  String get stagedMainHint;
+  String get stagedWorldPrompt;
+  String get stagedCastPrompt;
+  String get stagedMainPrompt;
+  String get stagedNeedPrompt;
+  String get stagedNeedService;
+  String get stagedGenerating;
+  String get stagedNeedWorldFirst;
+  String get stagedNeedWorldAndCast;
+  String get stagedNeedWorldDone;
+  String get stagedNeedCastDone;
+  String get stagedNeedMainDone;
+  String get stagedGenerateFailed;
+  String createStoryFailed(Object error);
+  String get stagedBooting;
+  String get stagedGenerate;
+  String get stagedRegenerate;
+  String get stagedGeneratingShort;
+  String get stagedPreviewLabel;
+  String get stagedPlay;
+  String get stagedNext;
 
   // Create assistant.
 
@@ -344,6 +513,233 @@ abstract class AppStrings extends AppLocalizations {
   String daysAgo(int days);
   String loadFailed(Object error);
   String cannotResume(Object error);
+
+  // Settings shell.
+
+  String get settingsSectionGeneral;
+  String get settingsSectionAppearance;
+  String get settingsSectionAi;
+  String get settingsSectionAbout;
+  String get settingsNothingToChange;
+  String get advancedTitle;
+  String get advancedHint;
+  String get diagnosticsSection;
+  String get diagnosticsHint;
+  String get diagnosticsLogTitle;
+  String get logsEmpty;
+  String get clearAction;
+  String logCount(int count);
+  String get logNone;
+  String get copiedToast;
+
+  /// Label for one log severity.
+  String logLevelName(AppLogLevel level);
+
+  // About.
+
+  String get appTagline;
+  String get appDescription;
+  String appVersion(String version);
+
+  // Appearance.
+
+  String get themeSection;
+  String get themeModeLabel;
+  String get themeModeHint;
+  String get themeColorLabel;
+  String get themeColorHint;
+  String get customColorsLabel;
+  String get customColorsHint;
+  String get interfaceSection;
+  String get fontLabel;
+  String get fontHint;
+  String get fontSizeLabel;
+  String get cornerRadiusLabel;
+  String get currentTag;
+  String get inUseTag;
+  String get lightSlotTag;
+  String get darkSlotTag;
+  String get customTag;
+  String get manageAction;
+  String get copyAction;
+  String get saveAsTheme;
+  String get restoreDefaults;
+  String get saveAsThemeTitle;
+  String defaultThemeName(int number);
+  String get themeNameLabel;
+  String copyName(String name);
+  String get renameThemeTitle;
+  String get deleteThemeTitle;
+  String deleteThemeDetail(String name);
+
+  /// Theme mode name (follow system / light / dark).
+  String themeModeName(AppThemeModeSetting mode);
+
+  /// Built-in color pack name.
+  String themePresetName(ThemePreset preset);
+
+  /// Editable color slot name (e.g. app background).
+  String themeTokenName(ThemeToken token);
+
+  /// One-line explanation of a color slot.
+  String themeTokenHint(ThemeToken token);
+
+  // AI channels.
+
+  String get textChannelTitle;
+  String get textChannelHint;
+  String get imageChannelTitle;
+  String get imageChannelHint;
+  String get pickProviderTitle;
+  String get pickProviderHint;
+  String get currentProvider;
+  String get changeAction;
+  String get baseUrlLabel;
+  String get baseUrlHint;
+  String get baseUrlEmpty;
+  String get apiKeyLabel;
+  String get apiKeyHint;
+  String get modelLabel;
+  String get tapToChoose;
+  String get probingShort;
+  String get modelNotChosen;
+  String get modelHintNone;
+  String foundModelsShort(int count);
+  String get reasoningLabel;
+  String get reasoningHint;
+  String get probeModels;
+  String get probeModelsRunning;
+  String get probeModelsHint;
+  String get probeHintNeedsKey;
+  String get probeHintNoKey;
+  String get probeHintManual;
+  String get probingModels;
+  String foundModels(int count);
+  String get probeFallbackModels;
+  String probeFailed(Object error);
+
+  /// Text provider name; built-ins keep their brand name.
+  String textProviderName(AiTextProviderKind kind);
+
+  /// Image provider name (never shares the text list).
+  String imageProviderName(AiImageProviderKind kind);
+
+  String reasoningEffortName(AiReasoningEffort effort);
+
+  // AI preset.
+
+  String get presetRowHint;
+  String get pickPresetTitle;
+  String get pickPresetHint;
+  String get presetBuiltInGroup;
+  String get presetMineGroup;
+  String get presetNotChosen;
+  String presetApplied(String name);
+
+  /// Icon-button labels above the current preset row.
+  String get presetNewAction;
+  String get presetSaveCurrentAction;
+  String get presetRenameAction;
+  String get presetDeleteAction;
+  String get presetImportAction;
+  String get presetExportAction;
+
+  String get presetNewName;
+  String presetCreated(String name);
+  String get presetRenameTitle;
+  String presetRenamed(String name);
+  String get presetRenameBuiltInHint;
+  String presetDeleteTitle(String name);
+  String get presetDeleteDetail;
+  String get presetDeleteBuiltInHint;
+  String get presetNoActive;
+  String get presetRestoreOrderAction;
+  String get presetOrderRestored;
+
+  String get myPresetName;
+  String presetSaved(String name);
+  String get presetDeleted;
+  String get invalidPresetFile;
+  String presetImported(String name);
+  String presetImportFailed(Object error);
+  String get exportPresetDialog;
+  String get confirmAction;
+  String get samplingSection;
+  String get presetPromptsSection;
+
+  String get presetDefaultName;
+  String get presetCreativeName;
+  String get presetPreciseName;
+  String get presetDeterministicName;
+  String get presetLongformName;
+  String get presetMirostatName;
+  String get presetDefaultHint;
+  String get presetCreativeHint;
+  String get presetPreciseHint;
+  String get presetDeterministicHint;
+  String get presetLongformHint;
+  String get presetMirostatHint;
+
+  // Sampling.
+
+  String get maxOutputLabel;
+  String get contextLengthLabel;
+  String get temperatureLabel;
+  String get streamOutput;
+  String get streamOutputHint;
+  String get advancedSampling;
+  String get advancedSamplingHint;
+  String get advancedSamplingTitle;
+  String get repetitionPenalty;
+  String get penaltyRange;
+  String get frequencyPenalty;
+  String get presencePenalty;
+  String get mirostatMode;
+  String get randomSeed;
+  String get randomSeedHint;
+  String get stopSequences;
+  String get stopSequencesHint;
+  String get notSet;
+
+  // Prompt sections.
+
+  String get promptSectionsTitle;
+  String get promptOrderSection;
+  String get promptOrderHint;
+  String get contentLabel;
+  String get tapToEdit;
+  String get tapToView;
+  String get filledByCast;
+  String get filledByCastReadOnly;
+  String get filledByPersona;
+  String get filledByWorldBook;
+  String get filledByHistory;
+  String get emptyAuthorNote;
+  String get filledAutomatically;
+
+  /// Display name of a prompt section type.
+  String promptSectionName(PromptSectionType type);
+
+  // Player persona.
+
+  String get personaTitle;
+  String get addPersona;
+  String get personasEmpty;
+  String get personasEmptyHint;
+  String get personaInUse;
+  String personaInUseWith(String summary);
+  String deletePersonaTitle(String name);
+  String get deletePersonaHint;
+  String get editPersona;
+  String get personaNameLabel;
+  String get personaAboutLabel;
+  String get personaAboutHint;
+  String get personaSystemLabel;
+  String get personaSystemHint;
+  String get personaPostLabel;
+  String get personaPostHint;
+  String get savingDots;
+  String get deletingDots;
 }
 
 /// Language-agnostic description of a pack apply overlap, so each language can

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../focus/app_keyboard.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_continuous_input_border.dart';
 import '../theme/app_theme.dart';
 import 'app_icon_button.dart';
@@ -78,7 +79,7 @@ class AppSearchField extends StatelessWidget {
             suffixIcon: hasText && onClear != null
                 ? AppIconButton(
                     icon: Icons.close,
-                    tooltip: '清除',
+                    tooltip: context.ui.clear,
                     onPressed: onClear,
                   )
                 : null,

@@ -1,10 +1,11 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/foundation/theme/theme_color_pack.dart';
-import 'package:anoworld/foundation/theme/theme_preset_labels.dart';
+import 'package:anoworld/foundation/theme/theme_preset_icons.dart';
 import 'package:anoworld/foundation/theme/theme_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_color_picker.dart';
@@ -45,7 +46,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
     final next = await showAppColorPicker(
       context,
       initialColor: Color(controller.activeTokens.valueOf(token)),
-      title: token.label,
+      title: context.strings.themeTokenName(token),
     );
     if (next == null || !mounted) return;
     await controller.updateToken(token, next.toARGB32());
@@ -64,22 +65,25 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
                     AppTheme.pagePadding,
                     AppTheme.spaceXs,
                     AppTheme.pagePadding,
                     AppTheme.spaceSm,
                   ),
-                  child: AppSectionHeader('主题模式'),
+                  child: AppSectionHeader(context.strings.themeModeLabel),
                 ),
                 for (final mode in AppThemeModeSetting.values)
                   AppListTile(
-                    title: mode.label,
+                    title: context.strings.themeModeName(mode),
                     icon: mode.icon,
                     selected: mode == current,
                     trailing: mode == current
-                        ? const AppText('当前', role: AppTextRole.caption)
+                        ? AppText(
+                            context.strings.currentTag,
+                            role: AppTextRole.caption,
+                          )
                         : null,
                     onTap: () async {
                       await controller.setThemeMode(mode);
@@ -112,14 +116,14 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 activePack.tokens == controller.activeTokens;
             return Column(
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
                     AppTheme.pagePadding,
                     AppTheme.spaceXs,
                     AppTheme.pagePadding,
                     AppTheme.spaceSm,
                   ),
-                  child: AppSectionHeader('主题颜色'),
+                  child: AppSectionHeader(context.strings.themeColorLabel),
                 ),
                 Expanded(
                   child: ListView.separated(
@@ -136,7 +140,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                       final isActive = activeMatches &&
                           pack.id == controller.activePackId;
                       return AppListTile(
-                        title: _packTitle(pack),
+                        title: _packTitle(context.strings, pack),
                         icon: _packIcon(pack),
                         onTap: () async {
                           await controller.applyPack(pack.id);
@@ -156,7 +160,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                             if (!pack.isBuiltIn)
                               AppIconButton(
                                 icon: Icons.more_horiz,
-                                tooltip: '管理',
+                                tooltip: context.strings.manageAction,
                                 onPressed: () =>
                                     _customPackMenu(controller, pack),
                               ),
@@ -185,14 +189,14 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
                     AppTheme.pagePadding,
                     AppTheme.spaceXs,
                     AppTheme.pagePadding,
                     AppTheme.spaceSm,
                   ),
-                  child: AppSectionHeader('自定义颜色'),
+                  child: AppSectionHeader(context.strings.customColorsLabel),
                 ),
                 Expanded(
                   child: ListView.separated(
@@ -207,8 +211,8 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                     itemBuilder: (context, index) {
                       final token = ThemeToken.values[index];
                       return AppListTile(
-                        title: token.label,
-                        subtitle: token.description,
+                        title: context.strings.themeTokenName(token),
+                        subtitle: context.strings.themeTokenHint(token),
                         icon: token.icon,
                         onTap: () => _pickToken(controller, token),
                         trailing: _ColorSwatch(
@@ -232,7 +236,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                     children: [
                       Expanded(
                         child: AppButton(
-                          label: '保存为主题',
+                          label: context.strings.saveAsTheme,
                           variant: AppButtonVariant.secondary,
                           onPressed: () => _saveAsTheme(controller),
                         ),
@@ -240,7 +244,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                       const SizedBox(width: AppTheme.spaceSm),
                       Expanded(
                         child: AppButton(
-                          label: '恢复默认',
+                          label: context.strings.restoreDefaults,
                           variant: AppButtonVariant.secondary,
                           onPressed: controller.restoreDefaults,
                         ),
@@ -258,8 +262,10 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
 
   Future<void> _saveAsTheme(SettingsController controller) async {
     final name = await _promptName(
-      title: '保存为主题颜色',
-      initialName: '主题${controller.nextDefaultThemeNumber()}',
+      title: context.strings.saveAsThemeTitle,
+      initialName: context.strings.defaultThemeName(
+        controller.nextDefaultThemeNumber(),
+      ),
     );
     if (name == null || !mounted) return;
     await controller.saveCurrentAsTheme(name);
@@ -291,7 +297,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               children: [
                 AppSectionHeader(title),
                 AppTextField(
-                  label: '主题名称',
+                  label: context.strings.themeNameLabel,
                   controller: text,
                 ),
                 const SizedBox(height: AppTheme.spaceMd),
@@ -299,7 +305,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                   children: [
                     Expanded(
                       child: AppButton(
-                        label: '取消',
+                        label: context.strings.cancel,
                         variant: AppButtonVariant.secondary,
                         onPressed: () => Navigator.pop(context),
                       ),
@@ -307,7 +313,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                     const SizedBox(width: AppTheme.spaceSm),
                     Expanded(
                       child: AppButton(
-                        label: '保存',
+                        label: context.strings.save,
                         onPressed: () {
                           final trimmed = text.text.trim();
                           if (trimmed.isEmpty) return;
@@ -349,17 +355,17 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               child: AppSectionHeader(pack.name),
             ),
             AppListTile(
-              title: '重命名',
+              title: context.strings.renameAction,
               icon: Icons.drive_file_rename_outline,
               onTap: () => Navigator.pop(context, _PackMenuAction.rename),
             ),
             AppListTile(
-              title: '复制',
+              title: context.strings.copyAction,
               icon: Icons.copy_outlined,
               onTap: () => Navigator.pop(context, _PackMenuAction.copy),
             ),
             AppListTile(
-              title: '删除',
+              title: context.strings.delete,
               icon: Icons.delete_outline,
               danger: true,
               onTap: () => Navigator.pop(context, _PackMenuAction.delete),
@@ -373,13 +379,16 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
     switch (action) {
       case _PackMenuAction.rename:
         final name = await _promptName(
-          title: '重命名主题',
+          title: context.strings.renameThemeTitle,
           initialName: pack.name,
         );
         if (name == null || !mounted) return;
         await controller.renameCustomPack(pack.id, name);
       case _PackMenuAction.copy:
-        await controller.copyCustomPack(pack.id, '${pack.name} 副本');
+        await controller.copyCustomPack(
+          pack.id,
+          context.strings.copyName(pack.name),
+        );
       case _PackMenuAction.delete:
         final confirmed = await showAppSheet<bool>(
           context: context,
@@ -395,9 +404,9 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const AppSectionHeader('删除主题？'),
+                  AppSectionHeader(context.strings.deleteThemeTitle),
                   AppText(
-                    '删除「${pack.name}」后无法恢复。',
+                    context.strings.deleteThemeDetail(pack.name),
                     role: AppTextRole.body,
                   ),
                   const SizedBox(height: AppTheme.spaceMd),
@@ -405,7 +414,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                     children: [
                       Expanded(
                         child: AppButton(
-                          label: '取消',
+                          label: context.strings.cancel,
                           variant: AppButtonVariant.secondary,
                           onPressed: () => Navigator.pop(context, false),
                         ),
@@ -413,7 +422,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                       const SizedBox(width: AppTheme.spaceSm),
                       Expanded(
                         child: AppButton(
-                          label: '删除',
+                          label: context.strings.delete,
                           variant: AppButtonVariant.danger,
                           onPressed: () => Navigator.pop(context, true),
                         ),
@@ -433,6 +442,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
+    final strings = context.strings;
 
     return ListenableBuilder(
       listenable: controller,
@@ -442,22 +452,22 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
         final activeMatches =
             activePack != null && activePack.tokens == controller.activeTokens;
         final presetTrailing = activePack != null && activeMatches
-            ? _packTitle(activePack)
-            : '自定义';
+            ? _packTitle(strings, activePack)
+            : strings.customTag;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppSectionHeader('主题', gutter: true),
+            AppSectionHeader(strings.themeSection, gutter: true),
             AppListTile(
-              title: '主题模式',
-              subtitle: '跟随系统、浅色或深色',
+              title: strings.themeModeLabel,
+              subtitle: strings.themeModeHint,
               icon: current.mode.icon,
               onTap: () => _openThemeModeSheet(controller),
               trailing: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 140),
                 child: AppText(
-                  current.mode.label,
+                  strings.themeModeName(current.mode),
                   role: AppTextRole.caption,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -466,8 +476,8 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               ),
             ),
             AppListTile(
-              title: '主题颜色',
-              subtitle: '浅色与深色各记一套',
+              title: strings.themeColorLabel,
+              subtitle: strings.themeColorHint,
               icon: Icons.style_outlined,
               onTap: () => _openThemePackSheet(controller),
               trailing: ConstrainedBox(
@@ -482,17 +492,17 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               ),
             ),
             AppListTile(
-              title: '自定义颜色',
-              subtitle: '调整当前配色',
+              title: strings.customColorsLabel,
+              subtitle: strings.customColorsHint,
               icon: Icons.colorize_outlined,
               onTap: () => _openCustomColorsSheet(controller),
               trailing: const AppForwardIcon(),
             ),
             const SizedBox(height: AppTheme.spaceLg),
-            const AppSectionHeader('界面', gutter: true),
+            AppSectionHeader(strings.interfaceSection, gutter: true),
             AppFontPickerRow(
-              label: '字体',
-              description: '系统字体或导入文件',
+              label: strings.fontLabel,
+              description: strings.fontHint,
               icon: Icons.text_fields,
               fonts: controller.fontCatalog,
               selectedPath: current.fontPath,
@@ -503,7 +513,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               onDeleteFont: controller.deleteImportedFont,
             ),
             AppSlider(
-              label: '字体大小',
+              label: strings.fontSizeLabel,
               icon: Icons.format_size,
               value: current.fontSize,
               min: AppearanceUiRange.fontSizeMin,
@@ -518,7 +528,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
               },
             ),
             AppSlider(
-              label: '圆角大小',
+              label: strings.cornerRadiusLabel,
               icon: Icons.rounded_corner,
               value: current.cornerRadius,
               min: AppearanceUiRange.cornerRadiusMin,
@@ -540,9 +550,9 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
 
 enum _PackMenuAction { rename, copy, delete }
 
-String _packTitle(ThemeColorPack pack) {
+String _packTitle(AppStrings strings, ThemeColorPack pack) {
   final preset = pack.builtInPreset;
-  if (preset != null) return preset.label;
+  if (preset != null) return strings.themePresetName(preset);
   return pack.name;
 }
 
@@ -567,9 +577,10 @@ class _PackTrailing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final roles = <String>[
-      if (packId == lightPackId) '亮色',
-      if (packId == darkPackId) '暗色',
+      if (packId == lightPackId) strings.lightSlotTag,
+      if (packId == darkPackId) strings.darkSlotTag,
     ];
     if (roles.isEmpty && !isActive) return const SizedBox.shrink();
     return Row(
@@ -581,7 +592,7 @@ class _PackTrailing extends StatelessWidget {
         ],
         if (isActive) ...[
           if (roles.isNotEmpty) const SizedBox(width: AppTheme.spaceXs),
-          const AppText('使用中', role: AppTextRole.caption),
+          AppText(strings.inUseTag, role: AppTextRole.caption),
         ],
       ],
     );

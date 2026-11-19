@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/logging/app_log_entry.dart';
 import 'package:anoworld/foundation/logging/app_log_level.dart';
@@ -24,12 +25,13 @@ class _AppLogViewerPageState extends State<AppLogViewerPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = context.strings;
     return AppPage(
-      title: '诊断日志',
+      title: strings.diagnosticsLogTitle,
       onBack: () => Navigator.of(context).maybePop(),
       actions: [
         AppButton(
-          label: '清空',
+          label: strings.clearAction,
           variant: AppButtonVariant.ghost,
           onPressed: () {
             AppLog.instance.clear();
@@ -41,9 +43,9 @@ class _AppLogViewerPageState extends State<AppLogViewerPage> {
         builder: (context, _) {
           final count = AppLog.instance.length;
           if (count == 0) {
-            return const Center(
+            return Center(
               child: AppText(
-                '暂无日志',
+                strings.logsEmpty,
                 role: AppTextRole.caption,
               ),
             );
@@ -76,7 +78,7 @@ class _AppLogViewerPageState extends State<AppLogViewerPage> {
   Future<void> _copyEntry(BuildContext context, AppLogEntry entry) async {
     await Clipboard.setData(ClipboardData(text: entry.fullText));
     if (!context.mounted) return;
-    showAppToast(context, '已复制');
+    showAppToast(context, context.strings.copiedToast);
   }
 }
 
@@ -142,7 +144,7 @@ class _LogRowState extends State<_LogRow> {
                         ),
                         const SizedBox(width: AppTheme.spaceXs),
                         AppText(
-                          entry.level.label,
+                          context.strings.logLevelName(entry.level),
                           role: AppTextRole.caption,
                         ),
                         const SizedBox(width: AppTheme.spaceXs),

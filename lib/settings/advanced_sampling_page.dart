@@ -1,6 +1,6 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_nested_settings_group.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
@@ -14,7 +14,7 @@ class AdvancedSamplingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppPage(
-      title: '高级采样',
+      title: context.strings.advancedSamplingTitle,
       onBack: () => Navigator.of(context).maybePop(),
       body: const AppPageBody.list(children: [_AdvancedSamplingBody()]),
     );
@@ -35,6 +35,7 @@ class _AdvancedSamplingBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
+    final strings = context.strings;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
@@ -97,7 +98,7 @@ class _AdvancedSamplingBody extends StatelessWidget {
                   _patch(context, (prev) => prev.copyWith(tailFreeSampling: v)),
             ),
             AppSlider(
-              label: '重复惩罚',
+              label: strings.repetitionPenalty,
               icon: Icons.repeat_outlined,
               value: gen.repetitionPenalty,
               min: 1,
@@ -108,7 +109,7 @@ class _AdvancedSamplingBody extends StatelessWidget {
                   _patch(context, (prev) => prev.copyWith(repetitionPenalty: v)),
             ),
             AppSlider(
-              label: '惩罚范围',
+              label: strings.penaltyRange,
               icon: Icons.straighten_outlined,
               value: gen.repetitionPenaltyRange.toDouble(),
               min: 0,
@@ -121,7 +122,7 @@ class _AdvancedSamplingBody extends StatelessWidget {
               ),
             ),
             AppSlider(
-              label: '频率惩罚',
+              label: strings.frequencyPenalty,
               icon: Icons.speed_outlined,
               value: gen.frequencyPenalty,
               min: -2,
@@ -132,7 +133,7 @@ class _AdvancedSamplingBody extends StatelessWidget {
                   _patch(context, (prev) => prev.copyWith(frequencyPenalty: v)),
             ),
             AppSlider(
-              label: '存在惩罚',
+              label: strings.presencePenalty,
               icon: Icons.place_outlined,
               value: gen.presencePenalty,
               min: -2,
@@ -143,7 +144,7 @@ class _AdvancedSamplingBody extends StatelessWidget {
                   _patch(context, (prev) => prev.copyWith(presencePenalty: v)),
             ),
             AppSlider(
-              label: 'Mirostat 模式',
+              label: strings.mirostatMode,
               icon: Icons.tune_outlined,
               value: gen.mirostatMode.toDouble(),
               min: 0,
@@ -178,8 +179,8 @@ class _AdvancedSamplingBody extends StatelessWidget {
                   _patch(context, (prev) => prev.copyWith(mirostatEta: v)),
             ),
             AppTextEditTile(
-              title: '随机种子',
-              subtitle: '-1 表示每次随机',
+              title: strings.randomSeed,
+              subtitle: strings.randomSeedHint,
               icon: Icons.casino_outlined,
               value: '${gen.seed}',
               keyboardType: TextInputType.number,
@@ -190,11 +191,11 @@ class _AdvancedSamplingBody extends StatelessWidget {
               },
             ),
             AppTextEditTile(
-              title: '停止序列',
-              subtitle: '每行一条',
+              title: strings.stopSequences,
+              subtitle: strings.stopSequencesHint,
               icon: Icons.stop_circle_outlined,
               value: gen.stopSequences.join('\n'),
-              emptyLabel: '未设置',
+              emptyLabel: strings.notSet,
               minLines: 2,
               maxLines: 6,
               showDivider: false,

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
@@ -27,6 +28,7 @@ class AiGenerationSettingsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
+    final strings = context.strings;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
@@ -34,7 +36,7 @@ class AiGenerationSettingsPanel extends StatelessWidget {
         return AppSettingsNestedColumn(
           children: [
             AppSlider(
-              label: '单次最长输出',
+              label: strings.maxOutputLabel,
               icon: Icons.output_outlined,
               value: g.maxTokens.toDouble().clamp(256, 8192),
               min: 256,
@@ -45,7 +47,7 @@ class AiGenerationSettingsPanel extends StatelessWidget {
                   _patch(context, (prev) => prev.copyWith(maxTokens: v.round())),
             ),
             AppSlider(
-              label: '上下文长度',
+              label: strings.contextLengthLabel,
               icon: Icons.memory_outlined,
               value: _contextSlider(g.contextLength),
               min: 0,
@@ -58,7 +60,7 @@ class AiGenerationSettingsPanel extends StatelessWidget {
               ),
             ),
             AppSlider(
-              label: '温度',
+              label: strings.temperatureLabel,
               icon: Icons.thermostat_outlined,
               value: g.temperature,
               min: 0,
@@ -80,8 +82,8 @@ class AiGenerationSettingsPanel extends StatelessWidget {
                   _patch(context, (prev) => prev.copyWith(topP: v)),
             ),
             AppListTile(
-              title: '流式输出',
-              subtitle: '边生成边返回',
+              title: strings.streamOutput,
+              subtitle: strings.streamOutputHint,
               icon: Icons.stream_outlined,
               trailing: AppSwitch(
                 value: g.streamEnabled,
@@ -94,8 +96,8 @@ class AiGenerationSettingsPanel extends StatelessWidget {
               ),
             ),
             AppListTile(
-              title: '高级采样',
-              subtitle: 'Top K、惩罚、Mirostat 等',
+              title: strings.advancedSampling,
+              subtitle: strings.advancedSamplingHint,
               icon: Icons.science_outlined,
               trailing: const AppForwardIcon(),
               onTap: () {

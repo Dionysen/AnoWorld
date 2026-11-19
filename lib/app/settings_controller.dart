@@ -265,6 +265,29 @@ class SettingsController extends ChangeNotifier {
     );
   }
 
+  /// Creates a fresh preset from the default sampling + prompt setup.
+  Future<AIPreset> createAiPreset(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('name');
+    }
+    final stamp = DateTime.now().toUtc();
+    final preset = AIPreset(
+      id: 'preset_${stamp.microsecondsSinceEpoch}',
+      name: trimmed,
+      createdAt: stamp,
+      updatedAt: stamp,
+      generationSettings: const GenerationPreset(),
+      promptManagerConfig: PromptManagerConfig.defaultConfig(),
+    );
+    await updateAiPresets(
+      aiPresets.copyWith(customPresets: [...aiPresets.customPresets, preset]),
+    );
+    await applyAiPreset(preset);
+    AppLog.instance.info('新建预设：$trimmed', tag: 'ai.preset');
+    return preset;
+  }
+
   Future<AIPreset> saveCurrentAsAiPreset(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
@@ -283,6 +306,7 @@ class SettingsController extends ChangeNotifier {
       aiPresets.copyWith(customPresets: [...aiPresets.customPresets, preset]),
     );
     await applyAiPreset(preset);
+    AppLog.instance.info('保存当前设置为预设：$trimmed', tag: 'ai.preset');
     return preset;
   }
 
@@ -321,6 +345,7 @@ class SettingsController extends ChangeNotifier {
         })
         .toList(growable: false);
     await updateAiPresets(aiPresets.copyWith(customPresets: next));
+    AppLog.instance.info('重命名预设：$trimmed', tag: 'ai.preset');
   }
 
   Future<void> deleteCustomAiPreset(String id) async {
@@ -331,6 +356,7 @@ class SettingsController extends ChangeNotifier {
     await updateAiPresets(
       aiPresets.copyWith(customPresets: next, clearActive: clearActive),
     );
+    AppLog.instance.info('删除预设：$id', tag: 'ai.preset');
   }
 
   UserPersona? get activePersona => personas.activePersona;

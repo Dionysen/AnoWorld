@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_model_catalog.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -27,14 +28,14 @@ Future<String?> showAiModelSheet(
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
               AppTheme.pagePadding,
               AppTheme.spaceXs,
               AppTheme.pagePadding,
               AppTheme.spaceXs,
             ),
-            child: AppSectionHeader('选择模型'),
+            child: AppSectionHeader(context.strings.chooseModel),
           ),
           Expanded(
             child: ListView.separated(
@@ -53,7 +54,10 @@ Future<String?> showAiModelSheet(
                   icon: Icons.smart_toy_outlined,
                   onTap: () => Navigator.of(context).pop(id),
                   trailing: id == current
-                      ? const AppText('当前', role: AppTextRole.caption)
+                      ? AppText(
+                          context.strings.currentTag,
+                          role: AppTextRole.caption,
+                        )
                       : null,
                 );
               },
@@ -77,16 +81,16 @@ Future<AiReasoningEffort?> showAiReasoningEffortSheet(
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
               AppTheme.pagePadding,
               AppTheme.spaceXs,
               AppTheme.pagePadding,
               AppTheme.spaceXs,
             ),
             child: AppSectionHeader(
-              '思考程度',
-              subtitle: '影响会想多久再回答',
+              context.strings.reasoningLabel,
+              subtitle: context.strings.reasoningHint,
             ),
           ),
           Expanded(
@@ -103,13 +107,16 @@ Future<AiReasoningEffort?> showAiReasoningEffortSheet(
                 final effort = AiReasoningEffort.values[index];
                 final selected = effort == current;
                 return AppListTile(
-                  title: effort.label,
+                  title: context.strings.reasoningEffortName(effort),
                   icon: selected
                       ? Icons.check_circle_outline
                       : Icons.circle_outlined,
                   onTap: () => Navigator.of(context).pop(effort),
                   trailing: selected
-                      ? const AppText('当前', role: AppTextRole.caption)
+                      ? AppText(
+                          context.strings.currentTag,
+                          role: AppTextRole.caption,
+                        )
                       : null,
                 );
               },
@@ -217,7 +224,7 @@ class _ModelThinkingSheetState extends State<_ModelThinkingSheet> {
               if (!onModel)
                 AppCircleButton(
                   icon: Icons.arrow_back,
-                  tooltip: '返回',
+                  tooltip: context.strings.backAction,
                   size: 32,
                   iconSize: 18,
                   onPressed: () =>
@@ -226,8 +233,12 @@ class _ModelThinkingSheetState extends State<_ModelThinkingSheet> {
               if (!onModel) const SizedBox(width: AppTheme.spaceXs),
               Expanded(
                 child: AppSectionHeader(
-                  onModel ? '选择模型' : '思考程度',
-                  subtitle: onModel ? '写对白与剧情用' : '影响会想多久再回答',
+                  onModel
+                      ? context.strings.chooseModel
+                      : context.strings.reasoningLabel,
+                  subtitle: onModel
+                      ? context.strings.chooseModelHint
+                      : context.strings.reasoningHint,
                 ),
               ),
             ],
@@ -257,7 +268,10 @@ class _ModelThinkingSheetState extends State<_ModelThinkingSheet> {
                         });
                       },
                       trailing: selected
-                          ? const AppText('当前', role: AppTextRole.caption)
+                          ? AppText(
+                              context.strings.currentTag,
+                              role: AppTextRole.caption,
+                            )
                           : null,
                     );
                   },
@@ -275,7 +289,7 @@ class _ModelThinkingSheetState extends State<_ModelThinkingSheet> {
                     final effort = AiReasoningEffort.values[index];
                     final selected = effort == _effort;
                     return AppListTile(
-                      title: effort.label,
+                      title: context.strings.reasoningEffortName(effort),
                       icon: selected
                           ? Icons.check_circle_outline
                           : Icons.psychology_outlined,
@@ -284,7 +298,10 @@ class _ModelThinkingSheetState extends State<_ModelThinkingSheet> {
                         _finish();
                       },
                       trailing: selected
-                          ? const AppText('当前', role: AppTextRole.caption)
+                          ? AppText(
+                              context.strings.currentTag,
+                              role: AppTextRole.caption,
+                            )
                           : null,
                     );
                   },

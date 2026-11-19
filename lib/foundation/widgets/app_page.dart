@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../frame/immersive_frame.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_circle_button.dart';
 import 'app_text.dart';
@@ -136,7 +137,7 @@ class AppPage extends StatelessWidget {
                               ),
                               child: AppCircleButton(
                                 icon: Icons.arrow_back,
-                                tooltip: '返回',
+                                tooltip: context.ui.back,
                                 onPressed: onBack,
                                 size: 32,
                                 iconSize: 18,

@@ -115,3 +115,18 @@ Widget testScoped({
     ),
   );
 }
+
+/// Minimal app shell with the real localization delegates, for foundation
+/// widgets whose chrome copy comes from `context.ui`.
+Widget testLocalized({
+  required Widget home,
+  ThemeData? theme,
+}) {
+  return MaterialApp(
+    theme: theme ?? AppTheme.data,
+    localizationsDelegates: AppStringsSetup.delegates,
+    supportedLocales: AppStringsSetup.supportedLocales,
+    localeResolutionCallback: AppStringsSetup.resolveLocale,
+    home: home,
+  );
+}

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 
 import '../focus/app_keyboard.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_chat_chrome.dart';
 import '../theme/app_theme.dart';
 
@@ -14,7 +15,7 @@ class AppChatComposer extends StatelessWidget {
     super.key,
     required this.controller,
     this.focusNode,
-    this.hintText = '输入消息',
+    this.hintText,
     this.isGenerating = false,
     this.enabled = true,
     this.onSend,
@@ -24,7 +25,9 @@ class AppChatComposer extends StatelessWidget {
 
   final TextEditingController controller;
   final FocusNode? focusNode;
-  final String hintText;
+
+  /// Empty-field hint; defaults to the shared "type a message" copy.
+  final String? hintText;
   final bool isGenerating;
   final bool enabled;
   final VoidCallback? onSend;
@@ -80,7 +83,7 @@ class AppChatComposer extends StatelessWidget {
                 style: AppChatChrome.messageInputStyle(context),
                 decoration: AppChatChrome.composerFieldDecoration(
                   context,
-                  hintText: hintText,
+                  hintText: hintText ?? context.ui.inputMessage,
                 ),
               ),
             ),
@@ -94,7 +97,8 @@ class AppChatComposer extends StatelessWidget {
                   ] else
                     const Spacer(),
                   Tooltip(
-                    message: isGenerating ? '停止' : '发送',
+                    message:
+                        isGenerating ? context.ui.stop : context.ui.send,
                     child: Material(
                       color: scheme.primary,
                       shape: const CircleBorder(),

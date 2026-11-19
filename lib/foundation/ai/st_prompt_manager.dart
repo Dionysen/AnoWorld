@@ -355,6 +355,38 @@ class PromptManagerConfig {
     return copyWith(sections: newSections);
   }
 
+  /// Put built-in sections back into the default order.
+  ///
+  /// Custom prompts and section types unknown to the default config keep their
+  /// current slots — only the built-in entries swap places.
+  PromptManagerConfig restoreDefaultOrder() {
+    final defaults = PromptManagerConfig.defaultConfig().sortedSections;
+    final rank = <PromptSectionType, int>{
+      for (var i = 0; i < defaults.length; i++) defaults[i].type: i,
+    };
+    final sorted = sortedSections;
+    final slots = <int>[];
+    final builtIns = <PromptSection>[];
+    for (var i = 0; i < sorted.length; i++) {
+      final section = sorted[i];
+      if (section.isCustom || !rank.containsKey(section.type)) continue;
+      slots.add(i);
+      builtIns.add(section);
+    }
+    if (slots.length < 2) return this;
+    builtIns.sort((a, b) => rank[a.type]!.compareTo(rank[b.type]!));
+    final reordered = List<PromptSection>.from(sorted);
+    for (var i = 0; i < slots.length; i++) {
+      reordered[slots[i]] = builtIns[i];
+    }
+    return copyWith(
+      sections: [
+        for (var i = 0; i < reordered.length; i++)
+          reordered[i].copyWith(order: i),
+      ],
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'sections': sections.map((s) => s.toJson()).toList(),
       };

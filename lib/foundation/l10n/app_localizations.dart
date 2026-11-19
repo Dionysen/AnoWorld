@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/widgets.dart';
 
 /// Base contract for translated UI copy.
@@ -29,6 +30,56 @@ abstract class AppLocalizations {
   String get discard;
   String get discardEditsTitle;
   String get discardEditsDetail;
+
+  /// Generic verbs and placeholders the reusable widgets show on their own.
+  String get back;
+  String get done;
+  String get confirm;
+  String get search;
+  String get searchFonts;
+  String get clear;
+  String get copy;
+  String get edit;
+  String get expand;
+  String get collapse;
+  String get remove;
+  String get add;
+  String get send;
+  String get stop;
+  String get inputMessage;
+  String get thinking;
+  String get emptyContent;
+  String get unnamed;
+  String get notSet;
+  String get notFilled;
+  String get currentBadge;
+  String get colorTitle;
+  String get entry;
+
+  /// Joins names inside one line, e.g. tag lists.
+  String get listSeparator;
+  String copiedEntry(String label);
+  String moreEntries(int count);
+
+  // Graph view chrome.
+
+  String get tidyLayout;
+  String get addStation;
+  String get graphEmpty;
+
+  // Font library chrome.
+
+  String get fontSystemDefault;
+  String get fontImported;
+  String get fontImportDone;
+  String get fontImportFailed;
+  String get fontRemoved;
+  String get fontRemoveFailed;
+  String get fontPickFile;
+  String get fontLoading;
+  String get fontDeleteTitle;
+  String fontDeleteDetail(String family);
+  String get fontRemoveAction;
 }
 
 /// English chrome used when no app translation is registered (bare widgets in
@@ -73,6 +124,127 @@ class DefaultAppLocalizations extends AppLocalizations {
 
   @override
   String get discardEditsDetail => 'Unsaved edits will be lost';
+
+  @override
+  String get back => 'Back';
+
+  @override
+  String get done => 'Done';
+
+  @override
+  String get confirm => 'OK';
+
+  @override
+  String get search => 'Search';
+
+  @override
+  String get searchFonts => 'Search fonts';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get expand => 'Expand';
+
+  @override
+  String get collapse => 'Collapse';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get send => 'Send';
+
+  @override
+  String get stop => 'Stop';
+
+  @override
+  String get inputMessage => 'Type a message';
+
+  @override
+  String get thinking => 'Thinking';
+
+  @override
+  String get emptyContent => 'Nothing here yet';
+
+  @override
+  String get unnamed => 'Untitled';
+
+  @override
+  String get notSet => 'Not set';
+
+  @override
+  String get notFilled => 'Not filled';
+
+  @override
+  String get currentBadge => 'Current';
+
+  @override
+  String get colorTitle => 'Color';
+
+  @override
+  String get entry => 'Entry';
+
+  @override
+  String get listSeparator => ', ';
+
+  @override
+  String copiedEntry(String label) => 'Copied: $label';
+
+  @override
+  String moreEntries(int count) => '$count more';
+
+  @override
+  String get tidyLayout => 'Tidy layout';
+
+  @override
+  String get addStation => 'Add stop';
+
+  @override
+  String get graphEmpty => 'No stops yet';
+
+  @override
+  String get fontSystemDefault => 'System default';
+
+  @override
+  String get fontImported => 'Imported';
+
+  @override
+  String get fontImportDone => 'Font added to the app library';
+
+  @override
+  String get fontImportFailed => 'Cannot import this font file';
+
+  @override
+  String get fontRemoved => 'Font removed from the app library';
+
+  @override
+  String get fontRemoveFailed => 'Cannot remove this font';
+
+  @override
+  String get fontPickFile => 'Choose font file…';
+
+  @override
+  String get fontLoading => 'Loading fonts…';
+
+  @override
+  String get fontDeleteTitle => 'Delete font?';
+
+  @override
+  String fontDeleteDetail(String family) =>
+      'Remove 「$family」 from the app library to free space?';
+
+  @override
+  String get fontRemoveAction => 'Remove from library';
 }
 
 /// Registers [T] translations with Flutter's localization system.
@@ -103,7 +275,7 @@ class AppLocalizationsDelegate<T extends AppLocalizations>
       translations.any((translation) => translation.matches(locale));
 
   @override
-  Future<T> load(Locale locale) async => resolve(locale);
+  Future<T> load(Locale locale) => SynchronousFuture<T>(resolve(locale));
 
   @override
   bool shouldReload(covariant LocalizationsDelegate<T> old) => false;

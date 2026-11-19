@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../fonts/system_font.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_button.dart';
 import 'app_icon_button.dart';
@@ -48,9 +49,10 @@ class AppFontPickerRow extends StatelessWidget {
     if (path == null || path.isEmpty) return;
     final ok = await onImportPath(path);
     if (!context.mounted) return;
+    final ui = context.ui;
     showAppToast(
       context,
-      ok ? '字体已导入到应用字体库' : '无法导入该字体文件',
+      ok ? ui.fontImportDone : ui.fontImportFailed,
     );
   }
 
@@ -77,8 +79,8 @@ class AppFontPickerRow extends StatelessWidget {
                   horizontal: AppTheme.pagePadding,
                 ),
                 child: AppTextField(
-                  label: '搜索',
-                  hint: '搜索字体',
+                  label: context.ui.search,
+                  hint: context.ui.searchFonts,
                   onChanged: (value) => query.value = value.trim(),
                 ),
               ),
@@ -92,7 +94,7 @@ class AppFontPickerRow extends StatelessWidget {
                 child: Align(
                   alignment: AlignmentDirectional.centerStart,
                   child: AppButton(
-                    label: '选择字体文件…',
+                    label: context.ui.fontPickFile,
                     variant: AppButtonVariant.secondary,
                     onPressed: () => _import(context),
                   ),
@@ -118,15 +120,15 @@ class AppFontPickerRow extends StatelessWidget {
                       ),
                       children: [
                         AppListTile(
-                          title: '系统默认',
+                          title: context.ui.fontSystemDefault,
                           icon: Icons.phone_android_outlined,
                           onTap: () {
                             onSelected(null);
                             Navigator.pop(context);
                           },
                           trailing: (selectedPath ?? '').isEmpty
-                              ? const AppText(
-                                  '当前',
+                              ? AppText(
+                                  context.ui.currentBadge,
                                   role: AppTextRole.caption,
                                 )
                               : null,
@@ -134,7 +136,8 @@ class AppFontPickerRow extends StatelessWidget {
                         for (final font in filtered)
                           AppListTile(
                             title: font.family,
-                            subtitle: font.imported ? '已导入' : null,
+                            subtitle:
+                                font.imported ? context.ui.fontImported : null,
                             icon: font.imported
                                 ? Icons.font_download_outlined
                                 : Icons.text_fields,
@@ -146,14 +149,14 @@ class AppFontPickerRow extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (font.path == selectedPath)
-                                  const AppText(
-                                    '当前',
+                                  AppText(
+                                    context.ui.currentBadge,
                                     role: AppTextRole.caption,
                                   ),
                                 if (font.imported && onDeleteFont != null)
                                   AppIconButton(
                                     icon: Icons.delete_outline,
-                                    tooltip: '从库中移除',
+                                    tooltip: context.ui.fontRemoveAction,
                                     danger: true,
                                     onPressed: () async {
                                       final confirmed = await _confirmDelete(
@@ -166,9 +169,12 @@ class AppFontPickerRow extends StatelessWidget {
                                       }
                                       final ok = await onDeleteFont!(font);
                                       if (!context.mounted) return;
+                                      final ui = context.ui;
                                       showAppToast(
                                         context,
-                                        ok ? '已从应用字体库中移除' : '无法删除该字体',
+                                        ok
+                                            ? ui.fontRemoved
+                                            : ui.fontRemoveFailed,
                                       );
                                       if (ok) {
                                         Navigator.pop(context);
@@ -207,9 +213,9 @@ class AppFontPickerRow extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const AppSectionHeader('删除字体？'),
+              AppSectionHeader(context.ui.fontDeleteTitle),
               AppText(
-                '从应用字体库中移除「$family」以释放空间？',
+                context.ui.fontDeleteDetail(family),
                 role: AppTextRole.body,
               ),
               const SizedBox(height: AppTheme.spaceMd),
@@ -217,7 +223,7 @@ class AppFontPickerRow extends StatelessWidget {
                 children: [
                   Expanded(
                     child: AppButton(
-                      label: '取消',
+                      label: context.ui.cancel,
                       variant: AppButtonVariant.secondary,
                       onPressed: () => Navigator.pop(context, false),
                     ),
@@ -225,7 +231,7 @@ class AppFontPickerRow extends StatelessWidget {
                   const SizedBox(width: AppTheme.spaceSm),
                   Expanded(
                     child: AppButton(
-                      label: '删除',
+                      label: context.ui.delete,
                       variant: AppButtonVariant.danger,
                       onPressed: () => Navigator.pop(context, true),
                     ),
@@ -249,7 +255,7 @@ class AppFontPickerRow extends StatelessWidget {
       trailing: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 140),
         child: AppText(
-          isLoading ? '加载字体…' : selectedLabel,
+          isLoading ? context.ui.fontLoading : selectedLabel,
           role: AppTextRole.caption,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

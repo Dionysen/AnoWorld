@@ -2,6 +2,7 @@ import 'package:anoworld/foundation/graph/graph_edge_geometry.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_card.dart';
 import 'package:anoworld/foundation/graph/graph_port.dart';
+import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:flutter/material.dart';
@@ -112,7 +113,10 @@ class GraphNodeVisual extends StatelessWidget {
                 height: GraphEdgeGeometry.portRowHeight,
                 child: Center(
                   child: _PortTitleChip(
-                    label: outputs[i].displayLabel,
+                    label: outputs[i].displayLabel(
+                      emptyWired: context.ui.unnamed,
+                      emptyPending: context.ui.add,
+                    ),
                     pending: outputs[i].pending,
                   ),
                 ),

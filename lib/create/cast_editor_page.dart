@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
+import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
@@ -92,10 +94,10 @@ class _CastEditorPageState extends State<CastEditorPage> {
     });
   }
 
-  String _subtitle(CastMember member) {
+  String _subtitle(AppStrings strings, CastMember member) {
     if (member.summary.trim().isNotEmpty) return member.summary.trim();
     if (member.personality.trim().isNotEmpty) return member.personality.trim();
-    return '还没写简介';
+    return strings.castNoSummary;
   }
 
   Future<void> _editMember({CastMember? existing}) async {
@@ -145,49 +147,51 @@ class _CastEditorPageState extends State<CastEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
+    final ui = context.ui;
     final project = _project;
     final cast = project?.cast ?? const <CastMember>[];
     return AppPage(
-      title: '角色',
+      title: strings.castTitle,
       onBack: () => Navigator.of(context).maybePop(),
       actions: [
         AppCircleButton(
           icon: Icons.add,
-          tooltip: '加一个角色',
+          tooltip: strings.castAddMember,
           onPressed: _loading || _error != null ? null : () => _editMember(),
         ),
       ],
       body: AppPageBody.list(
         children: [
           if (_loading)
-            const AppPageGutter(
-              child: AppText('加载中…', role: AppTextRole.caption),
+            AppPageGutter(
+              child: AppText(ui.loading, role: AppTextRole.caption),
             )
           else if (_error != null)
             AppPageGutter(
               child: AppEmptyState(
-                message: '无法打开角色',
+                message: strings.castOpenFailed,
                 detail: _error.toString(),
                 action: AppButton(
-                  label: '重试',
+                  label: ui.retry,
                   onPressed: _load,
                   variant: AppButtonVariant.secondary,
                 ),
               ),
             )
           else if (project != null) ...[
-            const AppSectionHeader(
-              '登场人物',
-              subtitle: '可勾选一名主角，作为酒馆里的当前角色',
+            AppSectionHeader(
+              strings.castSection,
+              subtitle: strings.castSectionHint,
               gutter: true,
             ),
             if (cast.isEmpty)
               AppPageGutter(
                 child: AppEmptyState(
-                  message: '还没有角色',
-                  detail: '先加主角和关键配角',
+                  message: strings.castEmpty,
+                  detail: strings.castEmptyDetail,
                   action: AppButton(
-                    label: '加一个',
+                    label: strings.castAddOne,
                     onPressed: () => _editMember(),
                     variant: AppButtonVariant.secondary,
                   ),
@@ -200,8 +204,8 @@ class _CastEditorPageState extends State<CastEditorPage> {
                     AppListTile(
                       title: member.name,
                       subtitle: member.isProtagonist
-                          ? '主角 · ${_subtitle(member)}'
-                          : _subtitle(member),
+                          ? strings.castProtagonist(_subtitle(strings, member))
+                          : _subtitle(strings, member),
                       icon: member.isProtagonist
                           ? Icons.star_outline
                           : Icons.person_outline,
@@ -320,16 +324,23 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
     final next = _snapshot();
     Navigator.of(context).pop(
       _CastSheetResult.save(
-        next.copyWith(name: next.name.isEmpty ? '未命名角色' : next.name),
+        next.copyWith(
+          name: next.name.isEmpty
+              ? context.strings.castUnnamedMember
+              : next.name,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final existing = widget.existing;
     return AppSheetEditForm(
-      title: existing == null ? '新角色' : '编辑角色',
+      title: existing == null
+          ? strings.castNewMember
+          : strings.castEditMember,
       isDirty: _isDirty,
       onSave: _save,
       body: AppSheetScrollBody(
@@ -341,42 +352,42 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
         ),
         children: [
           AppTextField(
-            label: '名字',
+            label: strings.castNameLabel,
             controller: _name,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '简介',
+            label: strings.castSummaryLabel,
             controller: _summary,
             minLines: 2,
             maxLines: 4,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '性格',
+            label: strings.castPersonalityLabel,
             controller: _personality,
             minLines: 2,
             maxLines: 4,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '说话方式',
+            label: strings.castSpeechLabel,
             controller: _speech,
             minLines: 2,
             maxLines: 4,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '示例对白',
+            label: strings.castExamplesLabel,
             controller: _examples,
             minLines: 3,
             maxLines: 6,
-            hint: '一行一句',
+            hint: strings.castExamplesHint,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppListTile(
-            title: '主角',
-            subtitle: '酒馆里「当前角色」的名字与设定来源',
+            title: strings.castProtagonistLabel,
+            subtitle: strings.castProtagonistHint,
             icon: Icons.star_outline,
             trailing: AppSwitch(
               value: _isProtagonist,
@@ -386,7 +397,7 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
           if (existing != null) ...[
             const SizedBox(height: AppTheme.spaceLg),
             AppButton(
-              label: '删除这个角色',
+              label: strings.castDeleteMember,
               expanded: true,
               variant: AppButtonVariant.danger,
               onPressed: () => Navigator.of(context).pop(

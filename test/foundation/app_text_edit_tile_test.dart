@@ -1,7 +1,8 @@
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/test_app.dart';
 
 void main() {
   test('displayValue masks secrets and handles empty', () {
@@ -34,8 +35,7 @@ void main() {
   testWidgets('tap opens sheet and saves edited value', (tester) async {
     var saved = '';
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.data,
+      testLocalized(
         home: Scaffold(
           body: AppTextEditTile(
             title: '服务地址',

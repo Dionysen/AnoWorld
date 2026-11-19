@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/character_card_import_page.dart';
 import 'package:anoworld/create/staged_create_page.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
@@ -9,17 +10,17 @@ import 'package:flutter/widgets.dart';
 enum CreateEntryKind { characterCard, novel, stagedPrompts }
 
 extension CreateEntryKindLabels on CreateEntryKind {
-  String get title => switch (this) {
-        CreateEntryKind.characterCard => '导入角色卡',
-        CreateEntryKind.novel => '粘贴故事',
-        CreateEntryKind.stagedPrompts => '分阶段提示词',
-      };
+  String title(AppStrings strings) => switch (this) {
+    CreateEntryKind.characterCard => strings.importCard,
+    CreateEntryKind.novel => strings.pasteStory,
+    CreateEntryKind.stagedPrompts => strings.stagedPrompts,
+  };
 
-  String get blurb => switch (this) {
-        CreateEntryKind.characterCard => '导入角色卡，填入设定与角色',
-        CreateEntryKind.novel => '粘贴剧情，拆成可玩内容',
-        CreateEntryKind.stagedPrompts => '按世界 → 人物 → 走向逐步填写',
-      };
+  String blurb(AppStrings strings) => switch (this) {
+    CreateEntryKind.characterCard => strings.createEntryBlurbCard,
+    CreateEntryKind.novel => strings.createEntryBlurbNovel,
+    CreateEntryKind.stagedPrompts => strings.createEntryBlurbStaged,
+  };
 }
 
 /// Entry for one of the three UX creation paths.
@@ -37,16 +38,17 @@ class CreateEntryPage extends StatelessWidget {
       return const CharacterCardImportPage();
     }
 
+    final strings = context.strings;
     return AppPage(
-      title: kind.title,
+      title: kind.title(strings),
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody(
         children: [
-          AppSectionHeader('创作入口'),
-          AppText(kind.blurb, role: AppTextRole.body),
-          const AppEmptyState(
-            message: '这条创作路径马上就好',
-            detail: '可先导入角色卡或用分阶段提示词',
+          AppSectionHeader(strings.createEntrySection),
+          AppText(kind.blurb(strings), role: AppTextRole.body),
+          AppEmptyState(
+            message: strings.createEntryComingSoon,
+            detail: strings.createEntryComingSoonDetail,
           ),
         ],
       ),

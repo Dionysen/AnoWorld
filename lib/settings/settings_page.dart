@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/settings/settings_section_view.dart';
@@ -28,10 +29,10 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return AppPage(
-      title: '设置',
+      title: context.strings.settingsTitle,
       onBack: () => Navigator.of(context).maybePop(),
       body: AppNavShell(
-        destinations: settingsNavItems,
+        destinations: settingsNavItems(context.strings),
         selectedIndex: _index < 0 ? 0 : _index,
         onDestinationSelected: (index) {
           setState(() => _section = SettingsSection.values[index]);

@@ -6,12 +6,6 @@ import 'package:flutter/material.dart';
 enum AppThemeModeSetting { system, light, dark }
 
 extension AppThemeModeSettingX on AppThemeModeSetting {
-  String get label => switch (this) {
-        AppThemeModeSetting.system => '跟随系统',
-        AppThemeModeSetting.light => '浅色',
-        AppThemeModeSetting.dark => '深色',
-      };
-
   IconData get icon => switch (this) {
         AppThemeModeSetting.system => Icons.brightness_auto_outlined,
         AppThemeModeSetting.light => Icons.light_mode_outlined,
