@@ -8,6 +8,8 @@ import 'app_segmented.dart';
 ///
 /// Sits directly under the page title as a lighter alternative to
 /// [AppSegmented]: labels align left, the strip closes with a hairline.
+/// When the available width cannot hold every label, the strip scrolls
+/// horizontally instead of overflowing.
 class AppUnderlineTabs<T> extends StatelessWidget {
   const AppUnderlineTabs({
     super.key,
@@ -29,16 +31,19 @@ class AppUnderlineTabs<T> extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in options)
-              _UnderlineTab(
-                label: option.label,
-                selected: option.value == value,
-                onTap: () => onChanged(option.value),
-              ),
-          ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in options)
+                _UnderlineTab(
+                  label: option.label,
+                  selected: option.value == value,
+                  onTap: () => onChanged(option.value),
+                ),
+            ],
+          ),
         ),
         Divider(height: 1, thickness: 1, color: AppTheme.listHairline(context)),
       ],

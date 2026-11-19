@@ -425,10 +425,10 @@ void main() {
     expect(barColor('全部'), Colors.transparent);
   });
 
-  testWidgets('AppUnderlineTabs does not overflow in a narrow strip', (
+  testWidgets('AppUnderlineTabs scrolls instead of overflowing when narrow', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(140, 120));
+    await tester.binding.setSurfaceSize(const Size(159, 120));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
@@ -441,6 +441,7 @@ void main() {
             options: const [
               AppSegmentOption(value: 0, label: '全部'),
               AppSegmentOption(value: 1, label: '分类'),
+              AppSegmentOption(value: 2, label: '包'),
             ],
           ),
         ),
