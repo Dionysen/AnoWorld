@@ -17,6 +17,7 @@ import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
+import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
@@ -64,9 +65,23 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   BridgeSession? _bridge;
   String? _status;
   bool _bootstrapped = false;
-  bool _busy = false;
+
+  /// VN AI call in flight (immediate adopt or background prefetch).
+  bool _generating = false;
   bool _assistantBusy = false;
   bool _choicesBusy = false;
+
+  /// Prefetched beats for the current station, not yet adopted.
+  /// Target depth: [_prefetchTarget] so the player usually has the next
+  /// two generations ready while reading the current one.
+  final List<Beat> _prefetchQueue = <Beat>[];
+  static const int _prefetchTarget = 2;
+
+  /// Bumped to discard in-flight results after restart / node change.
+  int _generateEpoch = 0;
+
+  /// After a background prefetch error, wait until the next adopt before retrying.
+  bool _prefetchPaused = false;
 
   /// Tavern chat transcript (chat mode only).
   final List<TavernChatMessage> _chat = <TavernChatMessage>[];
@@ -144,6 +159,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   @override
   void dispose() {
     _fastForwardTimer?.cancel();
+    _generateEpoch++;
     super.dispose();
   }
 
@@ -304,11 +320,22 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     _restorePosition(target);
   }
 
+  /// Empty buffer and AI still writing the beat the player needs right now.
+  bool get _waitingForBeat =>
+      _runtime.needsBridge && _prefetchQueue.isEmpty && _generating;
+
   /// Whether the story can still move past the current point.
-  bool get _canContinueStory =>
-      !_busy &&
-      !_runtime.pointer.isEnded &&
-      (_runtime.canAdvance || _runtime.needsBridge);
+  /// Prefetch in the background does not block line advance.
+  bool get _canContinueStory {
+    if (_runtime.pointer.isEnded) return false;
+    if (_runtime.canAdvance) return true;
+    if (!_runtime.needsBridge) return false;
+    if (_prefetchQueue.isNotEmpty) return true;
+    // Waiting on the first beat of an empty buffer: still "can continue" so
+    // the forward button stays active and kicks generation, unless already
+    // generating with nothing ready.
+    return !_generating;
+  }
 
   /// Forward button: replay the next recorded line, or — already at the newest
   /// progress — keep the story going (next line / write the missing beat).
@@ -366,10 +393,9 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   }
 
   /// Tap on the stage: replay forward when scrubbed back, otherwise next line
-  /// (or ask AI to write when the beat is missing).
+  /// (or take a prefetched / freshly generated beat).
   void _onStageTap() {
     _stopFastForward();
-    if (_busy) return;
     if (_history.canForward) {
       _goForward();
       return;
@@ -378,7 +404,10 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _advance();
       return;
     }
-    if (_runtime.needsBridge) _ensureBridge();
+    if (!_runtime.needsBridge) return;
+    // Empty buffer still generating: keep current dialogue, wait.
+    if (_prefetchQueue.isEmpty && _generating) return;
+    _ensureBridge();
   }
 
   Future<void> _onChatSend(String raw) async {
@@ -532,6 +561,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       return;
     }
     if (current.nodeId == nodeId) return;
+    // Station change invalidates stay-path prefetch.
+    _invalidatePrefetch();
     // Keep every generated beat for rollback; reset interval counters only.
     _bridge = current.copyWith(
       nodeId: nodeId,
@@ -540,9 +571,17 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     );
   }
 
+  void _invalidatePrefetch() {
+    _prefetchQueue.clear();
+    _generateEpoch++;
+    _generating = false;
+    _prefetchPaused = false;
+  }
+
   void _restart() {
     _stopFastForward();
     setState(() {
+      _invalidatePrefetch();
       _runtime = MainRuntime(_baseMain);
       _bridge = null;
       _chat.clear();
@@ -561,14 +600,38 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     }
   }
 
+  /// Session view used for the next generate call (includes queued prefetch).
+  BridgeSession _sessionForNextGenerate(String nodeId) {
+    final base = _bridge ?? BridgeSession(nodeId: nodeId);
+    if (_prefetchQueue.isEmpty) return base;
+    final queuedText = _prefetchQueue
+        .map((b) => b.lines.map((l) => l.text).join(' '))
+        .join(' ');
+    return base.copyWith(
+      turnCount: base.turnCount + _prefetchQueue.length,
+      summary: '${base.summary} $queuedText'.trim(),
+    );
+  }
+
+  bool _canPrefetchMore(String nodeId) {
+    if (_runtime.pointer.isEnded) return false;
+    final node = _runtime.main.nodeById(nodeId);
+    if (node == null || node.tags.contains('ending')) return false;
+    final hasOutbound =
+        _runtime.main.edges.any((e) => e.from == nodeId);
+    if (!hasOutbound) return true;
+    final base = _bridge ?? BridgeSession(nodeId: nodeId);
+    final planned = base.turnCount + _prefetchQueue.length;
+    return planned < BridgeSession.defaultMaxBeats;
+  }
+
   Future<void> _ensureBridge() async {
-    if (_isChat || !mounted || _busy) return;
-    if (!_runtime.needsBridge) return;
+    if (_isChat || !mounted) return;
 
     final node = _runtime.currentNode;
     if (node == null) return;
 
-    if (node.tags.contains('ending')) {
+    if (_runtime.needsBridge && node.tags.contains('ending')) {
       setState(() {
         _runtime.endStory();
         _recordPosition();
@@ -577,12 +640,94 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       return;
     }
 
-    _syncBridgeNode();
-    final session = _bridge ?? BridgeSession(nodeId: node.id);
+    if (_runtime.needsBridge) {
+      _syncBridgeNode();
+      if (_prefetchQueue.isNotEmpty) {
+        _consumePrefetch();
+        await _persist();
+        _topUpPrefetch();
+        return;
+      }
+      if (_generating) return;
+      await _generateOne(adopt: true);
+      _topUpPrefetch();
+      return;
+    }
+
+    // While reading an AI-written beat, keep two more buffered ahead.
+    // Prewritten sample beats do not trigger background generation.
+    if (_isCurrentBridgeBeat()) {
+      _topUpPrefetch();
+    }
+  }
+
+  bool _isCurrentBridgeBeat() {
+    final bridge = _bridge;
+    if (bridge == null) return false;
+    final beatId = _runtime.pointer.beatId;
+    if (beatId.isEmpty) return false;
+    for (final beat in bridge.generatedBeats) {
+      if (beat.id == beatId) return true;
+    }
+    return false;
+  }
+
+  Future<void> _topUpPrefetch() async {
+    if (_isChat || !mounted || _generating || _prefetchPaused) return;
+    final node = _runtime.currentNode;
+    if (node == null) return;
+    if (_prefetchQueue.length >= _prefetchTarget) return;
+    if (!_canPrefetchMore(node.id)) return;
+
+    AppLog.instance.info(
+      '后台预写第 ${_prefetchQueue.length + 1}/$_prefetchTarget 拍',
+      tag: 'play.vn',
+    );
+    await _generateOne(adopt: false);
+    if (!mounted) return;
+    // Fill until the buffer is full (or the station cannot take more).
+    _topUpPrefetch();
+  }
+
+  void _consumePrefetch() {
+    if (_prefetchQueue.isEmpty) return;
+    final beat = _prefetchQueue.removeAt(0);
+    final session = _bridge ?? BridgeSession(nodeId: beat.nodeId);
+    AppLog.instance.info(
+      '采用预写拍 ${beat.id}，缓冲剩余 ${_prefetchQueue.length}',
+      tag: 'play.vn',
+    );
+    _adoptBeat(beat, session);
+  }
+
+  void _adoptBeat(Beat beat, BridgeSession session) {
+    setState(() {
+      _runtime.adoptBridgeBeat(beat);
+      _recordPosition();
+      _bridge = session.copyWith(
+        generatedBeats: [...session.generatedBeats, beat],
+        turnCount: session.turnCount + 1,
+        summary:
+            '${session.summary} ${beat.lines.map((l) => l.text).join(' ')}'
+                .trim(),
+      );
+      _generating = false;
+      _prefetchPaused = false;
+      _status = null;
+    });
+  }
+
+  Future<void> _generateOne({required bool adopt}) async {
+    final node = _runtime.currentNode;
+    if (node == null || _generating) return;
+
+    final epoch = _generateEpoch;
+    final session = _sessionForNextGenerate(node.id);
 
     setState(() {
-      _busy = true;
-      _status = context.strings.statusWriting;
+      _generating = true;
+      // Keep the last on-screen line; never flash "正在写这一段".
+      if (adopt) _status = null;
     });
 
     final settings = AppScope.settingsOf(context);
@@ -599,88 +744,92 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         userAliases: _userAliases(),
         minLines: settings.ai.minBridgeLines,
       );
-      if (!mounted) return;
-      setState(() {
-        _runtime.adoptBridgeBeat(beat);
-        _recordPosition();
-        _bridge = session.copyWith(
-          generatedBeats: [...session.generatedBeats, beat],
-          turnCount: session.turnCount + 1,
-          summary:
-              '${session.summary} ${beat.lines.map((l) => l.text).join(' ')}'
-                  .trim(),
+      if (!mounted || epoch != _generateEpoch) return;
+      if (adopt) {
+        _adoptBeat(beat, _bridge ?? BridgeSession(nodeId: node.id));
+        await _persist();
+      } else {
+        setState(() {
+          _prefetchQueue.add(beat);
+          _generating = false;
+        });
+        AppLog.instance.info(
+          '预写完成 ${beat.id}（缓冲 ${_prefetchQueue.length}/$_prefetchTarget）',
+          tag: 'play.vn',
         );
-        _busy = false;
-        _status = null;
-      });
-      await _persist();
+      }
     } on AiTextException catch (error) {
-      if (!mounted) return;
-      final choices = BridgeGenerateAction.fallbackChoices(
-        _runtime.main,
-        node.id,
-      );
-      final beat = Beat(
-        id: 'bridge_fallback_${session.turnCount + 1}',
+      if (!mounted || epoch != _generateEpoch) return;
+      final fallback = _fallbackBeat(
         nodeId: node.id,
-        scene: const Scene(),
-        appearances: const [],
-        lines: [
-          DialogueLine(
-            id: 'bridge_fallback_l0',
-            text: error.message,
-            kind: DialogueKind.narration,
-          ),
-        ],
-        choices: choices,
+        turn: session.turnCount + 1,
+        text: error.message,
       );
-      setState(() {
-        _runtime.adoptBridgeBeat(beat);
-        _recordPosition();
-        _bridge = session.copyWith(
-          generatedBeats: [...session.generatedBeats, beat],
-          turnCount: session.turnCount + 1,
+      if (adopt) {
+        _adoptBeat(fallback, _bridge ?? BridgeSession(nodeId: node.id));
+        setState(() => _status = context.strings.statusSafeExit);
+        await _persist();
+      } else {
+        // Prefetch failure: pause until the next adopt; player can still play.
+        setState(() {
+          _generating = false;
+          _prefetchPaused = true;
+        });
+        AppLog.instance.warning(
+          '后台预写失败：${error.message}',
+          tag: 'play.vn',
         );
-        _busy = false;
-        _status = context.strings.statusSafeExit;
-      });
-      await _persist();
-    } catch (_) {
-      if (!mounted) return;
-      final choices = BridgeGenerateAction.fallbackChoices(
-        _runtime.main,
-        node.id,
+      }
+    } catch (error, stack) {
+      if (!mounted || epoch != _generateEpoch) return;
+      AppLog.instance.error(
+        '区间生成异常',
+        tag: 'play.vn',
+        error: error,
+        stackTrace: stack,
       );
-      final beat = Beat(
-        id: 'bridge_fallback_${session.turnCount + 1}',
+      final fallback = _fallbackBeat(
         nodeId: node.id,
-        scene: const Scene(),
-        appearances: const [],
-        lines: [
-          DialogueLine(
-            id: 'bridge_fallback_l0',
-            text: context.strings.fallbackBeatText,
-            kind: DialogueKind.narration,
-          ),
-        ],
-        choices: choices,
+        turn: session.turnCount + 1,
+        text: context.strings.fallbackBeatText,
       );
-      setState(() {
-        _runtime.adoptBridgeBeat(beat);
-        _recordPosition();
-        _bridge = session.copyWith(
-          generatedBeats: [...session.generatedBeats, beat],
-          turnCount: session.turnCount + 1,
-        );
-        _busy = false;
-        _status = context.strings.statusSafeExit;
-      });
-      await _persist();
+      if (adopt) {
+        _adoptBeat(fallback, _bridge ?? BridgeSession(nodeId: node.id));
+        setState(() => _status = context.strings.statusSafeExit);
+        await _persist();
+      } else {
+        setState(() {
+          _generating = false;
+          _prefetchPaused = true;
+        });
+      }
     }
   }
 
+  Beat _fallbackBeat({
+    required String nodeId,
+    required int turn,
+    required String text,
+  }) {
+    return Beat(
+      id: 'bridge_fallback_$turn',
+      nodeId: nodeId,
+      scene: const Scene(),
+      appearances: const [],
+      lines: [
+        DialogueLine(
+          id: 'bridge_fallback_l0',
+          text: text,
+          kind: DialogueKind.narration,
+        ),
+      ],
+      choices: BridgeGenerateAction.fallbackChoices(_runtime.main, nodeId),
+    );
+  }
+
   List<_VnCenterAction> _centerActions() {
-    if (_busy) return const [];
+    // Hide choices only while the player is blocked waiting for the next beat.
+    if (_waitingForBeat) return const [];
     if (_runtime.pointer.isEnded) {
       return [
         _VnCenterAction(
@@ -749,15 +898,18 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
             )
           : null,
       onBack: () => Navigator.of(context).maybePop(),
-      actions: chatMode && _canRegenerateChat
-          ? [
-              AppCircleButton(
-                icon: Icons.refresh_rounded,
-                tooltip: context.strings.regenerateReply,
-                onPressed: _regenerateLastAssistant,
-              ),
-            ]
-          : const [],
+      actions: [
+        if (!chatMode && _generating)
+          AppBusyIndicator(
+            semanticLabel: context.strings.generatingSegment,
+          ),
+        if (chatMode && _canRegenerateChat)
+          AppCircleButton(
+            icon: Icons.refresh_rounded,
+            tooltip: context.strings.regenerateReply,
+            onPressed: _regenerateLastAssistant,
+          ),
+      ],
       body: chatMode
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -792,8 +944,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
               runtime: _runtime,
               speakerLabel: _speakerLabel,
               isNarration: _isNarration,
+              // Errors / soft notices only — never the writing placeholder.
               status: _status,
-              bridging: _busy,
               centerActions: _centerActions(),
               canBack: _history.canBack,
               canForward: _history.canForward || _canContinueStory,
@@ -827,7 +979,6 @@ class _VnStage extends StatelessWidget {
     required this.speakerLabel,
     required this.isNarration,
     required this.status,
-    required this.bridging,
     required this.centerActions,
     required this.canBack,
     required this.canForward,
@@ -843,7 +994,6 @@ class _VnStage extends StatelessWidget {
   final String? Function(DialogueLine) speakerLabel;
   final bool Function(DialogueLine) isNarration;
   final String? status;
-  final bool bridging;
   final List<_VnCenterAction> centerActions;
   final bool canBack;
   final bool canForward;
@@ -914,11 +1064,9 @@ class _VnStage extends StatelessWidget {
                               if (runtime.pointer.phase == PlayPhase.choices) {
                                 return strings.choosePlease;
                               }
-                              if (runtime.needsBridge || bridging) {
-                                return bridging
-                                    ? strings.statusWriting
-                                    : strings.segmentNotWritten;
-                              }
+                              // Waiting for the next beat: keep the box quiet;
+                              // title-bar spinner is the only busy signal.
+                              if (runtime.needsBridge) return '…';
                               return '…';
                             }(),
                             status: status,
@@ -927,7 +1075,7 @@ class _VnStage extends StatelessWidget {
                         if (showHistory) ...[
                           const SizedBox(height: AppTheme.spaceSm),
                           _VnHistoryBar(
-                            enabled: !bridging,
+                            enabled: true,
                             canBack: canBack,
                             canForward: canForward,
                             canFastForward: canFastForward,

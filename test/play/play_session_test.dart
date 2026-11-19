@@ -1,12 +1,56 @@
+import 'dart:async';
+
 import 'package:anoworld/data/save/memory_save_repository.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/test_app.dart';
+
+class _QueuedTextClient implements AiTextClient {
+  _QueuedTextClient(this._replies);
+
+  final List<String> _replies;
+  int calls = 0;
+  final List<Completer<void>> _gates = <Completer<void>>[];
+
+  /// Release the next pending model reply (FIFO).
+  void releaseNext() {
+    if (_gates.isEmpty) return;
+    _gates.removeAt(0).complete();
+  }
+
+  @override
+  Future<AiTextCompletion> complete({
+    required AiTextEndpoint endpoint,
+    required String system,
+    required String user,
+    GenerationPreset? generation,
+  }) async {
+    final gate = Completer<void>();
+    _gates.add(gate);
+    await gate.future;
+    if (calls >= _replies.length) {
+      throw AiTextException('no more replies');
+    }
+    return AiTextCompletion(content: _replies[calls++]);
+  }
+}
+
+String _beatJson(String text, {bool stay = true}) {
+  final choice = stay
+      ? '{"text":"继续","target":{"type":"beat","beatId":"__stay__"}}'
+      : '{"text":"结束","target":{"type":"end"}}';
+  return '{"location":"室内","lines":[{"speaker":"旁白","text":"$text"}],'
+      '"choices":[$choice]}';
+}
 
 void main() {
   final sample = const ProjectFactory().createRainNightSample(
@@ -310,8 +354,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Bridge fallback writes a status line first; tap to reach choices.
+    // Bridge fallback appears as narration; tap to reach choices.
     expect(find.text('继续'), findsNothing);
+    expect(find.text('正在写这一段…'), findsNothing);
     await tester.tap(find.textContaining('请先').first);
     await tester.pumpAndSettle();
 
@@ -319,6 +364,83 @@ void main() {
     await tester.tap(find.text('前往：客栈').first);
     await tester.pumpAndSettle();
     expect(find.text('本段结束'), findsOneWidget);
+  });
+
+  testWidgets('VN prefetches ahead with title spinner, no writing caption',
+      (tester) async {
+    final blank = const ProjectFactory().createBlank(
+      id: 'p_prefetch',
+      title: '预写',
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final client = _QueuedTextClient([
+      _beatJson('第一拍。'),
+      _beatJson('第二拍。'),
+      _beatJson('第三拍。'),
+    ]);
+    final settings = testSettingsController();
+    await settings.updateAi(
+      settings.ai.copyWith(
+        text: const AiTextEndpoint(
+          kind: AiTextProviderKind.openAiCompatible,
+          baseUrl: 'http://localhost:8080/v1',
+          apiKey: 'sk-test',
+          model: 'demo',
+        ),
+        // One line per beat so the stage can advance with a single tap.
+        minBridgeLines: 1,
+      ),
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        settings: settings,
+        textClient: client,
+        home: PlaySessionPage(
+          project: blank,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Immediate generate: spinner in the title bar, no dialogue caption.
+    expect(find.byType(AppBusyIndicator), findsOneWidget);
+    expect(find.text('正在写这一段…'), findsNothing);
+
+    client.releaseNext();
+    // Do not pumpAndSettle — prefetch holds a pending Completer.
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('第一拍。'), findsOneWidget);
+    expect(find.text('正在写这一段…'), findsNothing);
+    expect(find.byType(AppBusyIndicator), findsOneWidget);
+
+    // Background prefetch of the next two beats.
+    client.releaseNext();
+    await tester.pump();
+    await tester.pump();
+    client.releaseNext();
+    await tester.pump();
+    await tester.pump();
+
+    expect(client.calls, 3);
+    expect(find.byType(AppBusyIndicator), findsNothing);
+
+    // Advance to choices, then stay — consumes a prefetched beat.
+    await tester.tap(find.text('第一拍。'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('继续'), findsOneWidget);
+
+    await tester.tap(find.text('继续'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('第二拍。'), findsOneWidget);
+    // Prefetch top-up may have started a 4th call; at least the stay was free.
+    expect(client.calls, greaterThanOrEqualTo(3));
   });
 
   testWidgets('VN narration omits speaker label and uses italic body',
