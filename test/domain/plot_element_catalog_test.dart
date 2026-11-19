@@ -285,4 +285,103 @@ void main() {
     expect(cleared.selectedIds, ['b']);
     expect(selection.withIds(const [], selected: true), selection);
   });
+
+  test('pack plans separate manual picks from other applied packs', () {
+    final a = BuiltInPlotElements.all[0];
+    final b = BuiltInPlotElements.all[1];
+    final c = BuiltInPlotElements.all[2];
+    final catalog = PlotElementCatalog()
+        .upsertPack(
+          PlotElementPack(id: 'pe_pack_a', name: '甲包', elementIds: [a.id, b.id]),
+        )
+        .upsertPack(
+          PlotElementPack(id: 'pe_pack_b', name: '乙包', elementIds: [b.id, c.id]),
+        );
+    final packB = catalog.packById('pe_pack_b')!;
+
+    // Nothing selected: plain add, no confirmation.
+    final fresh = catalog.planPackApply(
+      packB,
+      const PlotElementSelection(),
+    );
+    expect(fresh.addedIds, [b.id, c.id]);
+    expect(fresh.needsConfirm, isFalse);
+
+    // c picked by hand, b covered by 甲包.
+    final plan = catalog.planPackApply(
+      packB,
+      PlotElementSelection(selectedIds: [b.id, c.id], appliedPackIds: ['pe_pack_a']),
+    );
+    expect(plan.addedIds, isEmpty);
+    expect(plan.manualSharedIds, [c.id]);
+    expect(plan.overlappedIds, [b.id]);
+    expect(plan.overlapNames, ['甲包']);
+    expect(plan.needsConfirm, isTrue);
+
+    // Its own registration never counts as overlap.
+    final selfOnly = catalog.planPackApply(
+      packB,
+      PlotElementSelection(selectedIds: [b.id], appliedPackIds: ['pe_pack_b']),
+    );
+    expect(selfOnly.overlappedIds, isEmpty);
+    expect(selfOnly.manualSharedIds, [b.id]);
+  });
+
+  test('removing a pack keeps ids another applied pack still needs', () {
+    final a = BuiltInPlotElements.all[0];
+    final b = BuiltInPlotElements.all[1];
+    final catalog = PlotElementCatalog()
+        .upsertPack(
+          PlotElementPack(id: 'pe_pack_a', name: '甲包', elementIds: [a.id, b.id]),
+        )
+        .upsertPack(
+          PlotElementPack(id: 'pe_pack_b', name: '乙包', elementIds: [b.id]),
+        );
+    final selectionWithIds = PlotElementSelection(
+      selectedIds: [a.id, b.id],
+      appliedPackIds: const ['pe_pack_a', 'pe_pack_b'],
+    );
+
+    final plan = catalog.planPackRemove(
+      catalog.packById('pe_pack_a')!,
+      selectionWithIds,
+    );
+    expect(plan.removedIds, [a.id]);
+    expect(plan.keptIds, [b.id]);
+    expect(plan.keptByNames, ['乙包']);
+    expect(plan.needsConfirm, isTrue);
+
+    final alone = catalog.planPackRemove(
+      catalog.packById('pe_pack_b')!,
+      PlotElementSelection(
+        selectedIds: [b.id],
+        appliedPackIds: const ['pe_pack_b'],
+      ),
+    );
+    expect(alone.removedIds, [b.id]);
+    expect(alone.keptIds, isEmpty);
+    expect(alone.needsConfirm, isFalse);
+    expect(
+      catalog.coveredIds(selectionWithIds.appliedPackIds),
+      unorderedEquals([a.id, b.id]),
+    );
+  });
+
+  test('applied packs survive json and element toggles', () {
+    const selection = PlotElementSelection(
+      selectedIds: ['a'],
+      appliedPackIds: ['pe_pack_a'],
+    );
+    final back = PlotElementSelection.fromJson(selection.toJson());
+    expect(back.appliedPackIds, ['pe_pack_a']);
+    expect(back.withToggle('b', selected: true).appliedPackIds, ['pe_pack_a']);
+    expect(
+      PlotElementSelection.fromJson(const <String, dynamic>{
+        'selectedIds': ['a'],
+      }).appliedPackIds,
+      isEmpty,
+    );
+    expect(back.hasPack('pe_pack_a'), isTrue);
+    expect(back.withPackApplied('pe_pack_a', applied: false).appliedPackIds, isEmpty);
+  });
 }

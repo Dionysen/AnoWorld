@@ -165,6 +165,100 @@ class PlotElementCatalog {
     return upsertPack(pack.copyWith(name: name));
   }
 
+  /// Applied packs that still exist in the library, in recorded order.
+  List<PlotElementPack> appliedPacks(Iterable<String> appliedPackIds) {
+    final out = <PlotElementPack>[];
+    for (final id in appliedPackIds) {
+      final pack = _packById[id];
+      if (pack != null && !out.contains(pack)) out.add(pack);
+    }
+    return List.unmodifiable(out);
+  }
+
+  /// Every element id covered by [appliedPackIds] (union of their members).
+  Set<String> coveredIds(Iterable<String> appliedPackIds) => <String>{
+    for (final pack in appliedPacks(appliedPackIds))
+      for (final element in elementsOfPack(pack)) element.id,
+  };
+
+  /// Simulates switching [pack] on without mutating any selection.
+  PackApplyPlan planPackApply(
+    PlotElementPack pack,
+    PlotElementSelection selection,
+  ) {
+    final selected = selection.selectedIds.toSet();
+    final owners = _packOwners(selection.appliedPackIds, exceptId: pack.id);
+    final added = <String>[];
+    final manual = <String>[];
+    final overlapped = <String>[];
+    final names = <String>[];
+    for (final element in elementsOfPack(pack)) {
+      if (!selected.contains(element.id)) {
+        added.add(element.id);
+        continue;
+      }
+      final sources = owners[element.id];
+      if (sources == null) {
+        manual.add(element.id);
+        continue;
+      }
+      overlapped.add(element.id);
+      for (final name in sources) {
+        if (!names.contains(name)) names.add(name);
+      }
+    }
+    return PackApplyPlan(
+      addedIds: List.unmodifiable(added),
+      manualSharedIds: List.unmodifiable(manual),
+      overlappedIds: List.unmodifiable(overlapped),
+      overlapNames: List.unmodifiable(names),
+    );
+  }
+
+  /// Simulates switching [pack] off: ids other applied packs still need stay.
+  PackRemovePlan planPackRemove(
+    PlotElementPack pack,
+    PlotElementSelection selection,
+  ) {
+    final selected = selection.selectedIds.toSet();
+    final owners = _packOwners(selection.appliedPackIds, exceptId: pack.id);
+    final removed = <String>[];
+    final kept = <String>[];
+    final names = <String>[];
+    for (final element in elementsOfPack(pack)) {
+      if (!selected.contains(element.id)) continue;
+      final sources = owners[element.id];
+      if (sources == null) {
+        removed.add(element.id);
+        continue;
+      }
+      kept.add(element.id);
+      for (final name in sources) {
+        if (!names.contains(name)) names.add(name);
+      }
+    }
+    return PackRemovePlan(
+      removedIds: List.unmodifiable(removed),
+      keptIds: List.unmodifiable(kept),
+      keptByNames: List.unmodifiable(names),
+    );
+  }
+
+  /// element id → names of the packs covering it, ignoring [exceptId].
+  Map<String, List<String>> _packOwners(
+    Iterable<String> appliedPackIds, {
+    required String exceptId,
+  }) {
+    final owners = <String, List<String>>{};
+    for (final pack in appliedPacks(appliedPackIds)) {
+      if (pack.id == exceptId) continue;
+      for (final element in elementsOfPack(pack)) {
+        (owners[element.id] ??= <String>[]).add(pack.name);
+      }
+    }
+    return owners;
+  }
+
   /// Resolve selected story ids to elements (skip missing).
   List<PlotElement> resolveSelected(Iterable<String> ids) {
     final out = <PlotElement>[];

@@ -87,27 +87,43 @@ class PlotElementOverride {
 
 /// Per-story selection of global plot-element ids.
 class PlotElementSelection {
-  const PlotElementSelection({this.selectedIds = const <String>[]});
+  const PlotElementSelection({
+    this.selectedIds = const <String>[],
+    this.appliedPackIds = const <String>[],
+  });
 
   final List<String> selectedIds;
+
+  /// Packs the user switched on; used to know which selected ids a pack owns.
+  final List<String> appliedPackIds;
 
   bool get isEmpty => selectedIds.isEmpty;
 
   int get count => selectedIds.length;
 
+  bool hasPack(String packId) => appliedPackIds.contains(packId);
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'selectedIds': selectedIds,
+    if (appliedPackIds.isNotEmpty) 'appliedPackIds': appliedPackIds,
   };
 
   factory PlotElementSelection.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const PlotElementSelection();
     return PlotElementSelection(
       selectedIds: json.stringList('selectedIds', required: false),
+      appliedPackIds: json.stringList('appliedPackIds', required: false),
     );
   }
 
-  PlotElementSelection copyWith({List<String>? selectedIds}) {
-    return PlotElementSelection(selectedIds: selectedIds ?? this.selectedIds);
+  PlotElementSelection copyWith({
+    List<String>? selectedIds,
+    List<String>? appliedPackIds,
+  }) {
+    return PlotElementSelection(
+      selectedIds: selectedIds ?? this.selectedIds,
+      appliedPackIds: appliedPackIds ?? this.appliedPackIds,
+    );
   }
 
   PlotElementSelection withToggle(String id, {required bool selected}) {
@@ -117,7 +133,10 @@ class PlotElementSelection {
     } else {
       next.remove(id);
     }
-    return PlotElementSelection(selectedIds: List.unmodifiable(next));
+    return PlotElementSelection(
+      selectedIds: List.unmodifiable(next),
+      appliedPackIds: appliedPackIds,
+    );
   }
 
   /// Applies (or clears) a whole set of ids at once, e.g. a plot-element pack.
@@ -135,6 +154,25 @@ class PlotElementSelection {
     } else {
       next.removeWhere(targets.contains);
     }
-    return PlotElementSelection(selectedIds: List.unmodifiable(next));
+    return PlotElementSelection(
+      selectedIds: List.unmodifiable(next),
+      appliedPackIds: appliedPackIds,
+    );
+  }
+
+  /// Marks [packId] as switched on/off without touching the element ids.
+  PlotElementSelection withPackApplied(
+    String packId, {
+    required bool applied,
+  }) {
+    final current = appliedPackIds.contains(packId);
+    if (current == applied) return this;
+    final next = appliedPackIds.toList(growable: true);
+    if (applied) {
+      next.add(packId);
+    } else {
+      next.remove(packId);
+    }
+    return copyWith(appliedPackIds: List.unmodifiable(next));
   }
 }

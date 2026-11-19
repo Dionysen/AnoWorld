@@ -142,5 +142,132 @@ void main() {
     );
     expect(find.text('已选 2'), findsOneWidget);
     expect(find.text('已选 2 / 2 条'), findsOneWidget);
+    expect(saved.plotElements.appliedPackIds, ['pe_pack_pick']);
+  });
+
+  testWidgets('applying a pack over manual picks asks first', (tester) async {
+    final sample = const ProjectFactory()
+        .createRainNightSample(now: DateTime.utc(2026, 1, 5))
+        .copyWith(
+          plotElements: const PlotElementSelection(
+            selectedIds: <String>['pe_stray_cat'],
+          ),
+        );
+    final repo = MemoryProjectRepository(seed: {sample.meta.id: sample});
+    final settings = testSettingsController();
+    await settings.updatePlotElements(
+      settings.plotElements.upsertPack(
+        const PlotElementPack(
+          id: 'pe_pack_manual',
+          name: '雨夜包',
+          elementIds: ['pe_stray_cat', 'pe_shared_umbrella'],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        settings: settings,
+        projects: repo,
+        home: PlotElementsPickPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('包'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('雨夜包'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('「雨夜包」和已选元素有重叠'), findsOneWidget);
+    expect(find.textContaining('1 条你单独勾过'), findsOneWidget);
+    expect(find.textContaining('新增 1 条'), findsOneWidget);
+
+    // Dismissing leaves the story untouched.
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+    expect(
+      (await repo.open(sample.meta.id)).plotElements.selectedIds,
+      ['pe_stray_cat'],
+    );
+
+    await tester.tap(find.text('雨夜包'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('仍然应用'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.open(sample.meta.id);
+    expect(
+      saved.plotElements.selectedIds,
+      containsAll(<String>['pe_stray_cat', 'pe_shared_umbrella']),
+    );
+    expect(saved.plotElements.appliedPackIds, ['pe_pack_manual']);
+  });
+
+  testWidgets('removing one pack keeps ids another pack still covers', (
+    tester,
+  ) async {
+    final sample = const ProjectFactory()
+        .createRainNightSample(now: DateTime.utc(2026, 1, 6))
+        .copyWith(
+          plotElements: const PlotElementSelection(
+            selectedIds: <String>['pe_stray_cat', 'pe_lost_child'],
+            appliedPackIds: <String>['pe_pack_a'],
+          ),
+        );
+    final repo = MemoryProjectRepository(seed: {sample.meta.id: sample});
+    final settings = testSettingsController();
+    await settings.updatePlotElements(
+      settings.plotElements
+          .upsertPack(
+            const PlotElementPack(
+              id: 'pe_pack_a',
+              name: '甲包',
+              elementIds: ['pe_stray_cat'],
+            ),
+          )
+          .upsertPack(
+            const PlotElementPack(
+              id: 'pe_pack_b',
+              name: '乙包',
+              elementIds: ['pe_stray_cat'],
+            ),
+          ),
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        settings: settings,
+        projects: repo,
+        home: PlotElementsPickPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('包'));
+    await tester.pumpAndSettle();
+
+    // 乙包 shares 救助流浪猫 with the applied 甲包, so applying asks first.
+    await tester.tap(find.text('乙包'));
+    await tester.pumpAndSettle();
+    expect(find.text('「乙包」和已选元素有重叠'), findsOneWidget);
+    expect(find.textContaining('已被「甲包」用到'), findsOneWidget);
+    await tester.tap(find.text('仍然应用'));
+    await tester.pumpAndSettle();
+
+    // Turning 甲包 off keeps the shared row because 乙包 still needs it.
+    await tester.tap(find.text('甲包'));
+    await tester.pumpAndSettle();
+    expect(find.text('取消「甲包」？'), findsOneWidget);
+    expect(find.textContaining('1 条仍被「乙包」用到'), findsOneWidget);
+    await tester.tap(find.text('取消勾选'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.open(sample.meta.id);
+    expect(saved.plotElements.selectedIds, contains('pe_stray_cat'));
+    expect(saved.plotElements.appliedPackIds, ['pe_pack_b']);
   });
 }

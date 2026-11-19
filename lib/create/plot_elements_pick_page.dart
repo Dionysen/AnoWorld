@@ -6,6 +6,7 @@ import 'package:anoworld/domain/models/plot_element_pack.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
@@ -102,16 +103,50 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     _scheduleSave(current.plotElements.withToggle(id, selected: selected));
   }
 
-  /// Applies a pack as a whole: every element of it turns on (or off) at once.
-  void _togglePack(
+  /// Switches a pack on/off. Only that pack's own elements change; anything
+  /// shared with other applied packs or picked by hand is announced first.
+  Future<void> _togglePack(
     PlotElementCatalog catalog,
     PlotElementPack pack, {
     required bool selected,
-  }) {
+  }) async {
     final current = _project;
     if (current == null) return;
-    final ids = catalog.elementsOfPack(pack).map((e) => e.id);
-    _scheduleSave(current.plotElements.withIds(ids, selected: selected));
+    final selection = current.plotElements;
+    if (selected) {
+      final plan = catalog.planPackApply(pack, selection);
+      if (plan.isEmpty) return;
+      if (plan.needsConfirm) {
+        final confirmed = await showAppConfirmSheet(
+          context,
+          title: '「${pack.name}」和已选元素有重叠',
+          detail: describePackApplyImpact(plan),
+          confirmLabel: '仍然应用',
+        );
+        if (!confirmed || !mounted) return;
+      }
+      _scheduleSave(
+        selection
+            .withIds(plan.addedIds, selected: true)
+            .withPackApplied(pack.id, applied: true),
+      );
+      return;
+    }
+    final plan = catalog.planPackRemove(pack, selection);
+    if (plan.needsConfirm) {
+      final confirmed = await showAppConfirmSheet(
+        context,
+        title: '取消「${pack.name}」？',
+        detail: describePackRemoveImpact(plan),
+        confirmLabel: '取消勾选',
+      );
+      if (!confirmed || !mounted) return;
+    }
+    _scheduleSave(
+      selection
+          .withIds(plan.removedIds, selected: false)
+          .withPackApplied(pack.id, applied: false),
+    );
   }
 
   Future<void> _openLibrary() async {
@@ -169,22 +204,24 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
   Widget _packRow(
     PlotElementCatalog catalog,
     PlotElementPack pack,
-    List<String> selectedIds, {
+    PlotElementSelection selection, {
     bool showDivider = false,
   }) {
     final elements = catalog.elementsOfPack(pack);
-    final applied = elements.where((e) => selectedIds.contains(e.id)).length;
-    final allApplied = elements.isNotEmpty && applied == elements.length;
-    final subtitle = applied == 0
-        ? describePlotElementPack(catalog, pack)
-        : '已选 $applied / ${elements.length} 条';
+    final applied = elements
+        .where((e) => selection.selectedIds.contains(e.id))
+        .length;
+    final on = selection.hasPack(pack.id) && applied > 0;
+    final subtitle = on || applied > 0
+        ? '已选 $applied / ${elements.length} 条'
+        : describePlotElementPack(catalog, pack);
     return AppListTile(
       key: ValueKey(pack.id),
       title: pack.name,
       subtitle: subtitle,
       icon: Icons.inventory_2_outlined,
       trailing: AppSwitch(
-        value: allApplied,
+        value: on,
         onChanged: elements.isEmpty
             ? null
             : (value) => _togglePack(catalog, pack, selected: value),
@@ -192,7 +229,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
       showDivider: showDivider,
       onTap: elements.isEmpty
           ? null
-          : () => _togglePack(catalog, pack, selected: !allApplied),
+          : () => _togglePack(catalog, pack, selected: !on),
     );
   }
 
@@ -227,7 +264,8 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
         final catalog = settings.plotElements;
         final rows = catalog.effectiveList;
         final project = _project;
-        final selectedIds = project?.plotElements.selectedIds ?? const [];
+        final selection = project?.plotElements ?? const PlotElementSelection();
+        final selectedIds = selection.selectedIds;
         final selectedCount = selectedIds
             .where((id) => catalog.byId(id) != null)
             .length;
@@ -244,7 +282,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
               onPressed: _openLibrary,
             ),
           ],
-          body: _buildBody(catalog, rows, project, selectedIds),
+          body: _buildBody(catalog, rows, project, selection),
         );
       },
     );
@@ -254,8 +292,9 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     PlotElementCatalog catalog,
     List<PlotElement> rows,
     Project? project,
-    List<String> selectedIds,
+    PlotElementSelection selection,
   ) {
+    final selectedIds = selection.selectedIds;
     final header = <Widget>[
       AppUnderlineTabs<_PickTab>(
         value: _tab,
@@ -336,7 +375,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
         itemBuilder: (context, index) => _packRow(
           catalog,
           packs[index],
-          selectedIds,
+          selection,
           showDivider: index < packs.length - 1,
         ),
       );

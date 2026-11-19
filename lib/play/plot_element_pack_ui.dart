@@ -15,6 +15,26 @@ String describePlotElementPack(
   return '${elements.length} 条 · $preview$ellipsis';
 }
 
+/// Explains what switching a pack on changes; shown only when it overlaps.
+String describePackApplyImpact(PackApplyPlan plan) {
+  final names = plan.overlapNames.map((name) => '「$name」').join('');
+  return <String>[
+    if (plan.addedIds.isNotEmpty) '新增 ${plan.addedIds.length} 条',
+    if (plan.manualSharedIds.isNotEmpty)
+      '其中 ${plan.manualSharedIds.length} 条你单独勾过，会算作这个包的一部分；取消这个包时也会一起取消',
+    if (plan.overlappedIds.isNotEmpty)
+      '其中 ${plan.overlappedIds.length} 条已被$names用到，取消这个包时会保留',
+  ].join('；');
+}
+
+/// Explains what switching a pack off changes; shown only when ids stay kept.
+String describePackRemoveImpact(PackRemovePlan plan) {
+  final names = plan.keptByNames.map((name) => '「$name」').join('');
+  final kept = '${plan.keptIds.length} 条仍被$names用到，会保留';
+  if (plan.removedIds.isEmpty) return kept;
+  return '$kept；其余 ${plan.removedIds.length} 条会取消勾选';
+}
+
 /// Asks for a plot-element pack name; null when dismissed or left blank.
 Future<String?> askPlotElementPackName(
   BuildContext context, {
