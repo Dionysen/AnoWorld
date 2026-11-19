@@ -96,30 +96,25 @@ class WorksTabState extends State<WorksTab> {
 
   void _onDisplayChanged() => setState(() {});
 
-  void _setBrowsePath(List<String> next, {required bool forward}) {
-    setState(() {
-      _folderEnterForward = forward;
-      _browsePath
-        ..clear()
-        ..addAll(next);
-    });
+  void _applyBrowsePath(List<String> next, {required bool forward}) {
+    _folderEnterForward = forward;
+    _browsePath
+      ..clear()
+      ..addAll(next);
     widget.onBrowsePathChanged?.call(browsePath);
   }
 
-  void openFolder(String folderId) {
+  Future<void> openFolder(String folderId) async {
     widget.selection.exit();
-    _setBrowsePath([..._browsePath, folderId], forward: true);
-    reload();
+    await _navigateBrowse([..._browsePath, folderId], forward: true);
   }
 
-  void jumpBreadcrumb(int index) {
+  Future<void> jumpBreadcrumb(int index) async {
     widget.selection.exit();
-    if (index < 0) {
-      _setBrowsePath(const [], forward: false);
-    } else {
-      _setBrowsePath(_browsePath.take(index + 1).toList(), forward: false);
-    }
-    reload();
+    final next = index < 0
+        ? const <String>[]
+        : _browsePath.take(index + 1).toList(growable: false);
+    await _navigateBrowse(next, forward: false);
   }
 
   bool handleSystemBack() {
@@ -134,30 +129,72 @@ class WorksTabState extends State<WorksTab> {
     return false;
   }
 
-  Future<void> reload() async {
-    final projects = AppScope.projectsOf(context);
-    final folders = AppScope.foldersOf(context);
-    setState(() {
-      _loading = true;
-      _status = null;
-    });
+  /// Folder enter/exit: fetch first, then swap path + data in one frame so
+  /// [AnimatedSwitcher] can slide instead of being replaced by a loading flash.
+  Future<void> _navigateBrowse(
+    List<String> next, {
+    required bool forward,
+  }) async {
+    final folderId = next.isEmpty ? null : next.last;
     try {
-      final all = await projects.listProjects();
-      final folderId = browseFolderId;
-      final listed = await folders.listFolders(parentId: folderId);
-      final crumbs = folderId == null
-          ? const <ProjectFolder>[]
-          : await folders.breadcrumbs(folderId);
-      final membership = <String, String?>{};
-      for (final project in all) {
-        membership[project.id] = await folders.folderIdForProject(project.id);
-      }
+      final snap = await _fetchBrowse(folderId);
       if (!mounted) return;
       setState(() {
-        _allProjects = all;
-        _folders = listed;
-        _breadcrumbs = crumbs;
-        _membership = membership;
+        _applyBrowsePath(next, forward: forward);
+        _allProjects = snap.projects;
+        _folders = snap.folders;
+        _breadcrumbs = snap.breadcrumbs;
+        _membership = snap.membership;
+        _loading = false;
+        _status = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _status = '加载失败：$error');
+    }
+  }
+
+  Future<({
+    List<ProjectSummary> projects,
+    List<ProjectFolder> folders,
+    List<ProjectFolder> breadcrumbs,
+    Map<String, String?> membership,
+  })> _fetchBrowse(String? folderId) async {
+    final projects = AppScope.projectsOf(context);
+    final folders = AppScope.foldersOf(context);
+    final all = await projects.listProjects();
+    final listed = await folders.listFolders(parentId: folderId);
+    final crumbs = folderId == null
+        ? const <ProjectFolder>[]
+        : await folders.breadcrumbs(folderId);
+    final membership = <String, String?>{};
+    for (final project in all) {
+      membership[project.id] = await folders.folderIdForProject(project.id);
+    }
+    return (
+      projects: all,
+      folders: listed,
+      breadcrumbs: crumbs,
+      membership: membership,
+    );
+  }
+
+  Future<void> reload() async {
+    final blockList = _loading || _allProjects.isEmpty;
+    if (blockList) {
+      setState(() {
+        _loading = true;
+        _status = null;
+      });
+    }
+    try {
+      final snap = await _fetchBrowse(browseFolderId);
+      if (!mounted) return;
+      setState(() {
+        _allProjects = snap.projects;
+        _folders = snap.folders;
+        _breadcrumbs = snap.breadcrumbs;
+        _membership = snap.membership;
         _loading = false;
       });
     } catch (error) {
@@ -378,9 +415,13 @@ class WorksTabState extends State<WorksTab> {
       await AppScope.foldersOf(context).deleteFolder(folder.id);
       if (_browsePath.contains(folder.id)) {
         final cut = _browsePath.indexOf(folder.id);
-        _setBrowsePath(_browsePath.take(cut).toList(), forward: false);
+        await _navigateBrowse(
+          _browsePath.take(cut).toList(growable: false),
+          forward: false,
+        );
+      } else {
+        await reload();
       }
-      await reload();
     } catch (error) {
       if (!mounted) return;
       setState(() => _status = '删除文件夹失败：$error');
@@ -435,9 +476,13 @@ class WorksTabState extends State<WorksTab> {
       await AppScope.foldersOf(context).dissolveFolder(folder.id);
       if (_browsePath.contains(folder.id)) {
         final cut = _browsePath.indexOf(folder.id);
-        _setBrowsePath(_browsePath.take(cut).toList(), forward: false);
+        await _navigateBrowse(
+          _browsePath.take(cut).toList(growable: false),
+          forward: false,
+        );
+      } else {
+        await reload();
       }
-      await reload();
     } catch (error) {
       if (!mounted) return;
       setState(() => _status = '解散失败：$error');
@@ -1118,7 +1163,8 @@ class WorksTabState extends State<WorksTab> {
                   switchOutCurve: Curves.easeInCubic,
                   layoutBuilder: (currentChild, previousChildren) {
                     return Stack(
-                      alignment: Alignment.topCenter,
+                      fit: StackFit.expand,
+                      clipBehavior: Clip.hardEdge,
                       children: [
                         ...previousChildren,
                         ?currentChild,
@@ -1126,19 +1172,36 @@ class WorksTabState extends State<WorksTab> {
                     );
                   },
                   transitionBuilder: (child, animation) {
-                    final offset = Tween<Offset>(
-                      begin: Offset(_folderEnterForward ? 0.12 : -0.12, 0),
-                      end: Offset.zero,
-                    ).animate(animation);
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(position: offset, child: child),
+                    // Flutter AnimatedSwitcher reverses the *controller* for
+                    // outgoing children (no ReverseAnimation wrapper). Detect
+                    // incoming vs outgoing by matching the current path key.
+                    final currentKey = ValueKey<String>('browse-$pathKey');
+                    final incoming = child.key == currentKey;
+                    final Offset begin;
+                    if (_folderEnterForward) {
+                      // Enter folder: old ← left, new from right.
+                      begin = incoming
+                          ? const Offset(1, 0)
+                          : const Offset(-1, 0);
+                    } else {
+                      // Leave folder: old → right, new from left.
+                      begin = incoming
+                          ? const Offset(-1, 0)
+                          : const Offset(1, 0);
+                    }
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: begin,
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: ColoredBox(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: child,
+                      ),
                     );
                   },
                   child: KeyedSubtree(
-                    key: ValueKey(
-                      'browse-$pathKey-${AppScope.libraryDisplayOf(context).prefs.viewMode.name}',
-                    ),
+                    key: ValueKey<String>('browse-$pathKey'),
                     child: _browseList(
                       folders: folders,
                       projects: projects,
