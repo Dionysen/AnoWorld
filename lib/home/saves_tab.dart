@@ -10,6 +10,7 @@ import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_search_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/library_selection.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/play_session_page.dart';
@@ -122,9 +123,7 @@ class SavesTabState extends State<SavesTab> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法继续：$error')),
-      );
+      showAppToast(context, '无法继续：$error');
     }
   }
 

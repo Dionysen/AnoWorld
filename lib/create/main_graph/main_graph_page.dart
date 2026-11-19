@@ -32,6 +32,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -670,9 +671,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   }
 
   void _tipAddOutput() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('拖到下一站左侧插头，就能连上')),
-    );
+    showAppToast(context, '拖到下一站左侧插头，就能连上');
   }
 
   Widget _buildCanvas(MainStory main) {

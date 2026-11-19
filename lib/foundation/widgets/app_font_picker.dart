@@ -10,6 +10,7 @@ import 'app_section_header.dart';
 import 'app_sheet.dart';
 import 'app_text.dart';
 import 'app_text_field.dart';
+import 'app_toast.dart';
 
 /// Font picker: system/imported list, search, and file import (NativeTavern-style).
 class AppFontPickerRow extends StatelessWidget {
@@ -47,8 +48,9 @@ class AppFontPickerRow extends StatelessWidget {
     if (path == null || path.isEmpty) return;
     final ok = await onImportPath(path);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? '字体已导入到应用字体库。' : '无法导入该字体文件。')),
+    showAppToast(
+      context,
+      ok ? '字体已导入到应用字体库' : '无法导入该字体文件',
     );
   }
 
@@ -164,15 +166,9 @@ class AppFontPickerRow extends StatelessWidget {
                                       }
                                       final ok = await onDeleteFont!(font);
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            ok
-                                                ? '已从应用字体库中移除。'
-                                                : '无法删除该字体。',
-                                          ),
-                                        ),
+                                      showAppToast(
+                                        context,
+                                        ok ? '已从应用字体库中移除' : '无法删除该字体',
                                       );
                                       if (ok) {
                                         Navigator.pop(context);

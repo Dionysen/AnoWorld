@@ -24,6 +24,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/play_mode_sheet.dart';
 import 'package:anoworld/play/play_session_page.dart';
@@ -116,9 +117,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     final dir = _projectDir;
     if (project == null) return;
     if (dir == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('当前故事还不能换封面')),
-      );
+      showAppToast(context, '当前故事还不能换封面');
       return;
     }
 
@@ -182,9 +181,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法更换封面：$error')),
-      );
+      showAppToast(context, '无法更换封面：$error');
     }
   }
 

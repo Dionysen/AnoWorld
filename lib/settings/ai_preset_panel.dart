@@ -11,6 +11,7 @@ import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/settings/ai_generation_settings_panel.dart';
 import 'package:anoworld/settings/prompt_manager_panel.dart';
 import 'package:file_picker/file_picker.dart';
@@ -53,9 +54,7 @@ class AiPresetPanel extends StatefulWidget {
 
 class _AiPresetPanelState extends State<AiPresetPanel> {
   void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    showAppToast(context, message);
   }
 
   Future<void> _openPresetPicker() async {

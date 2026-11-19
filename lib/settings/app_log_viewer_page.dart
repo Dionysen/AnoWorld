@@ -5,6 +5,7 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -75,9 +76,7 @@ class _AppLogViewerPageState extends State<AppLogViewerPage> {
   Future<void> _copyEntry(BuildContext context, AppLogEntry entry) async {
     await Clipboard.setData(ClipboardData(text: entry.fullText));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已复制')),
-    );
+    showAppToast(context, '已复制');
   }
 }
 

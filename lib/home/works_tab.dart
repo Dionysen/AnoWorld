@@ -18,6 +18,7 @@ import 'package:anoworld/foundation/widgets/app_prompt_dialog.dart';
 import 'package:anoworld/foundation/widgets/app_search_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/library_browse_views.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
@@ -827,9 +828,7 @@ class WorksTabState extends State<WorksTab> {
         stackTrace: stack,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法开始：$error')),
-      );
+      showAppToast(context, '无法开始：$error');
     }
   }
 

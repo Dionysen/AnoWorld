@@ -112,6 +112,18 @@ abstract final class AppTheme {
   /// Max width so sheets stay a clear layer on wide windows.
   static const double sheetMaxWidth = 400;
 
+  /// Top toast ([showAppToast]): gap below window/status chrome.
+  static const double toastTopGap = spaceSm;
+
+  /// Top toast max width (same band as sheets).
+  static const double toastMaxWidth = sheetMaxWidth;
+
+  /// Top toast resting time before auto-dismiss.
+  static const Duration toastDuration = Duration(milliseconds: 2400);
+
+  /// Soft lift so the toast reads above the page canvas.
+  static const double toastElevation = 6;
+
   /// [AppSheetSize.half] — about half the screen.
   static const double sheetHalfHeightFactor = 0.5;
 

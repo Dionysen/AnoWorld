@@ -10,6 +10,7 @@ import 'app_list_hairline.dart';
 import 'app_list_tile.dart';
 import 'app_page_gutter.dart';
 import 'app_text.dart';
+import 'app_toast.dart';
 
 /// Flat story-detail block: section header + hairline-separated entries.
 ///
@@ -226,9 +227,7 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
     if (text.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已复制：${widget.entry.copyLabel}')),
-    );
+    showAppToast(context, '已复制：${widget.entry.copyLabel}');
   }
 
   static const double _entryActionSize = 28;
