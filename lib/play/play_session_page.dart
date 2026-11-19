@@ -597,6 +597,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         session: session,
         plotCatalog: settings.plotElements,
         userAliases: _userAliases(),
+        minLines: settings.ai.minBridgeLines,
       );
       if (!mounted) return;
       setState(() {

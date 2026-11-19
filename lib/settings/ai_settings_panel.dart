@@ -10,6 +10,7 @@ import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
+import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
 import 'package:anoworld/settings/ai_model_picker.dart';
@@ -126,6 +127,31 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
                 await _persist(ai.switchImageKind(kind));
               },
               onChanged: (endpoint) => _persist(ai.withImage(endpoint)),
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            AppSectionHeader(
+              context.strings.vnDirectionSection,
+              gutter: true,
+            ),
+            AppPageGutter(
+              child: AppText(
+                context.strings.vnDirectionHint,
+                role: AppTextRole.caption,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceSm),
+            AppSlider(
+              label: context.strings.vnMinLinesLabel,
+              icon: Icons.movie_filter_outlined,
+              value: ai.minBridgeLines.toDouble(),
+              min: AiSettings.minBridgeLinesLowerBound.toDouble(),
+              max: AiSettings.minBridgeLinesUpperBound.toDouble(),
+              step: 1,
+              valueText: (v) =>
+                  context.strings.vnMinLinesValue(v.round()),
+              showDivider: false,
+              onChanged: (value) =>
+                  _persist(ai.copyWith(minBridgeLines: value.round())),
             ),
           ],
         );

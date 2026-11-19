@@ -31,6 +31,25 @@ class _ScriptedTextClient implements AiTextClient {
   }
 }
 
+/// Records the composed system prompt for assertions.
+class _RecordingTextClient implements AiTextClient {
+  _RecordingTextClient(this.reply, this.prompts);
+
+  final String reply;
+  final List<String> prompts;
+
+  @override
+  Future<AiTextCompletion> complete({
+    required AiTextEndpoint endpoint,
+    required String system,
+    required String user,
+    GenerationPreset? generation,
+  }) async {
+    prompts.add(system);
+    return AiTextCompletion(content: reply);
+  }
+}
+
 void main() {
   const endpoint = AiTextEndpoint(
     kind: AiTextProviderKind.openAiCompatible,
@@ -90,6 +109,63 @@ void main() {
     expect(beat.choices, hasLength(1));
     expect(beat.choices.single.text, '继续');
     expect(beat.choices.single.target.beatId, kBridgeStayBeatId);
+  });
+
+  test('minLines retries a short reply once', () async {
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient([
+      '{"lines":[{"speaker":"旁白","text":"只有一句。"}],"choices":[]}',
+      '{"lines":[{"speaker":"旁白","text":"一。"},'
+          '{"speaker":"旁白","text":"二。"},'
+          '{"speaker":"旁白","text":"三。"}],"choices":[]}',
+    ]);
+    final action = BridgeGenerateAction(textClient: client);
+    final beat = await action.generate(
+      ctx: ctx(),
+      project: blank,
+      nodeId: blank.main.startNodeId,
+      session: BridgeSession(nodeId: blank.main.startNodeId),
+      minLines: 3,
+    );
+    expect(client.calls, 2);
+    expect(beat.lines, hasLength(3));
+  });
+
+  test('minLines keeps the last short reply when retries run out', () async {
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient([
+      '{"lines":[{"speaker":"旁白","text":"短一。"}],"choices":[]}',
+      '{"lines":[{"speaker":"旁白","text":"短二。"}],"choices":[]}',
+    ]);
+    final action = BridgeGenerateAction(textClient: client);
+    final beat = await action.generate(
+      ctx: ctx(),
+      project: blank,
+      nodeId: blank.main.startNodeId,
+      session: BridgeSession(nodeId: blank.main.startNodeId),
+      minLines: 3,
+    );
+    expect(client.calls, 2);
+    expect(beat.lines.single.text, '短二。');
+  });
+
+  test('minLines appears in the task prompt', () async {
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final prompts = <String>[];
+    final client = _RecordingTextClient(
+      '{"lines":[{"speaker":"旁白","text":"一。"}],"choices":[]}',
+      prompts,
+    );
+    final action = BridgeGenerateAction(textClient: client);
+    await action.generate(
+      ctx: ctx(),
+      project: blank,
+      nodeId: blank.main.startNodeId,
+      session: BridgeSession(nodeId: blank.main.startNodeId),
+      minLines: 4,
+    );
+    expect(prompts.first, contains('至少 4 句'));
+    expect(prompts.first, isNot(contains('至少 1 句')));
   });
 
   test('speech lines keep plain text and map speakers', () async {

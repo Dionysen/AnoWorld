@@ -355,7 +355,16 @@ class AiSettings {
     this.textSlots = const <String, AiTextEndpoint>{},
     this.imageSlots = const <String, AiImageEndpoint>{},
     this.generation = const GenerationPreset(),
+    this.minBridgeLines = defaultMinBridgeLines,
   });
+
+  /// VN interval generation: minimum lines (dialogue + narration) per beat.
+  static const int defaultMinBridgeLines = 3;
+  static const int minBridgeLinesLowerBound = 1;
+  static const int minBridgeLinesUpperBound = 10;
+
+  static int clampMinBridgeLines(int value) =>
+      value.clamp(minBridgeLinesLowerBound, minBridgeLinesUpperBound);
 
   final AiTextEndpoint text;
   final AiImageEndpoint image;
@@ -365,12 +374,16 @@ class AiSettings {
   /// Active sampler params (from applied ST preset or manual tweaks).
   final GenerationPreset generation;
 
+  /// Asked of the model every VN beat; short outputs are retried once.
+  final int minBridgeLines;
+
   AiSettings copyWith({
     AiTextEndpoint? text,
     AiImageEndpoint? image,
     Map<String, AiTextEndpoint>? textSlots,
     Map<String, AiImageEndpoint>? imageSlots,
     GenerationPreset? generation,
+    int? minBridgeLines,
   }) {
     return AiSettings(
       text: text ?? this.text,
@@ -378,6 +391,9 @@ class AiSettings {
       textSlots: textSlots ?? this.textSlots,
       imageSlots: imageSlots ?? this.imageSlots,
       generation: generation ?? this.generation,
+      minBridgeLines: clampMinBridgeLines(
+        minBridgeLines ?? this.minBridgeLines,
+      ),
     );
   }
 
@@ -419,6 +435,7 @@ class AiSettings {
           for (final e in imageSlots.entries) e.key: e.value.toJson(),
         },
         'generation': generation.toJson(),
+        'minBridgeLines': minBridgeLines,
       };
 
   factory AiSettings.fromJson(Map<String, dynamic> json) {
@@ -431,6 +448,9 @@ class AiSettings {
       generation: genMap == null
           ? const GenerationPreset()
           : GenerationPreset.fromJson(genMap),
+      minBridgeLines: clampMinBridgeLines(
+        (json.optionalNum('minBridgeLines') ?? defaultMinBridgeLines).toInt(),
+      ),
     );
   }
 

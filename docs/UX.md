@@ -68,7 +68,7 @@
 
 - **外观**：**主题**分组含主题模式（点开抽屉选跟随系统/浅/深，行尾显示当前）、主题颜色 / 自定义颜色；**界面**分组含字体等。列表类抽屉卡片相对屏幕两侧内缩、限宽，默认半屏，**抽屉内列表行贴满卡片左右**；主题颜色行尾显示当前包名；自定义颜色含「保存为主题」「恢复默认」；字体可选系统默认 / 本机 / 导入；字体大小/圆角滑块。各项列表与滑块左侧有图标。改完立即作用到全局封装控件。视觉约定见 [Style.md](./Style.md)。
 - **AI**：写故事与生图分开选服务商（半屏浮层抽屉，标题与说明固定不随列表滚）。服务地址、密钥为整行列表项（左标题/说明，右显示当前值；密钥打码），点开抽屉编辑后保存；切换服务商会记住上次内容。能自动查找模型的，填好后会拉出列表；点「模型」选用，也可点「查找模型」。文本通道另有 **思考程度**（自动 / 最低 / 低 / 中 / 高 / 最高）。
-- **AI**（[`AiSettingsPanel`](../lib/settings/ai_settings_panel.dart)）：文本/生图 **服务地址、密钥、模型**；文本另有 **思考程度**（[`AiReasoningEffort`](../lib/domain/settings/ai_settings.dart)，请求时 OpenAI 用 `reasoning_effort`、OpenRouter 用 `reasoning.effort`）。写故事/游玩/分步创建走全局 [`AiPromptContext`](../lib/domain/ai/ai_prompt_context.dart)（预设 + 通用里的 Persona + 故事背景）。
+- **AI**（[`AiSettingsPanel`](../lib/settings/ai_settings_panel.dart)）：文本/生图 **服务地址、密钥、模型**；文本另有 **思考程度**（[`AiReasoningEffort`](../lib/domain/settings/ai_settings.dart)，请求时 OpenAI 用 `reasoning_effort`、OpenRouter 用 `reasoning.effort`）。下方 **视觉小说演出** 分组只有一项 **每段最少句数**（[`AiSettings.minBridgeLines`](../lib/domain/settings/ai_settings.dart)，默认 3，1–10）：每次生成至少写几句对白与叙述，写少了会自动重试一次。写故事/游玩/分步创建走全局 [`AiPromptContext`](../lib/domain/ai/ai_prompt_context.dart)（预设 + 通用里的 Persona + 故事背景）。
 - **预设 · 预设提示词**：与 ST 相同的段类型与 `prompt_order`；左侧拖动手柄可改顺序；可编辑段点进改文案，不可编辑段点进只读查看；游玩与创作拼装时用 **世界书**、**角色**当卡字段注入对应段（实现渐进对齐）。发送前如何拼成模型输入见 [PromptPipeline.md](./PromptPipeline.md)。
 - **玩家身份**：首页「我」点当前身份进入管理页（可建多套、点选当前、编辑/删除）；名字与简介参与 `{{user}}` 等宏。设置 → **通用**：Debug 构建下可见 **高级** → **诊断日志**（内存环形缓冲、`ListView` 懒加载；控制台同步输出），正式版不显示。
 - **宏 / 变量**：预设与世界书、角色、对白模板里的 `{{…}}` 按酒馆规则展开（含常用宏与变量语法，实现对照 NT）。
@@ -219,6 +219,7 @@
 5. **回退条**：对白框下方一排图标钮——**后退**（上一句）/ **前进**（已看过的下一句；已在最新进度时直接接着推进下一句，缺内容就现场生成）/ **快进**（连续重放已看过的内容，到最新进度自动停，再点变暂停）。没有可退/可进时对应钮灰掉。
 6. **历史保留**：时间线按「句」记录（[`PlayHistory`](../lib/domain/runtime/play_history.dart)），同一句的「刚读完 / 正在等选项 / 等待续写」只更新这一条，不额外占一步，所以后退总能落到真正不同的上一句；区间 AI 生成的拍全部留在本局 `BridgeSession.generatedBeats`（换站不丢）；存档写入 `history` + `historyCursor` + 当前 `lineIndex` / `phase`。回退后再选别的选项会从该点分叉，覆盖其后的旧记录；回退状态下点屏幕也按前进重放，不会误触发新生成。
 7. **总能继续**：有下一站时用「前往：某站」保底；无下一站时选项里可有 stay「继续 / 告一段落」，不会只剩「结束」占位。
+8. **一步多少句**：每拍句数由模型按提示词写，设置 → AI → **视觉小说演出 → 每段最少句数**（默认 3，1–10）规定下限；写少了自动重试一次。所以一次生成通常带来 3 步以上，点屏逐句推进。
 
 失败与重试：生成失败提示检查文案服务；不要静默吞掉进度。短状态/操作反馈（已复制、连线提示、导入结果等）用顶部居中 [`showAppToast`](../lib/foundation/widgets/app_toast.dart)（不可点，左/右滑可关掉），不用系统 SnackBar。
 

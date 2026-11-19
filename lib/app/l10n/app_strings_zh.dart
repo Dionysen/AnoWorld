@@ -846,6 +846,18 @@ class AppStringsZh extends AppStrings {
   String get historyFastForward => '快进';
 
   @override
+  String get vnDirectionSection => '视觉小说演出';
+
+  @override
+  String get vnDirectionHint => '模型每次写多少对白，会按这里的要求补齐';
+
+  @override
+  String get vnMinLinesLabel => '每段最少句数';
+
+  @override
+  String vnMinLinesValue(int lines) => '$lines 句';
+
+  @override
   String get scenePlaceholder => '场景';
 
   @override

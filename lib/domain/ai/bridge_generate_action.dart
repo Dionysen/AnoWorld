@@ -6,6 +6,7 @@ import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 
 /// Sentinel beat id for "stay in interval / generate again".
 const String kBridgeStayBeatId = '__stay__';
@@ -28,6 +29,7 @@ class BridgeGenerateAction {
     PlotElementCatalog? plotCatalog,
     int maxBeats = BridgeSession.defaultMaxBeats,
     List<String> userAliases = const <String>[],
+    int minLines = 1,
   }) async {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
@@ -57,7 +59,11 @@ class BridgeGenerateAction {
 
     // Open interval never force-converges to a next node.
     final forceConverge = !openMode && session.turnCount + 1 >= maxBeats;
-    final task = _taskBlock(forceConverge: forceConverge, openMode: openMode);
+    final task = _taskBlock(
+      forceConverge: forceConverge,
+      openMode: openMode,
+      minLines: minLines,
+    );
     final system = ctx.assembleSystem(
       project: project,
       plotCatalog: plotCatalog,
@@ -76,7 +82,6 @@ $nextStationBlock
 区间摘要：${session.summary}
 已生成拍数：${session.turnCount}/${openMode ? '∞' : maxBeats}
 请生成本站下一小段对白。''';
-
     String? lastError;
     var attemptUser = user;
     for (var attempt = 0; attempt <= maxFormatRetries; attempt++) {
@@ -88,7 +93,7 @@ $nextStationBlock
       ))
           .content;
       try {
-        return _parseBeat(
+        final beat = _parseBeat(
           raw,
           project: project,
           nodeId: nodeId,
@@ -98,6 +103,20 @@ $nextStationBlock
           openMode: openMode,
           userAliases: userAliases,
         );
+        if (beat.lines.length >= minLines) return beat;
+        lastError = '这次只写了 ${beat.lines.length} 句，至少要 $minLines 句';
+        if (attempt >= maxFormatRetries) {
+          AppLog.instance.warning(
+            '本拍句数不足，按当前结果继续：${beat.lines.length}/$minLines 句',
+            tag: 'play.vn',
+          );
+          return beat;
+        }
+        AppLog.instance.info(
+          '本拍句数不足，重试中：${beat.lines.length}/$minLines 句',
+          tag: 'play.vn',
+        );
+        attemptUser = '$user\n\n上次太短了：$lastError\n请补到至少 $minLines 句再输出。';
       } on BridgeMapException catch (error) {
         lastError = error.message;
         if (attempt >= maxFormatRetries) break;
@@ -158,7 +177,11 @@ $nextStationBlock
   static String _taskBlock({
     required bool forceConverge,
     required bool openMode,
+    required int minLines,
   }) {
+    final minLineRule = minLines > 1
+        ? '- lines 至少 $minLines 句（对白与叙述合计），每句单独一条。'
+        : '';
     if (openMode) {
       return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
 输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[{"text":"...","target":{...}}]}
@@ -167,6 +190,7 @@ $nextStationBlock
 - 角色开口：speaker 必须是角色列表里的名字，不能写成旁白。
 - 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）；不要把玩家写成角色列表外的路人。
 - 第三人称叙述：speaker 用「旁白」。
+$minLineRule
 本站开放续写：优先给继续选项 {"type":"beat","beatId":"$kBridgeStayBeatId"}；也可给 {"type":"end"} 告一段落。
 禁止发明情节站 nodeId。''';
     }
@@ -180,6 +204,7 @@ $nextStationBlock
 - 角色开口：speaker 必须是角色列表里的名字，不能写成旁白。
 - 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）。
 - 第三人称叙述：speaker 用「旁白」。
+$minLineRule
 $converge
 禁止发明不在合法下一站列表里的 nodeId。''';
   }

@@ -73,4 +73,29 @@ void main() {
       AiReasoningEffort.auto,
     );
   });
+
+  test('minBridgeLines defaults, clamps and round-trips', () {
+    expect(
+      const AiSettings().minBridgeLines,
+      AiSettings.defaultMinBridgeLines,
+    );
+    expect(
+      AiSettings.fromJson(<String, dynamic>{}).minBridgeLines,
+      AiSettings.defaultMinBridgeLines,
+    );
+
+    final clampedHigh = const AiSettings().copyWith(minBridgeLines: 99);
+    expect(clampedHigh.minBridgeLines, AiSettings.minBridgeLinesUpperBound);
+
+    final clampedLow = AiSettings.fromJson(<String, dynamic>{
+      'minBridgeLines': 0,
+    });
+    expect(clampedLow.minBridgeLines, AiSettings.minBridgeLinesLowerBound);
+
+    final restored = AiSettings.fromJson(<String, dynamic>{
+      'minBridgeLines': 5,
+    });
+    expect(restored.minBridgeLines, 5);
+    expect(restored.toJson()['minBridgeLines'], 5);
+  });
 }

@@ -286,6 +286,10 @@ abstract class AppStrings extends AppLocalizations {
   String get historyBack;
   String get historyForward;
   String get historyFastForward;
+  String get vnDirectionSection;
+  String get vnDirectionHint;
+  String get vnMinLinesLabel;
+  String vnMinLinesValue(int lines);
   String get scenePlaceholder;
   String get noBackgroundImage;
   String backgroundLabel(String id);
