@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../focus/app_keyboard.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_button.dart';
@@ -248,17 +249,18 @@ class _AppSheetDismissHostState extends State<AppSheetDismissHost> {
 
   Future<void> dismiss() async {
     final guard = _guard.value;
+    final sheetContext = widget.sheetContext;
     if (!guard.blockPop) {
       AppKeyboard.dismiss();
-      if (mounted) Navigator.of(widget.sheetContext).pop();
+      if (mounted && sheetContext.mounted) Navigator.of(sheetContext).pop();
       return;
     }
     final confirm = guard.confirmDiscard;
     if (confirm == null) return;
     final discard = await confirm();
-    if (discard && mounted) {
+    if (discard && mounted && sheetContext.mounted) {
       AppKeyboard.dismiss();
-      Navigator.of(widget.sheetContext).pop();
+      Navigator.of(sheetContext).pop();
     }
   }
 
@@ -774,7 +776,7 @@ class _AppSheetEditFormState extends State<AppSheetEditForm> {
                 child: AppText(widget.title, role: AppTextRole.subtitle),
               ),
               AppButton(
-                label: '保存',
+                label: context.ui.save,
                 variant: AppButtonVariant.ghost,
                 onPressed: widget.isDirty ? widget.onSave : null,
               ),
@@ -789,6 +791,7 @@ class _AppSheetEditFormState extends State<AppSheetEditForm> {
 
 /// Confirm discarding unsaved edits (compact sheet).
 Future<bool> showAppSheetDiscardEditsConfirm(BuildContext context) async {
+  final ui = context.ui;
   return await showAppSheet<bool>(
         context: context,
         size: AppSheetSize.compact,
@@ -804,21 +807,18 @@ Future<bool> showAppSheetDiscardEditsConfirm(BuildContext context) async {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const AppText('放弃这次修改？', role: AppTextRole.subtitle),
+                AppText(ui.discardEditsTitle, role: AppTextRole.subtitle),
                 const SizedBox(height: AppTheme.spaceSm),
-                const AppText(
-                  '还没保存的改动会丢掉',
-                  role: AppTextRole.caption,
-                ),
+                AppText(ui.discardEditsDetail, role: AppTextRole.caption),
                 const SizedBox(height: AppTheme.spaceMd),
                 AppButton(
-                  label: '继续编辑',
+                  label: ui.keepEditing,
                   expanded: true,
                   onPressed: () => Navigator.of(sheetContext).pop(false),
                 ),
                 const SizedBox(height: AppTheme.spaceSm),
                 AppButton(
-                  label: '放弃',
+                  label: ui.discard,
                   expanded: true,
                   variant: AppButtonVariant.ghost,
                   onPressed: () => Navigator.of(sheetContext).pop(true),

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:anoworld/app.dart';
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/folder/memory_project_folder_repository.dart';
@@ -103,6 +104,9 @@ Widget testScoped({
           theme: AppTheme.light(appearance),
           darkTheme: AppTheme.dark(appearance),
           themeMode: appearance.mode.material,
+          localizationsDelegates: AppStringsSetup.delegates,
+          supportedLocales: AppStringsSetup.supportedLocales,
+          localeResolutionCallback: AppStringsSetup.resolveLocale,
           builder: (context, child) =>
               ImmersiveFrame(child: child ?? const SizedBox.shrink()),
           home: home,

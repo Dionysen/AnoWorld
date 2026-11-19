@@ -65,3 +65,21 @@
 - 故事详情 [`AppDetailSection`](../lib/foundation/widgets/app_detail_section.dart)：扁平分区（无外卡）；标题行 icon+标题+编辑，可选 `subtitle` 一行小字（`caption`，最多两行）排在标题下方，用于条数与估算 token；分区 icon **上下居中在标题 + 副标题整块**上，编辑钮仍贴标题顶对齐；条目上下 `spaceInline`、底用 [`AppListHairline`](../lib/foundation/widgets/app_list_hairline.dart)；条内文案 `compactLabel` / `compactBody`，标签 `compactTag`（主色浅底 chip）。默认每区只建前 `initialVisibleCount`（**8**）行，超出用 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart)「还有 n 条」展开剩余；单条正文 `previewLines`（**3**），折叠时截断测量串。封面 16:9 横向贴边、直角无圆角；右上角圆形钮可更换图片（存 `assets/cover.*`，`ProjectMeta.coverPath`）。窄屏底栏胶囊高度/边距见 `AppLayout.bottomNav*`。
 
 通道没有实现时（测试、还没接上的窗口）仍显示页面顶栏，不画窗口按钮。
+
+## 界面文案与多语言
+
+界面字符串一律从 `context.strings` 取，组件里不新增中文字面量；已迁移的页面不再直接写中文。
+
+- 基础 chrome 契约：[`app_localizations.dart`](../lib/foundation/l10n/app_localizations.dart)（`cancel` / `save` / `delete` / `discardEditsTitle` 等通用词 + `AppLocalizationsDelegate` + 回退）。foundation 控件只依赖这一层，不 import 业务文案，目录可直接拷到新项目。
+- 产品文案契约：[`app_strings.dart`](../lib/app/l10n/app_strings.dart)（继承基础契约；`AppStringsSetup` 登记所有语言、`supportedLocales` 与 delegates）。中文实现：[`app_strings_zh.dart`](../lib/app/l10n/app_strings_zh.dart)。
+- 加语言：新建一个 `AppStrings` 子类实现全部 getter，再加入 `AppStringsSetup.translations`；漏实现任何一条都编译不过，编译器即翻译完整度清单。未注册 delegate 的测试环境（`test/support/test_app.dart` 之外的裸 `pumpWidget`）自动回退中文，不会抛错。
+- 带数量的文案用方法（如 `countLabel(n)`、`lastPlayed(kind, relative)`、`worldBookSize(entries, alwaysOn, tokens)`），不要在 widget 里拼句子；语言差异（语序、量词）留在实现文件里。
+- 布局枚举的用户可读名（布局模式、头像形状）由 [`library_display_labels.dart`](../lib/home/library_display_labels.dart) 从 `AppStrings` 取，枚举本身只留 `icon` / `next` 等无文案成员。
+- 文案风格仍按 `ui-copy`：面向用户、副标题不加句号、无实现腔。
+
+**不迁入文案表的内容**（属于数据或标识，不是界面 chrome）：内置剧情元素与分类种子、AI 提示词模板与工具描述、`AppLog` 日志、主题 token / 内置预设名称、系统字体名。这些若要本地化，另按「数据本地化」处理，不要塞进 `AppStrings`。
+
+**已迁移**：首页会话 / 故事分支、故事详情、创作入口与创作助手、剧情元素库 / 分类 / 包 / 编辑器、游玩模式选择、聊天设置、游玩会话页与聊天视图。
+**待迁移**（仍为字面量，按同一方式逐页替换）：设置各面板与子页、角色卡导入、分阶段创作、世界书 / 角色编辑器、情节图；以及枚举上的显示名（主题 token 与预设名、AI 供应商与思考程度、情节站种类）。
+
+未使用官方 ARB / `flutter gen-l10n`：仓库没有代码生成链路，且 `foundation/l10n` 需要保持可移植（生成类绑在 app 层，会让 foundation 反向依赖业务）。纯 Dart 契约换来编译期完整性检查、无生成步骤、改名可全局重构；接第三方翻译或需要 ICU 复数时再切 ARB，届时只需把 `AppStringsZh` 的文案搬进 `.arb`。

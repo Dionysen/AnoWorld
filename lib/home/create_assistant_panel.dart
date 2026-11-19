@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
@@ -118,6 +119,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   }
 
   Future<void> _pickStory() async {
+    final strings = context.strings;
     setState(() => _loadingStories = true);
     try {
       final repo = AppScope.projectsOf(context);
@@ -127,9 +129,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       if (list.isEmpty) {
         await showAppSheet<void>(
           context: context,
-          builder: (ctx) => const Padding(
-            padding: EdgeInsets.all(AppTheme.pagePadding),
-            child: AppEmptyState(message: '还没有故事，先去故事页新建'),
+          builder: (ctx) => Padding(
+            padding: const EdgeInsets.all(AppTheme.pagePadding),
+            child: AppEmptyState(message: strings.noStoriesYet),
           ),
         );
         return;
@@ -139,7 +141,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
         size: AppSheetSize.half,
         builder: (sheetCtx) => AppSheetScrollBody(
           children: [
-            const AppText('选择故事', role: AppTextRole.subtitle),
+            AppText(strings.pickStoryTitle, role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceSm),
             for (final p in list)
               AppListTile(
@@ -171,18 +173,19 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 
   void _send() {
     if (_generating) return;
+    final strings = context.strings;
     final text = _composer.text.trim();
     if (text.isEmpty) return;
     final projectId = _projectId;
     if (projectId == null) {
-      _reply('先在上面选一个故事，我才能读它的设定', user: text);
+      _reply(strings.assistantNeedsStory, user: text);
       return;
     }
     final settings = AppScope.settingsOf(context);
     final endpoint = settings.ai.text;
     if (!endpoint.isConfigured ||
         (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
-      _reply('先在设置里配好写故事的服务', user: text);
+      _reply(strings.assistantNeedsService, user: text);
       return;
     }
     final repo = AppScope.projectsOf(context);
@@ -194,9 +197,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       _lines.add(_AssistantLine(role: _LineRole.user, text: text));
       _pendingLine = _lines.length;
       _lines.add(
-        const _AssistantLine(
+        _AssistantLine(
           role: _LineRole.assistant,
-          text: '正在理顺走向…',
+          text: strings.assistantPending,
           pending: true,
         ),
       );
@@ -235,6 +238,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     required String projectId,
     required String prompt,
   }) async {
+    final strings = context.strings;
     try {
       final project = await repo.open(projectId);
       final result = await CreateAgentRunner().runSingle(
@@ -252,13 +256,13 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       if (!mounted) return;
       final preview = result.userConfirmPayload;
       if (!result.ok || preview == null) {
-        _finishTurn(result.errorMessage ?? '没写出来，换个说法再试');
+        _finishTurn(result.errorMessage ?? strings.assistantFailedRetry);
         return;
       }
       final graph = MainGraphDocument.decodeSkeleton(
         Map<String, dynamic>.from(preview['graph'] as Map),
       );
-      _finishTurn(_describeProposal(graph));
+      _finishTurn(_describeProposal(context, graph));
       final useIt = await _confirmGraph(project: project, graph: graph);
       if (!mounted || !useIt) {
         AppLog.instance.info('创作助手放弃这份情节', tag: 'create.assistant');
@@ -267,7 +271,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       await _applyGraph(repo: repo, project: project, graph: graph);
     } catch (error, stack) {
       if (!mounted) return;
-      _finishTurn('没写出来，稍后再试');
+      _finishTurn(strings.assistantFailedLater);
       AppLog.instance.error(
         '创作助手写情节失败',
         tag: 'create.assistant',
@@ -277,11 +281,12 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     }
   }
 
-  String _describeProposal(MainStory graph) {
-    final bits = <String>['${graph.nodes.length} 站'];
+  String _describeProposal(BuildContext context, MainStory graph) {
+    final strings = context.strings;
+    final bits = <String>[strings.stopCount(graph.nodes.length)];
     final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
-    if (branches > 0) bits.add('$branches 处岔路');
-    return '读了设定，理出 ${bits.join(' · ')}';
+    if (branches > 0) bits.add(strings.branchCount(branches));
+    return '${strings.proposalLead} ${bits.join(' · ')}';
   }
 
   /// Replaces the placeholder bubble with the outcome of this turn.
@@ -307,9 +312,10 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     required MainStory graph,
   }) async {
     if (!mounted) return false;
-    final bits = <String>['${graph.nodes.length} 站'];
+    final strings = context.strings;
+    final bits = <String>[strings.stopCount(graph.nodes.length)];
     final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
-    if (branches > 0) bits.add('$branches 处岔路');
+    if (branches > 0) bits.add(strings.branchCount(branches));
     final replacing = project.main.hasAuthoredNodes;
     final droppedBeats = project.main.beats.length;
 
@@ -319,29 +325,31 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       builder: (sheetContext) => AppSheetScrollBody(
         footer: [
           AppButton(
-            label: replacing ? '替换情节图' : '写入情节图',
+            label: replacing ? strings.replaceGraph : strings.writeGraph,
             expanded: true,
             onPressed: () => Navigator.of(sheetContext).pop(true),
           ),
           const SizedBox(height: AppTheme.spaceSm),
           AppButton(
-            label: '先不写',
+            label: strings.skipWrite,
             variant: AppButtonVariant.ghost,
             expanded: true,
             onPressed: () => Navigator.of(sheetContext).pop(false),
           ),
         ],
         children: [
-          const AppText('生成的情节', role: AppTextRole.subtitle),
+          AppText(strings.generatedPlotTitle, role: AppTextRole.subtitle),
           const SizedBox(height: AppTheme.spaceXs),
           AppText(bits.join(' · '), role: AppTextRole.caption),
           if (replacing) ...[
             const SizedBox(height: AppTheme.spaceXs),
             AppText(
               droppedBeats > 0
-                  ? '会替换现有的 ${project.main.nodes.length} 站，'
-                      '$droppedBeats 段剧情一起清掉'
-                  : '会替换现有的 ${project.main.nodes.length} 站',
+                  ? strings.replaceStopsWithBeats(
+                      project.main.nodes.length,
+                      droppedBeats,
+                    )
+                  : strings.replaceStops(project.main.nodes.length),
               role: AppTextRole.caption,
             ),
           ],
@@ -390,9 +398,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       if (!mounted) return;
       setState(() {
         _lines.add(
-          const _AssistantLine(
+          _AssistantLine(
             role: _LineRole.assistant,
-            text: '没能写进故事，稍后再试一次',
+            text: context.strings.assistantNoSave,
           ),
         );
       });
@@ -403,9 +411,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     AppScope.projectChangesOf(context).markChanged(project.meta.id);
     setState(() {
       _lines.add(
-        const _AssistantLine(
+        _AssistantLine(
           role: _LineRole.assistant,
-          text: '情节图写好了，可以在情节图里继续调整',
+          text: context.strings.assistantGraphSaved,
         ),
       );
     });
@@ -428,8 +436,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final storyLabel =
-        _projectTitle.trim().isEmpty ? '未选择' : _projectTitle.trim();
+    final storyLabel = _projectTitle.trim().isEmpty
+        ? context.strings.notSelected
+        : _projectTitle.trim();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -442,6 +451,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   }
 
   Widget _buildBody(BuildContext context, String storyLabel) {
+    final strings = context.strings;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -455,12 +465,12 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const AppText('创作助手', role: AppTextRole.subtitle),
+              AppText(strings.assistantTitle, role: AppTextRole.subtitle),
               const SizedBox(height: AppTheme.spaceSm),
               AppSelectField(
-                label: '当前故事',
+                label: strings.currentStory,
                 value: storyLabel,
-                hint: '点选故事',
+                hint: strings.pickStoryHint,
                 onTap: _loadingStories ? null : _pickStory,
               ),
             ],
@@ -474,18 +484,16 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
                   return const SizedBox.shrink();
                 }
                 if (constraints.maxHeight < 96) {
-                  return const Center(
+                  return Center(
                     child: AppText(
-                      '说说这段故事该怎么走',
+                      strings.assistantEmptyHint,
                       role: AppTextRole.caption,
                       textAlign: TextAlign.center,
                     ),
                   );
                 }
-                return const Center(
-                  child: AppEmptyState(
-                    message: '说说这段故事该怎么走',
-                  ),
+                return Center(
+                  child: AppEmptyState(message: strings.assistantEmptyHint),
                 );
               }
               return ListView.builder(
@@ -542,7 +550,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
           ),
           child: AppChatComposer(
             controller: _composer,
-            hintText: '想写出怎样的情节…',
+            hintText: strings.assistantComposerHint,
             isGenerating: _generating,
             onSend: _send,
           ),

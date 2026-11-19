@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -21,19 +22,28 @@ class PlotElementCategoryPage extends StatelessWidget {
 
   final String categoryId;
 
-  String _title(PlotElementCatalog catalog) => categoryId.isEmpty
-      ? PlotElementCatalog.uncategorizedLabel
+  String _title(BuildContext context, PlotElementCatalog catalog) =>
+      categoryId.isEmpty
+      ? context.strings.uncategorized
       : catalog.categoryNameOf(categoryId);
 
-  String _subtitle(PlotElementCatalog catalog) {
-    final count = catalog.elementsOfCategory(categoryId).length;
-    return count == 0 ? '还空着' : '$count 条';
+  String _preview(BuildContext context, PlotElement element) {
+    final text = element.clippedDescription;
+    if (text.isEmpty) return context.strings.noDescription;
+    return text.length > 48 ? '${text.substring(0, 48)}…' : text;
   }
 
-  String _preview(PlotElement element) {
-    final text = element.clippedDescription;
-    if (text.isEmpty) return '还没写描述';
-    return text.length > 48 ? '${text.substring(0, 48)}…' : text;
+  String _rowSubtitle(
+    BuildContext context,
+    PlotElementCatalog catalog,
+    PlotElement element,
+  ) {
+    final strings = context.strings;
+    final preview = _preview(context, element);
+    if (!catalog.isBuiltInId(element.id)) return preview;
+    return catalog.isModifiedBuiltIn(element.id)
+        ? '${strings.builtInEditedTag} · $preview'
+        : '${strings.builtInTag} · $preview';
   }
 
   Future<void> _edit(BuildContext context, {PlotElement? existing}) async {
@@ -57,19 +67,11 @@ class PlotElementCategoryPage extends StatelessWidget {
     final settings = AppScope.settingsOf(context);
     final name = await askPlotElementCategoryName(
       context,
-      title: '重命名分类',
+      title: context.strings.renameCategory,
       initialName: settings.plotElements.categoryNameOf(categoryId),
     );
     if (name == null || !context.mounted) return;
     await settings.renamePlotElementCategory(categoryId, name);
-  }
-
-  String _rowSubtitle(PlotElementCatalog catalog, PlotElement element) {
-    final preview = _preview(element);
-    if (!catalog.isBuiltInId(element.id)) return preview;
-    return catalog.isModifiedBuiltIn(element.id)
-        ? '默认 · 已改 · $preview'
-        : '默认 · $preview';
   }
 
   @override
@@ -78,22 +80,26 @@ class PlotElementCategoryPage extends StatelessWidget {
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) {
+        final strings = context.strings;
         final catalog = settings.plotElements;
         final rows = catalog.elementsOfCategory(categoryId);
         final header = <Widget>[
           AppPageGutter(
             child: Padding(
               padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
-              child: AppText(_subtitle(catalog), role: AppTextRole.caption),
+              child: AppText(
+                strings.countLabel(rows.length),
+                role: AppTextRole.caption,
+              ),
             ),
           ),
           if (rows.isEmpty)
             AppPageGutter(
               child: AppEmptyState(
-                message: '这个分类还空着',
-                detail: '加一条，或在编辑条目时改分类',
+                message: strings.categoryEmptyMessage,
+                detail: strings.categoryEmptyDetail,
                 action: AppButton(
-                  label: '加一条',
+                  label: strings.addOne,
                   onPressed: () => _edit(context),
                   variant: AppButtonVariant.secondary,
                 ),
@@ -101,18 +107,18 @@ class PlotElementCategoryPage extends StatelessWidget {
             ),
         ];
         return AppPage(
-          title: _title(catalog),
+          title: _title(context, catalog),
           onBack: () => Navigator.of(context).maybePop(),
           actions: [
             if (categoryId.isNotEmpty)
               AppIconButton(
                 icon: Icons.edit_outlined,
-                tooltip: '重命名分类',
+                tooltip: strings.renameCategory,
                 onPressed: () => _rename(context),
               ),
             AppCircleButton(
               icon: Icons.add,
-              tooltip: '加一条',
+              tooltip: strings.addOne,
               onPressed: () => _edit(context),
             ),
           ],
@@ -123,8 +129,8 @@ class PlotElementCategoryPage extends StatelessWidget {
               final row = rows[index];
               return AppListTile(
                 key: ValueKey(row.id),
-                title: row.keyword.isEmpty ? '未命名' : row.keyword,
-                subtitle: _rowSubtitle(catalog, row),
+                title: row.keyword.isEmpty ? strings.unnamed : row.keyword,
+                subtitle: _rowSubtitle(context, catalog, row),
                 icon: Icons.theater_comedy_outlined,
                 trailing: const AppForwardIcon(),
                 showDivider: index < rows.length - 1,

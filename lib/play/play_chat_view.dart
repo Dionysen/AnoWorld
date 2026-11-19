@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/foundation/theme/app_chat_chrome.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -148,6 +149,7 @@ class _PlayChatViewState extends State<PlayChatView> {
   }
 
   Widget _buildShell(BuildContext context, ChatUiSettings chatUi) {
+    final strings = context.strings;
     final empty = widget.messages.isEmpty &&
         !widget.isGenerating &&
         !_showChoices;
@@ -246,12 +248,15 @@ class _PlayChatViewState extends State<PlayChatView> {
                               _scrollToEnd();
                             },
                             customBorder: const StadiumBorder(),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 14,
                                 vertical: 8,
                               ),
-                              child: AppText('回到底部', role: AppTextRole.caption),
+                              child: AppText(
+                                strings.backToBottom,
+                                role: AppTextRole.caption,
+                              ),
                             ),
                           ),
                         ),
@@ -274,12 +279,12 @@ class _PlayChatViewState extends State<PlayChatView> {
                           leading: [
                             AppChatComposerIconButton(
                               icon: Icons.smart_toy_outlined,
-                              tooltip: '选择模型',
+                              tooltip: strings.chooseModel,
                               onPressed: widget.onPickModel,
                             ),
                             AppChatComposerIconButton(
                               icon: Icons.settings_outlined,
-                              tooltip: '聊天设置',
+                              tooltip: strings.chatSettingsTitle,
                               onPressed: widget.onOpenSettings,
                             ),
                           ],
@@ -312,6 +317,7 @@ class _ReplyChoicesBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.spaceSm),
@@ -321,13 +327,13 @@ class _ReplyChoicesBlock extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
-                child: AppText('回复选项', role: AppTextRole.caption),
+              Expanded(
+                child: AppText(strings.replyChoices, role: AppTextRole.caption),
               ),
               if (onRefresh != null)
                 AppChatComposerIconButton(
                   icon: Icons.refresh_rounded,
-                  tooltip: '换一批',
+                  tooltip: strings.refreshChoices,
                   onPressed: blocked ? null : onRefresh,
                 ),
             ],
@@ -383,7 +389,7 @@ class _EmptyChat extends StatelessWidget {
             const SizedBox(height: AppTheme.spaceMd),
             AppText(title, role: AppTextRole.subtitle, maxLines: 2),
             const SizedBox(height: AppTheme.spaceSm),
-            const AppText('开始对话', role: AppTextRole.caption),
+            AppText(context.strings.startChat, role: AppTextRole.caption),
           ],
         ),
       ),

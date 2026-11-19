@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/plot_element_pack.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
@@ -5,34 +6,42 @@ import 'package:flutter/material.dart';
 
 /// Row subtitle for a pack: element count plus a short keyword preview.
 String describePlotElementPack(
+  BuildContext context,
   PlotElementCatalog catalog,
   PlotElementPack pack,
 ) {
+  final strings = context.strings;
   final elements = catalog.elementsOfPack(pack);
-  if (elements.isEmpty) return '还空着';
-  final preview = elements.take(3).map((e) => e.keyword).join('、');
+  if (elements.isEmpty) return strings.countLabel(0);
+  final preview = elements
+      .take(3)
+      .map((element) => element.keyword)
+      .join(strings.listSeparator);
   final ellipsis = elements.length > 3 ? '…' : '';
-  return '${elements.length} 条 · $preview$ellipsis';
+  return strings.packSummary(elements.length, '$preview$ellipsis');
 }
 
 /// Explains what switching a pack on changes; shown only when it overlaps.
-String describePackApplyImpact(PackApplyPlan plan) {
-  final names = plan.overlapNames.map((name) => '「$name」').join('');
-  return <String>[
-    if (plan.addedIds.isNotEmpty) '新增 ${plan.addedIds.length} 条',
-    if (plan.manualSharedIds.isNotEmpty)
-      '其中 ${plan.manualSharedIds.length} 条你单独勾过，会算作这个包的一部分；取消这个包时也会一起取消',
-    if (plan.overlappedIds.isNotEmpty)
-      '其中 ${plan.overlappedIds.length} 条已被$names用到，取消这个包时会保留',
-  ].join('；');
+String describePackApplyImpact(BuildContext context, PackApplyPlan plan) {
+  return context.strings.packApplyImpact(
+    PackApplyPlanText(
+      addedCount: plan.addedIds.length,
+      manualSharedCount: plan.manualSharedIds.length,
+      overlappedCount: plan.overlappedIds.length,
+      overlapNames: plan.overlapNames,
+    ),
+  );
 }
 
 /// Explains what switching a pack off changes; shown only when ids stay kept.
-String describePackRemoveImpact(PackRemovePlan plan) {
-  final names = plan.keptByNames.map((name) => '「$name」').join('');
-  final kept = '${plan.keptIds.length} 条仍被$names用到，会保留';
-  if (plan.removedIds.isEmpty) return kept;
-  return '$kept；其余 ${plan.removedIds.length} 条会取消勾选';
+String describePackRemoveImpact(BuildContext context, PackRemovePlan plan) {
+  return context.strings.packRemoveImpact(
+    PackRemovePlanText(
+      removedCount: plan.removedIds.length,
+      keptCount: plan.keptIds.length,
+      keptByNames: plan.keptByNames,
+    ),
+  );
 }
 
 /// Asks for a plot-element pack name; null when dismissed or left blank.
@@ -45,7 +54,7 @@ Future<String?> askPlotElementPackName(
     context: context,
     title: title,
     initialValue: initialName,
-    hint: '雨夜悬疑、校园日常…',
+    hint: context.strings.packNameHint,
   );
   final trimmed = name?.trim() ?? '';
   return trimmed.isEmpty ? null : trimmed;

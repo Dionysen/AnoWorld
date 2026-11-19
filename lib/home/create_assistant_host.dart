@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
 import 'package:anoworld/home/create_assistant_bloom_shell.dart';
@@ -141,7 +142,7 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
                 child: AppBottomNavIconCapsule(
                   icon: Icons.auto_awesome_outlined,
                   selectedIcon: Icons.auto_awesome,
-                  tooltip: '创作助手',
+                  tooltip: context.strings.assistantTitle,
                   onPressed: _openBloom,
                 ),
               ),

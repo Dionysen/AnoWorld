@@ -20,15 +20,15 @@ class PlayChatMessage {
 
   factory PlayChatMessage.fromTavern(
     TavernChatMessage message, {
-    String? userLabel,
-    String? assistantLabel,
+    required String userLabel,
+    required String assistantLabel,
   }) {
     final isUser = message.role == TavernChatRole.user;
     return PlayChatMessage(
       id: message.id,
       text: message.content,
       isUser: isUser,
-      avatarLabel: isUser ? (userLabel ?? '我') : (assistantLabel ?? '角色'),
+      avatarLabel: isUser ? userLabel : assistantLabel,
       reasoning: isUser ? null : message.reasoning,
     );
   }

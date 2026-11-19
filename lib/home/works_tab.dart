@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/create_entry_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
@@ -20,6 +21,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/library_browse_views.dart';
+import 'package:anoworld/home/library_display_labels.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
@@ -151,7 +153,7 @@ class WorksTabState extends State<WorksTab> {
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '加载失败：$error');
+      setState(() => _status = context.strings.loadFailed(error));
     }
   }
 
@@ -202,7 +204,7 @@ class WorksTabState extends State<WorksTab> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _status = '加载失败：$error';
+        _status = context.strings.loadFailed(error);
       });
     }
   }
@@ -237,7 +239,9 @@ class WorksTabState extends State<WorksTab> {
     final folders = AppScope.foldersOf(context);
     final folderId = browseFolderId;
     try {
-      final project = await projects.create(title: '未命名故事');
+      final project = await projects.create(
+        title: context.strings.untitledStory,
+      );
       if (folderId != null) {
         await folders.moveProjects(
           projectIds: [project.meta.id],
@@ -248,7 +252,7 @@ class WorksTabState extends State<WorksTab> {
       await _openRoute(ProjectHubPage(projectId: project.meta.id));
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '新建失败：$error');
+      setState(() => _status = context.strings.createFailed(error));
     }
   }
 
@@ -278,7 +282,7 @@ class WorksTabState extends State<WorksTab> {
       await _openRoute(ProjectHubPage(projectId: sample.meta.id));
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '样例写入失败：$error');
+      setState(() => _status = context.strings.sampleWriteFailed(error));
     }
   }
 
@@ -300,19 +304,23 @@ class WorksTabState extends State<WorksTab> {
         );
       }
       if (!mounted) return;
-      setState(() => _status = '已导入「${project.meta.title}」');
+      setState(
+        () => _status = context.strings.importedStory(project.meta.title),
+      );
       await _openRoute(ProjectHubPage(projectId: project.meta.id));
     } on ProjectIoException catch (error) {
       if (!mounted) return;
       setState(() => _status = error.message);
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '导入失败：$error');
+      setState(() => _status = context.strings.importFailed(error));
     }
   }
 
-  static Future<String?> _defaultPickDirectory() {
-    return FilePicker.getDirectoryPath(dialogTitle: '选择 AnoWorld 故事包文件夹');
+  Future<String?> _defaultPickDirectory() {
+    return FilePicker.getDirectoryPath(
+      dialogTitle: context.strings.pickStoryFolderTitle,
+    );
   }
 
   Future<void> openCreateEntry(CreateEntryKind kind) {
@@ -327,15 +335,15 @@ class WorksTabState extends State<WorksTab> {
     return showAppPromptDialog(
       context,
       title: title,
-      label: '名称',
+      label: context.strings.nameLabel,
       initial: initial,
-      hint: '文件夹名称',
+      hint: context.strings.folderNameHint,
     );
   }
 
   Future<void> createFolder() async {
     widget.selection.exit();
-    final name = await _promptFolderName(title: '新建文件夹');
+    final name = await _promptFolderName(title: context.strings.newFolder);
     if (name == null || !mounted) return;
     try {
       await AppScope.foldersOf(context).createFolder(
@@ -345,13 +353,15 @@ class WorksTabState extends State<WorksTab> {
       await reload();
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '新建文件夹失败：$error');
+      setState(
+        () => _status = context.strings.createFolderFailed(error),
+      );
     }
   }
 
   Future<void> renameFolder(ProjectFolder folder) async {
     final name = await _promptFolderName(
-      title: '重命名文件夹',
+      title: context.strings.renameFolder,
       initial: folder.name,
     );
     if (name == null || !mounted) return;
@@ -363,11 +373,17 @@ class WorksTabState extends State<WorksTab> {
       await reload();
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '重命名失败：$error');
+      setState(() => _status = context.strings.renameFolderFailed(error));
     }
   }
 
-  Future<void> deleteFolder(ProjectFolder folder) async {
+  Future<bool> _confirmDanger({
+    required String title,
+    required String detail,
+    required String confirmLabel,
+    bool danger = true,
+  }) async {
+    final strings = context.strings;
     final confirmed = await showAppSheet<bool>(
       context: context,
       builder: (ctx) => Padding(
@@ -381,18 +397,15 @@ class WorksTabState extends State<WorksTab> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppText('删除「${folder.name}」？', role: AppTextRole.subtitle),
+            AppText(title, role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '里面的故事会回到上一层',
-              role: AppTextRole.caption,
-            ),
+            AppText(detail, role: AppTextRole.caption),
             const SizedBox(height: AppTheme.spaceMd),
             Row(
               children: [
                 Expanded(
                   child: AppButton(
-                    label: '取消',
+                    label: strings.cancel,
                     variant: AppButtonVariant.secondary,
                     onPressed: () => Navigator.of(ctx).pop(false),
                   ),
@@ -400,8 +413,10 @@ class WorksTabState extends State<WorksTab> {
                 const SizedBox(width: AppTheme.spaceSm),
                 Expanded(
                   child: AppButton(
-                    label: '删除',
-                    variant: AppButtonVariant.danger,
+                    label: confirmLabel,
+                    variant: danger
+                        ? AppButtonVariant.danger
+                        : AppButtonVariant.secondary,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
                 ),
@@ -410,6 +425,15 @@ class WorksTabState extends State<WorksTab> {
           ],
         ),
       ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> deleteFolder(ProjectFolder folder) async {
+    final confirmed = await _confirmDanger(
+      title: context.strings.deleteFolderTitle(folder.name),
+      detail: context.strings.deleteFolderDetail,
+      confirmLabel: context.strings.delete,
     );
     if (confirmed != true || !mounted) return;
     try {
@@ -425,52 +449,16 @@ class WorksTabState extends State<WorksTab> {
       }
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '删除文件夹失败：$error');
+      setState(() => _status = context.strings.deleteFolderFailed(error));
     }
   }
 
   Future<void> dissolveFolder(ProjectFolder folder) async {
-    final confirmed = await showAppSheet<bool>(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppText('解散「${folder.name}」？', role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '文件夹会去掉，内容留在上一层',
-              role: AppTextRole.caption,
-            ),
-            const SizedBox(height: AppTheme.spaceMd),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: '取消',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spaceSm),
-                Expanded(
-                  child: AppButton(
-                    label: '解散',
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    final confirmed = await _confirmDanger(
+      title: context.strings.dissolveFolderTitle(folder.name),
+      detail: context.strings.dissolveFolderDetail,
+      confirmLabel: context.strings.dissolve,
+      danger: false,
     );
     if (confirmed != true || !mounted) return;
     try {
@@ -486,57 +474,19 @@ class WorksTabState extends State<WorksTab> {
       }
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '解散失败：$error');
+      setState(() => _status = context.strings.dissolveFolderFailed(error));
     }
   }
 
   Future<void> deleteSelected() async {
     final ids = widget.selection.selectedIds.toList(growable: false);
     if (ids.isEmpty) return;
-    final confirmed = await showAppSheet<bool>(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppText('删除这 ${ids.length} 项？', role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '故事会彻底删掉，文件夹里的故事会回到上一层',
-              role: AppTextRole.caption,
-            ),
-            const SizedBox(height: AppTheme.spaceMd),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: '取消',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spaceSm),
-                Expanded(
-                  child: AppButton(
-                    label: '删除',
-                    variant: AppButtonVariant.danger,
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    final confirmed = await _confirmDanger(
+      title: context.strings.deleteItemsTitle(ids.length),
+      detail: context.strings.deleteItemsDetail,
+      confirmLabel: context.strings.delete,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     final projects = AppScope.projectsOf(context);
     final folders = AppScope.foldersOf(context);
     final saves = AppScope.savesOf(context);
@@ -557,6 +507,7 @@ class WorksTabState extends State<WorksTab> {
   Future<void> moveSelected() async {
     final ids = widget.selection.selectedIds.toList(growable: false);
     if (ids.isEmpty) return;
+    final strings = context.strings;
     final folders = AppScope.foldersOf(context);
     final allFolders = <ProjectFolder>[];
     Future<void> collect(String? parentId) async {
@@ -579,13 +530,15 @@ class WorksTabState extends State<WorksTab> {
           bottom: AppTheme.pagePadding,
         ),
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppTheme.pagePadding),
-            child: AppText('移到…', role: AppTextRole.subtitle),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.pagePadding,
+            ),
+            child: AppText(strings.moveToTitle, role: AppTextRole.subtitle),
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppListTile(
-            title: '全部故事',
+            title: strings.allStories,
             icon: Icons.home_outlined,
             onTap: () => Navigator.of(ctx).pop('__root__'),
           ),
@@ -627,7 +580,7 @@ class WorksTabState extends State<WorksTab> {
       await reload();
     } catch (error) {
       if (!mounted) return;
-      setState(() => _status = '移动失败：$error');
+      setState(() => _status = context.strings.moveFailed(error));
     }
   }
 
@@ -640,50 +593,12 @@ class WorksTabState extends State<WorksTab> {
   }
 
   Future<void> _deleteOneProject(String projectId) async {
-    final confirmed = await showAppSheet<bool>(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppText('删除这个故事？', role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '故事和对应存档都会删掉',
-              role: AppTextRole.caption,
-            ),
-            const SizedBox(height: AppTheme.spaceMd),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: '取消',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spaceSm),
-                Expanded(
-                  child: AppButton(
-                    label: '删除',
-                    variant: AppButtonVariant.danger,
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    final confirmed = await _confirmDanger(
+      title: context.strings.deleteStoryTitle,
+      detail: context.strings.deleteStoryDetail,
+      confirmLabel: context.strings.delete,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     AppLog.instance.info('删除故事：$projectId', tag: 'works.story');
     final saves = AppScope.savesOf(context);
     final folders = AppScope.foldersOf(context);
@@ -694,15 +609,16 @@ class WorksTabState extends State<WorksTab> {
     await reload();
   }
 
-  String _formatUpdated(DateTime updatedAt) {
+  String _formatUpdated(BuildContext context, DateTime updatedAt) {
     final local = updatedAt.toLocal();
     final y = local.year.toString().padLeft(4, '0');
     final m = local.month.toString().padLeft(2, '0');
     final d = local.day.toString().padLeft(2, '0');
-    return '更新 $y-$m-$d';
+    return context.strings.updatedOn('$y-$m-$d');
   }
 
   Future<void> _folderMenu(ProjectFolder folder) async {
+    final strings = context.strings;
     final action = await showAppSheet<String>(
       context: context,
       builder: (ctx) => Column(
@@ -711,22 +627,22 @@ class WorksTabState extends State<WorksTab> {
         children: [
           const SizedBox(height: AppTheme.spaceSm),
           AppListTile(
-            title: '打开',
+            title: strings.openAction,
             icon: Icons.folder_open_outlined,
             onTap: () => Navigator.of(ctx).pop('open'),
           ),
           AppListTile(
-            title: '重命名',
+            title: strings.renameAction,
             icon: Icons.drive_file_rename_outline,
             onTap: () => Navigator.of(ctx).pop('rename'),
           ),
           AppListTile(
-            title: '解散文件夹',
+            title: strings.dissolveFolderAction,
             icon: Icons.folder_off_outlined,
             onTap: () => Navigator.of(ctx).pop('dissolve'),
           ),
           AppListTile(
-            title: '删除文件夹',
+            title: strings.deleteFolderAction,
             icon: Icons.delete_outline,
             danger: true,
             showDivider: false,
@@ -750,6 +666,7 @@ class WorksTabState extends State<WorksTab> {
   }
 
   Future<void> _projectMenu(ProjectSummary project) async {
+    final strings = context.strings;
     final action = await showAppSheet<String>(
       context: context,
       builder: (ctx) => Column(
@@ -758,22 +675,22 @@ class WorksTabState extends State<WorksTab> {
         children: [
           const SizedBox(height: AppTheme.spaceSm),
           AppListTile(
-            title: '开始故事',
+            title: strings.playStory,
             icon: Icons.play_arrow_rounded,
             onTap: () => Navigator.of(ctx).pop('play'),
           ),
           AppListTile(
-            title: '查看故事',
+            title: strings.viewStory,
             icon: Icons.visibility_outlined,
             onTap: () => Navigator.of(ctx).pop('view'),
           ),
           AppListTile(
-            title: '编辑故事',
+            title: strings.editStory,
             icon: Icons.edit_note_outlined,
             onTap: () => Navigator.of(ctx).pop('edit'),
           ),
           AppListTile(
-            title: '删除故事',
+            title: strings.deleteStory,
             icon: Icons.delete_outline,
             danger: true,
             showDivider: false,
@@ -828,12 +745,13 @@ class WorksTabState extends State<WorksTab> {
         stackTrace: stack,
       );
       if (!mounted) return;
-      showAppToast(context, '无法开始：$error');
+      showAppToast(context, context.strings.cannotStart(error));
     }
   }
 
   Future<void> showViewModePicker() async {
     final display = AppScope.libraryDisplayOf(context);
+    final strings = context.strings;
     final current = display.prefs.viewMode;
     final scheme = Theme.of(context).colorScheme;
     final selected = await showAppSheet<LibraryViewMode>(
@@ -842,18 +760,18 @@ class WorksTabState extends State<WorksTab> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
               AppTheme.pagePadding,
               AppTheme.spaceSm,
               AppTheme.pagePadding,
               AppTheme.spaceMd,
             ),
-            child: AppText('显示方式', role: AppTextRole.subtitle),
+            child: AppText(strings.displayMode, role: AppTextRole.subtitle),
           ),
           for (final mode in LibraryViewMode.values)
             AppListTile(
-              title: mode.label,
+              title: libraryViewModeLabel(strings, mode),
               icon: mode.icon,
               selected: mode == current,
               trailing: mode == current
@@ -871,6 +789,7 @@ class WorksTabState extends State<WorksTab> {
 
   Future<void> showAvatarShapePicker() async {
     final display = AppScope.libraryDisplayOf(context);
+    final strings = context.strings;
     final current = display.prefs.avatarShape;
     final scheme = Theme.of(context).colorScheme;
     final selected = await showAppSheet<LibraryAvatarShape>(
@@ -879,18 +798,18 @@ class WorksTabState extends State<WorksTab> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
               AppTheme.pagePadding,
               AppTheme.spaceSm,
               AppTheme.pagePadding,
               AppTheme.spaceMd,
             ),
-            child: AppText('头像形状', role: AppTextRole.subtitle),
+            child: AppText(strings.avatarShape, role: AppTextRole.subtitle),
           ),
           for (final shape in LibraryAvatarShape.values)
             AppListTile(
-              title: shape.label,
+              title: libraryAvatarShapeLabel(strings, shape),
               icon: shape.icon,
               selected: shape == current,
               trailing: shape == current
@@ -916,8 +835,8 @@ class WorksTabState extends State<WorksTab> {
         child: Padding(
           padding: const EdgeInsets.all(AppTheme.pagePadding),
           child: AppEmptyState(
-            message: '没有匹配的故事',
-            detail: '换个关键词试试',
+            message: context.strings.noMatchingStories,
+            detail: context.strings.noMatchDetail,
           ),
         ),
       );
@@ -938,13 +857,14 @@ class WorksTabState extends State<WorksTab> {
             _openRoute(ProjectHubPage(projectId: project.id)),
         onFolderMenu: _folderMenu,
         onProjectMenu: _projectMenu,
-        formatUpdated: _formatUpdated,
+        formatUpdated: (updatedAt) => _formatUpdated(context, updatedAt),
         onCreate: selectionMode || searching ? null : showCreateSheet,
       ),
     );
   }
 
   Future<void> showCreateSheet() async {
+    final strings = context.strings;
     final action = await showAppSheet<String>(
       context: context,
       builder: (ctx) => Column(
@@ -953,37 +873,37 @@ class WorksTabState extends State<WorksTab> {
         children: [
           const SizedBox(height: AppTheme.spaceSm),
           AppListTile(
-            title: '新建空白故事',
+            title: strings.newBlankStory,
             icon: Icons.note_add_outlined,
             onTap: () => Navigator.of(ctx).pop('blank'),
           ),
           AppListTile(
-            title: '粘贴故事',
+            title: strings.pasteStory,
             icon: Icons.content_paste_outlined,
             onTap: () => Navigator.of(ctx).pop('novel'),
           ),
           AppListTile(
-            title: '分阶段提示词',
+            title: strings.stagedPrompts,
             icon: Icons.timeline_outlined,
             onTap: () => Navigator.of(ctx).pop('staged'),
           ),
           AppListTile(
-            title: '导入角色卡',
+            title: strings.importCard,
             icon: Icons.badge_outlined,
             onTap: () => Navigator.of(ctx).pop('card'),
           ),
           AppListTile(
-            title: '导入故事包',
+            title: strings.importStoryPack,
             icon: Icons.folder_zip_outlined,
             onTap: () => Navigator.of(ctx).pop('import'),
           ),
           AppListTile(
-            title: '新建文件夹',
+            title: strings.newFolder,
             icon: Icons.create_new_folder_outlined,
             onTap: () => Navigator.of(ctx).pop('folder'),
           ),
           AppListTile(
-            title: '试用「雨夜投宿」',
+            title: strings.trySampleStory,
             icon: Icons.auto_stories_outlined,
             showDivider: false,
             onTap: () => Navigator.of(ctx).pop('sample'),
@@ -1012,6 +932,7 @@ class WorksTabState extends State<WorksTab> {
   }
 
   Future<void> showMoreMenu() async {
+    final strings = context.strings;
     final display = AppScope.libraryDisplayOf(context).prefs;
     final action = await showAppSheet<String>(
       context: context,
@@ -1021,20 +942,20 @@ class WorksTabState extends State<WorksTab> {
         children: [
           const SizedBox(height: AppTheme.spaceSm),
           AppListTile(
-            title: '显示方式',
-            subtitle: display.viewMode.label,
+            title: strings.displayMode,
+            subtitle: libraryViewModeLabel(strings, display.viewMode),
             icon: display.viewMode.icon,
             onTap: () => Navigator.of(ctx).pop('view_mode'),
           ),
           if (display.viewMode == LibraryViewMode.list)
             AppListTile(
-              title: '头像形状',
-              subtitle: display.avatarShape.label,
+              title: strings.avatarShape,
+              subtitle: libraryAvatarShapeLabel(strings, display.avatarShape),
               icon: display.avatarShape.icon,
               onTap: () => Navigator.of(ctx).pop('avatar_shape'),
             ),
           AppListTile(
-            title: '多选',
+            title: strings.multiSelect,
             icon: Icons.checklist,
             showDivider: false,
             onTap: () => Navigator.of(ctx).pop('select'),
@@ -1056,6 +977,7 @@ class WorksTabState extends State<WorksTab> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final selectionMode = widget.selection.selectionMode;
     final folders = _visibleFolders;
     final projects = _visibleProjects;
@@ -1065,7 +987,7 @@ class WorksTabState extends State<WorksTab> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppSearchField(
-          hint: '搜索故事',
+          hint: strings.searchStoriesHint,
           controller: _searchController,
           onChanged: (value) {
             _searchDebounce?.cancel();
@@ -1093,7 +1015,7 @@ class WorksTabState extends State<WorksTab> {
                 if (selectionMode) ...[
                   AppIconButton(
                     icon: Icons.close,
-                    tooltip: '取消多选',
+                    tooltip: strings.exitSelection,
                     onPressed: () => widget.selection.exit(),
                   ),
                   const Spacer(),
@@ -1102,20 +1024,21 @@ class WorksTabState extends State<WorksTab> {
                       icon: widget.selection.hasSelection
                           ? Icons.deselect
                           : Icons.select_all,
-                      tooltip:
-                          widget.selection.hasSelection ? '取消全选' : '全选',
+                      tooltip: strings.selectAll(
+                        widget.selection.hasSelection,
+                      ),
                       onPressed: toggleSelectAllVisible,
                     ),
                     if (widget.selection.hasSelection)
                       AppIconButton(
                         icon: Icons.drive_file_move_outline,
-                        tooltip: '移到文件夹',
+                        tooltip: strings.moveToFolder,
                         onPressed: moveSelected,
                       ),
                     if (widget.selection.hasSelection)
                       AppIconButton(
                         icon: Icons.delete_outline,
-                        tooltip: '删除',
+                        tooltip: strings.delete,
                         danger: true,
                         onPressed: deleteSelected,
                       ),
@@ -1130,7 +1053,7 @@ class WorksTabState extends State<WorksTab> {
                   ),
                   AppIconButton(
                     icon: Icons.more_vert,
-                    tooltip: '故事选项',
+                    tooltip: strings.storyOptions,
                     onPressed: showMoreMenu,
                   ),
                 ],
@@ -1145,7 +1068,9 @@ class WorksTabState extends State<WorksTab> {
           ),
         Expanded(
           child: _loading
-              ? const Center(child: AppText('加载中…', role: AppTextRole.caption))
+              ? Center(
+                  child: AppText(strings.loading, role: AppTextRole.caption),
+                )
               : AnimatedSwitcher(
                   duration: const Duration(milliseconds: 280),
                   switchInCurve: Curves.easeOutCubic,
@@ -1236,7 +1161,7 @@ class _WorksBreadcrumb extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _BreadcrumbChip(
-            label: '故事',
+            label: context.strings.browseRoot,
             style: atRoot ? active : muted,
             filled: true,
             height: _chipHeight,

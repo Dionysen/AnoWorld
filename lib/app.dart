@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/folder/file_project_folder_repository.dart';
@@ -126,6 +127,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           return MaterialApp(
             title: 'AnoWorld',
             debugShowCheckedModeBanner: false,
+            localizationsDelegates: AppStringsSetup.delegates,
+            supportedLocales: AppStringsSetup.supportedLocales,
+            localeResolutionCallback: AppStringsSetup.resolveLocale,
             theme: AppTheme.light(appearance),
             darkTheme: AppTheme.dark(appearance),
             themeMode: appearance.mode.material,

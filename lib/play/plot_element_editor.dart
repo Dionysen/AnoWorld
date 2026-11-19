@@ -1,9 +1,9 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/expand_plot_element_description_action.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
-import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
@@ -98,13 +98,14 @@ Future<void> commitPlotElementEdit(
       }
     case PlotElementEditDelete():
       if (existing == null) return;
+      final strings = context.strings;
       final confirmed = await showAppConfirmSheet(
         context,
-        title: '删除这个剧情元素？',
+        title: strings.deleteElementTitle,
         detail: catalog.isBuiltInId(existing.id)
-            ? '可从菜单「全部恢复默认」再加回来'
-            : '删掉后无法恢复',
-        confirmLabel: '删除',
+            ? strings.deleteElementBuiltInDetail
+            : strings.deleteElementCustomDetail,
+        confirmLabel: strings.delete,
         danger: true,
       );
       if (!confirmed) return;
@@ -187,23 +188,24 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
 
   Future<void> _pickCategory() async {
     final settings = AppScope.settingsOf(context);
+    final strings = context.strings;
     final choice = await showAppSheet<_CategoryChoice>(
       context: context,
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
               AppTheme.pagePadding,
               AppTheme.spaceXs,
               AppTheme.pagePadding,
               0,
             ),
-            child: AppSectionHeader('分类'),
+            child: AppSectionHeader(strings.categoryLabel),
           ),
           AppListTile(
-            title: PlotElementCatalog.uncategorizedLabel,
+            title: strings.uncategorized,
             selected: _categoryId.isEmpty,
             onTap: () => Navigator.of(ctx).pop((categoryId: '', create: false)),
           ),
@@ -216,7 +218,7 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
                       .pop((categoryId: category.id, create: false)),
             ),
           AppListTile(
-            title: '新建分类',
+            title: strings.newCategory,
             icon: Icons.create_new_folder_outlined,
             showDivider: false,
             onTap: () =>
@@ -228,7 +230,10 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
     );
     if (choice == null || !mounted) return;
     if (choice.create) {
-      final name = await askPlotElementCategoryName(context, title: '新分类');
+      final name = await askPlotElementCategoryName(
+        context,
+        title: strings.newCategoryTitle,
+      );
       if (name == null || !mounted) return;
       final category = await settings.addPlotElementCategory(name);
       if (!mounted) return;
@@ -271,7 +276,7 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _aiError = '没写出来，请稍后再试';
+        _aiError = context.strings.generateFailed;
         _busy = false;
       });
     }
@@ -280,9 +285,12 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
   @override
   Widget build(BuildContext context) {
     final existing = widget.existing;
+    final strings = context.strings;
     final catalog = AppScope.settingsOf(context).plotElements;
     return AppSheetEditForm(
-      title: existing == null ? '新剧情元素' : '编辑剧情元素',
+      title: existing == null
+          ? strings.newElementTitle
+          : strings.editElementTitle,
       isDirty: _isDirty,
       onSave: _save,
       body: AppSheetScrollBody(
@@ -294,31 +302,31 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
         ),
         children: [
           AppTextField(
-            label: '关键词',
+            label: strings.keywordLabel,
             controller: _keyword,
-            hint: '救助流浪猫、雨夜共伞…',
+            hint: strings.keywordHint,
             autofocus: existing == null,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppSelectField(
-            label: '分类',
+            label: strings.categoryLabel,
             value: _categoryId.isEmpty
                 ? ''
                 : catalog.categoryNameOf(_categoryId),
-            hint: PlotElementCatalog.uncategorizedLabel,
+            hint: strings.uncategorized,
             onTap: _pickCategory,
           ),
           const SizedBox(height: AppTheme.spaceMd),
           AppTextField(
-            label: '描述',
+            label: strings.descriptionLabel,
             controller: _description,
             minLines: 4,
             maxLines: 8,
-            hint: '说明怎么用，再写一句示例剧情',
+            hint: strings.descriptionHint,
           ),
           const SizedBox(height: AppTheme.spaceSm),
           AppText(
-            '最多 $kPlotElementDescriptionMaxChars 字',
+            strings.maxChars(kPlotElementDescriptionMaxChars),
             role: AppTextRole.caption,
           ),
           if (_aiError != null) ...[
@@ -327,7 +335,9 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
           ],
           const SizedBox(height: AppTheme.spaceMd),
           AppButton(
-            label: _busy ? '正在写…' : '生成描述',
+            label: _busy
+                ? strings.generating
+                : strings.generateDescription,
             variant: AppButtonVariant.secondary,
             onPressed: _busy ? null : _generate,
           ),
@@ -335,7 +345,7 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
             const SizedBox(height: AppTheme.spaceMd),
             if (widget.isBuiltIn && widget.isModified)
               AppButton(
-                label: '恢复默认',
+                label: strings.restoreDefault,
                 variant: AppButtonVariant.secondary,
                 onPressed: _busy
                     ? null
@@ -346,7 +356,7 @@ class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
             if (widget.isBuiltIn && widget.isModified)
               const SizedBox(height: AppTheme.spaceSm),
             AppButton(
-              label: '删除',
+              label: strings.delete,
               variant: AppButtonVariant.danger,
               onPressed: _busy
                   ? null

@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -13,13 +14,14 @@ class PlayModesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     return AppPageBody.list(
       children: [
         AppListTileStack(
           tiles: [
             AppListTile(
-              title: '剧情元素',
-              subtitle: '全局库，给故事勾着用',
+              title: strings.plotElementsTitle,
+              subtitle: strings.plotElementsHubHint,
               icon: Icons.theater_comedy_outlined,
               trailing: const AppForwardIcon(),
               onTap: () => pushStoryRoute<void>(
@@ -28,8 +30,8 @@ class PlayModesTab extends StatelessWidget {
               ),
             ),
             AppListTile(
-              title: '预设',
-              subtitle: '输出风格、采样与提示词',
+              title: strings.aiPresetTitle,
+              subtitle: strings.aiPresetHubHint,
               icon: Icons.auto_awesome_outlined,
               trailing: const AppForwardIcon(),
               onTap: () => pushAppSlide(context, const AiPresetPage()),

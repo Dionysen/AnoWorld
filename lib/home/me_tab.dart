@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -24,6 +25,7 @@ class MeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
+    final strings = context.strings;
     return AppPageBody.list(
       children: [
         Padding(
@@ -37,7 +39,7 @@ class MeTab extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: AppIconButton(
               icon: Icons.settings_outlined,
-              tooltip: '设置',
+              tooltip: strings.settingsTitle,
               onPressed: () => _openSettings(context),
             ),
           ),
@@ -47,9 +49,14 @@ class MeTab extends StatelessWidget {
           builder: (context, _) {
             final persona = controller.activePersona;
             if (persona == null) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppTheme.pagePadding),
-                child: AppText('还没有身份', role: AppTextRole.caption),
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.pagePadding,
+                ),
+                child: AppText(
+                  strings.noPersonaYet,
+                  role: AppTextRole.caption,
+                ),
               );
             }
             return MeUserHeader(

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/plot_element_pack.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -113,15 +114,16 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     final current = _project;
     if (current == null) return;
     final selection = current.plotElements;
+    final strings = context.strings;
     if (selected) {
       final plan = catalog.planPackApply(pack, selection);
       if (plan.isEmpty) return;
       if (plan.needsConfirm) {
         final confirmed = await showAppConfirmSheet(
           context,
-          title: '「${pack.name}」和已选元素有重叠',
-          detail: describePackApplyImpact(plan),
-          confirmLabel: '仍然应用',
+          title: strings.packOverlapTitle(pack.name),
+          detail: describePackApplyImpact(context, plan),
+          confirmLabel: strings.applyAnyway,
         );
         if (!confirmed || !mounted) return;
       }
@@ -136,9 +138,9 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     if (plan.needsConfirm) {
       final confirmed = await showAppConfirmSheet(
         context,
-        title: '取消「${pack.name}」？',
-        detail: describePackRemoveImpact(plan),
-        confirmLabel: '取消勾选',
+        title: strings.packRemoveTitle(pack.name),
+        detail: describePackRemoveImpact(context, plan),
+        confirmLabel: strings.uncheck,
       );
       if (!confirmed || !mounted) return;
     }
@@ -163,7 +165,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
       context,
       _PickCategoryPage(
         title: categoryId.isEmpty
-            ? PlotElementCatalog.uncategorizedLabel
+            ? context.strings.uncategorized
             : catalog.categoryNameOf(categoryId),
         elements: elements,
         initialSelectedIds:
@@ -173,24 +175,24 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     );
   }
 
-  String _preview(PlotElement element) {
+  String _preview(BuildContext context, PlotElement element) {
     final text = element.clippedDescription;
-    if (text.isEmpty) return '还没写描述';
+    if (text.isEmpty) return context.strings.noDescription;
     return text.length > 48 ? '${text.substring(0, 48)}…' : text;
   }
 
-  String _countLabel(int count) => count == 0 ? '还空着' : '$count 条';
-
   Widget _elementRow(
+    BuildContext context,
     PlotElement element,
     List<String> selectedIds, {
     bool showDivider = false,
   }) {
+    final strings = context.strings;
     final selected = selectedIds.contains(element.id);
     return AppListTile(
       key: ValueKey(element.id),
-      title: element.keyword.isEmpty ? '未命名' : element.keyword,
-      subtitle: _preview(element),
+      title: element.keyword.isEmpty ? strings.unnamed : element.keyword,
+      subtitle: _preview(context, element),
       icon: Icons.theater_comedy_outlined,
       trailing: AppSwitch(
         value: selected,
@@ -202,19 +204,21 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
   }
 
   Widget _packRow(
+    BuildContext context,
     PlotElementCatalog catalog,
     PlotElementPack pack,
     PlotElementSelection selection, {
     bool showDivider = false,
   }) {
+    final strings = context.strings;
     final elements = catalog.elementsOfPack(pack);
     final applied = elements
         .where((e) => selection.selectedIds.contains(e.id))
         .length;
     final on = selection.hasPack(pack.id) && applied > 0;
     final subtitle = on || applied > 0
-        ? '已选 $applied / ${elements.length} 条'
-        : describePlotElementPack(catalog, pack);
+        ? strings.packAppliedCount(applied, elements.length)
+        : describePlotElementPack(context, catalog, pack);
     return AppListTile(
       key: ValueKey(pack.id),
       title: pack.name,
@@ -234,6 +238,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
   }
 
   List<({String id, String name, int count})> _categoryEntries(
+    BuildContext context,
     PlotElementCatalog catalog,
   ) {
     final entries = <({String id, String name, int count})>[
@@ -248,7 +253,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     if (uncategorizedCount > 0) {
       entries.add((
         id: '',
-        name: PlotElementCatalog.uncategorizedLabel,
+        name: context.strings.uncategorized,
         count: uncategorizedCount,
       ));
     }
@@ -261,6 +266,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) {
+        final strings = context.strings;
         final catalog = settings.plotElements;
         final rows = catalog.effectiveList;
         final project = _project;
@@ -271,51 +277,59 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
             .length;
 
         return AppPage(
-          title: '剧情元素',
+          title: strings.plotElementsTitle,
           onBack: () => Navigator.of(context).maybePop(),
           actions: [
             if (selectedCount > 0)
-              AppText('已选 $selectedCount', role: AppTextRole.caption),
+              AppText(
+                strings.selectedCount(selectedCount),
+                role: AppTextRole.caption,
+              ),
             AppIconButton(
               icon: Icons.library_books_outlined,
-              tooltip: '管理库',
+              tooltip: strings.manageLibrary,
               onPressed: _openLibrary,
             ),
           ],
-          body: _buildBody(catalog, rows, project, selection),
+          body: _buildBody(context, catalog, rows, project, selection),
         );
       },
     );
   }
 
   Widget _buildBody(
+    BuildContext context,
     PlotElementCatalog catalog,
     List<PlotElement> rows,
     Project? project,
     PlotElementSelection selection,
   ) {
+    final strings = context.strings;
     final selectedIds = selection.selectedIds;
     final header = <Widget>[
       AppUnderlineTabs<_PickTab>(
         value: _tab,
         onChanged: (value) => setState(() => _tab = value),
-        options: const [
-          AppSegmentOption(value: _PickTab.all, label: '全部'),
-          AppSegmentOption(value: _PickTab.categorized, label: '分类'),
-          AppSegmentOption(value: _PickTab.packs, label: '包'),
+        options: [
+          AppSegmentOption(value: _PickTab.all, label: strings.tabAll),
+          AppSegmentOption(
+            value: _PickTab.categorized,
+            label: strings.tabCategorized,
+          ),
+          AppSegmentOption(value: _PickTab.packs, label: strings.tabPacks),
         ],
       ),
       if (_loading)
-        const AppPageGutter(
-          child: AppText('加载中…', role: AppTextRole.caption),
+        AppPageGutter(
+          child: AppText(strings.loading, role: AppTextRole.caption),
         )
       else if (_error != null)
         AppPageGutter(
           child: AppEmptyState(
-            message: '无法打开故事',
+            message: strings.openStoryFailed,
             detail: _error.toString(),
             action: AppButton(
-              label: '重试',
+              label: strings.retry,
               onPressed: _load,
               variant: AppButtonVariant.secondary,
             ),
@@ -324,10 +338,10 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
       else if (project != null && rows.isEmpty)
         AppPageGutter(
           child: AppEmptyState(
-            message: '库里还没有剧情元素',
-            detail: '去玩法里管理库',
+            message: strings.libraryEmptyMessage,
+            detail: strings.libraryEmptyPickDetail,
             action: AppButton(
-              label: '去管理库',
+              label: strings.goManageLibrary,
               onPressed: _openLibrary,
               variant: AppButtonVariant.secondary,
             ),
@@ -347,6 +361,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
         header: header,
         itemCount: rows.length,
         itemBuilder: (context, index) => _elementRow(
+          context,
           rows[index],
           selectedIds,
           showDivider: index < rows.length - 1,
@@ -361,10 +376,10 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
           if (packs.isEmpty)
             AppPageGutter(
               child: AppEmptyState(
-                message: '还没有包',
-                detail: '去剧情元素库把常用元素打包',
+                message: strings.packsEmptyMessage,
+                detail: strings.packsEmptyPickDetail,
                 action: AppButton(
-                  label: '去管理库',
+                  label: strings.goManageLibrary,
                   onPressed: _openLibrary,
                   variant: AppButtonVariant.secondary,
                 ),
@@ -373,6 +388,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
         ],
         itemCount: packs.length,
         itemBuilder: (context, index) => _packRow(
+          context,
           catalog,
           packs[index],
           selection,
@@ -380,7 +396,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
         ),
       );
     }
-    final entries = _categoryEntries(catalog);
+    final entries = _categoryEntries(context, catalog);
     return AppPageLazyList(
       header: header,
       itemCount: entries.length,
@@ -388,7 +404,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
         final entry = entries[index];
         return AppListTile(
           title: entry.name,
-          subtitle: _countLabel(entry.count),
+          subtitle: strings.countLabel(entry.count),
           icon: entry.id.isEmpty ? Icons.label_outline : Icons.folder_outlined,
           trailing: const AppForwardIcon(),
           showDivider: index < entries.length - 1,
@@ -431,14 +447,15 @@ class _PickCategoryPageState extends State<_PickCategoryPage> {
     widget.onToggle(id, selected);
   }
 
-  String _preview(PlotElement element) {
+  String _preview(BuildContext context, PlotElement element) {
     final text = element.clippedDescription;
-    if (text.isEmpty) return '还没写描述';
+    if (text.isEmpty) return context.strings.noDescription;
     return text.length > 48 ? '${text.substring(0, 48)}…' : text;
   }
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final elements = widget.elements;
     if (elements.isEmpty) {
       return AppPage(
@@ -448,8 +465,8 @@ class _PickCategoryPageState extends State<_PickCategoryPage> {
           children: [
             AppPageGutter(
               child: AppEmptyState(
-                message: '这个分类还空着',
-                detail: '去玩法里把元素挪进来',
+                message: strings.categoryEmptyMessage,
+                detail: strings.categoryEmptyPickDetail,
               ),
             ),
           ],
@@ -465,8 +482,8 @@ class _PickCategoryPageState extends State<_PickCategoryPage> {
           final element = elements[index];
           return AppListTile(
             key: ValueKey(element.id),
-            title: element.keyword.isEmpty ? '未命名' : element.keyword,
-            subtitle: _preview(element),
+            title: element.keyword.isEmpty ? strings.unnamed : element.keyword,
+            subtitle: _preview(context, element),
             icon: Icons.theater_comedy_outlined,
             trailing: AppSwitch(
               value: _selected.contains(element.id),

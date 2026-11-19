@@ -37,13 +37,6 @@ extension LibraryViewModeX on LibraryViewMode {
         LibraryViewMode.grid => Icons.grid_view,
         LibraryViewMode.compactGrid => Icons.view_compact,
       };
-
-  String get label => switch (this) {
-        LibraryViewMode.list => '详细列表',
-        LibraryViewMode.simpleList => '简洁列表',
-        LibraryViewMode.grid => '网格',
-        LibraryViewMode.compactGrid => '紧凑网格',
-      };
 }
 
 extension LibraryAvatarShapeX on LibraryAvatarShape {
@@ -57,12 +50,6 @@ extension LibraryAvatarShapeX on LibraryAvatarShape {
         LibraryAvatarShape.circle => Icons.circle_outlined,
         LibraryAvatarShape.square => Icons.square_outlined,
         LibraryAvatarShape.rectangle => Icons.crop_portrait_outlined,
-      };
-
-  String get label => switch (this) {
-        LibraryAvatarShape.circle => '圆形头像',
-        LibraryAvatarShape.square => '方形头像',
-        LibraryAvatarShape.rectangle => '矩形头像',
       };
 }
 

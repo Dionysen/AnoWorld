@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
 import 'package:flutter/material.dart';
 
@@ -11,7 +12,7 @@ Future<String?> askPlotElementCategoryName(
     context: context,
     title: title,
     initialValue: initialName,
-    hint: '日常、情感、危机…',
+    hint: context.strings.categoryNameHint,
   );
   final trimmed = name?.trim() ?? '';
   return trimmed.isEmpty ? null : trimmed;

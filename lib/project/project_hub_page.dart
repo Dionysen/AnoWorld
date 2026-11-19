@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
@@ -143,7 +144,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     final dir = _projectDir;
     if (project == null) return;
     if (dir == null) {
-      showAppToast(context, '当前故事还不能换封面');
+      showAppToast(context, context.strings.cannotChangeCover);
       return;
     }
 
@@ -155,23 +156,23 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
                 AppTheme.pagePadding,
                 AppTheme.spaceXs,
                 AppTheme.pagePadding,
                 AppTheme.spaceSm,
               ),
-              child: AppSectionHeader('封面'),
+              child: AppSectionHeader(context.strings.coverSection),
             ),
             AppListTile(
-              title: '选择图片',
+              title: context.strings.chooseImage,
               icon: Icons.image_outlined,
               onTap: () => Navigator.pop(ctx, 'pick'),
             ),
             if (project.meta.coverPath != null)
               AppListTile(
-                title: '恢复默认',
+                title: context.strings.restoreDefault,
                 icon: Icons.hide_image_outlined,
                 onTap: () => Navigator.pop(ctx, 'clear'),
               ),
@@ -207,7 +208,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
       );
     } catch (error) {
       if (!mounted) return;
-      showAppToast(context, '无法更换封面：$error');
+      showAppToast(context, context.strings.coverFailed(error));
     }
   }
 
@@ -244,35 +245,46 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     if (entries.isEmpty) return const [];
     final always = entries.where((e) => e.alwaysOn);
     final keyed = entries.where((e) => !e.alwaysOn);
-    return [...always, ...keyed].map(_worldBookEntry).toList(growable: false);
+    return [...always, ...keyed]
+        .map((entry) => _worldBookEntry(context, entry))
+        .toList(growable: false);
   }
 
-  static AppDetailEntry _worldBookEntry(WorldBookEntry entry) {
+  static AppDetailEntry _worldBookEntry(
+    BuildContext context,
+    WorldBookEntry entry,
+  ) {
     final title = entry.title.trim();
     return AppDetailEntry(
-      title: title.isEmpty ? '未命名条目' : title,
-      tags: _worldBookTags(entry),
+      title: title.isEmpty ? context.strings.unnamedEntry : title,
+      tags: _worldBookTags(context, entry),
       body: entry.body.trim(),
     );
   }
 
-  static List<String> _worldBookTags(WorldBookEntry entry) {
-    if (entry.alwaysOn) return const <String>['常驻'];
-    if (entry.keys.isEmpty) return const <String>['按需'];
+  static List<String> _worldBookTags(
+    BuildContext context,
+    WorldBookEntry entry,
+  ) {
+    if (entry.alwaysOn) return <String>[context.strings.tagAlwaysOn];
+    if (entry.keys.isEmpty) return <String>[context.strings.tagOnDemand];
     return entry.keys;
   }
 
   List<AppDetailEntry> _castEntries(Project project) {
-    return project.cast.map(_castEntry).toList(growable: false);
+    return project.cast
+        .map((member) => _castEntry(context, member))
+        .toList(growable: false);
   }
 
-  static AppDetailEntry _castEntry(CastMember member) {
+  static AppDetailEntry _castEntry(BuildContext context, CastMember member) {
+    final strings = context.strings;
     final tags = <String>[
-      if (member.isProtagonist) '主角',
-      if (member.exampleLines.isNotEmpty) '示例对白',
+      if (member.isProtagonist) strings.tagProtagonist,
+      if (member.exampleLines.isNotEmpty) strings.tagExampleLines,
     ];
     return AppDetailEntry(
-      title: member.name.trim().isEmpty ? '未命名角色' : member.name.trim(),
+      title: member.name.trim().isEmpty ? strings.unnamedCast : member.name.trim(),
       tags: tags,
       body: _castEntryBody(member),
     );
@@ -302,8 +314,8 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     if (summary.isNotEmpty) {
       rows.add(
         AppDetailEntry(
-          title: '脉络摘要',
-          tags: const <String>['概要'],
+          title: context.strings.mainSummaryTitle,
+          tags: <String>[context.strings.tagSummary],
           body: summary,
         ),
       );
@@ -327,34 +339,31 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     );
   }
 
-  String _mainEmptyHint(Project project) {
+  String _mainEmptyHint(BuildContext context, Project project) {
     final nodes = project.main.nodes.length;
     final edges = project.main.edges.length;
-    if (nodes == 0) return '还没有大情节站';
-    return '$nodes 站 · $edges 条连线';
+    if (nodes == 0) return context.strings.noMainStations;
+    return context.strings.mainStops(nodes, edges);
   }
 
   /// Size lines sit under the section title; empty sections keep their hint.
   String? _worldBookSize(Project project, ProjectTokenEstimate? size) {
     if (size == null || project.worldBook.entries.isEmpty) return null;
-    return describeWorldBookSize(
-      entries: project.worldBook.entries.length,
-      alwaysOn: project.worldBook.entries.where((e) => e.alwaysOn).length,
-      tokens: size.worldBook,
+    return context.strings.worldBookSize(
+      project.worldBook.entries.length,
+      project.worldBook.entries.where((e) => e.alwaysOn).length,
+      size.worldBook,
     );
   }
 
   String? _castSize(Project project, ProjectTokenEstimate? size) {
     if (size == null || project.cast.isEmpty) return null;
-    return describeCastSize(members: project.cast.length, tokens: size.cast);
+    return context.strings.castSize(project.cast.length, size.cast);
   }
 
   String? _mainSize(Project project, ProjectTokenEstimate? size) {
     if (size == null || project.main.nodes.isEmpty) return null;
-    return describeMainSize(
-      nodes: project.main.nodes.length,
-      tokens: size.main,
-    );
+    return context.strings.mainSize(project.main.nodes.length, size.main);
   }
 
   String? _plotElementsSize(
@@ -366,10 +375,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     final selected =
         catalog.resolveSelected(project.plotElements.selectedIds).length;
     if (selected == 0) return null;
-    return describePlotElementsSize(
-      selected: selected,
-      tokens: size.plotElements,
-    );
+    return context.strings.plotElementsSize(selected, size.plotElements);
   }
   List<AppDetailEntry> _plotElementEntries(Project project) {
     final catalog = AppScope.settingsOf(context).plotElements;
@@ -377,9 +383,11 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     return rows
         .map(
           (e) => AppDetailEntry(
-            title: e.keyword.trim().isEmpty ? '未命名' : e.keyword.trim(),
+            title: e.keyword.trim().isEmpty
+                ? context.strings.unnamed
+                : e.keyword.trim(),
             tags: catalog.isBuiltInId(e.id)
-                ? const <String>['默认']
+                ? <String>[context.strings.builtInTag]
                 : const <String>[],
             body: e.clippedDescription,
           ),
@@ -428,7 +436,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
               right: AppTheme.spaceSm,
               child: AppCircleButton(
                 icon: Icons.photo_outlined,
-                tooltip: '更换封面',
+                tooltip: context.strings.changeCover,
                 onPressed: _changeCover,
               ),
             ),
@@ -445,11 +453,10 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     final size = project == null
         ? null
         : ProjectTokenEstimate.of(project, plotCatalog: catalog);
-    final title =
-        project?.meta.title.trim().isEmpty == true ||
-                project == null
-            ? '未命名故事'
-            : project.meta.title;
+    final title = project?.meta.title.trim().isEmpty == true ||
+            project == null
+        ? context.strings.untitledStory
+        : project.meta.title;
 
     final ready = project != null && !_loading && _error == null;
 
@@ -460,7 +467,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
           ? [
               AppCircleButton(
                 icon: Icons.edit_note_outlined,
-                tooltip: '继续创作',
+                tooltip: context.strings.continueCreating,
                 onPressed: _openCreateHub,
               ),
             ]
@@ -470,7 +477,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
               dimension: AppCircleButton.fabDiameter,
               child: AppCircleButton.fab(
                 icon: Icons.play_arrow_rounded,
-                tooltip: '开始游玩',
+                tooltip: context.strings.startPlaying,
                 onPressed: _play,
               ),
             )
@@ -478,16 +485,19 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
       body: AppPageBody.list(
         children: [
           if (_loading)
-            const AppPageGutter(
-              child: AppText('加载中…', role: AppTextRole.caption),
+            AppPageGutter(
+              child: AppText(
+                context.strings.loading,
+                role: AppTextRole.caption,
+              ),
             )
           else if (_error != null)
             AppPageGutter(
               child: AppEmptyState(
-                message: '无法打开故事',
+                message: context.strings.openStoryFailed,
                 detail: _error.toString(),
                 action: AppButton(
-                  label: '重试',
+                  label: context.strings.retry,
                   onPressed: _load,
                   variant: AppButtonVariant.secondary,
                 ),
@@ -500,44 +510,44 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             ),
             const SizedBox(height: AppTheme.spaceLg),
             AppDetailSection(
-              title: '世界书',
+              title: context.strings.worldBookTitle,
               icon: Icons.public_outlined,
               subtitle: _worldBookSize(project, size),
               entries: _worldBookEntries(project),
-              emptyHint: '还没有世界观与设定',
+              emptyHint: context.strings.worldBookEmpty,
               onEdit: () => _openEditor(
                 WorldBookEditorPage(projectId: widget.projectId),
               ),
             ),
             const SizedBox(height: AppTheme.spaceLg),
             AppDetailSection(
-              title: '角色',
+              title: context.strings.castTitle,
               icon: Icons.groups_outlined,
               subtitle: _castSize(project, size),
               entries: _castEntries(project),
-              emptyHint: '还没有角色',
+              emptyHint: context.strings.castEmpty,
               onEdit: () => _openEditor(
                 CastEditorPage(projectId: widget.projectId),
               ),
             ),
             const SizedBox(height: AppTheme.spaceLg),
             AppDetailSection(
-              title: '情节走向',
+              title: context.strings.mainTitle,
               icon: Icons.account_tree_outlined,
               subtitle: _mainSize(project, size),
               entries: _mainEntries(project),
-              emptyHint: _mainEmptyHint(project),
+              emptyHint: _mainEmptyHint(context, project),
               onEdit: () => _openEditor(
                 MainGraphPage(projectId: widget.projectId),
               ),
             ),
             const SizedBox(height: AppTheme.spaceLg),
             AppDetailSection(
-              title: '剧情元素',
+              title: context.strings.plotElementsTitle,
               icon: Icons.theater_comedy_outlined,
               subtitle: _plotElementsSize(project, size, catalog),
               entries: _plotElementEntries(project),
-              emptyHint: '还没选剧情元素',
+              emptyHint: context.strings.plotElementsEmpty,
               onEdit: () => _openEditor(
                 PlotElementsPickPage(projectId: widget.projectId),
               ),

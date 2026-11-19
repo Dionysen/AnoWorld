@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -102,7 +103,7 @@ class _HomePageState extends State<HomePage> {
             title: '',
             showTitle: false,
             body: AppNavShell(
-              destinations: homeNavItems,
+              destinations: homeNavItems(context.strings),
               selectedIndex: _tab.tabIndex,
               onDestinationSelected: _selectTab,
               railTopInset: 0,

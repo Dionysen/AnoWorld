@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/project_folder.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -65,12 +66,15 @@ class LibraryBrowseViews extends StatelessWidget {
 
   bool _isCreateIndex(int index) => _showCreate && index == _baseCount;
 
-  String _folderSubtitle(ProjectFolder folder) {
+  String _folderSubtitle(BuildContext context, ProjectFolder folder) {
+    final strings = context.strings;
     final parts = [
-      if (folder.childFolderCount > 0) '${folder.childFolderCount} 个文件夹',
-      if (folder.projectCount > 0) '${folder.projectCount} 个故事',
+      if (folder.childFolderCount > 0)
+        strings.folderCount(folder.childFolderCount),
+      if (folder.projectCount > 0)
+        strings.storyCount(folder.projectCount),
     ];
-    return parts.isEmpty ? '空文件夹' : parts.join(' · ');
+    return parts.isEmpty ? strings.emptyFolder : parts.join(' · ');
   }
 
   Widget _selectionOrAvatar(
@@ -185,13 +189,13 @@ class LibraryBrowseViews extends StatelessWidget {
     );
   }
 
-  Widget _moreOverlay(VoidCallback onPressed) {
+  Widget _moreOverlay(BuildContext context, VoidCallback onPressed) {
     return Positioned(
       top: 4,
       right: 4,
       child: AppIconButton(
         icon: Icons.more_vert,
-        tooltip: '更多',
+        tooltip: context.strings.more,
         onPressed: onPressed,
       ),
     );
@@ -244,7 +248,7 @@ class LibraryBrowseViews extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerLeft,
         child: Tooltip(
-          message: '添加',
+          message: context.strings.addAction,
           child: AppPressScale(
             child: Material(
               key: createControlKey,
@@ -296,7 +300,7 @@ class LibraryBrowseViews extends StatelessWidget {
           final selected = selection.isSelected(folder.id);
           return AppListTile(
             title: folder.name,
-            subtitle: _folderSubtitle(folder),
+            subtitle: _folderSubtitle(context, folder),
             selected: selectionMode && selected,
             leading: _selectionOrAvatar(
               context,
@@ -308,7 +312,7 @@ class LibraryBrowseViews extends StatelessWidget {
                 ? null
                 : AppIconButton(
                     icon: Icons.more_vert,
-                    tooltip: '更多',
+                    tooltip: context.strings.more,
                     onPressed: () => onFolderMenu(folder),
                   ),
             onTap: () => _onFolderTap(folder),
@@ -335,7 +339,7 @@ class LibraryBrowseViews extends StatelessWidget {
               ? null
               : AppIconButton(
                   icon: Icons.more_vert,
-                  tooltip: '更多',
+                  tooltip: context.strings.more,
                   onPressed: () => onProjectMenu(project),
                 ),
           onTap: () => _onProjectTap(project),
@@ -395,7 +399,7 @@ class LibraryBrowseViews extends StatelessWidget {
               ? null
               : AppIconButton(
                   icon: Icons.more_vert,
-                  tooltip: '更多',
+                  tooltip: context.strings.more,
                   onPressed: () => onProjectMenu(project),
                 ),
           onTap: () => _onProjectTap(project),
@@ -438,7 +442,7 @@ class LibraryBrowseViews extends StatelessWidget {
                   compact: compact,
                   cover: _createCover(context, compact: compact),
                   onTap: onCreate,
-                  semanticLabel: '添加',
+                  semanticLabel: context.strings.addAction,
                 ),
               );
             }
@@ -448,12 +452,12 @@ class LibraryBrowseViews extends StatelessWidget {
               return AppCoverTile(
                 compact: compact,
                 title: folder.name,
-                subtitle: _folderSubtitle(folder),
+                subtitle: _folderSubtitle(context, folder),
                 selected: selectionMode && selected,
                 cover: _folderCover(context, compact: compact),
                 overlay: selectionMode
                     ? _selectionBadge(context, selected)
-                    : _moreOverlay(() => onFolderMenu(folder)),
+                    : _moreOverlay(context, () => onFolderMenu(folder)),
                 onTap: () => _onFolderTap(folder),
                 onLongPress: () => selection.toggle(folder.id),
               );
@@ -468,7 +472,7 @@ class LibraryBrowseViews extends StatelessWidget {
               cover: _projectCover(context, project.title, compact: compact),
               overlay: selectionMode
                   ? _selectionBadge(context, selected)
-                  : _moreOverlay(() => onProjectMenu(project)),
+                  : _moreOverlay(context, () => onProjectMenu(project)),
               onTap: () => _onProjectTap(project),
               onLongPress: () => selection.toggle(project.id),
             );

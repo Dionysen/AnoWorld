@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
@@ -39,20 +40,28 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
 
   SettingsController get _settings => AppScope.settingsOf(context);
 
-  String _preview(PlotElement element) {
+  String _preview(BuildContext context, PlotElement element) {
     final text = element.clippedDescription;
-    if (text.isEmpty) return '还没写描述';
+    if (text.isEmpty) return context.strings.noDescription;
     return text.length > 48 ? '${text.substring(0, 48)}…' : text;
   }
 
-  String _countLabel(int count) => count == 0 ? '还空着' : '$count 条';
-
-  String _rowSubtitle(PlotElementCatalog catalog, PlotElement element) {
+  String _rowSubtitle(
+    BuildContext context,
+    PlotElementCatalog catalog,
+    PlotElement element,
+  ) {
+    final strings = context.strings;
     final parts = <String>[
-      catalog.categoryNameOf(element.categoryId),
+      if (element.categoryId.isEmpty)
+        strings.uncategorized
+      else
+        catalog.categoryNameOf(element.categoryId),
       if (catalog.isBuiltInId(element.id))
-        catalog.isModifiedBuiltIn(element.id) ? '默认 · 已改' : '默认',
-      _preview(element),
+        catalog.isModifiedBuiltIn(element.id)
+            ? strings.builtInEditedTag
+            : strings.builtInTag,
+      _preview(context, element),
     ];
     return parts.join(' · ');
   }
@@ -69,13 +78,19 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
   }
 
   Future<void> _createCategory() async {
-    final name = await askPlotElementCategoryName(context, title: '新分类');
+    final name = await askPlotElementCategoryName(
+      context,
+      title: context.strings.newCategoryTitle,
+    );
     if (name == null || !mounted) return;
     await _settings.addPlotElementCategory(name);
   }
 
   Future<void> _createPack() async {
-    final name = await askPlotElementPackName(context, title: '新包');
+    final name = await askPlotElementPackName(
+      context,
+      title: context.strings.newPack,
+    );
     if (name == null || !mounted) return;
     final pack = await _settings.addPlotElementPack(name);
     if (!mounted) return;
@@ -94,17 +109,19 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
   }
 
   Future<void> _restoreAll() async {
+    final strings = context.strings;
     final confirmed = await showAppConfirmSheet(
       context,
-      title: '全部恢复默认？',
-      detail: '出厂条目会恢复原文并补回已删的；你自己加的保留',
-      confirmLabel: '全部恢复',
+      title: strings.restoreAllConfirmTitle,
+      detail: strings.restoreAllConfirmDetail,
+      confirmLabel: strings.restoreAllConfirmLabel,
     );
     if (!confirmed || !mounted) return;
     await _settings.restoreAllBuiltInPlotElements();
   }
 
   Future<void> _openMore() async {
+    final strings = context.strings;
     final action = await showAppSheet<String>(
       context: context,
       builder: (ctx) => Column(
@@ -113,8 +130,8 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
         children: [
           const SizedBox(height: AppTheme.spaceSm),
           AppListTile(
-            title: '全部恢复默认',
-            subtitle: '出厂条目恢复原文并补回已删的',
+            title: strings.restoreAllBuiltIns,
+            subtitle: strings.restoreAllBuiltInsHint,
             icon: Icons.restart_alt_outlined,
             showDivider: false,
             onTap: () => Navigator.of(ctx).pop('restore_all'),
@@ -129,6 +146,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
   }
 
   List<({String id, String name, int count})> _categoryEntries(
+    BuildContext context,
     PlotElementCatalog catalog,
   ) {
     final rows = <({String id, String name, int count})>[
@@ -143,7 +161,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
     if (uncategorizedCount > 0) {
       rows.add((
         id: '',
-        name: PlotElementCatalog.uncategorizedLabel,
+        name: context.strings.uncategorized,
         count: uncategorizedCount,
       ));
     }
@@ -152,62 +170,71 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     return ListenableBuilder(
       listenable: _settings,
       builder: (context, _) {
         final catalog = _settings.plotElements;
         final rows = catalog.effectiveList;
         return AppPage(
-          title: '剧情元素库',
+          title: strings.plotElementsLibraryTitle,
           onBack: () => Navigator.of(context).maybePop(),
           actions: [
             AppIconButton(
               icon: Icons.more_horiz,
-              tooltip: '更多',
+              tooltip: strings.more,
               onPressed: _openMore,
             ),
             AppCircleButton(
               icon: Icons.add,
-              tooltip: '加一条',
+              tooltip: strings.addOne,
               onPressed: () => _edit(),
             ),
             if (_tab == _LibraryTab.packs)
               AppCircleButton(
                 icon: Icons.playlist_add,
-                tooltip: '新建包',
+                tooltip: strings.newPack,
                 onPressed: _createPack,
               )
             else
               AppCircleButton(
                 icon: Icons.create_new_folder_outlined,
-                tooltip: '新建分类',
+                tooltip: strings.newCategory,
                 onPressed: _createCategory,
               ),
           ],
-          body: _buildBody(catalog, rows),
+          body: _buildBody(context, catalog, rows),
         );
       },
     );
   }
 
-  Widget _buildBody(PlotElementCatalog catalog, List<PlotElement> rows) {
+  Widget _buildBody(
+    BuildContext context,
+    PlotElementCatalog catalog,
+    List<PlotElement> rows,
+  ) {
+    final strings = context.strings;
     final header = <Widget>[
       AppUnderlineTabs<_LibraryTab>(
         value: _tab,
         onChanged: (value) => setState(() => _tab = value),
-        options: const [
-          AppSegmentOption(value: _LibraryTab.all, label: '全部'),
-          AppSegmentOption(value: _LibraryTab.categorized, label: '分类'),
-          AppSegmentOption(value: _LibraryTab.packs, label: '包'),
+        options: [
+          AppSegmentOption(value: _LibraryTab.all, label: strings.tabAll),
+          AppSegmentOption(
+            value: _LibraryTab.categorized,
+            label: strings.tabCategorized,
+          ),
+          AppSegmentOption(value: _LibraryTab.packs, label: strings.tabPacks),
         ],
       ),
       if (rows.isEmpty)
         AppPageGutter(
           child: AppEmptyState(
-            message: '库是空的',
-            detail: '加一条，或全部恢复默认',
+            message: strings.libraryEmptyMessage,
+            detail: strings.libraryEmptyDetail,
             action: AppButton(
-              label: '加一条',
+              label: strings.addOne,
               onPressed: () => _edit(),
               variant: AppButtonVariant.secondary,
             ),
@@ -216,17 +243,17 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
       else if (_tab == _LibraryTab.packs && catalog.packs.isEmpty)
         AppPageGutter(
           child: AppEmptyState(
-            message: '还没有包',
-            detail: '把常用的元素打包，创作时一次勾上',
+            message: strings.packsEmptyMessage,
+            detail: strings.packsEmptyDetail,
             action: AppButton(
-              label: '新建包',
+              label: strings.newPack,
               onPressed: _createPack,
               variant: AppButtonVariant.secondary,
             ),
           ),
         ),
     ];
-    final categoryRows = _categoryEntries(catalog);
+    final categoryRows = _categoryEntries(context, catalog);
     final packRows = catalog.packs;
     final itemCount = rows.isEmpty
         ? 0
@@ -244,8 +271,8 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
             final row = rows[index];
             return AppListTile(
               key: ValueKey(row.id),
-              title: row.keyword.isEmpty ? '未命名' : row.keyword,
-              subtitle: _rowSubtitle(catalog, row),
+              title: row.keyword.isEmpty ? strings.unnamed : row.keyword,
+              subtitle: _rowSubtitle(context, catalog, row),
               icon: Icons.theater_comedy_outlined,
               trailing: const AppForwardIcon(),
               showDivider: index < itemCount - 1,
@@ -255,7 +282,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
             final entry = categoryRows[index];
             return AppListTile(
               title: entry.name,
-              subtitle: _countLabel(entry.count),
+              subtitle: strings.countLabel(entry.count),
               icon: entry.id.isEmpty
                   ? Icons.label_outline
                   : Icons.folder_outlined,
@@ -268,7 +295,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
             return AppListTile(
               key: ValueKey(pack.id),
               title: pack.name,
-              subtitle: describePlotElementPack(catalog, pack),
+              subtitle: describePlotElementPack(context, catalog, pack),
               icon: Icons.inventory_2_outlined,
               trailing: const AppForwardIcon(),
               showDivider: index < itemCount - 1,

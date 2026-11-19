@@ -4,6 +4,8 @@
 
 界面文案必须面向用户：短、口语、说清能做什么；不出现 Beat、Edge、Transition、schema、token、NativeTavern、LLM、「接入」等内部词或注释口吻。副标题/说明行简明扼要、不说教，末尾不加句号。对用户说：故事、设定、角色、情节、场景、对白、选项。技术设置用通俗标签（服务地址、密钥）。更细约定见 `.cursor/rules/ui-copy.mdc`。
 
+界面文案集中到 [`app_strings_zh.dart`](../lib/app/l10n/app_strings_zh.dart)（契约见 [`app_strings.dart`](../lib/app/l10n/app_strings.dart)），widget 里通过 `context.strings` 读取；加新语言只需再写一个实现并登记。已迁移范围与待迁移清单、为什么不用 ARB，见 [Style.md](./Style.md)「界面文案与多语言」。
+
 ## 游玩体验目标（先记住这个）
 
 开玩时二选一（**视觉小说** / **聊天**），进局后不能再改。两种玩法共用设定、角色与（可选）情节素材，但推进方式不同。

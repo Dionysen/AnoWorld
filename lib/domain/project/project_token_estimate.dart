@@ -94,34 +94,3 @@ class ProjectTokenEstimate {
     if (trimmed.isNotEmpty) parts.add(trimmed);
   }
 }
-
-/// Size line under「世界书」: `12 条设定，3 条常驻，421 token`.
-String describeWorldBookSize({
-  required int entries,
-  required int alwaysOn,
-  required int tokens,
-}) {
-  if (entries == 0) return '还没有设定条目';
-  return '$entries 条设定，$alwaysOn 条常驻，$tokens token';
-}
-
-/// Size line under「角色」: `2 个角色，33 token`.
-String describeCastSize({required int members, required int tokens}) {
-  if (members == 0) return '还没有角色';
-  return '$members 个角色，$tokens token';
-}
-
-/// Size line under「情节走向」: `2 个节点，37 token`.
-String describeMainSize({required int nodes, required int tokens}) {
-  if (nodes == 0) return '还没有情节节点';
-  return '$nodes 个节点，$tokens token';
-}
-
-/// Size line under「剧情元素」: `已选 2 项，400 token`.
-String describePlotElementsSize({
-  required int selected,
-  required int tokens,
-}) {
-  if (selected == 0) return '还没选';
-  return '已选 $selected 项，$tokens token';
-}

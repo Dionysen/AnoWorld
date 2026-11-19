@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
@@ -10,29 +11,30 @@ Future<PlayViewMode?> showPlayModeSheet(BuildContext context) {
   return showAppSheet<PlayViewMode>(
     context: context,
     builder: (ctx) {
+      final strings = ctx.strings;
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
               AppTheme.pagePadding,
               AppTheme.spaceSm,
               AppTheme.pagePadding,
               AppTheme.spaceMd,
             ),
-            child: AppText('怎么玩', role: AppTextRole.title),
+            child: AppText(strings.howToPlay, role: AppTextRole.title),
           ),
           AppListTile(
             icon: Icons.auto_stories_outlined,
-            title: '视觉小说',
-            subtitle: '舞台与对白框，点一下往下看',
+            title: strings.kindVisualNovel,
+            subtitle: strings.visualNovelModeHint,
             onTap: () => Navigator.of(ctx).pop(PlayViewMode.visualNovel),
           ),
           AppListTile(
             icon: Icons.chat_bubble_outline,
-            title: '聊天',
-            subtitle: '一轮你、一轮角色，可点回复选项',
+            title: strings.kindChat,
+            subtitle: strings.chatModeHint,
             showDivider: false,
             onTap: () => Navigator.of(ctx).pop(PlayViewMode.chat),
           ),

@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -123,7 +124,7 @@ class SavesTabState extends State<SavesTab> {
       );
     } catch (error) {
       if (!mounted) return;
-      showAppToast(context, '无法继续：$error');
+      showAppToast(context, context.strings.cannotResume(error));
     }
   }
 
@@ -143,50 +144,8 @@ class SavesTabState extends State<SavesTab> {
   Future<void> deleteSelected() async {
     final ids = widget.selection.selectedIds.toList(growable: false);
     if (ids.isEmpty) return;
-    final confirmed = await showAppSheet<bool>(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppText('删除这些存档？', role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '只清掉进度，故事本身还在',
-              role: AppTextRole.caption,
-            ),
-            const SizedBox(height: AppTheme.spaceMd),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: '取消',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spaceSm),
-                Expanded(
-                  child: AppButton(
-                    label: '删除',
-                    variant: AppButtonVariant.danger,
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    final confirmed = await _confirmDelete(context.strings.deleteSavesTitle);
+    if (!confirmed || !mounted) return;
     final saves = AppScope.savesOf(context);
     for (final id in ids) {
       await saves.clear(id);
@@ -195,8 +154,8 @@ class SavesTabState extends State<SavesTab> {
     await reload();
   }
 
-  Future<void> _deleteOne(String slotId) async {
-    widget.selection.exit();
+  Future<bool> _confirmDelete(String title) async {
+    final strings = context.strings;
     final confirmed = await showAppSheet<bool>(
       context: context,
       builder: (ctx) => Padding(
@@ -210,18 +169,15 @@ class SavesTabState extends State<SavesTab> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppText('删除这个存档？', role: AppTextRole.subtitle),
+            AppText(title, role: AppTextRole.subtitle),
             const SizedBox(height: AppTheme.spaceXs),
-            const AppText(
-              '只清掉进度，故事本身还在',
-              role: AppTextRole.caption,
-            ),
+            AppText(strings.deleteSaveDetail, role: AppTextRole.caption),
             const SizedBox(height: AppTheme.spaceMd),
             Row(
               children: [
                 Expanded(
                   child: AppButton(
-                    label: '取消',
+                    label: strings.cancel,
                     variant: AppButtonVariant.secondary,
                     onPressed: () => Navigator.of(ctx).pop(false),
                   ),
@@ -229,7 +185,7 @@ class SavesTabState extends State<SavesTab> {
                 const SizedBox(width: AppTheme.spaceSm),
                 Expanded(
                   child: AppButton(
-                    label: '删除',
+                    label: strings.delete,
                     variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
@@ -240,29 +196,38 @@ class SavesTabState extends State<SavesTab> {
         ),
       ),
     );
-    if (confirmed != true || !mounted) return;
+    return confirmed == true;
+  }
+
+  Future<void> _deleteOne(String slotId) async {
+    widget.selection.exit();
+    final confirmed = await _confirmDelete(context.strings.deleteSaveTitle);
+    if (!confirmed || !mounted) return;
     await AppScope.savesOf(context).clear(slotId);
     await reload();
   }
 
-  String _formatRelative(DateTime at) {
+  String _formatRelative(BuildContext context, DateTime at) {
+    final strings = context.strings;
     final local = at.toLocal();
     final now = DateTime.now();
     final diff = now.difference(local);
-    if (diff.inMinutes < 1) return '刚刚';
-    if (diff.inHours < 1) return '${diff.inMinutes} 分钟前';
-    if (diff.inDays < 1) return '${diff.inHours} 小时前';
-    if (diff.inDays < 7) return '${diff.inDays} 天前';
+    if (diff.inMinutes < 1) return strings.justNow;
+    if (diff.inHours < 1) return strings.minutesAgo(diff.inMinutes);
+    if (diff.inDays < 1) return strings.hoursAgo(diff.inHours);
+    if (diff.inDays < 7) return strings.daysAgo(diff.inDays);
     final y = local.year.toString().padLeft(4, '0');
     final m = local.month.toString().padLeft(2, '0');
     final d = local.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
   }
 
-  String _subtitle(_SaveRow row) {
-    final kind =
-        row.slot.mode == PlayViewMode.chat ? '聊天' : '视觉小说';
-    return '$kind · 上次游玩 ${_formatRelative(row.slot.savedAt)}';
+  String _subtitle(BuildContext context, _SaveRow row) {
+    final strings = context.strings;
+    final kind = row.slot.mode == PlayViewMode.chat
+        ? strings.kindChat
+        : strings.kindVisualNovel;
+    return strings.lastPlayed(kind, _formatRelative(context, row.slot.savedAt));
   }
 
   Widget _leading({required bool selected, required bool selectionMode}) {
@@ -281,6 +246,7 @@ class SavesTabState extends State<SavesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final selectionMode = widget.selection.selectionMode;
     final visible = _visible;
     final mediaBottom = MediaQuery.paddingOf(context).bottom;
@@ -289,7 +255,7 @@ class SavesTabState extends State<SavesTab> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppSearchField(
-          hint: '搜索会话',
+          hint: strings.searchSavesHint,
           controller: _searchController,
           onChanged: (value) => setState(() => _query = value),
           onClear: () {
@@ -312,7 +278,7 @@ class SavesTabState extends State<SavesTab> {
                 if (selectionMode) ...[
                   AppIconButton(
                     icon: Icons.close,
-                    tooltip: '取消多选',
+                    tooltip: strings.exitSelection,
                     onPressed: () => widget.selection.exit(),
                   ),
                   const SizedBox(width: AppTheme.spaceSm),
@@ -320,14 +286,14 @@ class SavesTabState extends State<SavesTab> {
                     icon: widget.selection.hasSelection
                         ? Icons.deselect
                         : Icons.select_all,
-                    tooltip: widget.selection.hasSelection ? '取消全选' : '全选',
+                    tooltip: strings.selectAll(widget.selection.hasSelection),
                     onPressed: _toggleSelectAllVisible,
                   ),
                   if (widget.selection.hasSelection) ...[
                     const SizedBox(width: AppTheme.spaceSm),
                       AppIconButton(
                         icon: Icons.delete_outline,
-                        tooltip: '删除',
+                        tooltip: strings.delete,
                         danger: true,
                         onPressed: deleteSelected,
                     ),
@@ -335,7 +301,7 @@ class SavesTabState extends State<SavesTab> {
                 ] else
                   AppIconButton(
                     icon: Icons.checklist,
-                    tooltip: '多选',
+                    tooltip: strings.multiSelect,
                     onPressed: () => widget.selection.enter(null),
                   ),
               ],
@@ -344,7 +310,9 @@ class SavesTabState extends State<SavesTab> {
         ),
         Expanded(
           child: _loading
-              ? const Center(child: AppText('加载中…', role: AppTextRole.caption))
+              ? Center(
+                  child: AppText(strings.loading, role: AppTextRole.caption),
+                )
               : _error != null
                   ? Center(
                       child: Padding(
@@ -352,9 +320,12 @@ class SavesTabState extends State<SavesTab> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            AppText('加载失败：$_error', role: AppTextRole.caption),
+                            AppText(
+                              strings.loadFailed(_error!),
+                              role: AppTextRole.caption,
+                            ),
                             const SizedBox(height: AppTheme.spaceMd),
-                            AppButton(label: '重试', onPressed: reload),
+                            AppButton(label: strings.retry, onPressed: reload),
                           ],
                         ),
                       ),
@@ -365,14 +336,14 @@ class SavesTabState extends State<SavesTab> {
                             padding: const EdgeInsets.all(AppTheme.pagePadding),
                             child: AppEmptyState(
                               message: _query.trim().isEmpty
-                                  ? '还没有进行中的会话'
-                                  : '没有匹配的会话',
+                                  ? strings.noSavesMessage
+                                  : strings.noMatchMessage,
                               detail: _query.trim().isEmpty
-                                  ? '开玩视觉小说或聊天后会出现在这里'
-                                  : '换个关键词试试',
+                                  ? strings.noSavesDetail
+                                  : strings.noMatchDetail,
                               action: _query.trim().isEmpty
                                   ? AppButton(
-                                      label: '去故事',
+                                      label: strings.goStories,
                                       onPressed: widget.onBrowseWorks,
                                       variant: AppButtonVariant.secondary,
                                     )
@@ -397,7 +368,7 @@ class SavesTabState extends State<SavesTab> {
                                   widget.selection.isSelected(row.slot.id);
                               return AppListTile(
                                 title: row.project.title,
-                                subtitle: _subtitle(row),
+                                subtitle: _subtitle(context, row),
                                 selected: selectionMode && selected,
                                 leading: _leading(
                                   selected: selected,
@@ -407,7 +378,7 @@ class SavesTabState extends State<SavesTab> {
                                     ? null
                                     : AppIconButton(
                                         icon: Icons.more_vert,
-                                        tooltip: '更多',
+                                        tooltip: strings.more,
                                         onPressed: () async {
                                           final action =
                                               await showAppSheet<String>(
@@ -421,7 +392,7 @@ class SavesTabState extends State<SavesTab> {
                                                   height: AppTheme.spaceSm,
                                                 ),
                                                 AppListTile(
-                                                  title: '继续游玩',
+                                                  title: strings.resumePlay,
                                                   icon: Icons
                                                       .play_arrow_rounded,
                                                   onTap: () =>
@@ -429,7 +400,7 @@ class SavesTabState extends State<SavesTab> {
                                                           .pop('resume'),
                                                 ),
                                                 AppListTile(
-                                                  title: '打开故事',
+                                                  title: strings.openStory,
                                                   icon: Icons
                                                       .menu_book_outlined,
                                                   onTap: () =>
@@ -437,7 +408,7 @@ class SavesTabState extends State<SavesTab> {
                                                           .pop('story'),
                                                 ),
                                                 AppListTile(
-                                                  title: '删除存档',
+                                                  title: strings.deleteSave,
                                                   icon:
                                                       Icons.delete_outline,
                                                   danger: true,

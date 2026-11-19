@@ -90,32 +90,4 @@ void main() {
     expect(text, contains('掌柜'));
     expect(text, contains('沉着，话少'));
   });
-
-  group('size lines', () {
-    test('world book shows counts and raw tokens', () {
-      expect(
-        describeWorldBookSize(entries: 12, alwaysOn: 3, tokens: 4210),
-        '12 条设定，3 条常驻，4210 token',
-      );
-      expect(
-        describeWorldBookSize(entries: 0, alwaysOn: 0, tokens: 0),
-        '还没有设定条目',
-      );
-    });
-
-    test('cast shows member count and raw tokens', () {
-      expect(describeCastSize(members: 2, tokens: 33), '2 个角色，33 token');
-      expect(describeCastSize(members: 0, tokens: 0), '还没有角色');
-    });
-
-    test('main line shows node count and raw tokens', () {
-      expect(describeMainSize(nodes: 2, tokens: 37), '2 个节点，37 token');
-      expect(describeMainSize(nodes: 0, tokens: 0), '还没有情节节点');
-    });
-
-    test('plot elements show selection and raw tokens', () {
-      expect(describePlotElementsSize(selected: 2, tokens: 4210), '已选 2 项，4210 token');
-      expect(describePlotElementsSize(selected: 0, tokens: 0), '还没选');
-    });
-  });
 }

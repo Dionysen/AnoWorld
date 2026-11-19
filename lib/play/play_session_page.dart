@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
 import 'package:anoworld/domain/chat/tavern_chat_generate_action.dart';
@@ -80,7 +81,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   String get _userLabel {
     final name =
         AppScope.settingsOf(context).activePersona?.name.trim() ?? '';
-    return name.isNotEmpty ? name : '我';
+    return name.isNotEmpty ? name : context.strings.userLabelFallback;
   }
 
   String get _assistantLabel {
@@ -88,7 +89,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       if (member.isProtagonist) return member.name;
     }
     if (_project.cast.isNotEmpty) return _project.cast.first.name;
-    return '角色';
+    return context.strings.castLabelFallback;
   }
 
   List<PlayChatMessage> get _chatUiMessages {
@@ -149,7 +150,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           _bridge = bridge;
         }
         _runtime = MainRuntime(main, save: slot.pointer);
-        setState(() => _status = '已读取进度');
+        setState(() => _status = context.strings.progressLoaded);
       }
     }
     if (_isChat) {
@@ -197,7 +198,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   String _speakerName(DialogueLine line) {
     if (line.kind == DialogueKind.narration || line.speakerId == null) {
-      return '旁白';
+      return context.strings.narrator;
     }
     final member = _project.castById(line.speakerId!);
     return member?.name ?? line.speakerId!;
@@ -289,7 +290,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     if (!mounted || _chatLocked) return;
     setState(() {
       _assistantBusy = true;
-      _status = '正在写这一段…';
+      _status = context.strings.statusWriting;
     });
 
     final settings = AppScope.settingsOf(context);
@@ -331,7 +332,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       if (!mounted) return;
       setState(() {
         _assistantBusy = false;
-        _status = '这一轮暂时写不出来，请稍后再试';
+        _status = context.strings.statusTurnFailed;
       });
       await _persist();
     }
@@ -401,7 +402,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _bridge = null;
       _chat.clear();
       _replyChoices = const [];
-      _status = '已从头开始';
+      _status = context.strings.statusRestarted;
     });
     if (_isChat) {
       _persist().then((_) {
@@ -431,7 +432,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
     setState(() {
       _busy = true;
-      _status = '正在写这一段…';
+      _status = context.strings.statusWriting;
     });
 
     final settings = AppScope.settingsOf(context);
@@ -488,7 +489,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           turnCount: session.turnCount + 1,
         );
         _busy = false;
-        _status = '用稳妥出口继续';
+        _status = context.strings.statusSafeExit;
       });
       await _persist();
     } catch (_) {
@@ -502,10 +503,10 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         nodeId: node.id,
         scene: const Scene(),
         appearances: const [],
-        lines: const [
+        lines: [
           DialogueLine(
             id: 'bridge_fallback_l0',
-            text: '这一段暂时写不出来，可以先用下方选项继续',
+            text: context.strings.fallbackBeatText,
             kind: DialogueKind.narration,
           ),
         ],
@@ -518,7 +519,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           turnCount: session.turnCount + 1,
         );
         _busy = false;
-        _status = '用稳妥出口继续';
+        _status = context.strings.statusSafeExit;
       });
       await _persist();
     }
@@ -532,8 +533,9 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         Padding(
           padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
           child: AppButton(
-            label:
-                '前往：${_runtime.main.nodeById(edge.to)?.title ?? edge.to}',
+            label: context.strings.gotoNode(
+              _runtime.main.nodeById(edge.to)?.title ?? edge.to,
+            ),
             onPressed: _busy
                 ? null
                 : () {
@@ -568,7 +570,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           ? [
               AppCircleButton(
                 icon: Icons.refresh_rounded,
-                tooltip: '重新生成回复',
+                tooltip: context.strings.regenerateReply,
                 onPressed: _regenerateLastAssistant,
               ),
             ]
@@ -642,22 +644,27 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                     ),
                   )
                 else if (_runtime.pointer.isEnded) ...[
-                  const AppText('本段结束', role: AppTextRole.subtitle),
+                  AppText(
+                    context.strings.segmentEnded,
+                    role: AppTextRole.subtitle,
+                  ),
                   const SizedBox(height: AppTheme.spaceSm),
                   AppButton(
-                    label: '重新开始',
+                    label: context.strings.restart,
                     onPressed: _restart,
                     expanded: true,
                   ),
                 ] else if (_runtime.needsBridge || _busy)
                   AppButton(
-                    label: _busy ? '生成中…' : '生成这一段',
+                    label: _busy
+                        ? context.strings.generatingSegment
+                        : context.strings.generateThisSegment,
                     onPressed: _busy ? null : _ensureBridge,
                     expanded: true,
                   )
                 else
                   AppButton(
-                    label: '继续',
+                    label: context.strings.continueAction,
                     onPressed: _runtime.canAdvance ? _advance : null,
                     expanded: true,
                   ),
@@ -690,6 +697,7 @@ class _VnStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final line = runtime.currentLine;
     final location = runtime.locationText;
     final appearances = runtime.appearances;
@@ -706,15 +714,19 @@ class _VnStage extends StatelessWidget {
               children: [
                 AppText(
                   runtime.currentNode?.title ??
-                      (location?.isNotEmpty == true ? location! : '场景'),
+                      (location?.isNotEmpty == true
+                          ? location!
+                          : strings.scenePlaceholder),
                   role: AppTextRole.subtitle,
                   maxLines: 1,
                 ),
                 const SizedBox(height: AppTheme.spaceXs),
                 AppText(
                   runtime.resolvedBackgroundAssetId == null
-                      ? '（无背景图，占位）'
-                      : '背景：${runtime.resolvedBackgroundAssetId}',
+                      ? strings.noBackgroundImage
+                      : strings.backgroundLabel(
+                          runtime.resolvedBackgroundAssetId!,
+                        ),
                   role: AppTextRole.caption,
                   maxLines: 1,
                 ),
@@ -725,7 +737,9 @@ class _VnStage extends StatelessWidget {
                         .map((a) {
                           final slot = a.slot?.name;
                           final name = castName(a.characterId);
-                          return slot == null ? name : '$name（$slot）';
+                          return slot == null
+                              ? name
+                              : strings.castWithSlot(name, slot);
                         })
                         .join(narrow ? ' · ' : '  ·  '),
                     role: AppTextRole.caption,
@@ -756,10 +770,12 @@ class _VnStage extends StatelessWidget {
                         role: AppTextRole.body,
                       ),
                     ] else if (runtime.pointer.phase == PlayPhase.choices)
-                      const AppText('请选择', role: AppTextRole.body)
+                      AppText(strings.choosePlease, role: AppTextRole.body)
                     else if (runtime.needsBridge || bridging)
                       AppText(
-                        bridging ? '正在写这一段…' : '这一站的过程还没写，点下方生成',
+                        bridging
+                            ? strings.statusWriting
+                            : strings.segmentNotWritten,
                         role: AppTextRole.body,
                       )
                     else if (runtime.pointer.isEnded)

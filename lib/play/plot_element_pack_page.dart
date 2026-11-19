@@ -1,6 +1,8 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/plot_element_pack.dart';
-import 'package:anoworld/domain/settings/plot_element_catalog.dart';import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
@@ -18,19 +20,22 @@ class PlotElementPackPage extends StatelessWidget {
 
   final String packId;
 
-  String _preview(PlotElementCatalog catalog, String elementId) {
-    final element = catalog.byId(elementId);
+  String _preview(BuildContext context, PlotElementCatalog catalog, String id) {
+    final element = catalog.byId(id);
     if (element == null) return '';
     final text = element.clippedDescription;
-    if (text.isEmpty) return '还没写描述';
+    if (text.isEmpty) return context.strings.noDescription;
     return text.length > 48 ? '${text.substring(0, 48)}…' : text;
   }
 
-  Future<void> _rename(BuildContext context, PlotElementPack pack) async {
+  Future<void> _rename(
+    BuildContext context,
+    PlotElementPack pack,
+  ) async {
     final settings = AppScope.settingsOf(context);
     final name = await askPlotElementPackName(
       context,
-      title: '重命名包',
+      title: context.strings.renamePack,
       initialName: pack.name,
     );
     if (name == null || !context.mounted) return;
@@ -42,11 +47,14 @@ class PlotElementPackPage extends StatelessWidget {
     PlotElementPack pack,
     int count,
   ) async {
+    final strings = context.strings;
     final confirmed = await showAppConfirmSheet(
       context,
-      title: '删除这个包？',
-      detail: count == 0 ? '包是空的' : '包里的 $count 条元素仍留在库里',
-      confirmLabel: '删除',
+      title: strings.deletePackTitle,
+      detail: count == 0
+          ? strings.deletePackEmptyDetail
+          : strings.packDeleteDetail(count),
+      confirmLabel: strings.delete,
       danger: true,
     );
     if (!confirmed || !context.mounted) return;
@@ -61,16 +69,17 @@ class PlotElementPackPage extends StatelessWidget {
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) {
+        final strings = context.strings;
         final catalog = settings.plotElements;
         final pack = catalog.packById(packId);
         if (pack == null) {
           return AppPage(
-            title: '包',
+            title: strings.packTitleFallback,
             onBack: () => Navigator.of(context).maybePop(),
-            body: const AppPageBody.list(
+            body: AppPageBody.list(
               children: [
                 AppPageGutter(
-                  child: AppEmptyState(message: '这个包已经不在了'),
+                  child: AppEmptyState(message: strings.packMissing),
                 ),
               ],
             ),
@@ -83,16 +92,16 @@ class PlotElementPackPage extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
               child: AppText(
-                selectedCount == 0 ? '还空着' : '$selectedCount 条',
+                strings.countLabel(selectedCount),
                 role: AppTextRole.caption,
               ),
             ),
           ),
           if (rows.isEmpty)
-            const AppPageGutter(
+            AppPageGutter(
               child: AppEmptyState(
-                message: '库里还没有剧情元素',
-                detail: '去剧情元素库加一条',
+                message: strings.libraryEmptyMessage,
+                detail: strings.packEmptyLibraryDetail,
               ),
             ),
         ];
@@ -102,12 +111,12 @@ class PlotElementPackPage extends StatelessWidget {
           actions: [
             AppIconButton(
               icon: Icons.edit_outlined,
-              tooltip: '重命名包',
+              tooltip: strings.renamePack,
               onPressed: () => _rename(context, pack),
             ),
             AppIconButton(
               icon: Icons.delete_outline,
-              tooltip: '删除包',
+              tooltip: strings.deletePack,
               danger: true,
               onPressed: () => _delete(context, pack, selectedCount),
             ),
@@ -120,8 +129,10 @@ class PlotElementPackPage extends StatelessWidget {
               final selected = pack.contains(element.id);
               return AppListTile(
                 key: ValueKey(element.id),
-                title: element.keyword.isEmpty ? '未命名' : element.keyword,
-                subtitle: _preview(catalog, element.id),
+                title: element.keyword.isEmpty
+                    ? strings.unnamed
+                    : element.keyword,
+                subtitle: _preview(context, catalog, element.id),
                 icon: Icons.theater_comedy_outlined,
                 trailing: AppSwitch(
                   value: selected,

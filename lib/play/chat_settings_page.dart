@@ -1,4 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/foundation/theme/app_chat_background.dart';
 import 'package:anoworld/foundation/theme/app_chat_chrome.dart';
@@ -21,8 +22,9 @@ class ChatSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
+    final strings = context.strings;
     return AppPage(
-      title: '聊天设置',
+      title: strings.chatSettingsTitle,
       onBack: () => Navigator.of(context).maybePop(),
       body: ListenableBuilder(
         listenable: controller,
@@ -31,16 +33,16 @@ class ChatSettingsPage extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: AppTheme.pagePadding),
             children: [
-              const AppSectionHeader('阅读', gutter: true),
-              const AppPageGutter(
+              AppSectionHeader(strings.readingSection, gutter: true),
+              AppPageGutter(
                 child: AppText(
-                  '只影响聊天气泡里的正文',
+                  strings.readingSectionHint,
                   role: AppTextRole.caption,
                 ),
               ),
               const SizedBox(height: AppTheme.spaceSm),
               AppSlider(
-                label: '行距',
+                label: strings.lineHeight,
                 icon: Icons.format_line_spacing,
                 value: chatUi.lineHeight,
                 min: AppChatChrome.minLineHeight,
@@ -54,7 +56,7 @@ class ChatSettingsPage extends StatelessWidget {
                 },
               ),
               AppSlider(
-                label: '段间距',
+                label: strings.paragraphSpacing,
                 icon: Icons.vertical_distribute,
                 value: chatUi.paragraphSpacing,
                 min: AppChatChrome.minParagraphSpacing,
@@ -69,9 +71,9 @@ class ChatSettingsPage extends StatelessWidget {
                 },
               ),
               const SizedBox(height: AppTheme.spaceMd),
-              const AppSectionHeader('气泡', gutter: true),
+              AppSectionHeader(strings.bubblesSection, gutter: true),
               AppSlider(
-                label: '气泡圆角',
+                label: strings.bubbleRadius,
                 icon: Icons.rounded_corner,
                 value: chatUi.bubbleCornerRadius,
                 min: AppChatChrome.minBubbleCornerRadius,
@@ -85,8 +87,8 @@ class ChatSettingsPage extends StatelessWidget {
                 },
               ),
               AppListTile(
-                title: '显示思考过程',
-                subtitle: '模型有思考内容时，折叠在气泡上方',
+                title: strings.showReasoning,
+                subtitle: strings.showReasoningHint,
                 icon: Icons.psychology_outlined,
                 trailing: AppSwitch(
                   value: chatUi.showReasoning,
@@ -104,10 +106,10 @@ class ChatSettingsPage extends StatelessWidget {
                 showDivider: false,
               ),
               const SizedBox(height: AppTheme.spaceMd),
-              const AppSectionHeader('头像', gutter: true),
+              AppSectionHeader(strings.avatarsSection, gutter: true),
               AppListTile(
-                title: '角色头像',
-                subtitle: '助手气泡旁显示',
+                title: strings.characterAvatar,
+                subtitle: strings.characterAvatarHint,
                 icon: Icons.face_outlined,
                 trailing: AppSwitch(
                   value: chatUi.showCharacterAvatar,
@@ -126,8 +128,8 @@ class ChatSettingsPage extends StatelessWidget {
                 },
               ),
               AppListTile(
-                title: '我的头像',
-                subtitle: '自己气泡旁显示',
+                title: strings.myAvatar,
+                subtitle: strings.myAvatarHint,
                 icon: Icons.person_outline,
                 trailing: AppSwitch(
                   value: chatUi.showUserAvatar,
@@ -144,8 +146,8 @@ class ChatSettingsPage extends StatelessWidget {
                 },
               ),
               AppListTile(
-                title: '头像在气泡上方',
-                subtitle: '关闭后头像与气泡并排',
+                title: strings.avatarAboveBubble,
+                subtitle: strings.avatarAboveBubbleHint,
                 icon: Icons.vertical_align_top,
                 trailing: AppSwitch(
                   value: chatUi.avatarAboveBubble,
@@ -165,10 +167,10 @@ class ChatSettingsPage extends StatelessWidget {
                 showDivider: false,
               ),
               const SizedBox(height: AppTheme.spaceMd),
-              const AppSectionHeader('背景', gutter: true),
+              AppSectionHeader(strings.backgroundSection, gutter: true),
               AppListTile(
-                title: '聊天背景',
-                subtitle: _backgroundSubtitle(chatUi.background),
+                title: strings.chatBackground,
+                subtitle: _backgroundSubtitle(context, chatUi.background),
                 icon: Icons.wallpaper_outlined,
                 trailing: const AppForwardIcon(),
                 onTap: () => _pickBackground(context, chatUi),
@@ -181,15 +183,15 @@ class ChatSettingsPage extends StatelessWidget {
     );
   }
 
-  static String _backgroundSubtitle(AppChatBackground background) {
-    switch (background.kind) {
-      case AppChatBackgroundKind.none:
-        return '主题默认';
-      case AppChatBackgroundKind.color:
-        return '纯色';
-      case AppChatBackgroundKind.gradient:
-        return '内置渐变';
-    }
+  static String _backgroundSubtitle(
+    BuildContext context,
+    AppChatBackground background,
+  ) {
+    return switch (background.kind) {
+      AppChatBackgroundKind.none => context.strings.backgroundThemeDefault,
+      AppChatBackgroundKind.color => context.strings.backgroundSolid,
+      AppChatBackgroundKind.gradient => context.strings.backgroundGradient,
+    };
   }
 
   Future<void> _pickBackground(
@@ -223,6 +225,7 @@ class _ChatBackgroundPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final scheme = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -232,13 +235,13 @@ class _ChatBackgroundPicker extends StatelessWidget {
         AppTheme.pagePadding,
       ),
       children: [
-        const AppText('聊天背景', role: AppTextRole.subtitle),
+        AppText(strings.chatBackground, role: AppTextRole.subtitle),
         const SizedBox(height: AppTheme.spaceXs),
-        const AppText('选一块铺在主题底色上', role: AppTextRole.caption),
+        AppText(strings.backgroundPickerHint, role: AppTextRole.caption),
         const SizedBox(height: AppTheme.spaceMd),
         AppListTile(
-          title: '主题默认',
-          subtitle: '跟当前主题的聊天底色',
+          title: strings.backgroundThemeDefault,
+          subtitle: strings.backgroundThemeDefaultHint,
           icon: Icons.palette_outlined,
           selected: current.kind == AppChatBackgroundKind.none,
           trailing: current.kind == AppChatBackgroundKind.none
@@ -248,7 +251,7 @@ class _ChatBackgroundPicker extends StatelessWidget {
           showDivider: false,
         ),
         const SizedBox(height: AppTheme.spaceMd),
-        const AppText('渐变', role: AppTextRole.caption),
+        AppText(strings.gradientSection, role: AppTextRole.caption),
         const SizedBox(height: AppTheme.spaceSm),
         _PresetGrid(
           items: AppChatBackground.gradientPresets,
@@ -256,7 +259,7 @@ class _ChatBackgroundPicker extends StatelessWidget {
           onSelect: onSelect,
         ),
         const SizedBox(height: AppTheme.spaceMd),
-        const AppText('纯色', role: AppTextRole.caption),
+        AppText(strings.backgroundSolid, role: AppTextRole.caption),
         const SizedBox(height: AppTheme.spaceSm),
         _PresetGrid(
           items: AppChatBackground.solidPresets,

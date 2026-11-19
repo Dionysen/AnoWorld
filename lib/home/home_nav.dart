@@ -1,30 +1,32 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:flutter/material.dart';
 
 enum HomeTab { sessions, stories, playModes, me }
 
-const List<AppNavItem> homeNavItems = [
+/// Home destinations with labels in the current language.
+List<AppNavItem> homeNavItems(AppStrings strings) => [
   AppNavItem(
     id: 'sessions',
-    label: '会话',
+    label: strings.tabSessions,
     icon: Icons.forum_outlined,
     selectedIcon: Icons.forum,
   ),
   AppNavItem(
     id: 'stories',
-    label: '故事',
+    label: strings.tabStories,
     icon: Icons.menu_book_outlined,
     selectedIcon: Icons.menu_book,
   ),
   AppNavItem(
     id: 'play_modes',
-    label: '玩法',
+    label: strings.tabPlayModes,
     icon: Icons.extension_outlined,
     selectedIcon: Icons.extension,
   ),
   AppNavItem(
     id: 'me',
-    label: '我',
+    label: strings.tabMe,
     icon: Icons.person_outline,
     selectedIcon: Icons.person,
   ),
