@@ -4,6 +4,7 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
@@ -89,7 +90,7 @@ class PromptManagerPanel extends StatelessWidget {
   ) async {
     final body = _readOnlyBody(section);
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
+      AppSlidePageRoute<void>(
         builder: (context) {
           return AppPage(
             title: sectionLabel(section),
@@ -135,7 +136,7 @@ class PromptManagerPanel extends StatelessWidget {
     final controller = AppScope.settingsOf(context);
     final draft = TextEditingController(text: section.content ?? '');
     final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
+      AppSlidePageRoute<bool>(
         builder: (context) {
           return AppPage(
             title: sectionLabel(section),

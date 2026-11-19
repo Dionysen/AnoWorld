@@ -6,6 +6,7 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_person_avatar.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -17,11 +18,7 @@ class PersonaSettingsPanel extends StatelessWidget {
   const PersonaSettingsPanel({super.key});
 
   Future<void> _openEditor(BuildContext context, {UserPersona? persona}) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PersonaEditorPage(persona: persona),
-      ),
-    );
+    await pushAppSlide(context, PersonaEditorPage(persona: persona));
   }
 
   Future<void> _confirmDelete(

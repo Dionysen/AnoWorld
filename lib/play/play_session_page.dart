@@ -15,6 +15,7 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_surface.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/play/play_chat_message.dart';
@@ -353,11 +354,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   }
 
   void _openChatSettings() {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const ChatSettingsPage(),
-      ),
-    );
+    pushAppSlide(context, const ChatSettingsPage());
   }
 
   Future<void> _refreshReplyChoices() async {

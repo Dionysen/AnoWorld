@@ -1,14 +1,21 @@
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
 import 'package:anoworld/home/create_assistant_bloom_shell.dart';
+import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/create_assistant_panel.dart';
 import 'package:flutter/material.dart';
 
-/// Story-flow chrome: assistant blooms from the bottom-right anchor.
+/// Top-layer create-assistant chrome (FAB + bloom). Does not wrap page content.
+///
+/// Stays mounted under [MaterialApp.builder]; [CreateAssistantController.visible]
+/// only toggles hit-testing / painting so the button never remounts on pushes.
 class CreateAssistantHost extends StatefulWidget {
-  const CreateAssistantHost({super.key, required this.child});
+  const CreateAssistantHost({
+    super.key,
+    required this.controller,
+  });
 
-  final Widget child;
+  final CreateAssistantController controller;
 
   @override
   State<CreateAssistantHost> createState() => CreateAssistantHostState();
@@ -27,8 +34,37 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
 
   bool get _showBloom => _open || _bloom.isAnimating;
 
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onVisibilityChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant CreateAssistantHost oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onVisibilityChanged);
+      widget.controller.addListener(_onVisibilityChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onVisibilityChanged);
+    _bloom.dispose();
+    super.dispose();
+  }
+
+  void _onVisibilityChanged() {
+    if (!widget.controller.visible && _open) {
+      _closeBloom();
+    }
+    if (mounted) setState(() {});
+  }
+
   Future<void> _openBloom() async {
-    if (_open) return;
+    if (_open || !widget.controller.visible) return;
     setState(() => _open = true);
     AppLog.instance.info('创作助手展开', tag: 'create.assistant');
     await _bloom.forward();
@@ -57,31 +93,26 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
   }
 
   @override
-  void dispose() {
-    _bloom.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Collapsed chip pins to the physical bottom under the IME; open panel
-    // stays in the resized body so the composer can sit above the keyboard.
+    final visible = widget.controller.visible;
+    if (!visible && !_showBloom) {
+      // Keep State alive; paint nothing and pass all hits through.
+      return const SizedBox.shrink();
+    }
+
     final keyboardPin = _showBloom
         ? 0.0
         : AppBottomChromeMetrics.keyboardPinOffset(context);
     final anchorBottom =
         AppBottomChromeMetrics.assistantButtonBottom(context) - keyboardPin;
     final anchorRight = AppBottomChromeMetrics.assistantButtonRight;
-    final showCollapsedButton = !_showBloom;
+    final showCollapsedButton = visible && !_showBloom;
 
     return Stack(
       fit: StackFit.expand,
       clipBehavior: Clip.none,
       children: [
-        widget.child,
         if (_showBloom) ...[
-          // Full-screen dismiss layer under the bloom (pointer-down so it
-          // wins over competing scroll/gesture arenas).
           Positioned.fill(
             child: Listener(
               behavior: HitTestBehavior.opaque,
@@ -102,15 +133,13 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
           Positioned(
             right: anchorRight,
             bottom: anchorBottom,
-            child: AppBottomNavIconCapsule(
-              icon: Icons.auto_awesome_outlined,
-              selectedIcon: Icons.auto_awesome,
-              tooltip: '创作助手',
-              onPressed: () {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _openBloom();
-                });
-              },
+            child: RepaintBoundary(
+              child: AppBottomNavIconCapsule(
+                icon: Icons.auto_awesome_outlined,
+                selectedIcon: Icons.auto_awesome,
+                tooltip: '创作助手',
+                onPressed: _openBloom,
+              ),
             ),
           ),
       ],

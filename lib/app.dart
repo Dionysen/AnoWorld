@@ -15,6 +15,8 @@ import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/foundation/ai/variables_service.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/home/create_assistant_controller.dart';
+import 'package:anoworld/home/create_assistant_overlay.dart';
 import 'package:anoworld/home/home_page.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +30,7 @@ class App extends StatefulWidget {
     this.settingsRepository,
     this.settingsController,
     this.libraryDisplay,
+    this.createAssistant,
     this.textClient,
     this.pickImportDirectory,
   });
@@ -38,6 +41,7 @@ class App extends StatefulWidget {
   final SettingsRepository? settingsRepository;
   final SettingsController? settingsController;
   final LibraryDisplayController? libraryDisplay;
+  final CreateAssistantController? createAssistant;
   final AiTextClient? textClient;
   final Future<String?> Function()? pickImportDirectory;
 
@@ -52,6 +56,19 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       );
   late final LibraryDisplayController _libraryDisplay =
       widget.libraryDisplay ?? LibraryDisplayController();
+  late final CreateAssistantController _createAssistant =
+      widget.createAssistant ?? CreateAssistantController();
+  final GlobalKey<CreateAssistantOverlayScopeState> _assistantOverlayKey =
+      GlobalKey<CreateAssistantOverlayScopeState>();
+  late final CreateAssistantNavigatorObserver _assistantObserver =
+      CreateAssistantNavigatorObserver(
+    _createAssistant,
+    onStackChanged: () {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _assistantOverlayKey.currentState?.bringToFront();
+      });
+    },
+  );
 
   @override
   void initState() {
@@ -75,6 +92,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     if (widget.libraryDisplay == null) {
       _libraryDisplay.dispose();
     }
+    if (widget.createAssistant == null) {
+      _createAssistant.dispose();
+    }
     super.dispose();
   }
 
@@ -93,6 +113,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       folders: widget.folders ?? FileProjectFolderRepository(),
       settings: _settings,
       libraryDisplay: _libraryDisplay,
+      createAssistant: _createAssistant,
       textClient: widget.textClient,
       child: ListenableBuilder(
         listenable: _settings,
@@ -104,10 +125,17 @@ class _AppState extends State<App> with WidgetsBindingObserver {
             theme: AppTheme.light(appearance),
             darkTheme: AppTheme.dark(appearance),
             themeMode: appearance.mode.material,
+            navigatorObservers: [_assistantObserver],
             builder: (context, child) {
               return ImmersiveFrame(child: child ?? const SizedBox.shrink());
             },
-            home: HomePage(pickImportDirectory: widget.pickImportDirectory),
+            home: CreateAssistantOverlayScope(
+              key: _assistantOverlayKey,
+              controller: _createAssistant,
+              child: HomePage(
+                pickImportDirectory: widget.pickImportDirectory,
+              ),
+            ),
           );
         },
       ),

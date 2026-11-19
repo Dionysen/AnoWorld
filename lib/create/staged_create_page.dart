@@ -8,6 +8,7 @@ import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -325,15 +326,12 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
         final mode = await showPlayModeSheet(context);
         if (!mounted || mode == null) return;
         await Navigator.of(context).pushReplacement(
-          PageRouteBuilder<void>(
-            pageBuilder: (_, _, _) => PlaySessionPage(
+          AppSlidePageRoute<void>(
+            builder: (_) => PlaySessionPage(
               project: latest,
               mode: mode,
               resumeSave: false,
             ),
-            transitionsBuilder: (_, animation, _, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
           ),
         );
     }

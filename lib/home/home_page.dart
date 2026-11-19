@@ -1,6 +1,6 @@
+import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
-import 'package:anoworld/home/create_assistant_host.dart';
 import 'package:anoworld/home/home_nav.dart';
 import 'package:anoworld/home/library_selection.dart';
 import 'package:anoworld/home/me_tab.dart';
@@ -28,6 +28,7 @@ class _HomePageState extends State<HomePage> {
   final _worksSelection = LibrarySelectionController();
   final _savesKey = GlobalKey<SavesTabState>();
   final _worksKey = GlobalKey<WorksTabState>();
+  bool _assistantSynced = false;
 
   @override
   void dispose() {
@@ -36,11 +37,25 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_assistantSynced) return;
+    _assistantSynced = true;
+    _syncAssistantVisibility();
+  }
+
   LibrarySelectionController? get _activeSelection => switch (_tab) {
         HomeTab.sessions => _savesSelection,
         HomeTab.stories => _worksSelection,
         HomeTab.playModes || HomeTab.me => null,
       };
+
+  void _syncAssistantVisibility() {
+    final selectionMode = _activeSelection?.selectionMode ?? false;
+    final show = _tab == HomeTab.stories && !selectionMode;
+    AppScope.createAssistantOf(context).setHomeStories(show);
+  }
 
   void _selectTab(int index) {
     final next = HomeTabNav.fromIndex(index);
@@ -48,9 +63,15 @@ class _HomePageState extends State<HomePage> {
     _savesSelection.exit();
     _worksSelection.exit();
     setState(() => _tab = next);
+    _syncAssistantVisibility();
     if (next == HomeTab.sessions) {
       _savesKey.currentState?.reload();
     }
+  }
+
+  void _onSelectionChromeChanged() {
+    setState(() {});
+    _syncAssistantVisibility();
   }
 
   @override
@@ -71,46 +92,41 @@ class _HomePageState extends State<HomePage> {
         if (selectionMode && selection != null) {
           selection.exit();
           setState(() {});
+          _syncAssistantVisibility();
         }
       },
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final shell = AppNavShell(
-            destinations: homeNavItems,
-            selectedIndex: _tab.tabIndex,
-            onDestinationSelected: _selectTab,
-            railTopInset: 0,
-            body: IndexedStack(
-              index: _tab.tabIndex,
-              children: [
-                SavesTab(
-                  key: _savesKey,
-                  selection: _savesSelection,
-                  onBrowseWorks: () => _selectTab(HomeTab.stories.tabIndex),
-                  onSelectionChromeChanged: () => setState(() {}),
-                ),
-                WorksTab(
-                  key: _worksKey,
-                  selection: _worksSelection,
-                  pickImportDirectory: widget.pickImportDirectory,
-                  onSelectionChromeChanged: () => setState(() {}),
-                  onBrowsePathChanged: (_) => setState(() {}),
-                ),
-                const PlayModesTab(),
-                const MeTab(),
-              ],
-            ),
-          );
-
-          final storiesChrome = _tab == HomeTab.stories && !selectionMode;
-          final body =
-              storiesChrome ? CreateAssistantHost(child: shell) : shell;
-
           // No page title on home — search / toolbars live in each tab body.
           return AppPage(
             title: '',
             showTitle: false,
-            body: body,
+            body: AppNavShell(
+              destinations: homeNavItems,
+              selectedIndex: _tab.tabIndex,
+              onDestinationSelected: _selectTab,
+              railTopInset: 0,
+              body: IndexedStack(
+                index: _tab.tabIndex,
+                children: [
+                  SavesTab(
+                    key: _savesKey,
+                    selection: _savesSelection,
+                    onBrowseWorks: () => _selectTab(HomeTab.stories.tabIndex),
+                    onSelectionChromeChanged: _onSelectionChromeChanged,
+                  ),
+                  WorksTab(
+                    key: _worksKey,
+                    selection: _worksSelection,
+                    pickImportDirectory: widget.pickImportDirectory,
+                    onSelectionChromeChanged: _onSelectionChromeChanged,
+                    onBrowsePathChanged: (_) => setState(() {}),
+                  ),
+                  const PlayModesTab(),
+                  const MeTab(),
+                ],
+              ),
+            ),
           );
         },
       ),

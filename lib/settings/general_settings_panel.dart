@@ -1,5 +1,6 @@
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/settings/advanced_settings_page.dart';
 import 'package:flutter/foundation.dart';
@@ -30,11 +31,7 @@ class GeneralSettingsPanel extends StatelessWidget {
             subtitle: '诊断日志等开发选项',
             icon: Icons.construction_outlined,
             onTap: () {
-              Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => const AdvancedSettingsPage(),
-                ),
-              );
+              pushAppSlide(context, const AdvancedSettingsPage());
             },
           ),
         ],

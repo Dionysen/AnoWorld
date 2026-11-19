@@ -4,6 +4,7 @@ import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -144,11 +145,10 @@ Future<void> pickAndApplyTextModel(BuildContext context) async {
     } else if (fallback.isNotEmpty) {
       models = [fallback];
     } else {
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => const SettingsPage(
-            initialSection: SettingsSection.ai,
-          ),
+      await pushAppSlide(
+        context,
+        const SettingsPage(
+          initialSection: SettingsSection.ai,
         ),
       );
       return;

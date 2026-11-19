@@ -22,6 +22,7 @@ import 'package:anoworld/home/library_browse_views.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/play/play_mode_sheet.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:anoworld/project/project_hub_page.dart';
@@ -774,13 +775,15 @@ class WorksTabState extends State<WorksTab> {
         '开始故事：${summary.title}（${mode.name}）',
         tag: 'works.story',
       );
-      await _openRoute(
+      await pushAppSlide(
+        context,
         PlaySessionPage(
           project: project,
           mode: mode,
           resumeSave: false,
         ),
       );
+      if (mounted) await reload();
     } catch (error, stack) {
       AppLog.instance.error(
         '开始故事失败',

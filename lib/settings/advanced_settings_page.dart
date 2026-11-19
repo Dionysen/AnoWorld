@@ -2,6 +2,7 @@ import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/settings/app_log_viewer_page.dart';
 import 'package:flutter/material.dart';
@@ -32,11 +33,7 @@ class AdvancedSettingsPage extends StatelessWidget {
                   subtitle: n > 0 ? '共 $n 条' : '暂无记录',
                   icon: Icons.article_outlined,
                   onTap: () {
-                    Navigator.of(context).push<void>(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const AppLogViewerPage(),
-                      ),
-                    );
+                    pushAppSlide(context, const AppLogViewerPage());
                   },
                 );
               },

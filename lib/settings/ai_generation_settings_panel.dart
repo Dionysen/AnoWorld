@@ -5,6 +5,7 @@ import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_nested_settings_group.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/settings/advanced_sampling_page.dart';
@@ -98,11 +99,7 @@ class AiGenerationSettingsPanel extends StatelessWidget {
               icon: Icons.science_outlined,
               trailing: const AppForwardIcon(),
               onTap: () {
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const AdvancedSamplingPage(),
-                  ),
-                );
+                pushAppSlide(context, const AdvancedSamplingPage());
               },
             ),
           ],

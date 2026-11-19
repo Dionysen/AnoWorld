@@ -6,10 +6,12 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_search_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/home/library_selection.dart';
+import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:anoworld/project/project_hub_page.dart';
 import 'package:flutter/material.dart';
@@ -95,15 +97,12 @@ class SavesTabState extends State<SavesTab> {
         .toList(growable: false);
   }
 
-  Future<void> _openRoute(Widget page) async {
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => page,
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
+  Future<void> _openRoute(Widget page, {bool storyChrome = false}) async {
+    if (storyChrome) {
+      await pushStoryRoute<void>(context, page);
+    } else {
+      await pushAppSlide(context, page);
+    }
     if (mounted) await reload();
   }
 
@@ -131,7 +130,10 @@ class SavesTabState extends State<SavesTab> {
 
   Future<void> _openStory(_SaveRow row) {
     widget.selection.exit();
-    return _openRoute(ProjectHubPage(projectId: row.project.id));
+    return _openRoute(
+      ProjectHubPage(projectId: row.project.id),
+      storyChrome: true,
+    );
   }
 
   void _toggleSelectAllVisible() {

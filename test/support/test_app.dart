@@ -17,6 +17,7 @@ import 'package:anoworld/foundation/fonts/system_font.dart';
 import 'package:anoworld/foundation/fonts/system_font_catalog.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -90,6 +91,7 @@ Widget testScoped({
     folders: folders ?? MemoryProjectFolderRepository(),
     settings: controller,
     libraryDisplay: libraryDisplay ?? LibraryDisplayController(),
+    createAssistant: CreateAssistantController(),
     textClient: textClient,
     child: ListenableBuilder(
       listenable: controller,

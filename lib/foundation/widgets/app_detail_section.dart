@@ -124,7 +124,6 @@ class _DetailEntryRow extends StatefulWidget {
 
 class _DetailEntryRowState extends State<_DetailEntryRow> {
   bool _expanded = false;
-  bool _canExpand = false;
 
   @override
   void didUpdateWidget(covariant _DetailEntryRow oldWidget) {
@@ -133,7 +132,6 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
         oldWidget.entry.body != widget.entry.body ||
         !_sameTags(oldWidget.entry.tags, widget.entry.tags)) {
       _expanded = false;
-      _canExpand = false;
     }
   }
 
@@ -145,9 +143,17 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
     return true;
   }
 
-  void _onOverflow(bool exceeds) {
-    if (_canExpand == exceeds) return;
-    setState(() => _canExpand = exceeds);
+  /// Cheap overflow guess — avoids post-frame [TextPainter] + setState storms
+  /// when a story detail page first mounts dozens of entries.
+  bool _bodyLikelyOverflows(String body) {
+    if (body.isEmpty) return false;
+    var lines = 1;
+    for (var i = 0; i < body.length; i++) {
+      if (body.codeUnitAt(i) == 0x0A) lines++;
+      if (lines > widget.previewLines) return true;
+    }
+    // Compact body ~40 glyphs/line at typical phone widths.
+    return body.length > widget.previewLines * 40;
   }
 
   Future<void> _copy() async {
@@ -163,7 +169,10 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
   static const double _entryActionSize = 28;
   static const double _entryActionIcon = 16;
 
-  List<Widget> _entryActions({required bool hasCopy, required bool hasBody}) {
+  List<Widget> _entryActions({
+    required bool hasCopy,
+    required bool canExpand,
+  }) {
     return <Widget>[
       if (hasCopy)
         AppIconButton(
@@ -173,7 +182,7 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
           iconSize: _entryActionIcon,
           onPressed: _copy,
         ),
-      if (hasBody && _canExpand)
+      if (canExpand)
         AppIconButton(
           icon: _expanded ? Icons.expand_less : Icons.expand_more,
           tooltip: _expanded ? '收起' : '展开',
@@ -255,7 +264,8 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
     final title = widget.entry.title.trim();
     final body = widget.entry.body.trim();
     final hasCopy = widget.entry.clipboardText.isNotEmpty;
-    final actions = _entryActions(hasCopy: hasCopy, hasBody: body.isNotEmpty);
+    final canExpand = _bodyLikelyOverflows(body);
+    final actions = _entryActions(hasCopy: hasCopy, canExpand: canExpand);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -288,10 +298,9 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
                     const SizedBox(height: AppTheme.spaceXs),
                   AppExpandableText(
                     text: body,
-                    expanded: _expanded,
+                    expanded: _expanded || !canExpand,
                     previewLines: widget.previewLines,
                     role: AppTextRole.compactBody,
-                    onOverflowChanged: _onOverflow,
                   ),
                 ],
               ],

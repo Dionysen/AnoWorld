@@ -1,13 +1,9 @@
-import 'package:anoworld/home/create_assistant_host.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:flutter/material.dart';
 
-PageRouteBuilder<T> storyRoute<T extends Object?>(Widget page) {
-  return PageRouteBuilder<T>(
-    pageBuilder: (_, _, _) => CreateAssistantHost(child: page),
-    transitionsBuilder: (_, animation, _, child) {
-      return FadeTransition(opacity: animation, child: child);
-    },
-  );
+/// Story-flow page route (horizontal slide + create-assistant chrome).
+PageRoute<T> storyRoute<T extends Object?>(Widget page) {
+  return AppStorySlidePageRoute<T>(builder: (_) => page);
 }
 
 Future<T?> pushStoryRoute<T extends Object?>(

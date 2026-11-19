@@ -19,6 +19,7 @@ import 'package:anoworld/foundation/widgets/app_detail_section.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
@@ -56,19 +57,22 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (!_loading || _project != null || _error != null) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final projects = AppScope.projectsOf(context);
       final project = await projects.open(widget.projectId);
       final dir = await projects.directoryFor(widget.projectId);
+      final coverPath = await _resolveCoverPath(dir, project.meta.coverPath);
       if (!mounted) return;
       setState(() {
         _project = project;
         _projectDir = dir;
-        _coverAbsolutePath = _resolveCoverPath(dir, project.meta.coverPath);
+        _coverAbsolutePath = coverPath;
         _loading = false;
       });
     } catch (error) {
@@ -80,12 +84,16 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     }
   }
 
-  String? _resolveCoverPath(String? projectDir, String? relative) {
+  Future<String?> _resolveCoverPath(
+    String? projectDir,
+    String? relative,
+  ) async {
     if (projectDir == null || relative == null || relative.trim().isEmpty) {
       return null;
     }
     final absolute = ProjectCoverFiles.absolutePath(projectDir, relative);
-    return File(absolute).existsSync() ? absolute : null;
+    if (await File(absolute).exists()) return absolute;
+    return null;
   }
 
   Future<void> _persist(Project project) async {
@@ -94,10 +102,12 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     );
     await AppScope.projectsOf(context).save(stamped);
     if (!mounted) return;
+    final coverPath =
+        await _resolveCoverPath(_projectDir, stamped.meta.coverPath);
+    if (!mounted) return;
     setState(() {
       _project = stamped;
-      _coverAbsolutePath =
-          _resolveCoverPath(_projectDir, stamped.meta.coverPath);
+      _coverAbsolutePath = coverPath;
     });
   }
 
@@ -183,16 +193,12 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     if (project == null) return;
     final mode = await showPlayModeSheet(context);
     if (!mounted || mode == null) return;
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => PlaySessionPage(
-          project: project,
-          mode: mode,
-          resumeSave: false,
-        ),
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+    await pushAppSlide(
+      context,
+      PlaySessionPage(
+        project: project,
+        mode: mode,
+        resumeSave: false,
       ),
     );
   }
@@ -322,27 +328,37 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
         ),
       ),
     );
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (coverPath != null)
-          Image.file(
-            File(coverPath),
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => placeholder,
-          )
-        else
-          placeholder,
-        Positioned(
-          top: AppTheme.spaceSm,
-          right: AppTheme.spaceSm,
-          child: AppCircleButton(
-            icon: Icons.photo_outlined,
-            tooltip: '更换封面',
-            onPressed: _changeCover,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final cacheWidth = constraints.maxWidth.isFinite
+            ? (constraints.maxWidth * dpr).round()
+            : null;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (coverPath != null)
+              Image.file(
+                File(coverPath),
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.medium,
+                cacheWidth: cacheWidth,
+                errorBuilder: (_, _, _) => placeholder,
+              )
+            else
+              placeholder,
+            Positioned(
+              top: AppTheme.spaceSm,
+              right: AppTheme.spaceSm,
+              child: AppCircleButton(
+                icon: Icons.photo_outlined,
+                tooltip: '更换封面',
+                onPressed: _changeCover,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

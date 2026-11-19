@@ -2,6 +2,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/home/me_user_header.dart';
 import 'package:anoworld/settings/persona_settings_page.dart';
@@ -13,22 +14,11 @@ class MeTab extends StatelessWidget {
   const MeTab({super.key});
 
   Future<void> _openSettings(BuildContext context) {
-    return Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => const SettingsPage(),
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
+    return pushAppSlide(context, const SettingsPage());
   }
 
   Future<void> _openPersonaHub(BuildContext context) {
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const PersonaSettingsPage(),
-      ),
-    );
+    return pushAppSlide(context, const PersonaSettingsPage());
   }
 
   @override
