@@ -716,40 +716,47 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _syncBridgeNode();
       if (_prefetchQueue.isNotEmpty) {
         _consumePrefetch();
-        await _persist();
-        _topUpPrefetch();
+        // Refill as soon as the buffer drops below 2 — don't wait on disk.
+        _maintainPrefetchBuffer();
+        _persist();
         return;
       }
+      // A background write may be about to land in the queue; wait for it.
       if (_generating) return;
       await _generateOne(adopt: true);
-      _topUpPrefetch();
+      _maintainPrefetchBuffer();
       return;
     }
 
-    // While reading an AI-written beat, keep two more buffered ahead.
-    // Prewritten sample beats do not trigger background generation.
-    if (_isCurrentBridgeBeat()) {
-      _topUpPrefetch();
+    // While reading AI content, keep the background buffer at 2.
+    if (_shouldMaintainPrefetch) {
+      _maintainPrefetchBuffer();
     }
   }
 
-  bool _isCurrentBridgeBeat() {
+  /// Once the AI interval has started, always aim for [_prefetchTarget] ahead.
+  bool get _shouldMaintainPrefetch {
+    if (_runtime.pointer.isEnded) return false;
+    if (_runtime.needsBridge) return true;
     final bridge = _bridge;
     if (bridge == null) return false;
-    final beatId = _runtime.pointer.beatId;
-    if (beatId.isEmpty) return false;
-    for (final beat in bridge.generatedBeats) {
-      if (beat.id == beatId) return true;
-    }
-    return false;
+    if (bridge.generatedBeats.isNotEmpty) return true;
+    return _prefetchQueue.isNotEmpty;
   }
 
-  Future<void> _topUpPrefetch() async {
-    if (_isChat || !mounted || _generating || _prefetchPaused) return;
+  /// Start a background write whenever reserved beats are below target.
+  Future<void> _maintainPrefetchBuffer() async {
+    if (_isChat || !mounted || _generating) return;
+    if (!_shouldMaintainPrefetch && !_runtime.needsBridge) return;
     final node = _runtime.currentNode;
     if (node == null) return;
     if (_prefetchQueue.length >= _prefetchTarget) return;
     if (!_canPrefetchMore(node.id)) return;
+    // Hard need (empty + waiting): clear a prior soft pause so play can resume.
+    if (_prefetchPaused) {
+      if (_prefetchQueue.isNotEmpty || !_runtime.needsBridge) return;
+      _prefetchPaused = false;
+    }
 
     AppLog.instance.info(
       '后台预写第 ${_prefetchQueue.length + 1}/$_prefetchTarget 拍',
@@ -757,8 +764,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     );
     await _generateOne(adopt: false);
     if (!mounted) return;
-    // Fill until the buffer is full (or the station cannot take more).
-    _topUpPrefetch();
+    // Keep going until the buffer holds two reserved beats.
+    _maintainPrefetchBuffer();
   }
 
   void _consumePrefetch() {
@@ -787,6 +794,16 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       _prefetchPaused = false;
       _status = null;
     });
+  }
+
+  /// After a reserved beat lands: feed the player if they are waiting, then refill.
+  Future<void> _onPrefetchArrived() async {
+    if (!mounted) return;
+    if (_runtime.needsBridge && _prefetchQueue.isNotEmpty) {
+      _consumePrefetch();
+      await _persist();
+    }
+    _maintainPrefetchBuffer();
   }
 
   Future<void> _generateOne({required bool adopt}) async {
@@ -829,6 +846,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           '预写完成 ${beat.id}（缓冲 ${_prefetchQueue.length}/$_prefetchTarget）',
           tag: 'play.vn',
         );
+        await _onPrefetchArrived();
       }
     } on AiTextException catch (error) {
       if (!mounted || epoch != _generateEpoch) return;
@@ -851,6 +869,12 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           '后台预写失败：${error.message}',
           tag: 'play.vn',
         );
+        // If the player is already waiting, fall through to a blocking adopt.
+        if (_runtime.needsBridge && _prefetchQueue.isEmpty) {
+          _prefetchPaused = false;
+          await _generateOne(adopt: true);
+          _maintainPrefetchBuffer();
+        }
       }
     } catch (error, stack) {
       if (!mounted || epoch != _generateEpoch) return;
@@ -874,6 +898,11 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           _generating = false;
           _prefetchPaused = true;
         });
+        if (_runtime.needsBridge && _prefetchQueue.isEmpty) {
+          _prefetchPaused = false;
+          await _generateOne(adopt: true);
+          _maintainPrefetchBuffer();
+        }
       }
     }
   }

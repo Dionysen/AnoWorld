@@ -377,6 +377,7 @@ void main() {
       _beatJson('第一拍。'),
       _beatJson('第二拍。'),
       _beatJson('第三拍。'),
+      _beatJson('第四拍。'),
     ]);
     final settings = testSettingsController();
     await settings.updateAi(
@@ -439,8 +440,14 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.text('第二拍。'), findsOneWidget);
-    // Prefetch top-up may have started a 4th call; at least the stay was free.
-    expect(client.calls, greaterThanOrEqualTo(3));
+    // Consuming dropped the buffer below 2 → a 4th write starts immediately.
+    expect(find.byType(AppBusyIndicator), findsOneWidget);
+    expect(client.calls, 3);
+
+    client.releaseNext();
+    await tester.pump();
+    await tester.pump();
+    expect(client.calls, 4);
   });
 
   testWidgets('VN regenerate drops the current beat and writes a new one',
