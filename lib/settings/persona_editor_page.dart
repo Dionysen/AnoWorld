@@ -133,6 +133,7 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
                 Expanded(
                   child: AppButton(
                     label: '删除',
+                    variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
                 ),
@@ -208,7 +209,7 @@ class _PersonaEditorPageState extends State<PersonaEditorPage> {
             const SizedBox(height: AppTheme.spaceMd),
             AppButton(
               label: _deleting ? '删除中…' : '删除',
-              variant: AppButtonVariant.secondary,
+              variant: AppButtonVariant.danger,
               expanded: true,
               onPressed: busy ? null : _delete,
             ),

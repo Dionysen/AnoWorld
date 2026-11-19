@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 
-enum AppButtonVariant { primary, secondary, ghost }
+enum AppButtonVariant { primary, secondary, ghost, danger }
 
 /// Encapsulated button. Business code must not use ElevatedButton/TextButton.
 class AppButton extends StatelessWidget {
@@ -64,6 +64,24 @@ class AppButton extends StatelessWidget {
           onPressed: onPressed,
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
+            minimumSize: _minSize,
+            fixedSize: _fixedSize,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.standard,
+            padding: _padding,
+            shape: shape,
+          ),
+          child: child,
+        ),
+      AppButtonVariant.danger => FilledButton(
+          onPressed: onPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.colorScheme.error,
+            foregroundColor: theme.colorScheme.onError,
+            disabledBackgroundColor:
+                theme.colorScheme.error.withValues(alpha: 0.4),
+            disabledForegroundColor:
+                theme.colorScheme.onError.withValues(alpha: 0.7),
             minimumSize: _minSize,
             fixedSize: _fixedSize,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,

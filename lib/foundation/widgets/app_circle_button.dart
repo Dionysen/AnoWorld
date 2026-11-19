@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum AppCircleButtonVariant { filled, tonal, ghost }
+enum AppCircleButtonVariant { filled, tonal, ghost, danger }
 
 /// Icon-only circular control. Shape is always a circle — never reads the
 /// corner-radius slider / [AppUiTokens.radius].
@@ -9,6 +9,8 @@ enum AppCircleButtonVariant { filled, tonal, ghost }
 /// show the ink overlay. Prefer this for chrome (back, title actions, overlays).
 /// [AppCircleButtonVariant.filled] is for primary circular CTAs (FAB).
 /// [AppCircleButtonVariant.tonal] keeps a resting fill when a soft chip is needed.
+/// [AppCircleButtonVariant.danger] uses [ColorScheme.error] for destructive
+/// chrome (delete).
 class AppCircleButton extends StatelessWidget {
   const AppCircleButton({
     super.key,
@@ -70,6 +72,11 @@ class AppCircleButton extends StatelessWidget {
       AppCircleButtonVariant.ghost => (
           Colors.transparent,
           scheme.onSurface,
+          Colors.transparent,
+        ),
+      AppCircleButtonVariant.danger => (
+          Colors.transparent,
+          scheme.error,
           Colors.transparent,
         ),
     };

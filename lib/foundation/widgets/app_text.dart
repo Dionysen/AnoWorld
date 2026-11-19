@@ -21,6 +21,7 @@ class AppText extends StatelessWidget {
     this.data, {
     super.key,
     this.role = AppTextRole.body,
+    this.color,
     this.maxLines,
     this.overflow,
     this.textAlign,
@@ -28,6 +29,7 @@ class AppText extends StatelessWidget {
 
   final String data;
   final AppTextRole role;
+  final Color? color;
   final int? maxLines;
   final TextOverflow? overflow;
   final TextAlign? textAlign;
@@ -59,7 +61,7 @@ class AppText extends StatelessWidget {
     };
     return Text(
       data,
-      style: style,
+      style: color == null ? style : style?.copyWith(color: color),
       maxLines: maxLines,
       overflow: overflow ?? (maxLines == null ? null : TextOverflow.ellipsis),
       textAlign: textAlign,

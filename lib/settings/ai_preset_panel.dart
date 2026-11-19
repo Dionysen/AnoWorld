@@ -226,6 +226,7 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
             AppListTile(
               title: '删除',
               icon: Icons.delete_outline,
+              danger: true,
               onTap: () async {
                 Navigator.pop(ctx);
                 await controller.deleteCustomAiPreset(preset.id);

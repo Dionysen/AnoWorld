@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/create_entry_page.dart';
+import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/project_folder.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
@@ -20,6 +22,8 @@ import 'package:anoworld/home/library_browse_views.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
+import 'package:anoworld/play/play_mode_sheet.dart';
+import 'package:anoworld/play/play_session_page.dart';
 import 'package:anoworld/project/project_hub_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -358,6 +362,7 @@ class WorksTabState extends State<WorksTab> {
                 Expanded(
                   child: AppButton(
                     label: '删除',
+                    variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
                 ),
@@ -474,6 +479,7 @@ class WorksTabState extends State<WorksTab> {
                 Expanded(
                   child: AppButton(
                     label: '删除',
+                    variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
                 ),
@@ -620,6 +626,7 @@ class WorksTabState extends State<WorksTab> {
                 Expanded(
                   child: AppButton(
                     label: '删除',
+                    variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
                 ),
@@ -630,6 +637,7 @@ class WorksTabState extends State<WorksTab> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    AppLog.instance.info('删除故事：$projectId', tag: 'works.story');
     final saves = AppScope.savesOf(context);
     final folders = AppScope.foldersOf(context);
     final projects = AppScope.projectsOf(context);
@@ -683,7 +691,7 @@ class WorksTabState extends State<WorksTab> {
             const SizedBox(height: AppTheme.spaceSm),
             AppButton(
               label: '删除文件夹',
-              variant: AppButtonVariant.secondary,
+              variant: AppButtonVariant.danger,
               expanded: true,
               onPressed: () => Navigator.of(ctx).pop('delete'),
             ),
@@ -707,39 +715,83 @@ class WorksTabState extends State<WorksTab> {
   Future<void> _projectMenu(ProjectSummary project) async {
     final action = await showAppSheet<String>(
       context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppButton(
-              label: '打开',
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('open'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '删除故事',
-              variant: AppButtonVariant.secondary,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('delete'),
-            ),
-          ],
-        ),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: AppTheme.spaceSm),
+          AppListTile(
+            title: '开始故事',
+            icon: Icons.play_arrow_rounded,
+            onTap: () => Navigator.of(ctx).pop('play'),
+          ),
+          AppListTile(
+            title: '查看故事',
+            icon: Icons.visibility_outlined,
+            onTap: () => Navigator.of(ctx).pop('view'),
+          ),
+          AppListTile(
+            title: '编辑故事',
+            icon: Icons.edit_note_outlined,
+            onTap: () => Navigator.of(ctx).pop('edit'),
+          ),
+          AppListTile(
+            title: '删除故事',
+            icon: Icons.delete_outline,
+            danger: true,
+            showDivider: false,
+            onTap: () => Navigator.of(ctx).pop('delete'),
+          ),
+          const SizedBox(height: AppTheme.pagePadding),
+        ],
       ),
     );
-    if (!mounted) return;
-    if (action == 'open') {
-      widget.selection.exit();
-      await _openRoute(ProjectHubPage(projectId: project.id));
-    } else if (action == 'delete') {
-      await _deleteOneProject(project.id);
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'play':
+        await _startPlay(project);
+      case 'view':
+        widget.selection.exit();
+        AppLog.instance.info('查看故事：${project.title}', tag: 'works.story');
+        await _openRoute(ProjectHubPage(projectId: project.id));
+      case 'edit':
+        widget.selection.exit();
+        AppLog.instance.info('编辑故事：${project.title}', tag: 'works.story');
+        await _openRoute(CreateHubPage(projectId: project.id));
+      case 'delete':
+        await _deleteOneProject(project.id);
+    }
+  }
+
+  Future<void> _startPlay(ProjectSummary summary) async {
+    widget.selection.exit();
+    try {
+      final project = await AppScope.projectsOf(context).open(summary.id);
+      if (!mounted) return;
+      final mode = await showPlayModeSheet(context);
+      if (!mounted || mode == null) return;
+      AppLog.instance.info(
+        '开始故事：${summary.title}（${mode.name}）',
+        tag: 'works.story',
+      );
+      await _openRoute(
+        PlaySessionPage(
+          project: project,
+          mode: mode,
+          resumeSave: false,
+        ),
+      );
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '开始故事失败',
+        tag: 'works.story',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法开始：$error')),
+      );
     }
   }
 
@@ -1027,6 +1079,7 @@ class WorksTabState extends State<WorksTab> {
                       AppIconButton(
                         icon: Icons.delete_outline,
                         tooltip: '删除',
+                        danger: true,
                         onPressed: deleteSelected,
                       ),
                   ]),

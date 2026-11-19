@@ -388,7 +388,7 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
             AppButton(
               label: '删除这个角色',
               expanded: true,
-              variant: AppButtonVariant.ghost,
+              variant: AppButtonVariant.danger,
               onPressed: () => Navigator.of(context).pop(
                 const _CastSheetResult.delete(),
               ),

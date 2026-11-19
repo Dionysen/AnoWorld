@@ -189,6 +189,7 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
                     Expanded(
                       child: AppButton(
                         label: '删除',
+                        variant: AppButtonVariant.danger,
                         onPressed: () => Navigator.of(ctx).pop(true),
                       ),
                     ),
@@ -251,6 +252,7 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
           AppIconButton(
             icon: Icons.delete_outline,
             tooltip: '删除',
+            danger: true,
             onPressed: _deleteSelected,
           ),
       ];

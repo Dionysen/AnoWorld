@@ -603,6 +603,7 @@ class _SelectionActionBar extends StatelessWidget {
           AppCircleButton(
             icon: Icons.delete_outline,
             tooltip: '删除',
+            variant: AppCircleButtonVariant.danger,
             onPressed: () => onDelete!(nodeId),
           ),
       ],

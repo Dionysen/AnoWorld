@@ -14,6 +14,7 @@ class AppIconButton extends StatelessWidget {
     this.tooltip,
     this.size = hitTarget,
     this.iconSize = glyphSize,
+    this.danger = false,
   });
 
   /// Default hit target (matches [AppCircleButton.diameter]).
@@ -28,6 +29,9 @@ class AppIconButton extends StatelessWidget {
   final double size;
   final double iconSize;
 
+  /// Destructive chrome — uses [AppCircleButtonVariant.danger].
+  final bool danger;
+
   @override
   Widget build(BuildContext context) {
     return AppCircleButton(
@@ -36,7 +40,9 @@ class AppIconButton extends StatelessWidget {
       tooltip: tooltip,
       size: size,
       iconSize: iconSize,
-      variant: AppCircleButtonVariant.ghost,
+      variant: danger
+          ? AppCircleButtonVariant.danger
+          : AppCircleButtonVariant.ghost,
     );
   }
 }

@@ -62,6 +62,7 @@ class PersonaSettingsPanel extends StatelessWidget {
                 Expanded(
                   child: AppButton(
                     label: '删除',
+                    variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
                 ),

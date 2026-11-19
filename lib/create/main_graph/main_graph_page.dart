@@ -432,6 +432,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   Expanded(
                     child: AppButton(
                       label: '删除',
+                      variant: AppButtonVariant.danger,
                       onPressed: () => Navigator.pop(sheetContext, true),
                     ),
                   ),
@@ -606,7 +607,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
                   const SizedBox(height: AppTheme.spaceSm),
                   AppButton(
                     label: '删除这一站',
-                    variant: AppButtonVariant.ghost,
+                    variant: AppButtonVariant.danger,
                     onPressed: project.main.nodes.length <= 1
                         ? null
                         : () async {

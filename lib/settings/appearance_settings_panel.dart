@@ -361,6 +361,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             AppListTile(
               title: '删除',
               icon: Icons.delete_outline,
+              danger: true,
               onTap: () => Navigator.pop(context, _PackMenuAction.delete),
             ),
             const SizedBox(height: AppTheme.spaceMd),
@@ -413,6 +414,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
                       Expanded(
                         child: AppButton(
                           label: '删除',
+                          variant: AppButtonVariant.danger,
                           onPressed: () => Navigator.pop(context, true),
                         ),
                       ),

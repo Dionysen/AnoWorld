@@ -27,6 +27,32 @@ void main() {
     expect(tapped, isTrue);
   });
 
+  testWidgets('AppButton danger uses error colors', (tester) async {
+    late ColorScheme scheme;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Builder(
+          builder: (context) {
+            scheme = Theme.of(context).colorScheme;
+            return Scaffold(
+              body: AppButton(
+                label: '删除',
+                variant: AppButtonVariant.danger,
+                onPressed: () {},
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    final style = button.style!;
+    expect(style.backgroundColor!.resolve({}), scheme.error);
+    expect(style.foregroundColor!.resolve({}), scheme.onError);
+  });
+
   testWidgets('AppListTile shows title and subtitle', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -44,6 +70,32 @@ void main() {
     expect(find.text('雨夜投宿'), findsOneWidget);
     expect(find.text('更新 2026-01-01'), findsOneWidget);
     expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
+  });
+
+  testWidgets('AppListTile danger tints icon and title', (tester) async {
+    late ColorScheme scheme;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Builder(
+          builder: (context) {
+            scheme = Theme.of(context).colorScheme;
+            return const Scaffold(
+              body: AppListTile(
+                title: '删除故事',
+                icon: Icons.delete_outline,
+                danger: true,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.delete_outline));
+    expect(icon.color, scheme.error);
+    final text = tester.widget<Text>(find.text('删除故事'));
+    expect(text.style?.color, scheme.error);
   });
 
   testWidgets('AppListTile subtitle uses space up to the trailing control', (

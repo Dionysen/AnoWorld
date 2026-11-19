@@ -175,6 +175,7 @@ class SavesTabState extends State<SavesTab> {
                 Expanded(
                   child: AppButton(
                     label: '删除',
+                    variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
                 ),
@@ -228,6 +229,7 @@ class SavesTabState extends State<SavesTab> {
                 Expanded(
                   child: AppButton(
                     label: '删除',
+                    variant: AppButtonVariant.danger,
                     onPressed: () => Navigator.of(ctx).pop(true),
                   ),
                 ),
@@ -322,10 +324,11 @@ class SavesTabState extends State<SavesTab> {
                   ),
                   if (widget.selection.hasSelection) ...[
                     const SizedBox(width: AppTheme.spaceSm),
-                    AppIconButton(
-                      icon: Icons.delete_outline,
-                      tooltip: '删除',
-                      onPressed: deleteSelected,
+                      AppIconButton(
+                        icon: Icons.delete_outline,
+                        tooltip: '删除',
+                        danger: true,
+                        onPressed: deleteSelected,
                     ),
                   ],
                 ] else
@@ -444,8 +447,8 @@ class SavesTabState extends State<SavesTab> {
                                                   ),
                                                   AppButton(
                                                     label: '删除存档',
-                                                    variant: AppButtonVariant
-                                                        .ghost,
+                                                    variant:
+                                                        AppButtonVariant.danger,
                                                     expanded: true,
                                                     onPressed: () =>
                                                         Navigator.of(ctx)

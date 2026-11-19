@@ -17,6 +17,7 @@ class AppListTile extends StatelessWidget {
     this.trailing,
     this.selected = false,
     this.nested = false,
+    this.danger = false,
     this.showDivider = true,
   });
 
@@ -34,6 +35,9 @@ class AppListTile extends StatelessWidget {
   /// Secondary tier inside an expanded settings block (extra leading indent).
   final bool nested;
 
+  /// Destructive row: icon + title use [ColorScheme.error].
+  final bool danger;
+
   /// Hairline under the row. Turn off for the last item in a custom stack.
   final bool showDivider;
 
@@ -49,6 +53,7 @@ class AppListTile extends StatelessWidget {
     Widget? trailing,
     bool? selected,
     bool? nested,
+    bool? danger,
     bool? showDivider,
   }) {
     return AppListTile(
@@ -62,6 +67,7 @@ class AppListTile extends StatelessWidget {
       trailing: trailing ?? this.trailing,
       selected: selected ?? this.selected,
       nested: nested ?? this.nested,
+      danger: danger ?? this.danger,
       showDivider: showDivider ?? this.showDivider,
     );
   }
@@ -75,6 +81,7 @@ class AppListTile extends StatelessWidget {
       scheme.surface,
     );
     final left = AppTheme.spaceMd + (nested ? AppTheme.spaceMd : 0);
+    final emphasis = danger ? scheme.error : null;
 
     final row = Material(
       color: selected ? selectedFill : Colors.transparent,
@@ -97,7 +104,7 @@ class AppListTile extends StatelessWidget {
                 Icon(
                   icon,
                   size: iconSize,
-                  color: scheme.onSurfaceVariant,
+                  color: emphasis ?? scheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: AppTheme.spaceInline),
               ],
@@ -108,6 +115,7 @@ class AppListTile extends StatelessWidget {
                     AppText(
                       title,
                       role: AppTextRole.subtitle,
+                      color: emphasis,
                       maxLines: 1,
                     ),
                     if (subtitle != null && subtitle!.isNotEmpty) ...[

@@ -152,6 +152,7 @@ class AppFontPickerRow extends StatelessWidget {
                                   AppIconButton(
                                     icon: Icons.delete_outline,
                                     tooltip: '从库中移除',
+                                    danger: true,
                                     onPressed: () async {
                                       final confirmed = await _confirmDelete(
                                         context,
@@ -229,6 +230,7 @@ class AppFontPickerRow extends StatelessWidget {
                   Expanded(
                     child: AppButton(
                       label: '删除',
+                      variant: AppButtonVariant.danger,
                       onPressed: () => Navigator.pop(context, true),
                     ),
                   ),
