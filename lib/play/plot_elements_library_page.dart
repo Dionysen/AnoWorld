@@ -131,7 +131,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
     );
   }
 
-  List<Widget> _categorySections(PlotElementCatalog catalog) {
+  Widget _categoryList(PlotElementCatalog catalog) {
     final uncategorizedCount = catalog.uncategorizedElements.length;
     final rows = <Widget>[
       for (final category in catalog.categories)
@@ -149,26 +149,16 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
           categoryId: '',
         ),
     ];
-    return [
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < rows.length; i++) ...[
-            rows[i],
-            if (i < rows.length - 1) const AppListHairline(),
-          ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          rows[i],
+          if (i < rows.length - 1) const AppListHairline(),
         ],
-      ),
-      const SizedBox(height: AppTheme.spaceLg),
-      AppListTile(
-        title: '新建分类',
-        subtitle: '给元素多一个归处',
-        icon: Icons.create_new_folder_outlined,
-        showDivider: false,
-        onTap: _createCategory,
-      ),
-    ];
+      ],
+    );
   }
 
   @override
@@ -191,6 +181,11 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
               icon: Icons.add,
               tooltip: '加一条',
               onPressed: () => _edit(),
+            ),
+            AppCircleButton(
+              icon: Icons.create_new_folder_outlined,
+              tooltip: '新建分类',
+              onPressed: _createCategory,
             ),
           ],
           body: AppPageBody.list(
@@ -236,7 +231,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
                   ],
                 ),
               ] else
-                ..._categorySections(catalog),
+                _categoryList(catalog),
             ],
           ),
         );

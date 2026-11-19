@@ -8,9 +8,7 @@ import '../support/test_app.dart';
 
 void main() {
   testWidgets('play modes tab opens plot elements library', (tester) async {
-    await tester.pumpWidget(
-      testScoped(home: const PlayModesTab()),
-    );
+    await tester.pumpWidget(testScoped(home: const PlayModesTab()));
     await tester.pumpAndSettle();
 
     expect(find.text('玩法还在整理'), findsNothing);
@@ -42,7 +40,9 @@ void main() {
 
     expect(find.text('日常'), findsOneWidget);
     expect(find.text('情感'), findsOneWidget);
-    expect(find.text('新建分类'), findsOneWidget);
+    expect(find.text('新建分类'), findsNothing);
+    expect(find.byTooltip('新建分类'), findsOneWidget);
+    expect(find.byTooltip('加一条'), findsOneWidget);
 
     await tester.tap(find.text('日常'));
     await tester.pumpAndSettle();
@@ -62,7 +62,7 @@ void main() {
     expect(find.text('生活'), findsOneWidget);
   });
 
-  testWidgets('new category can be created from the category tab', (
+  testWidgets('top-right button creates a category on the category tab', (
     tester,
   ) async {
     final settings = testSettingsController();
@@ -73,12 +73,7 @@ void main() {
 
     await tester.tap(find.text('分类'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('新建分类'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('新建分类'));
+    await tester.tap(find.byTooltip('新建分类'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '校园');
     await tester.tap(find.text('保存'));
@@ -86,5 +81,30 @@ void main() {
 
     expect(settings.plotElements.customCategories.single.name, '校园');
     expect(find.text('校园'), findsOneWidget);
+  });
+
+  testWidgets('title bar shows more / add / new-category buttons', (
+    tester,
+  ) async {
+    await tester.pumpWidget(testScoped(home: const PlotElementsLibraryPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('更多'), findsOneWidget);
+    expect(find.byTooltip('加一条'), findsOneWidget);
+    expect(find.byTooltip('新建分类'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('加一条'));
+    await tester.pumpAndSettle();
+    expect(find.text('新剧情元素'), findsOneWidget);
+  });
+
+  testWidgets('more menu only keeps restore-all', (tester) async {
+    await tester.pumpWidget(testScoped(home: const PlotElementsLibraryPage()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('更多'));
+    await tester.pumpAndSettle();
+    expect(find.text('全部恢复默认'), findsOneWidget);
+    expect(find.text('加一条'), findsNothing);
   });
 }
