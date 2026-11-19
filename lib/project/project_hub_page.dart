@@ -12,6 +12,8 @@ import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/story_node_kind.dart';
+import 'package:anoworld/domain/project/project_token_estimate.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
@@ -302,13 +304,50 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     );
   }
 
-  String _mainSubtitle(Project project) {
+  String _mainEmptyHint(Project project) {
     final nodes = project.main.nodes.length;
     final edges = project.main.edges.length;
     if (nodes == 0) return '还没有大情节站';
     return '$nodes 站 · $edges 条连线';
   }
 
+  /// Size lines sit under the section title; empty sections keep their hint.
+  String? _worldBookSize(Project project, ProjectTokenEstimate? size) {
+    if (size == null || project.worldBook.entries.isEmpty) return null;
+    return describeWorldBookSize(
+      entries: project.worldBook.entries.length,
+      alwaysOn: project.worldBook.entries.where((e) => e.alwaysOn).length,
+      tokens: size.worldBook,
+    );
+  }
+
+  String? _castSize(Project project, ProjectTokenEstimate? size) {
+    if (size == null || project.cast.isEmpty) return null;
+    return describeCastSize(members: project.cast.length, tokens: size.cast);
+  }
+
+  String? _mainSize(Project project, ProjectTokenEstimate? size) {
+    if (size == null || project.main.nodes.isEmpty) return null;
+    return describeMainSize(
+      nodes: project.main.nodes.length,
+      tokens: size.main,
+    );
+  }
+
+  String? _plotElementsSize(
+    Project project,
+    ProjectTokenEstimate? size,
+    PlotElementCatalog catalog,
+  ) {
+    if (size == null) return null;
+    final selected =
+        catalog.resolveSelected(project.plotElements.selectedIds).length;
+    if (selected == 0) return null;
+    return describePlotElementsSize(
+      selected: selected,
+      tokens: size.plotElements,
+    );
+  }
   List<AppDetailEntry> _plotElementEntries(Project project) {
     final catalog = AppScope.settingsOf(context).plotElements;
     final rows = catalog.resolveSelected(project.plotElements.selectedIds);
@@ -379,6 +418,10 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   @override
   Widget build(BuildContext context) {
     final project = _project;
+    final catalog = AppScope.settingsOf(context).plotElements;
+    final size = project == null
+        ? null
+        : ProjectTokenEstimate.of(project, plotCatalog: catalog);
     final title =
         project?.meta.title.trim().isEmpty == true ||
                 project == null
@@ -436,6 +479,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             AppDetailSection(
               title: '世界书',
               icon: Icons.public_outlined,
+              subtitle: _worldBookSize(project, size),
               entries: _worldBookEntries(project),
               emptyHint: '还没有世界观与设定',
               onEdit: () => _openEditor(
@@ -446,6 +490,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             AppDetailSection(
               title: '角色',
               icon: Icons.groups_outlined,
+              subtitle: _castSize(project, size),
               entries: _castEntries(project),
               emptyHint: '还没有角色',
               onEdit: () => _openEditor(
@@ -456,8 +501,9 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             AppDetailSection(
               title: '情节走向',
               icon: Icons.account_tree_outlined,
+              subtitle: _mainSize(project, size),
               entries: _mainEntries(project),
-              emptyHint: _mainSubtitle(project),
+              emptyHint: _mainEmptyHint(project),
               onEdit: () => _openEditor(
                 MainGraphPage(projectId: widget.projectId),
               ),
@@ -466,6 +512,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             AppDetailSection(
               title: '剧情元素',
               icon: Icons.theater_comedy_outlined,
+              subtitle: _plotElementsSize(project, size, catalog),
               entries: _plotElementEntries(project),
               emptyHint: '还没选剧情元素',
               onEdit: () => _openEditor(

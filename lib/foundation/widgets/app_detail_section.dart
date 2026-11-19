@@ -24,6 +24,7 @@ class AppDetailSection extends StatefulWidget {
     required this.icon,
     required this.entries,
     required this.onEdit,
+    this.subtitle,
     this.emptyHint,
     this.previewLines = 3,
     this.initialVisibleCount = 8,
@@ -33,6 +34,9 @@ class AppDetailSection extends StatefulWidget {
   final IconData icon;
   final List<AppDetailEntry> entries;
   final VoidCallback onEdit;
+
+  /// Caption under [title] (counts / size); hidden when null or blank.
+  final String? subtitle;
   final String? emptyHint;
   final int previewLines;
 
@@ -72,6 +76,7 @@ class _AppDetailSectionState extends State<AppDetailSection> {
     final visible = _visibleEntries;
     final isEmpty = visible.isEmpty;
     final emptyHint = widget.emptyHint ?? '这里还没有内容';
+    final subtitle = widget.subtitle?.trim() ?? '';
     final cap = widget.initialVisibleCount < 1 ? 1 : widget.initialVisibleCount;
     final capped = !_showAll && visible.length > cap;
     final shown = capped ? visible.take(cap).toList(growable: false) : visible;
@@ -92,14 +97,28 @@ class _AppDetailSectionState extends State<AppDetailSection> {
                 onPressed: widget.onEdit,
               );
               final heading = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(widget.icon, size: 20, color: scheme.primary),
                   const SizedBox(width: AppTheme.spaceSm),
                   Expanded(
-                    child: AppText(
-                      widget.title,
-                      role: AppTextRole.subtitle,
-                      maxLines: 1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AppText(
+                          widget.title,
+                          role: AppTextRole.subtitle,
+                          maxLines: 1,
+                        ),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: AppTheme.spaceXs),
+                          AppText(
+                            subtitle,
+                            role: AppTextRole.caption,
+                            maxLines: 2,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   if (!compact) edit,

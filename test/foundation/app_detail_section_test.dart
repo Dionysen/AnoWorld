@@ -50,6 +50,27 @@ void main() {
     expect(edited, isTrue);
   });
 
+  testWidgets('shows optional subtitle under the title', (tester) async {
+    await tester.pumpWidget(
+      testScoped(
+        home: Scaffold(
+          body: AppDetailSection(
+            title: '角色',
+            icon: Icons.groups_outlined,
+            subtitle: '2 个角色，33 token',
+            entries: const [
+              AppDetailEntry(title: '少年', body: '离家远行的旅人'),
+            ],
+            onEdit: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 个角色，33 token'), findsOneWidget);
+  });
+
   testWidgets('narrow width does not overflow entry actions', (tester) async {
     const body = '第一行。\n第二行。\n第三行。\n第四行。';
 
@@ -62,6 +83,7 @@ void main() {
               child: AppDetailSection(
                 title: '世界书',
                 icon: Icons.public_outlined,
+                subtitle: '12 条设定，3 条常驻，4210 token',
                 entries: const [
                   AppDetailEntry(
                     title: '世界观',

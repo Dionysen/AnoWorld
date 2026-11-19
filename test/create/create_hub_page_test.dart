@@ -34,6 +34,33 @@ void main() {
     expect(find.text('剧情元素'), findsOneWidget);
   });
 
+  testWidgets('create hub subtitles show counts and token size', (tester) async {
+    final repo = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: CreateHubPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining(RegExp(r'^\d+ 条设定，\d+ 条常驻，\d+ token$')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(RegExp(r'^\d+ 个角色，\d+ token$')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(RegExp(r'^\d+ 个节点，\d+ token$')),
+      findsOneWidget,
+    );
+    expect(find.text('还没选'), findsOneWidget);
+  });
+
   testWidgets('create hub opens background / cast / main', (tester) async {
     final repo = MemoryProjectRepository(
       seed: {sample.meta.id: sample},

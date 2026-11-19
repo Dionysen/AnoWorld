@@ -4,6 +4,8 @@ import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/create/plot_elements_pick_page.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/project/project_token_estimate.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
@@ -65,38 +67,38 @@ class _CreateHubPageState extends State<CreateHubPage> {
     if (mounted) await _load();
   }
 
-  String _worldBookSubtitle(Project project) {
-    final count = project.worldBook.entries.length;
-    if (count == 0) return '还没有设定条目';
-    final always =
-        project.worldBook.entries.where((e) => e.alwaysOn).length;
-    return '$count 条设定，其中 $always 条常驻';
+  String _worldBookSubtitle(Project project, ProjectTokenEstimate size) {
+    return describeWorldBookSize(
+      entries: project.worldBook.entries.length,
+      alwaysOn: project.worldBook.entries.where((e) => e.alwaysOn).length,
+      tokens: size.worldBook,
+    );
   }
 
-  String _castSubtitle(Project project) {
-    final count = project.cast.length;
-    if (count == 0) return '还没有角色';
-    final names = project.cast.take(3).map((c) => c.name).join('、');
-    return count <= 3 ? names : '$names 等 $count 人';
+  String _castSubtitle(Project project, ProjectTokenEstimate size) {
+    return describeCastSize(
+      members: project.cast.length,
+      tokens: size.cast,
+    );
   }
 
-  String _mainSubtitle(Project project) {
-    final nodes = project.main.nodes.length;
-    final edges = project.main.edges.length;
-    if (project.main.summary.trim().isEmpty) {
-      return '$nodes 站 · $edges 条连线';
-    }
-    final summary = project.main.summary.trim();
-    final short =
-        summary.length > 24 ? '${summary.substring(0, 24)}…' : summary;
-    return '$short · $nodes 站';
+  String _mainSubtitle(Project project, ProjectTokenEstimate size) {
+    return describeMainSize(
+      nodes: project.main.nodes.length,
+      tokens: size.main,
+    );
   }
 
-  String _plotElementsSubtitle(Project project) {
-    final catalog = AppScope.settingsOf(context).plotElements;
-    final count = catalog.resolveSelected(project.plotElements.selectedIds).length;
-    if (count == 0) return '还没选';
-    return '已选 $count 项';
+  String _plotElementsSubtitle(
+    Project project,
+    ProjectTokenEstimate size,
+    PlotElementCatalog catalog,
+  ) {
+    return describePlotElementsSize(
+      selected:
+          catalog.resolveSelected(project.plotElements.selectedIds).length,
+      tokens: size.plotElements,
+    );
   }
 
   String _pageTitle(Project? project) {
@@ -108,6 +110,10 @@ class _CreateHubPageState extends State<CreateHubPage> {
   @override
   Widget build(BuildContext context) {
     final project = _project;
+    final catalog = AppScope.settingsOf(context).plotElements;
+    final size = project == null
+        ? null
+        : ProjectTokenEstimate.of(project, plotCatalog: catalog);
     return AppPage(
       title: _pageTitle(project),
       onBack: () => Navigator.of(context).maybePop(),
@@ -129,12 +135,12 @@ class _CreateHubPageState extends State<CreateHubPage> {
                 ),
               ),
             )
-          else if (project != null)
+          else if (project != null && size != null)
             AppListTileStack(
               tiles: [
                 AppListTile(
                   title: '世界书',
-                  subtitle: _worldBookSubtitle(project),
+                  subtitle: _worldBookSubtitle(project, size),
                   icon: Icons.public_outlined,
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(
@@ -143,7 +149,7 @@ class _CreateHubPageState extends State<CreateHubPage> {
                 ),
                 AppListTile(
                   title: '角色',
-                  subtitle: _castSubtitle(project),
+                  subtitle: _castSubtitle(project, size),
                   icon: Icons.groups_outlined,
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(
@@ -152,7 +158,7 @@ class _CreateHubPageState extends State<CreateHubPage> {
                 ),
                 AppListTile(
                   title: '情节走向',
-                  subtitle: _mainSubtitle(project),
+                  subtitle: _mainSubtitle(project, size),
                   icon: Icons.account_tree_outlined,
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(
@@ -161,7 +167,7 @@ class _CreateHubPageState extends State<CreateHubPage> {
                 ),
                 AppListTile(
                   title: '剧情元素',
-                  subtitle: _plotElementsSubtitle(project),
+                  subtitle: _plotElementsSubtitle(project, size, catalog),
                   icon: Icons.theater_comedy_outlined,
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(

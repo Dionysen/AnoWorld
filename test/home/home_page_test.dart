@@ -53,6 +53,18 @@ void main() {
     expect(find.text('少年离家，雨夜投宿。'), findsWidgets);
     expect(find.text('世界书'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);
+    expect(
+      find.textContaining(RegExp(r'^\d+ 条设定，\d+ 条常驻，\d+ token$')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(RegExp(r'^\d+ 个角色，\d+ token$')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(RegExp(r'^\d+ 个节点，\d+ token$')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('works more can switch display mode', (tester) async {
