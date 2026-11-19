@@ -147,7 +147,7 @@ Transition {
 
 ## 3. 运行时推进规则（双模式共用）
 
-状态：`{ nodeId, beatId, lineIndex }`（`lineIndex` 仅 UI 用）。开启区间 AI 时，另有本局会话态（见 §5）。
+状态：`{ nodeId, beatId, lineIndex, phase }`（`lineIndex` / `phase` 为 VN 句内进度，现已写入存档以便续玩与回退）。开启区间 AI 时，另有本局会话态（见 §5）。
 
 ### 3.1 静态推进（预写 Beat）
 
@@ -170,7 +170,7 @@ Transition {
    - `maxBridgeBeats` 默认 4；触顶后禁止 stay，必须合法 `node`/`end`。  
    - UI 可提供「前往：{下一站}」保底；失败时用 `fallbackChoices`（合法出边）。
 4. **无出边（开放区间）**：不触顶强制收敛；prompt 要求 stay「继续」为主，可 `end`；空 choices 时自动补「继续」；`fallbackChoices` = 「继续」+「告一段落」。
-5. **入下一站**：合法 `node` Transition 后换新 `BridgeSession`；会话写入存档附件，**不写回**故事包。
+5. **入下一站**：合法 `node` Transition 后更新当前 `nodeId` / `turnCount` / `summary`；**保留**本局已生成的全部 `generatedBeats`（供历史与回退），会话写入存档附件，**不写回**故事包。
 6. **范围**：本节状态机只服务 VN。聊天见 §3.3。
 
 ### 3.3 双模式
@@ -200,16 +200,17 @@ Transition {
 MainSavePointer {
   nodeId: Id
   beatId: Id            // 预写拍；若在区间会话中可为 session beat id
-  // lineIndex?: number
+  lineIndex?: number    // VN 当前句；旧档可缺省 → 从该拍首句恢复
+  phase?: string        // lines | choices | needsBridge | ended
   // flags?: map         // 日后变量；MVP 可省略
 }
 
 // 开启区间 AI 时附加（本局，不进故事包）：
 BridgeSession {
-  nodeId: Id
-  generatedBeats: Beat[]   // 本区间已生成拍
-  turnCount: number        // 用于收敛触顶
-  summary?: string         // 压缩后的区间摘要，供下一跳上下文
+  nodeId: Id               // 当前开放区间所在站
+  generatedBeats: Beat[]   // 本局已生成拍（跨站保留，供回退）
+  turnCount: number        // 当前站已生成拍数，用于收敛触顶
+  summary?: string         // 当前站压缩摘要，供下一跳上下文
 }
 ```
 

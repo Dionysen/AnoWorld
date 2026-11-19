@@ -34,7 +34,12 @@ class PlayPointer {
 
   bool get isEnded => phase == PlayPhase.ended;
 
-  MainSavePointer toSave() => MainSavePointer(nodeId: nodeId, beatId: beatId);
+  MainSavePointer toSave() => MainSavePointer(
+        nodeId: nodeId,
+        beatId: beatId,
+        lineIndex: lineIndex,
+        phase: phase.name,
+      );
 
   PlayPointer copyWith({
     String? nodeId,

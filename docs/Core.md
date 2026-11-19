@@ -22,7 +22,7 @@ App 全局（设置，与酒馆同类）
 
 相对酒馆，AnoWorld **多加**：**情节走向（Main 图）**与更细的 **Cast（含配角）**；其余提示词、预设、玩家身份、**宏与变量**尽量与 ST/NativeTavern **同一套语义**。
 
-**产品形态（权威）**：开玩选定 [`PlayViewMode`](../lib/domain/runtime/play_view_mode.dart) 并锁定（存档字段 `mode`）。**聊天**对齐酒馆：严格 AI/用户交替 + 回复选项（[`TavernChatGenerateAction`](../lib/domain/chat/tavern_chat_generate_action.dart) / [`TavernReplyChoiceAction`](../lib/domain/chat/tavern_reply_choice_action.dart) + [`PlayChatView`](../lib/play/play_chat_view.dart)）；对话写入存档 `chat`；Main 节点仅可选注入提示词。**视觉小说**仍走 Main 指针 + 区间 AI（[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)）；VN 体验后续再加深。详见 [MainBeat.md](./MainBeat.md)、[UX.md](./UX.md)、[Style.md](./Style.md)。
+**产品形态（权威）**：开玩选定 [`PlayViewMode`](../lib/domain/runtime/play_view_mode.dart) 并锁定（存档字段 `mode`）。**聊天**对齐酒馆：严格 AI/用户交替 + 回复选项（[`TavernChatGenerateAction`](../lib/domain/chat/tavern_chat_generate_action.dart) / [`TavernReplyChoiceAction`](../lib/domain/chat/tavern_reply_choice_action.dart) + [`PlayChatView`](../lib/play/play_chat_view.dart)）；对话写入存档 `chat`；Main 节点仅可选注入提示词。**视觉小说**走 Main 指针 + 区间 AI（[`MainRuntime`](../lib/domain/runtime/main_runtime.dart) + [`PlaySessionPage`](../lib/play/play_session_page.dart) 舞台：全屏背景、底部对白、点屏推进、中央选项）。详见 [MainBeat.md](./MainBeat.md)、[UX.md](./UX.md)、[Style.md](./Style.md)。
 
 **Main ↔ Beat 字段与推进规则**：见 [MainBeat.md](./MainBeat.md)（权威 schema）。
 
@@ -150,7 +150,7 @@ App 全局（设置，与酒馆同类）
 | 选项 | `choices[]` → `Transition`（beat / node / end）；区间 AI 的关键收敛选项应落到合法 `node` / `end` |
 | 无选项 | 下一 Beat → 否则按收敛规则给出下一主节点 / end |
 
-- **VN 模式**：舞台化展示；区间内容可边生成边播。
+- **VN 模式**：全屏背景 + 底部对白 + 点屏推进 + 中央选项；区间内容可边生成边播；本局生成拍与句内指针写入存档（见 [MainBeat.md](./MainBeat.md) §5）。
 - **聊天模式**：酒馆式 transcript（`SaveSlot.chat`）；不复用 Beat 指针推进。
 
 ## 创作器 vs 运行时（内容视角）

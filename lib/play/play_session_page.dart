@@ -196,16 +196,13 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     return working;
   }
 
-  String _speakerName(DialogueLine line) {
-    if (line.kind == DialogueKind.narration || line.speakerId == null) {
-      return context.strings.narrator;
-    }
+  bool _isNarration(DialogueLine line) =>
+      line.kind == DialogueKind.narration || line.speakerId == null;
+
+  String? _speakerLabel(DialogueLine line) {
+    if (_isNarration(line)) return null;
     final member = _project.castById(line.speakerId!);
     return member?.name ?? line.speakerId!;
-  }
-
-  String _castName(String characterId) {
-    return _project.castById(characterId)?.name ?? characterId;
   }
 
   List<String> _userAliases() {
@@ -391,9 +388,18 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   void _syncBridgeNode() {
     final nodeId = _runtime.pointer.nodeId;
-    if (_bridge == null || _bridge!.nodeId != nodeId) {
+    final current = _bridge;
+    if (current == null) {
       _bridge = BridgeSession(nodeId: nodeId);
+      return;
     }
+    if (current.nodeId == nodeId) return;
+    // Keep every generated beat for rollback; reset interval counters only.
+    _bridge = current.copyWith(
+      nodeId: nodeId,
+      turnCount: current.turnsForNode(nodeId),
+      summary: '',
+    );
   }
 
   void _restart() {
@@ -525,28 +531,53 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     }
   }
 
-  List<Widget> _fallbackExitButtons() {
+  List<_VnCenterAction> _centerActions() {
+    if (_busy) return const [];
+    if (_runtime.pointer.isEnded) {
+      return [
+        _VnCenterAction(
+          label: context.strings.restart,
+          onPressed: _restart,
+          variant: AppButtonVariant.primary,
+        ),
+      ];
+    }
+    if (_runtime.pointer.phase == PlayPhase.choices) {
+      final actions = <_VnCenterAction>[
+        for (final choice in _runtime.visibleChoices)
+          _VnCenterAction(
+            label: choice.text,
+            onPressed: () => _choose(choice),
+            variant: AppButtonVariant.secondary,
+          ),
+      ];
+      if (actions.isEmpty) {
+        actions.addAll(_fallbackExitActions());
+      }
+      return actions;
+    }
+    if (_runtime.needsBridge) {
+      return _fallbackExitActions();
+    }
+    return const [];
+  }
+
+  List<_VnCenterAction> _fallbackExitActions() {
     final outs = _runtime.outboundFromCurrent();
     if (outs.isEmpty) return const [];
     return [
       for (final edge in outs)
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
-          child: AppButton(
-            label: context.strings.gotoNode(
-              _runtime.main.nodeById(edge.to)?.title ?? edge.to,
-            ),
-            onPressed: _busy
-                ? null
-                : () {
-                    setState(() => _runtime.jumpToNode(edge.to));
-                    _syncBridgeNode();
-                    _persist();
-                    _ensureBridge();
-                  },
-            variant: AppButtonVariant.ghost,
-            expanded: true,
+        _VnCenterAction(
+          label: context.strings.gotoNode(
+            _runtime.main.nodeById(edge.to)?.title ?? edge.to,
           ),
+          onPressed: () {
+            setState(() => _runtime.jumpToNode(edge.to));
+            _syncBridgeNode();
+            _persist();
+            _ensureBridge();
+          },
+          variant: AppButtonVariant.secondary,
         ),
     ];
   }
@@ -575,11 +606,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
               ),
             ]
           : const [],
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final narrow = constraints.maxWidth < 420;
-          if (chatMode) {
-            return Column(
+      body: chatMode
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_status != null)
@@ -607,186 +635,213 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                   ),
                 ),
               ],
-            );
-          }
-          return Padding(
-            padding: const EdgeInsets.all(AppTheme.pagePadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_status != null) ...[
-                  AppText(_status!, role: AppTextRole.caption),
-                  const SizedBox(height: AppTheme.spaceSm),
-                ],
-                Expanded(
-                  child: _VnStage(
-                    runtime: _runtime,
-                    speakerName: _speakerName,
-                    castName: _castName,
-                    onAdvance: _advance,
-                    narrow: narrow,
-                    bridging: _busy,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spaceMd),
-                if (_runtime.pointer.phase == PlayPhase.choices)
-                  ..._runtime.visibleChoices.map(
-                    (choice) => Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppTheme.spaceSm,
-                      ),
-                      child: AppButton(
-                        label: choice.text,
-                        onPressed: () => _choose(choice),
-                        variant: AppButtonVariant.secondary,
-                        expanded: true,
-                      ),
-                    ),
-                  )
-                else if (_runtime.pointer.isEnded) ...[
-                  AppText(
-                    context.strings.segmentEnded,
-                    role: AppTextRole.subtitle,
-                  ),
-                  const SizedBox(height: AppTheme.spaceSm),
-                  AppButton(
-                    label: context.strings.restart,
-                    onPressed: _restart,
-                    expanded: true,
-                  ),
-                ] else if (_runtime.needsBridge || _busy)
-                  AppButton(
-                    label: _busy
-                        ? context.strings.generatingSegment
-                        : context.strings.generateThisSegment,
-                    onPressed: _busy ? null : _ensureBridge,
-                    expanded: true,
-                  )
-                else
-                  AppButton(
-                    label: context.strings.continueAction,
-                    onPressed: _runtime.canAdvance ? _advance : null,
-                    expanded: true,
-                  ),
-                if (!_runtime.pointer.isEnded) ..._fallbackExitButtons(),
-              ],
+            )
+          : _VnStage(
+              runtime: _runtime,
+              speakerLabel: _speakerLabel,
+              isNarration: _isNarration,
+              status: _status,
+              bridging: _busy,
+              centerActions: _centerActions(),
+              onAdvance: _advance,
             ),
-          );
-        },
-      ),
     );
   }
+}
+
+class _VnCenterAction {
+  const _VnCenterAction({
+    required this.label,
+    required this.onPressed,
+    required this.variant,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final AppButtonVariant variant;
 }
 
 class _VnStage extends StatelessWidget {
   const _VnStage({
     required this.runtime,
-    required this.speakerName,
-    required this.castName,
-    required this.onAdvance,
-    required this.narrow,
+    required this.speakerLabel,
+    required this.isNarration,
+    required this.status,
     required this.bridging,
+    required this.centerActions,
+    required this.onAdvance,
   });
 
   final MainRuntime runtime;
-  final String Function(DialogueLine) speakerName;
-  final String Function(String) castName;
-  final VoidCallback onAdvance;
-  final bool narrow;
+  final String? Function(DialogueLine) speakerLabel;
+  final bool Function(DialogueLine) isNarration;
+  final String? status;
   final bool bridging;
+  final List<_VnCenterAction> centerActions;
+  final VoidCallback onAdvance;
 
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
+    final scheme = Theme.of(context).colorScheme;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final line = runtime.currentLine;
-    final location = runtime.locationText;
-    final appearances = runtime.appearances;
+    final showChoices = centerActions.isNotEmpty;
+    final canTapAdvance = runtime.canAdvance && !showChoices && !bridging;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: runtime.canAdvance ? onAdvance : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      onTap: canTapAdvance ? onAdvance : null,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          AppSurface(
+          const _VnBackground(),
+          if (showChoices)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              // Keep choices above the dialogue band (SLG layout).
+              bottom: 160 + bottomInset,
+              child: _VnChoiceOverlay(actions: centerActions),
+            ),
+          Positioned(
+            left: AppTheme.pagePadding,
+            right: AppTheme.pagePadding,
+            bottom: AppTheme.pagePadding + bottomInset,
+            child: _VnDialogueBox(
+              line: runtime.pointer.isEnded ? null : line,
+              speaker: runtime.pointer.isEnded || line == null
+                  ? null
+                  : speakerLabel(line),
+              narration: !runtime.pointer.isEnded &&
+                  line != null &&
+                  isNarration(line),
+              accent: scheme.primary,
+              placeholder: () {
+                if (runtime.pointer.isEnded) {
+                  return strings.segmentEnded;
+                }
+                if (line != null) return null;
+                if (runtime.pointer.phase == PlayPhase.choices) {
+                  return strings.choosePlease;
+                }
+                if (runtime.needsBridge || bridging) {
+                  return bridging
+                      ? strings.statusWriting
+                      : strings.segmentNotWritten;
+                }
+                return '…';
+              }(),
+              status: status,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Full-bleed stage backdrop. Asset wiring comes later; empty = plain canvas.
+class _VnBackground extends StatelessWidget {
+  const _VnBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(color: Theme.of(context).colorScheme.surface);
+  }
+}
+
+class _VnChoiceOverlay extends StatelessWidget {
+  const _VnChoiceOverlay({required this.actions});
+
+  final List<_VnCenterAction> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.pagePadding,
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                AppText(
-                  runtime.currentNode?.title ??
-                      (location?.isNotEmpty == true
-                          ? location!
-                          : strings.scenePlaceholder),
-                  role: AppTextRole.subtitle,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: AppTheme.spaceXs),
-                AppText(
-                  runtime.resolvedBackgroundAssetId == null
-                      ? strings.noBackgroundImage
-                      : strings.backgroundLabel(
-                          runtime.resolvedBackgroundAssetId!,
-                        ),
-                  role: AppTextRole.caption,
-                  maxLines: 1,
-                ),
-                if (appearances.isNotEmpty) ...[
-                  const SizedBox(height: AppTheme.spaceSm),
-                  AppText(
-                    appearances
-                        .map((a) {
-                          final slot = a.slot?.name;
-                          final name = castName(a.characterId);
-                          return slot == null
-                              ? name
-                              : strings.castWithSlot(name, slot);
-                        })
-                        .join(narrow ? ' · ' : '  ·  '),
-                    role: AppTextRole.caption,
-                    maxLines: 2,
+                for (var i = 0; i < actions.length; i++) ...[
+                  if (i > 0) const SizedBox(height: AppTheme.spaceSm),
+                  AppButton(
+                    label: actions[i].label,
+                    onPressed: actions[i].onPressed,
+                    variant: actions[i].variant,
+                    expanded: true,
                   ),
                 ],
               ],
             ),
           ),
-          const SizedBox(height: AppTheme.spaceMd),
-          Expanded(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: AppSurface(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (line != null) ...[
-                      AppText(
-                        speakerName(line),
-                        role: AppTextRole.label,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: AppTheme.spaceSm),
-                      AppText(
-                        stripDialogueSpeakerLabel(line.text),
-                        role: AppTextRole.body,
-                      ),
-                    ] else if (runtime.pointer.phase == PlayPhase.choices)
-                      AppText(strings.choosePlease, role: AppTextRole.body)
-                    else if (runtime.needsBridge || bridging)
-                      AppText(
-                        bridging
-                            ? strings.statusWriting
-                            : strings.segmentNotWritten,
-                        role: AppTextRole.body,
-                      )
-                    else if (runtime.pointer.isEnded)
-                      const AppText('……', role: AppTextRole.body)
-                    else
-                      const AppText('…', role: AppTextRole.body),
-                  ],
-                ),
-              ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VnDialogueBox extends StatelessWidget {
+  const _VnDialogueBox({
+    required this.line,
+    required this.speaker,
+    required this.narration,
+    required this.accent,
+    required this.placeholder,
+    required this.status,
+  });
+
+  final DialogueLine? line;
+  final String? speaker;
+  final bool narration;
+  final Color accent;
+  final String? placeholder;
+  final String? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final body = line == null
+        ? null
+        : stripDialogueSpeakerLabel(line!.text);
+
+    return AppSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (status != null) ...[
+            AppText(status!, role: AppTextRole.caption),
+            const SizedBox(height: AppTheme.spaceSm),
+          ],
+          if (speaker != null) ...[
+            AppText(
+              speaker!,
+              role: AppTextRole.label,
+              color: accent,
+              fontWeight: FontWeight.w700,
+              maxLines: 1,
             ),
-          ),
+            const SizedBox(height: AppTheme.spaceSm),
+          ],
+          if (body != null)
+            AppText(
+              body,
+              role: AppTextRole.body,
+              fontStyle: narration ? FontStyle.italic : null,
+            )
+          else if (placeholder != null)
+            AppText(
+              placeholder!,
+              role: AppTextRole.body,
+              fontStyle: FontStyle.italic,
+            ),
         ],
       ),
     );

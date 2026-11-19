@@ -17,13 +17,71 @@ class MainRuntime {
         if (save.beatId.isNotEmpty) {
           final beat = main.beatById(save.beatId);
           if (beat != null && beat.nodeId == node.id) {
-            return _enterBeat(main, nodeId: node.id, beatId: beat.id);
+            return _restoreBeat(
+              main,
+              nodeId: node.id,
+              beatId: beat.id,
+              lineIndex: save.lineIndex,
+              phaseName: save.phase,
+            );
           }
         }
         return enterNode(main, node.id);
       }
     }
     return enterStart(main);
+  }
+
+  /// Resume a beat, honoring saved [lineIndex] / phase when present.
+  static PlayPointer _restoreBeat(
+    MainStory main, {
+    required String nodeId,
+    required String beatId,
+    int? lineIndex,
+    String? phaseName,
+  }) {
+    final entered = _enterBeat(main, nodeId: nodeId, beatId: beatId);
+    final beat = main.beatById(beatId);
+    if (beat == null || lineIndex == null && phaseName == null) {
+      return entered;
+    }
+
+    PlayPhase? phase;
+    if (phaseName != null) {
+      for (final value in PlayPhase.values) {
+        if (value.name == phaseName) {
+          phase = value;
+          break;
+        }
+      }
+    }
+
+    if (phase == PlayPhase.choices && beat.choices.isNotEmpty) {
+      final last = beat.lines.isEmpty ? -1 : beat.lines.length - 1;
+      return PlayPointer(
+        nodeId: nodeId,
+        beatId: beatId,
+        lineIndex: lineIndex ?? last,
+        phase: PlayPhase.choices,
+      );
+    }
+    if (phase == PlayPhase.needsBridge || phase == PlayPhase.ended) {
+      return PlayPointer(
+        nodeId: nodeId,
+        beatId: beatId,
+        lineIndex: lineIndex ?? entered.lineIndex,
+        phase: phase!,
+      );
+    }
+
+    if (beat.lines.isEmpty) return entered;
+    final clamped = (lineIndex ?? 0).clamp(0, beat.lines.length - 1);
+    return PlayPointer(
+      nodeId: nodeId,
+      beatId: beatId,
+      lineIndex: clamped,
+      phase: PlayPhase.lines,
+    );
   }
 
   static PlayPointer enterStart(MainStory main) {

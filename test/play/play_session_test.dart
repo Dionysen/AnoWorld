@@ -66,11 +66,12 @@ void main() {
     await pumpPlay(tester);
 
     expect(find.text('该走了。'), findsOneWidget);
-    await tester.tap(find.text('继续'));
+    expect(find.text('继续'), findsNothing);
+    await tester.tap(find.text('该走了。'));
     await tester.pumpAndSettle();
 
     expect(find.text('留宿？'), findsOneWidget);
-    await tester.tap(find.text('继续'));
+    await tester.tap(find.text('留宿？'));
     await tester.pumpAndSettle();
 
     expect(find.text('住下'), findsOneWidget);
@@ -127,9 +128,54 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Bridge fallback writes a status line first; tap to reach choices.
+    expect(find.text('继续'), findsNothing);
+    await tester.tap(find.textContaining('请先').first);
+    await tester.pumpAndSettle();
+
     expect(find.textContaining('前往：客栈'), findsWidgets);
     await tester.tap(find.text('前往：客栈').first);
     await tester.pumpAndSettle();
     expect(find.text('本段结束'), findsOneWidget);
+  });
+
+  testWidgets('VN narration omits speaker label and uses italic body',
+      (tester) async {
+    final withNarration = sample.copyWith(
+      main: sample.main.copyWith(
+        beats: [
+          Beat(
+            id: 'b1',
+            nodeId: 'n1',
+            scene: sample.main.beats.first.scene,
+            appearances: sample.main.beats.first.appearances,
+            lines: const [
+              DialogueLine(
+                id: 'l_n',
+                text: '雨还在下。',
+                kind: DialogueKind.narration,
+              ),
+            ],
+            choices: const [],
+          ),
+          sample.main.beats[1],
+        ],
+      ),
+    );
+    await tester.pumpWidget(
+      testScoped(
+        home: PlaySessionPage(
+          project: withNarration,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('旁白'), findsNothing);
+    expect(find.text('雨还在下。'), findsOneWidget);
+    final body = tester.widget<Text>(find.text('雨还在下。'));
+    expect(body.style?.fontStyle, FontStyle.italic);
   });
 }

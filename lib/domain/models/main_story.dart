@@ -473,20 +473,35 @@ class Transition {
 
 /// Runtime / save pointer into Main (docs/MainBeat.md §5).
 class MainSavePointer {
-  const MainSavePointer({required this.nodeId, required this.beatId});
+  const MainSavePointer({
+    required this.nodeId,
+    required this.beatId,
+    this.lineIndex,
+    this.phase,
+  });
 
   final String nodeId;
   final String beatId;
 
+  /// VN line cursor; omitted in older saves → resume at first line of beat.
+  final int? lineIndex;
+
+  /// VN phase wire name (`lines` / `choices` / …); omitted → enter beat normally.
+  final String? phase;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'nodeId': nodeId,
         'beatId': beatId,
+        if (lineIndex != null) 'lineIndex': lineIndex,
+        if (phase != null) 'phase': phase,
       };
 
   factory MainSavePointer.fromJson(Map<String, dynamic> json) {
     return MainSavePointer(
       nodeId: json.requireString('nodeId'),
       beatId: json.requireString('beatId'),
+      lineIndex: json.optionalNum('lineIndex')?.toInt(),
+      phase: json.optionalString('phase'),
     );
   }
 }

@@ -1,7 +1,11 @@
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 
-/// In-play AI interval for one main node (not written into the project pack).
+/// In-play AI interval (not written into the project pack).
+///
+/// [generatedBeats] keeps **all** beats produced this session (across nodes)
+/// so VN history can later support rollback. [nodeId] / [turnCount] /
+/// [summary] describe the **current** open interval only.
 class BridgeSession {
   const BridgeSession({
     required this.nodeId,
@@ -16,6 +20,10 @@ class BridgeSession {
   final String summary;
 
   static const int defaultMaxBeats = 4;
+
+  /// Beats already generated for [nodeId] (used when entering a station).
+  int turnsForNode(String id) =>
+      generatedBeats.where((b) => b.nodeId == id).length;
 
   BridgeSession copyWith({
     String? nodeId,

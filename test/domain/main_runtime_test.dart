@@ -57,6 +57,34 @@ void main() {
     expect(runtime.currentLine?.text, '留宿？');
   });
 
+  test('restore save pointer keeps lineIndex and choices phase', () {
+    final midLine = MainRuntime(
+      sample.main,
+      save: const MainSavePointer(
+        nodeId: 'n2',
+        beatId: 'b2',
+        lineIndex: 0,
+        phase: 'lines',
+      ),
+    );
+    expect(midLine.pointer.lineIndex, 0);
+    expect(midLine.pointer.phase, PlayPhase.lines);
+    expect(midLine.toSave().lineIndex, 0);
+    expect(midLine.toSave().phase, 'lines');
+
+    final atChoices = MainRuntime(
+      sample.main,
+      save: const MainSavePointer(
+        nodeId: 'n2',
+        beatId: 'b2',
+        lineIndex: 0,
+        phase: 'choices',
+      ),
+    );
+    expect(atChoices.pointer.phase, PlayPhase.choices);
+    expect(atChoices.visibleChoices.map((c) => c.id), <String>['ch1', 'ch2']);
+  });
+
   test('background inherits within node only', () {
     final main = sample.main.copyWith(
       beats: [
