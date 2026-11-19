@@ -3,6 +3,7 @@ import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/ai_preset_state.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 
 abstract interface class SettingsRepository {
   Future<AiSettings> loadAi();
@@ -24,4 +25,8 @@ abstract interface class SettingsRepository {
   Future<ChatUiSettings> loadChatUi();
 
   Future<void> saveChatUi(ChatUiSettings settings);
+
+  Future<PlotElementCatalog> loadPlotElements();
+
+  Future<void> savePlotElements(PlotElementCatalog catalog);
 }

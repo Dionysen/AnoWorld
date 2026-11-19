@@ -10,11 +10,13 @@ Project（故事包）
 ├── Cast           角色
 ├── Main           主线概括 → 大节点与分支（画布）→（节点内）Beats
 ├── Side           支线定式 + 定式下的填槽发挥
+├── plotElements   勾选的全局剧情元素 id（keyword+描述在全局库）
 └── Beats/Scenes   可运行最小单元（双模式共用；可创作预写，也可运行时由 AI 填）
 
 App 全局（设置，与酒馆同类）
 ├── AiPreset       酒馆兼容预设：采样 + 提示词管理
-└── Persona        玩家身份（名字、描述、可选绑定），供 {{user}} / persona 段
+├── Persona        玩家身份（名字、描述、可选绑定），供 {{user}} / persona 段
+└── PlotElements   剧情元素全局库（种子 + 覆盖/删除 + 自建；玩法页管理）
 
 依赖方向：**全局 AiPreset + Persona** 约束「怎么组请求、怎么采样、玩家是谁」；WorldBook / Cast 支撑「写什么」（世界书 + **多角色**）；Main 的**节点与边**管「故事能走到哪」；Beat 才是屏幕上逐步演出的东西。
 
@@ -46,7 +48,8 @@ App 全局（设置，与酒馆同类）
 
 **任务层**：在上述 ST 拼装完成之后，应用层再追加 AnoWorld 专用段（当前站 `synopsis`、合法下一站 JSON、schema），不由宏替代。
 
-- **故事包 schema v2**：已移除 `Project.presets` / `activePresetId`；v1 包读入时忽略上述字段。 `ProjectMeta.coverPath` 可选，相对 `assets/`（如 `cover.jpg`）；详情页可换封面。角色卡 system/post-history **不写进故事包**（导入页仅提示，请在设置 → AI 预设调整）。
+- **故事包 schema v3**：在 v2 基础上增加 `plotElements.selectedIds`（勾选全局剧情元素 id；未知 id 展示时跳过）。v2：已移除 `Project.presets` / `activePresetId`；v1 包读入时忽略上述字段。 `ProjectMeta.coverPath` 可选，相对 `assets/`（如 `cover.jpg`）；详情页可换封面。角色卡 system/post-history **不写进故事包**（导入页仅提示，请在设置 → AI 预设调整）。
+- **剧情元素（全局库）**：[`PlotElement`](../lib/domain/models/plot_element.dart) = `keyword` + `description`（≤300 字）；出厂种子 [`BuiltInPlotElements`](../lib/domain/settings/built_in_plot_elements.dart)；用户改删存 [`PlotElementCatalog`](../lib/domain/settings/plot_element_catalog.dart)（prefs `anoworld.plot_elements.v1`：overrides / deletedBuiltInIds / custom）。故事只存勾选 id，不拷贝全文。
 - **仍不做**：ST 正则链、插件；预设不得增删 Main 节点。
 
 ## WorldBook（世界书）

@@ -2,6 +2,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
+import 'package:anoworld/create/plot_elements_pick_page.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
@@ -91,6 +92,13 @@ class _CreateHubPageState extends State<CreateHubPage> {
     return '$short · $nodes 站';
   }
 
+  String _plotElementsSubtitle(Project project) {
+    final catalog = AppScope.settingsOf(context).plotElements;
+    final count = catalog.resolveSelected(project.plotElements.selectedIds).length;
+    if (count == 0) return '还没选';
+    return '已选 $count 项';
+  }
+
   String _pageTitle(Project? project) {
     final name = project?.meta.title.trim();
     if (name == null || name.isEmpty) return '创作·未命名故事';
@@ -149,6 +157,15 @@ class _CreateHubPageState extends State<CreateHubPage> {
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(
                     MainGraphPage(projectId: widget.projectId),
+                  ),
+                ),
+                AppListTile(
+                  title: '剧情元素',
+                  subtitle: _plotElementsSubtitle(project),
+                  icon: Icons.auto_awesome_outlined,
+                  trailing: const AppForwardIcon(),
+                  onTap: () => _open(
+                    PlotElementsPickPage(projectId: widget.projectId),
                   ),
                 ),
               ],

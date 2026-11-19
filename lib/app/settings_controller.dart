@@ -5,8 +5,11 @@ import 'package:anoworld/domain/repositories/settings_repository.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/ai_preset_state.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
+import 'package:anoworld/domain/project/entity_id.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
@@ -36,6 +39,7 @@ class SettingsController extends ChangeNotifier {
   PersonaSettings personas = const PersonaSettings().ensureDefault();
   AiPresetCatalog aiPresets = AiPresetCatalog();
   ChatUiSettings chatUi = const ChatUiSettings();
+  PlotElementCatalog plotElements = PlotElementCatalog();
   Brightness platformBrightness;
   List<SystemFont> fontCatalog = const [];
   bool fontsLoading = false;
@@ -62,6 +66,7 @@ class SettingsController extends ChangeNotifier {
     personas = (await repository.loadPersonas()).ensureDefault();
     aiPresets = await repository.loadAiPresets();
     chatUi = await repository.loadChatUi();
+    plotElements = await repository.loadPlotElements();
     if (aiPresets.activePresetId == null) {
       await applyAiPreset(BuiltInAIPresets.defaultPreset);
     }
@@ -75,6 +80,66 @@ class SettingsController extends ChangeNotifier {
     chatUi = next;
     notifyListeners();
     await repository.saveChatUi(next);
+  }
+
+  Future<void> updatePlotElements(PlotElementCatalog next) async {
+    plotElements = next;
+    notifyListeners();
+    await repository.savePlotElements(next);
+  }
+
+  Future<void> upsertPlotElement(PlotElement element) async {
+    final next = plotElements.upsertCustom(element);
+    await updatePlotElements(next);
+    AppLog.instance.info(
+      '保存剧情元素：${element.id}',
+      tag: 'plot.elements',
+    );
+  }
+
+  Future<void> updateBuiltInPlotElement({
+    required String id,
+    required String keyword,
+    required String description,
+  }) async {
+    final next = plotElements.updateBuiltIn(
+      id: id,
+      keyword: keyword,
+      description: description,
+    );
+    await updatePlotElements(next);
+    AppLog.instance.info('更新默认剧情元素：$id', tag: 'plot.elements');
+  }
+
+  Future<PlotElement> addCustomPlotElement({
+    required String keyword,
+    required String description,
+  }) async {
+    final element = PlotElement(
+      id: newEntityId('pe'),
+      keyword: keyword.trim(),
+      description: PlotElementCatalog.clipDescription(description),
+    );
+    await upsertPlotElement(element);
+    return element;
+  }
+
+  Future<void> deletePlotElement(String id) async {
+    final next = plotElements.delete(id);
+    await updatePlotElements(next);
+    AppLog.instance.info('删除剧情元素：$id', tag: 'plot.elements');
+  }
+
+  Future<void> restoreBuiltInPlotElement(String id) async {
+    final next = plotElements.restoreBuiltIn(id);
+    await updatePlotElements(next);
+    AppLog.instance.info('恢复默认剧情元素：$id', tag: 'plot.elements');
+  }
+
+  Future<void> restoreAllBuiltInPlotElements() async {
+    final next = plotElements.restoreAllBuiltIns();
+    await updatePlotElements(next);
+    AppLog.instance.info('全部恢复默认剧情元素', tag: 'plot.elements');
   }
 
   Future<void> updateAi(AiSettings next) async {

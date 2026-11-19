@@ -2,6 +2,7 @@ import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart' show CastMember, protagonistOf;
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/project_asset.dart';
 import 'package:anoworld/domain/models/side.dart';
 
@@ -20,6 +21,7 @@ class Project {
     required this.main,
     this.side = const SideBundle(),
     this.assets = const <ProjectAsset>[],
+    this.plotElements = const PlotElementSelection(),
   });
 
   final ProjectMeta meta;
@@ -28,6 +30,9 @@ class Project {
   final MainStory main;
   final SideBundle side;
   final List<ProjectAsset> assets;
+
+  /// Selected global plot-element ids for this story.
+  final PlotElementSelection plotElements;
 
   CastMember? castById(String id) {
     for (final member in cast) {
@@ -53,6 +58,7 @@ class Project {
         'main': main.toJson(),
         'side': side.toJson(),
         'assets': assets.map((a) => a.toJson()).toList(growable: false),
+        'plotElements': plotElements.toJson(),
       };
 
   factory Project.fromJson(Map<String, dynamic> json) {
@@ -75,6 +81,9 @@ class Project {
                 ProjectAsset.fromJson(asJsonMap(item, path: 'assets[]')),
           )
           .toList(growable: false),
+      plotElements: PlotElementSelection.fromJson(
+        json.optionalMap('plotElements'),
+      ),
     );
   }
 
@@ -85,6 +94,7 @@ class Project {
     MainStory? main,
     SideBundle? side,
     List<ProjectAsset>? assets,
+    PlotElementSelection? plotElements,
   }) {
     return Project(
       meta: meta ?? this.meta,
@@ -93,6 +103,7 @@ class Project {
       main: main ?? this.main,
       side: side ?? this.side,
       assets: assets ?? this.assets,
+      plotElements: plotElements ?? this.plotElements,
     );
   }
 }
@@ -172,7 +183,7 @@ class ProjectManifest {
   });
 
   static const String formatName = 'anoworld-project';
-  static const int currentSchemaVersion = 2;
+  static const int currentSchemaVersion = 3;
 
   final String format;
   final int schemaVersion;

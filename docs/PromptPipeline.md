@@ -26,7 +26,8 @@ AnoWorld **不要求** 无限开放世界聊；`chatHistory` 锚点内是 **游�
 | --- | --- | --- |
 | **AiPreset** | 设置 · 全局 | `prompts` + `prompt_order`、采样参数；与 ST JSON 兼容 |
 | **Persona** | 设置 · 全局 | `{{user}}`、persona 段；可选覆盖 system / post-history |
-| **故事包** | Project | WorldBook、Cast（主角 + 配角）、Main 节点摘要（可选注入） |
+| **故事包** | Project | WorldBook、Cast（主角 + 配角）、Main 节点摘要（可选注入）、已选剧情元素 id |
+| **剧情元素库** | 全局 prefs | `PlotElementCatalog.effectiveList`；续写时按故事 `selectedIds` 解析 keyword+description |
 | **当次运行时** | 存档 / 会话 | 区间对话、作者注释、深度提示、摘要 |
 | **当次任务** | 各 Action | 游玩聊天、回复选项、Main 区间、分步创作等 **taskSuffix** |
 
@@ -161,7 +162,8 @@ flowchart LR
 | --- | --- |
 | 酒馆式游玩聊天 | 文风、禁止替玩家说话、多角色在一轮内等（见 `TavernChatGenerateAction`） |
 | 回复选项 | 选项数量与解析格式 |
-| Main 区间 / Bridge | 当前站 synopsis、合法出边、`choices` JSON schema |
+| Main 区间 / Bridge | 当前站 synopsis、合法出边、`choices` JSON schema；已选剧情元素短块经 `worldInfoAfter`（「按需织入支线，勿生硬堆砌」） |
+| 剧情元素描述展开 | [`ExpandPlotElementDescriptionAction`](../lib/domain/ai/expand_plot_element_description_action.dart) | 关键词 → ≤300 字说明+示例 |
 | 创作分步 | 仅输出 JSON / 字段说明 |
 
 **原则**：

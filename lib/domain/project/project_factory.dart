@@ -1,6 +1,7 @@
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/side.dart';
 
@@ -113,6 +114,7 @@ class ProjectFactory {
       ),
       side: const SideBundle(),
       assets: const [],
+      plotElements: const PlotElementSelection(),
     );
   }
 

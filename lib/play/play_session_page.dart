@@ -444,6 +444,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         project: _project.copyWith(main: _runtime.main),
         nodeId: node.id,
         session: session,
+        plotCatalog: settings.plotElements,
         userAliases: _userAliases(),
       );
       if (!mounted) return;

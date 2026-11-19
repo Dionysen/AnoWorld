@@ -7,6 +7,7 @@ import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/ai_preset_state.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PrefsSettingsRepository implements SettingsRepository {
@@ -17,6 +18,7 @@ class PrefsSettingsRepository implements SettingsRepository {
   static const personasKey = 'anoworld.personas.v1';
   static const aiPresetsKey = 'anoworld.ai_presets.v1';
   static const chatUiKey = 'anoworld.chat_ui.v1';
+  static const plotElementsKey = 'anoworld.plot_elements.v1';
 
   SharedPreferences? preferences;
 
@@ -96,5 +98,21 @@ class PrefsSettingsRepository implements SettingsRepository {
   @override
   Future<void> saveChatUi(ChatUiSettings settings) async {
     await (await _prefs()).setString(chatUiKey, jsonEncode(settings.toJson()));
+  }
+
+  @override
+  Future<PlotElementCatalog> loadPlotElements() async {
+    final raw = (await _prefs()).getString(plotElementsKey);
+    if (raw == null || raw.isEmpty) return PlotElementCatalog();
+    final map = asJsonMap(jsonDecode(raw), path: plotElementsKey);
+    return PlotElementCatalog.fromJson(map);
+  }
+
+  @override
+  Future<void> savePlotElements(PlotElementCatalog catalog) async {
+    await (await _prefs()).setString(
+      plotElementsKey,
+      jsonEncode(catalog.toJson()),
+    );
   }
 }

@@ -4,6 +4,7 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/play_speakers.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 
 /// Sentinel beat id for "stay in interval / generate again".
@@ -24,6 +25,7 @@ class BridgeGenerateAction {
     required Project project,
     required String nodeId,
     required BridgeSession session,
+    PlotElementCatalog? plotCatalog,
     int maxBeats = BridgeSession.defaultMaxBeats,
     List<String> userAliases = const <String>[],
   }) async {
@@ -56,7 +58,11 @@ class BridgeGenerateAction {
     // Open interval never force-converges to a next node.
     final forceConverge = !openMode && session.turnCount + 1 >= maxBeats;
     final task = _taskBlock(forceConverge: forceConverge, openMode: openMode);
-    final system = ctx.assembleSystem(project: project, taskSuffix: task);
+    final system = ctx.assembleSystem(
+      project: project,
+      plotCatalog: plotCatalog,
+      taskSuffix: task,
+    );
     final nextStationBlock = openMode
         ? '本站没有固定下一站：按设定与角色自由续写，不要发明情节站 id。'
         : '合法下一站（只能跳到这些 id，或 end）：\n$exitLines';

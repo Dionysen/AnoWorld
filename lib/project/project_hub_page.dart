@@ -5,6 +5,7 @@ import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
+import 'package:anoworld/create/plot_elements_pick_page.dart';
 import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
@@ -308,6 +309,22 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
     return '$nodes 站 · $edges 条连线';
   }
 
+  List<AppDetailEntry> _plotElementEntries(Project project) {
+    final catalog = AppScope.settingsOf(context).plotElements;
+    final rows = catalog.resolveSelected(project.plotElements.selectedIds);
+    return rows
+        .map(
+          (e) => AppDetailEntry(
+            title: e.keyword.trim().isEmpty ? '未命名' : e.keyword.trim(),
+            tags: catalog.isBuiltInId(e.id)
+                ? const <String>['默认']
+                : const <String>[],
+            body: e.clippedDescription,
+          ),
+        )
+        .toList(growable: false);
+  }
+
   Widget _storyCover(BuildContext context, String title) {
     final scheme = Theme.of(context).colorScheme;
     final coverPath = _coverAbsolutePath;
@@ -443,6 +460,16 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
               emptyHint: _mainSubtitle(project),
               onEdit: () => _openEditor(
                 MainGraphPage(projectId: widget.projectId),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            AppDetailSection(
+              title: '剧情元素',
+              icon: Icons.auto_awesome_outlined,
+              entries: _plotElementEntries(project),
+              emptyHint: '还没选剧情元素',
+              onEdit: () => _openEditor(
+                PlotElementsPickPage(projectId: widget.projectId),
               ),
             ),
             const SizedBox(

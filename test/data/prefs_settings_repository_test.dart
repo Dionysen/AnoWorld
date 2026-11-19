@@ -1,6 +1,9 @@
 import 'package:anoworld/data/settings/prefs_settings_repository.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
+import 'package:anoworld/domain/settings/built_in_plot_elements.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -44,5 +47,32 @@ void main() {
     final appearance = await repo.loadAppearance();
     expect(appearance.mode, AppThemeModeSetting.light);
     expect(appearance.fontSize, 16.5);
+  });
+
+  test('prefs settings repository round-trips plot element catalog', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final repo = PrefsSettingsRepository(preferences: prefs);
+    final seedId = BuiltInPlotElements.all.first.id;
+
+    await repo.savePlotElements(
+      PlotElementCatalog()
+          .updateBuiltIn(
+            id: seedId,
+            keyword: '覆写词',
+            description: '覆写描述',
+          )
+          .upsertCustom(
+            const PlotElement(
+              id: 'pe_user',
+              keyword: '自建',
+              description: '说明',
+            ),
+          ),
+    );
+
+    final loaded = await repo.loadPlotElements();
+    expect(loaded.overrides[seedId]?.keyword, '覆写词');
+    expect(loaded.custom.single.id, 'pe_user');
   });
 }

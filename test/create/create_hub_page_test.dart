@@ -2,6 +2,7 @@ import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
+import 'package:anoworld/create/plot_elements_pick_page.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,7 +14,7 @@ void main() {
     now: DateTime.utc(2026, 1, 1),
   );
 
-  testWidgets('create hub lists three edit entries', (tester) async {
+  testWidgets('create hub lists four edit entries', (tester) async {
     final repo = MemoryProjectRepository(
       seed: {sample.meta.id: sample},
     );
@@ -30,6 +31,7 @@ void main() {
     expect(find.text('世界书'), findsOneWidget);
     expect(find.text('角色'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);
+    expect(find.text('剧情元素'), findsOneWidget);
   });
 
   testWidgets('create hub opens background / cast / main', (tester) async {
@@ -55,6 +57,7 @@ void main() {
 
     await openAndBack('世界书', WorldBookEditorPage);
     await openAndBack('角色', CastEditorPage);
+    await openAndBack('剧情元素', PlotElementsPickPage);
 
     await tester.tap(find.text('情节走向'));
     await tester.pumpAndSettle();
