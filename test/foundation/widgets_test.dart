@@ -4,7 +4,9 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_docked_panel.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
+import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
+import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -374,6 +376,78 @@ void main() {
       compact.height,
       lessThan(screen.height * AppTheme.sheetHalfHeightFactor),
     );
+  });
+
+  testWidgets('AppUnderlineTabs marks the active tab with an underline', (
+    tester,
+  ) async {
+    var value = 0;
+    late ColorScheme scheme;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Builder(
+          builder: (context) {
+            scheme = Theme.of(context).colorScheme;
+            return Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) {
+                  return AppUnderlineTabs<int>(
+                    value: value,
+                    onChanged: (next) => setState(() => value = next),
+                    options: const [
+                      AppSegmentOption(value: 0, label: '全部'),
+                      AppSegmentOption(value: 1, label: '分类'),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    Color barColor(String label) {
+      final container = tester.widget<AnimatedContainer>(
+        find.byKey(AppUnderlineTabs.indicatorKey(label)),
+      );
+      return (container.decoration! as BoxDecoration).color!;
+    }
+
+    expect(barColor('全部'), scheme.primary);
+    expect(barColor('分类'), Colors.transparent);
+
+    await tester.tap(find.text('分类'));
+    await tester.pumpAndSettle();
+    expect(value, 1);
+    expect(barColor('分类'), scheme.primary);
+    expect(barColor('全部'), Colors.transparent);
+  });
+
+  testWidgets('AppUnderlineTabs does not overflow in a narrow strip', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(140, 120));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: AppUnderlineTabs<int>(
+            value: 0,
+            onChanged: (_) {},
+            options: const [
+              AppSegmentOption(value: 0, label: '全部'),
+              AppSegmentOption(value: 1, label: '分类'),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('AppButton variants share the same height', (tester) async {

@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_hairline.dart';
@@ -11,8 +14,10 @@ import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/plot_elements_library_page.dart';
 import 'package:flutter/material.dart';
@@ -27,11 +32,14 @@ class PlotElementsPickPage extends StatefulWidget {
   State<PlotElementsPickPage> createState() => _PlotElementsPickPageState();
 }
 
+enum _PickTab { all, categorized }
+
 class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
   Project? _project;
   Object? _error;
   bool _loading = true;
   Timer? _saveDebounce;
+  var _tab = _PickTab.all;
 
   @override
   void didChangeDependencies() {
@@ -53,8 +61,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
       _error = null;
     });
     try {
-      final project =
-          await AppScope.projectsOf(context).open(widget.projectId);
+      final project = await AppScope.projectsOf(context).open(widget.projectId);
       if (!mounted) return;
       setState(() {
         _project = project;
@@ -97,11 +104,27 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
   }
 
   Future<void> _openLibrary() async {
+    await pushStoryRoute<void>(context, const PlotElementsLibraryPage());
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _openCategory(
+    PlotElementCatalog catalog,
+    String categoryId,
+  ) async {
+    final elements = catalog.elementsOfCategory(categoryId);
     await pushStoryRoute<void>(
       context,
-      const PlotElementsLibraryPage(),
+      _PickCategoryPage(
+        title: categoryId.isEmpty
+            ? PlotElementCatalog.uncategorizedLabel
+            : catalog.categoryNameOf(categoryId),
+        elements: elements,
+        initialSelectedIds:
+            _project?.plotElements.selectedIds.toSet() ?? const <String>{},
+        onToggle: _toggle,
+      ),
     );
-    if (mounted) setState(() {});
   }
 
   String _subtitle(int selected, int total) {
@@ -114,6 +137,59 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     final text = element.clippedDescription;
     if (text.isEmpty) return '还没写描述';
     return text.length > 48 ? '${text.substring(0, 48)}…' : text;
+  }
+
+  String _countLabel(int count) => count == 0 ? '还空着' : '$count 条';
+
+  Widget _elementRow(PlotElement element, List<String> selectedIds) {
+    final selected = selectedIds.contains(element.id);
+    return AppListTile(
+      title: element.keyword.isEmpty ? '未命名' : element.keyword,
+      subtitle: _preview(element),
+      icon: Icons.theater_comedy_outlined,
+      trailing: AppSwitch(
+        value: selected,
+        onChanged: (value) => _toggle(element.id, value),
+      ),
+      showDivider: false,
+      onTap: () => _toggle(element.id, !selected),
+    );
+  }
+
+  List<Widget> _categoryRows(
+    PlotElementCatalog catalog,
+    List<String> selectedIds,
+  ) {
+    final uncategorizedCount = catalog.uncategorizedElements.length;
+    final entries = <({String id, String name, int count})>[
+      for (final category in catalog.categories)
+        (
+          id: category.id,
+          name: category.name,
+          count: catalog.elementsOfCategory(category.id).length,
+        ),
+      if (uncategorizedCount > 0)
+        (
+          id: '',
+          name: PlotElementCatalog.uncategorizedLabel,
+          count: uncategorizedCount,
+        ),
+    ];
+    return [
+      for (var i = 0; i < entries.length; i++) ...[
+        AppListTile(
+          title: entries[i].name,
+          subtitle: _countLabel(entries[i].count),
+          icon: entries[i].id.isEmpty
+              ? Icons.label_outline
+              : Icons.folder_outlined,
+          trailing: const AppForwardIcon(),
+          showDivider: false,
+          onTap: () => _openCategory(catalog, entries[i].id),
+        ),
+        if (i < entries.length - 1) const AppListHairline(),
+      ],
+    ];
   }
 
   @override
@@ -142,6 +218,15 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
           ],
           body: AppPageBody.list(
             children: [
+              AppUnderlineTabs<_PickTab>(
+                value: _tab,
+                onChanged: (value) => setState(() => _tab = value),
+                options: const [
+                  AppSegmentOption(value: _PickTab.all, label: '全部'),
+                  AppSegmentOption(value: _PickTab.categorized, label: '分类'),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spaceLg),
               if (_loading)
                 const AppPageGutter(
                   child: AppText('加载中…', role: AppTextRole.caption),
@@ -176,38 +261,110 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
                       ),
                     ),
                   )
-                else
+                else if (_tab == _PickTab.all)
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (var i = 0; i < rows.length; i++) ...[
-                        AppListTile(
-                          title: rows[i].keyword.isEmpty
-                              ? '未命名'
-                              : rows[i].keyword,
-                          subtitle: _preview(rows[i]),
-                          icon: Icons.theater_comedy_outlined,
-                          trailing: AppSwitch(
-                            value: selectedIds.contains(rows[i].id),
-                            onChanged: (value) =>
-                                _toggle(rows[i].id, value),
-                          ),
-                          showDivider: false,
-                          onTap: () => _toggle(
-                            rows[i].id,
-                            !selectedIds.contains(rows[i].id),
-                          ),
-                        ),
+                        _elementRow(rows[i], selectedIds),
                         if (i < rows.length - 1) const AppListHairline(),
                       ],
                     ],
+                  )
+                else
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: _categoryRows(catalog, selectedIds),
                   ),
               ],
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// One category's elements with switches; toggles flow back to the picker.
+class _PickCategoryPage extends StatefulWidget {
+  const _PickCategoryPage({
+    required this.title,
+    required this.elements,
+    required this.initialSelectedIds,
+    required this.onToggle,
+  });
+
+  final String title;
+  final List<PlotElement> elements;
+  final Set<String> initialSelectedIds;
+  final void Function(String id, bool selected) onToggle;
+
+  @override
+  State<_PickCategoryPage> createState() => _PickCategoryPageState();
+}
+
+class _PickCategoryPageState extends State<_PickCategoryPage> {
+  late final Set<String> _selected = {...widget.initialSelectedIds};
+
+  void _toggle(String id, bool selected) {
+    setState(() {
+      if (selected) {
+        _selected.add(id);
+      } else {
+        _selected.remove(id);
+      }
+    });
+    widget.onToggle(id, selected);
+  }
+
+  String _preview(PlotElement element) {
+    final text = element.clippedDescription;
+    if (text.isEmpty) return '还没写描述';
+    return text.length > 48 ? '${text.substring(0, 48)}…' : text;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elements = widget.elements;
+    return AppPage(
+      title: widget.title,
+      onBack: () => Navigator.of(context).maybePop(),
+      body: AppPageBody.list(
+        children: [
+          if (elements.isEmpty)
+            AppPageGutter(
+              child: AppEmptyState(message: '这个分类还空着', detail: '去玩法里把元素挪进来'),
+            )
+          else
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < elements.length; i++) ...[
+                  AppListTile(
+                    title: elements[i].keyword.isEmpty
+                        ? '未命名'
+                        : elements[i].keyword,
+                    subtitle: _preview(elements[i]),
+                    icon: Icons.theater_comedy_outlined,
+                    trailing: AppSwitch(
+                      value: _selected.contains(elements[i].id),
+                      onChanged: (value) => _toggle(elements[i].id, value),
+                    ),
+                    showDivider: false,
+                    onTap: () => _toggle(
+                      elements[i].id,
+                      !_selected.contains(elements[i].id),
+                    ),
+                  ),
+                  if (i < elements.length - 1) const AppListHairline(),
+                ],
+              ],
+            ),
+        ],
+      ),
     );
   }
 }

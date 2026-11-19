@@ -1,11 +1,11 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/settings_controller.dart';
-import 'package:anoworld/domain/ai/ai_text_client.dart';
-import 'package:anoworld/domain/ai/expand_plot_element_description_action.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
+import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
@@ -13,10 +13,14 @@ import 'package:anoworld/foundation/widgets/app_list_hairline.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
-import 'package:anoworld/foundation/widgets/app_text.dart';
-import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
+import 'package:anoworld/play/plot_element_category_page.dart';
+import 'package:anoworld/play/plot_element_category_ui.dart';
+import 'package:anoworld/play/plot_element_editor.dart';
 import 'package:flutter/material.dart';
 
 /// Global plot-element library (CRUD). Managed under 玩法; stories only pick.
@@ -28,7 +32,11 @@ class PlotElementsLibraryPage extends StatefulWidget {
       _PlotElementsLibraryPageState();
 }
 
+enum _LibraryTab { all, categorized }
+
 class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
+  var _tab = _LibraryTab.all;
+
   SettingsController get _settings => AppScope.settingsOf(context);
 
   String _preview(PlotElement element) {
@@ -37,114 +45,51 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
     return text.length > 48 ? '${text.substring(0, 48)}…' : text;
   }
 
-  Future<void> _edit({PlotElement? existing}) async {
-    final catalog = _settings.plotElements;
-    final result = await showAppSheet<_PlotElementSheetResult>(
-      context: context,
-      size: AppSheetSize.half,
-      builder: (sheetContext) => _PlotElementEditSheet(
-        existing: existing,
-        isBuiltIn: existing != null && catalog.isBuiltInId(existing.id),
-        isModified: existing != null && catalog.isModifiedBuiltIn(existing.id),
-      ),
-    );
-    if (result == null || !mounted) return;
+  String _countLabel(int count) => count == 0 ? '还空着' : '$count 条';
 
-    switch (result) {
-      case _PlotElementSheetSave(:final keyword, :final description):
-        if (existing == null) {
-          await _settings.addCustomPlotElement(
-            keyword: keyword,
-            description: description,
-          );
-        } else if (catalog.isBuiltInId(existing.id)) {
-          await _settings.updateBuiltInPlotElement(
-            id: existing.id,
-            keyword: keyword,
-            description: description,
-          );
-        } else {
-          await _settings.upsertPlotElement(
-            existing.copyWith(keyword: keyword, description: description),
-          );
-        }
-      case _PlotElementSheetDelete():
-        if (existing == null) return;
-        final confirmed = await _confirm(
-          title: '删除这个剧情元素？',
-          detail: catalog.isBuiltInId(existing.id)
-              ? '可从菜单「全部恢复默认」再加回来'
-              : '删掉后无法恢复',
-          confirmLabel: '删除',
-          danger: true,
-        );
-        if (!confirmed || !mounted) return;
-        await _settings.deletePlotElement(existing.id);
-      case _PlotElementSheetRestore():
-        if (existing == null) return;
-        await _settings.restoreBuiltInPlotElement(existing.id);
-    }
+  String _rowSubtitle(PlotElementCatalog catalog, PlotElement element) {
+    final parts = <String>[
+      catalog.categoryNameOf(element.categoryId),
+      if (catalog.isBuiltInId(element.id))
+        catalog.isModifiedBuiltIn(element.id) ? '默认 · 已改' : '默认',
+      _preview(element),
+    ];
+    return parts.join(' · ');
+  }
+
+  Future<void> _edit({PlotElement? existing}) async {
+    final result = await showPlotElementEditor(context, existing: existing);
+    if (result == null || !mounted) return;
+    await commitPlotElementEdit(
+      context,
+      settings: _settings,
+      existing: existing,
+      result: result,
+    );
+  }
+
+  Future<void> _createCategory() async {
+    final name = await askPlotElementCategoryName(context, title: '新分类');
+    if (name == null || !mounted) return;
+    await _settings.addPlotElementCategory(name);
+  }
+
+  Future<void> _openCategory(String categoryId) async {
+    await pushAppSlide(
+      context,
+      PlotElementCategoryPage(categoryId: categoryId),
+    );
   }
 
   Future<void> _restoreAll() async {
-    final confirmed = await _confirm(
+    final confirmed = await showAppConfirmSheet(
+      context,
       title: '全部恢复默认？',
       detail: '出厂条目会恢复原文并补回已删的；你自己加的保留',
       confirmLabel: '全部恢复',
     );
     if (!confirmed || !mounted) return;
     await _settings.restoreAllBuiltInPlotElements();
-  }
-
-  Future<bool> _confirm({
-    required String title,
-    required String detail,
-    required String confirmLabel,
-    bool danger = false,
-  }) async {
-    final confirmed = await showAppSheet<bool>(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppText(title, role: AppTextRole.subtitle),
-            const SizedBox(height: AppTheme.spaceXs),
-            AppText(detail, role: AppTextRole.caption),
-            const SizedBox(height: AppTheme.spaceMd),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: '取消',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spaceSm),
-                Expanded(
-                  child: AppButton(
-                    label: confirmLabel,
-                    variant: danger
-                        ? AppButtonVariant.danger
-                        : AppButtonVariant.primary,
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-    return confirmed == true;
   }
 
   Future<void> _openMore() async {
@@ -171,6 +116,62 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
     }
   }
 
+  Widget _categoryRow({
+    required String title,
+    required int count,
+    required IconData icon,
+    required String categoryId,
+  }) {
+    return AppListTile(
+      title: title,
+      subtitle: _countLabel(count),
+      icon: icon,
+      trailing: const AppForwardIcon(),
+      showDivider: false,
+      onTap: () => _openCategory(categoryId),
+    );
+  }
+
+  List<Widget> _categorySections(PlotElementCatalog catalog) {
+    final uncategorizedCount = catalog.uncategorizedElements.length;
+    final rows = <Widget>[
+      for (final category in catalog.categories)
+        _categoryRow(
+          title: category.name,
+          count: catalog.elementsOfCategory(category.id).length,
+          icon: Icons.folder_outlined,
+          categoryId: category.id,
+        ),
+      if (uncategorizedCount > 0)
+        _categoryRow(
+          title: PlotElementCatalog.uncategorizedLabel,
+          count: uncategorizedCount,
+          icon: Icons.label_outline,
+          categoryId: '',
+        ),
+    ];
+    return [
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            rows[i],
+            if (i < rows.length - 1) const AppListHairline(),
+          ],
+        ],
+      ),
+      const SizedBox(height: AppTheme.spaceLg),
+      AppListTile(
+        title: '新建分类',
+        subtitle: '给元素多一个归处',
+        icon: Icons.create_new_folder_outlined,
+        showDivider: false,
+        onTap: _createCategory,
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -195,11 +196,15 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
           ],
           body: AppPageBody.list(
             children: [
-              const AppSectionHeader(
-                '全局库',
-                subtitle: '供 AI 织进支线的由头，故事里只勾选',
-                gutter: true,
+              AppUnderlineTabs<_LibraryTab>(
+                value: _tab,
+                onChanged: (value) => setState(() => _tab = value),
+                options: const [
+                  AppSegmentOption(value: _LibraryTab.all, label: '全部'),
+                  AppSegmentOption(value: _LibraryTab.categorized, label: '分类'),
+                ],
               ),
+              const SizedBox(height: AppTheme.spaceLg),
               if (rows.isEmpty)
                 AppPageGutter(
                   child: AppEmptyState(
@@ -212,7 +217,12 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
                     ),
                   ),
                 )
-              else
+              else if (_tab == _LibraryTab.all) ...[
+                const AppSectionHeader(
+                  '全局库',
+                  subtitle: '供 AI 织进支线的由头，故事里只勾选',
+                  gutter: true,
+                ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -222,11 +232,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
                         title: rows[i].keyword.isEmpty
                             ? '未命名'
                             : rows[i].keyword,
-                        subtitle: catalog.isBuiltInId(rows[i].id)
-                            ? (catalog.isModifiedBuiltIn(rows[i].id)
-                                ? '默认 · 已改 · ${_preview(rows[i])}'
-                                : '默认 · ${_preview(rows[i])}')
-                            : _preview(rows[i]),
+                        subtitle: _rowSubtitle(catalog, rows[i]),
                         icon: Icons.theater_comedy_outlined,
                         trailing: const AppForwardIcon(),
                         showDivider: false,
@@ -236,202 +242,12 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
                     ],
                   ],
                 ),
+              ] else
+                ..._categorySections(catalog),
             ],
           ),
         );
       },
-    );
-  }
-}
-
-sealed class _PlotElementSheetResult {
-  const _PlotElementSheetResult();
-}
-
-final class _PlotElementSheetSave extends _PlotElementSheetResult {
-  const _PlotElementSheetSave({
-    required this.keyword,
-    required this.description,
-  });
-
-  final String keyword;
-  final String description;
-}
-
-final class _PlotElementSheetDelete extends _PlotElementSheetResult {
-  const _PlotElementSheetDelete();
-}
-
-final class _PlotElementSheetRestore extends _PlotElementSheetResult {
-  const _PlotElementSheetRestore();
-}
-
-class _PlotElementEditSheet extends StatefulWidget {
-  const _PlotElementEditSheet({
-    required this.existing,
-    required this.isBuiltIn,
-    required this.isModified,
-  });
-
-  final PlotElement? existing;
-  final bool isBuiltIn;
-  final bool isModified;
-
-  @override
-  State<_PlotElementEditSheet> createState() => _PlotElementEditSheetState();
-}
-
-class _PlotElementEditSheetState extends State<_PlotElementEditSheet> {
-  late final TextEditingController _keyword;
-  late final TextEditingController _description;
-  late final String _baselineKeyword;
-  late final String _baselineDescription;
-  var _busy = false;
-  String? _aiError;
-
-  @override
-  void initState() {
-    super.initState();
-    _baselineKeyword = widget.existing?.keyword ?? '';
-    _baselineDescription = widget.existing?.description ?? '';
-    _keyword = TextEditingController(text: _baselineKeyword);
-    _description = TextEditingController(text: _baselineDescription);
-    _keyword.addListener(_markDirty);
-    _description.addListener(_markDirty);
-  }
-
-  void _markDirty() => setState(() {});
-
-  @override
-  void dispose() {
-    _keyword.removeListener(_markDirty);
-    _description.removeListener(_markDirty);
-    _keyword.dispose();
-    _description.dispose();
-    super.dispose();
-  }
-
-  bool get _isDirty =>
-      _keyword.text.trim() != _baselineKeyword.trim() ||
-      _description.text.trim() != _baselineDescription.trim();
-
-  void _save() {
-    final keyword = _keyword.text.trim();
-    if (keyword.isEmpty) return;
-    Navigator.of(context).pop(
-      _PlotElementSheetSave(
-        keyword: keyword,
-        description: _description.text,
-      ),
-    );
-  }
-
-  Future<void> _generate() async {
-    if (_busy) return;
-    setState(() {
-      _busy = true;
-      _aiError = null;
-    });
-    try {
-      final settings = AppScope.settingsOf(context);
-      final text = await ExpandPlotElementDescriptionAction(
-        textClient: AppScope.textClientOf(context),
-      ).expand(
-        endpoint: settings.ai.text,
-        generation: settings.ai.generation,
-        keyword: _keyword.text,
-        existingDescription: _description.text,
-      );
-      if (!mounted) return;
-      setState(() {
-        _description.text = text;
-        _busy = false;
-      });
-    } on AiTextException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _aiError = error.message;
-        _busy = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _aiError = '没写出来，请稍后再试';
-        _busy = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final existing = widget.existing;
-    return AppSheetEditForm(
-      title: existing == null ? '新剧情元素' : '编辑剧情元素',
-      isDirty: _isDirty,
-      onSave: _save,
-      body: AppSheetScrollBody(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          0,
-          AppTheme.pagePadding,
-          AppTheme.spaceMd,
-        ),
-        children: [
-          AppTextField(
-            label: '关键词',
-            controller: _keyword,
-            hint: '救助流浪猫、雨夜共伞…',
-            autofocus: existing == null,
-          ),
-          const SizedBox(height: AppTheme.spaceMd),
-          AppTextField(
-            label: '描述',
-            controller: _description,
-            minLines: 4,
-            maxLines: 8,
-            hint: '说明怎么用，再写一句示例剧情',
-          ),
-          const SizedBox(height: AppTheme.spaceSm),
-          AppText(
-            '最多 $kPlotElementDescriptionMaxChars 字',
-            role: AppTextRole.caption,
-          ),
-          if (_aiError != null) ...[
-            const SizedBox(height: AppTheme.spaceXs),
-            AppText(_aiError!, role: AppTextRole.caption),
-          ],
-          const SizedBox(height: AppTheme.spaceMd),
-          AppButton(
-            label: _busy ? '正在写…' : '生成描述',
-            variant: AppButtonVariant.secondary,
-            onPressed: _busy ? null : _generate,
-          ),
-          if (existing != null) ...[
-            const SizedBox(height: AppTheme.spaceMd),
-            if (widget.isBuiltIn && widget.isModified)
-              AppButton(
-                label: '恢复默认',
-                variant: AppButtonVariant.secondary,
-                onPressed: _busy
-                    ? null
-                    : () => Navigator.of(context).pop(
-                          const _PlotElementSheetRestore(),
-                        ),
-              ),
-            if (widget.isBuiltIn && widget.isModified)
-              const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '删除',
-              variant: AppButtonVariant.danger,
-              onPressed: _busy
-                  ? null
-                  : () => Navigator.of(context).pop(
-                        const _PlotElementSheetDelete(),
-                      ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }

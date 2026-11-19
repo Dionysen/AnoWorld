@@ -9,11 +9,15 @@ class PlotElement {
     required this.id,
     required this.keyword,
     required this.description,
+    this.categoryId = '',
   });
 
   final String id;
   final String keyword;
   final String description;
+
+  /// Global [PlotElementCategory] id; empty means uncategorized.
+  final String categoryId;
 
   String get clippedDescription {
     final text = description.trim();
@@ -22,16 +26,18 @@ class PlotElement {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'keyword': keyword,
-        'description': description,
-      };
+    'id': id,
+    'keyword': keyword,
+    'description': description,
+    if (categoryId.isNotEmpty) 'categoryId': categoryId,
+  };
 
   factory PlotElement.fromJson(Map<String, dynamic> json) {
     return PlotElement(
       id: json.requireString('id'),
       keyword: json.requireString('keyword').trim(),
       description: json.requireString('description').trim(),
+      categoryId: json.optionalString('categoryId') ?? '',
     );
   }
 
@@ -39,34 +45,42 @@ class PlotElement {
     String? id,
     String? keyword,
     String? description,
+    String? categoryId,
   }) {
     return PlotElement(
       id: id ?? this.id,
       keyword: keyword ?? this.keyword,
       description: description ?? this.description,
+      categoryId: categoryId ?? this.categoryId,
     );
   }
 }
 
-/// Keyword / description override for a built-in seed id.
+/// Keyword / description / category override for a built-in seed id.
 class PlotElementOverride {
   const PlotElementOverride({
     required this.keyword,
     required this.description,
+    this.categoryId,
   });
 
   final String keyword;
   final String description;
 
+  /// Null keeps the seed's own category.
+  final String? categoryId;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'keyword': keyword,
-        'description': description,
-      };
+    'keyword': keyword,
+    'description': description,
+    if (categoryId != null) 'categoryId': categoryId,
+  };
 
   factory PlotElementOverride.fromJson(Map<String, dynamic> json) {
     return PlotElementOverride(
       keyword: json.requireString('keyword').trim(),
       description: json.requireString('description').trim(),
+      categoryId: json.optionalString('categoryId'),
     );
   }
 }
@@ -82,8 +96,8 @@ class PlotElementSelection {
   int get count => selectedIds.length;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'selectedIds': selectedIds,
-      };
+    'selectedIds': selectedIds,
+  };
 
   factory PlotElementSelection.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const PlotElementSelection();
@@ -93,9 +107,7 @@ class PlotElementSelection {
   }
 
   PlotElementSelection copyWith({List<String>? selectedIds}) {
-    return PlotElementSelection(
-      selectedIds: selectedIds ?? this.selectedIds,
-    );
+    return PlotElementSelection(selectedIds: selectedIds ?? this.selectedIds);
   }
 
   PlotElementSelection withToggle(String id, {required bool selected}) {

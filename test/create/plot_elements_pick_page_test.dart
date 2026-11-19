@@ -58,4 +58,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('已选 1 项'), findsOneWidget);
   });
+
+  testWidgets('category tab opens a category page that still toggles', (
+    tester,
+  ) async {
+    final sample = const ProjectFactory().createRainNightSample(
+      now: DateTime.utc(2026, 1, 3),
+    );
+    final repo = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: PlotElementsPickPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('分类'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('日常'), findsOneWidget);
+    expect(find.text('新建分类'), findsNothing);
+
+    await tester.tap(find.text('日常'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('救助流浪猫'), findsOneWidget);
+    expect(find.text('雨夜共伞'), findsOneWidget);
+
+    await tester.tap(find.text('救助流浪猫'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.open(sample.meta.id);
+    expect(saved.plotElements.selectedIds, contains('pe_stray_cat'));
+  });
 }

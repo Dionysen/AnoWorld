@@ -6,6 +6,7 @@ import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/ai_preset_state.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
+import 'package:anoworld/domain/models/plot_element_category.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
@@ -27,9 +28,10 @@ class SettingsController extends ChangeNotifier {
     required this.repository,
     FileSystemFontRepository? fonts,
     Brightness? platformBrightness,
-  })  : _fonts = fonts ?? FileSystemFontRepository(),
-        platformBrightness = platformBrightness ??
-            SchedulerBinding.instance.platformDispatcher.platformBrightness;
+  }) : _fonts = fonts ?? FileSystemFontRepository(),
+       platformBrightness =
+           platformBrightness ??
+           SchedulerBinding.instance.platformDispatcher.platformBrightness;
 
   final SettingsRepository repository;
   final FileSystemFontRepository _fonts;
@@ -47,7 +49,8 @@ class SettingsController extends ChangeNotifier {
   bool loaded = false;
   var _nextCustomSeq = 1;
 
-  bool get isEffectivelyDark => appearance.isEffectivelyDark(platformBrightness);
+  bool get isEffectivelyDark =>
+      appearance.isEffectivelyDark(platformBrightness);
 
   ThemeTokens get activeTokens => appearance.activeTokens(platformBrightness);
 
@@ -91,21 +94,20 @@ class SettingsController extends ChangeNotifier {
   Future<void> upsertPlotElement(PlotElement element) async {
     final next = plotElements.upsertCustom(element);
     await updatePlotElements(next);
-    AppLog.instance.info(
-      '保存剧情元素：${element.id}',
-      tag: 'plot.elements',
-    );
+    AppLog.instance.info('保存剧情元素：${element.id}', tag: 'plot.elements');
   }
 
   Future<void> updateBuiltInPlotElement({
     required String id,
     required String keyword,
     required String description,
+    String? categoryId,
   }) async {
     final next = plotElements.updateBuiltIn(
       id: id,
       keyword: keyword,
       description: description,
+      categoryId: categoryId,
     );
     await updatePlotElements(next);
     AppLog.instance.info('更新默认剧情元素：$id', tag: 'plot.elements');
@@ -114,14 +116,50 @@ class SettingsController extends ChangeNotifier {
   Future<PlotElement> addCustomPlotElement({
     required String keyword,
     required String description,
+    String categoryId = '',
   }) async {
     final element = PlotElement(
       id: newEntityId('pe'),
       keyword: keyword.trim(),
       description: PlotElementCatalog.clipDescription(description),
+      categoryId: categoryId,
     );
     await upsertPlotElement(element);
     return element;
+  }
+
+  Future<void> assignPlotElementCategory({
+    required String elementId,
+    required String categoryId,
+  }) async {
+    final next = plotElements.assignCategory(elementId, categoryId);
+    if (identical(next, plotElements)) return;
+    await updatePlotElements(next);
+    AppLog.instance.info(
+      '剧情元素分类：$elementId → ${categoryId.isEmpty ? '未分类' : categoryId}',
+      tag: 'plot.elements',
+    );
+  }
+
+  Future<PlotElementCategory> addPlotElementCategory(String name) async {
+    final category = PlotElementCategory(
+      id: newEntityId('pe_cat'),
+      name: name.trim(),
+    );
+    final next = plotElements.addCategory(category);
+    if (identical(next, plotElements)) return category;
+    await updatePlotElements(next);
+    AppLog.instance.info('新建剧情元素分类：${category.name}', tag: 'plot.elements');
+    return category;
+  }
+
+  Future<void> renamePlotElementCategory(String id, String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final next = plotElements.renameCategory(id, trimmed);
+    if (identical(next, plotElements)) return;
+    await updatePlotElements(next);
+    AppLog.instance.info('重命名剧情元素分类：$id → $trimmed', tag: 'plot.elements');
   }
 
   Future<void> deletePlotElement(String id) async {
@@ -164,18 +202,11 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> applyAiPreset(AIPreset preset) async {
     final gen = preset.generationSettings;
-    await updateAi(
-      ai.copyWith(
-        generation: gen,
-      ),
-    );
-    final prompt = preset.promptManagerConfig ??
-        PromptManagerConfig.defaultConfig();
+    await updateAi(ai.copyWith(generation: gen));
+    final prompt =
+        preset.promptManagerConfig ?? PromptManagerConfig.defaultConfig();
     await updateAiPresets(
-      aiPresets.copyWith(
-        activePresetId: preset.id,
-        promptManager: prompt,
-      ),
+      aiPresets.copyWith(activePresetId: preset.id, promptManager: prompt),
     );
   }
 
@@ -183,9 +214,7 @@ class SettingsController extends ChangeNotifier {
     final id = 'preset_${DateTime.now().toUtc().microsecondsSinceEpoch}';
     final preset = AIPreset.fromExportJson(json, id);
     await updateAiPresets(
-      aiPresets.copyWith(
-        customPresets: [...aiPresets.customPresets, preset],
-      ),
+      aiPresets.copyWith(customPresets: [...aiPresets.customPresets, preset]),
     );
     await applyAiPreset(preset);
     return preset;
@@ -215,9 +244,7 @@ class SettingsController extends ChangeNotifier {
       promptManagerConfig: aiPresets.promptManager,
     );
     await updateAiPresets(
-      aiPresets.copyWith(
-        customPresets: [...aiPresets.customPresets, preset],
-      ),
+      aiPresets.copyWith(customPresets: [...aiPresets.customPresets, preset]),
     );
     await applyAiPreset(preset);
     return preset;
@@ -243,9 +270,7 @@ class SettingsController extends ChangeNotifier {
           template.promptManagerConfig ?? aiPresets.promptManager,
     );
     await updateAiPresets(
-      aiPresets.copyWith(
-        customPresets: [...aiPresets.customPresets, copy],
-      ),
+      aiPresets.copyWith(customPresets: [...aiPresets.customPresets, copy]),
     );
     return copy;
   }
@@ -253,22 +278,22 @@ class SettingsController extends ChangeNotifier {
   Future<void> renameCustomAiPreset(String id, String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
-    final next = aiPresets.customPresets.map((p) {
-      if (p.id != id) return p;
-      return p.copyWith(name: trimmed, updatedAt: DateTime.now().toUtc());
-    }).toList(growable: false);
+    final next = aiPresets.customPresets
+        .map((p) {
+          if (p.id != id) return p;
+          return p.copyWith(name: trimmed, updatedAt: DateTime.now().toUtc());
+        })
+        .toList(growable: false);
     await updateAiPresets(aiPresets.copyWith(customPresets: next));
   }
 
   Future<void> deleteCustomAiPreset(String id) async {
-    final next =
-        aiPresets.customPresets.where((p) => p.id != id).toList(growable: false);
+    final next = aiPresets.customPresets
+        .where((p) => p.id != id)
+        .toList(growable: false);
     final clearActive = aiPresets.activePresetId == id;
     await updateAiPresets(
-      aiPresets.copyWith(
-        customPresets: next,
-        clearActive: clearActive,
-      ),
+      aiPresets.copyWith(customPresets: next, clearActive: clearActive),
     );
   }
 
@@ -299,19 +324,19 @@ class SettingsController extends ChangeNotifier {
       updatedAt: stamp,
     );
     final next = personas.withPersonas([...personas.personas, persona]);
-    await updatePersonas(
-      next.copyWith(activePersonaId: persona.id),
-    );
+    await updatePersonas(next.copyWith(activePersonaId: persona.id));
     AppLog.instance.info('添加身份：${persona.id}', tag: 'persona');
     return persona;
   }
 
   Future<void> savePersona(UserPersona persona) async {
-    final list = personas.personas.map((p) {
-      return p.id == persona.id
-          ? persona.copyWith(updatedAt: DateTime.now().toUtc())
-          : p;
-    }).toList(growable: false);
+    final list = personas.personas
+        .map((p) {
+          return p.id == persona.id
+              ? persona.copyWith(updatedAt: DateTime.now().toUtc())
+              : p;
+        })
+        .toList(growable: false);
     await updatePersonas(personas.copyWith(personas: list));
     AppLog.instance.info('保存身份：${persona.id}', tag: 'persona');
   }
@@ -319,23 +344,19 @@ class SettingsController extends ChangeNotifier {
   Future<void> deletePersona(String id) async {
     final target = personas.personas.where((p) => p.id == id).firstOrNull;
     if (target == null || target.isDefault) {
-      AppLog.instance.warning(
-        '无法删除身份：$id',
-        tag: 'persona',
-      );
+      AppLog.instance.warning('无法删除身份：$id', tag: 'persona');
       return;
     }
-    final list =
-        personas.personas.where((p) => p.id != id).toList(growable: false);
+    final list = personas.personas
+        .where((p) => p.id != id)
+        .toList(growable: false);
     await updatePersonas(personas.withPersonas(list));
     AppLog.instance.info('删除身份：$id', tag: 'persona');
   }
 
   Future<void> setDefaultPersona(String id) async {
     final list = personas.personas
-        .map(
-          (p) => p.copyWith(isDefault: p.id == id),
-        )
+        .map((p) => p.copyWith(isDefault: p.id == id))
         .toList(growable: false);
     await updatePersonas(personas.copyWith(personas: list));
   }
@@ -563,8 +584,7 @@ class SettingsController extends ChangeNotifier {
       await updateAppearance(appearance.copyWith(clearFont: true));
       return;
     }
-    final family =
-        await _fonts.loadFont(SystemFont(family: '', path: path));
+    final family = await _fonts.loadFont(SystemFont(family: '', path: path));
     if (family != null) {
       await updateAppearance(appearance.copyWith(fontFamily: family));
     }
