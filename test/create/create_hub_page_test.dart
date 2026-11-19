@@ -25,6 +25,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('创作·雨夜投宿'), findsOneWidget);
+    expect(find.text('改设定、角色与情节走向'), findsNothing);
     expect(find.text('世界书'), findsOneWidget);
     expect(find.text('角色'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);

@@ -168,7 +168,7 @@
 
 ## 创作截面（故事内）
 
-故事详情点「继续创作」，或创作流程中直接进入 [`CreateHubPage`](../lib/create/create_hub_page.dart)：三条 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart) 通栏入口（`AppPageBody.list` + `AppListTileStack`，与设置同款），点进各自编辑页。设定/角色编辑页、导入角色卡勾选列表同样套用该组合。
+故事详情点「继续创作」，或创作流程中直接进入 [`CreateHubPage`](../lib/create/create_hub_page.dart)：软件标题为「创作·{故事名}」（无正文副标题）；其下三条 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart) 通栏入口（`AppPageBody.list` + `AppListTileStack`，与设置同款），点进各自编辑页。设定/角色编辑页、导入角色卡勾选列表同样套用该组合。
 
 | 入口 | 用户在改什么 | 编辑页 |
 | --- | --- | --- |

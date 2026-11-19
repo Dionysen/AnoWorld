@@ -9,7 +9,6 @@ import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
-import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:flutter/material.dart';
@@ -92,11 +91,17 @@ class _CreateHubPageState extends State<CreateHubPage> {
     return '$short · $nodes 站';
   }
 
+  String _pageTitle(Project? project) {
+    final name = project?.meta.title.trim();
+    if (name == null || name.isEmpty) return '创作·未命名故事';
+    return '创作·$name';
+  }
+
   @override
   Widget build(BuildContext context) {
     final project = _project;
     return AppPage(
-      title: '创作',
+      title: _pageTitle(project),
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody.list(
         children: [
@@ -116,12 +121,7 @@ class _CreateHubPageState extends State<CreateHubPage> {
                 ),
               ),
             )
-          else if (project != null) ...[
-            AppSectionHeader(
-              project.meta.title,
-              subtitle: '改设定、角色与情节走向',
-              gutter: true,
-            ),
+          else if (project != null)
             AppListTileStack(
               tiles: [
                 AppListTile(
@@ -153,7 +153,6 @@ class _CreateHubPageState extends State<CreateHubPage> {
                 ),
               ],
             ),
-          ],
         ],
       ),
     );
