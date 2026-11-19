@@ -546,27 +546,13 @@ class _AppSheetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stretchBody = expandBody || cardHeight != null;
-    final column = Column(
-      mainAxisSize: stretchBody ? MainAxisSize.max : MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        handle,
-        if (stretchBody) Expanded(child: child) else child,
-      ],
-    );
-
-    final surface = Material(
-      key: const ValueKey('app_sheet_card'),
-      color: theme.colorScheme.surfaceContainerHigh,
-      elevation: 0,
-      shape: tokens.shape(
-        side: BorderSide(color: theme.colorScheme.outline),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: column,
+    final shape = tokens.shape(
+      side: BorderSide(color: theme.colorScheme.outline),
     );
 
     if (!stretchBody) {
+      // Compact menus: full card width + scroll when parent height is tight
+      // (e.g. large viewInsets), so the Column never yellow-black overflows.
       return ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight:
@@ -574,9 +560,41 @@ class _AppSheetCard extends StatelessWidget {
                   AppTheme.sheetFullHeightFactor,
           maxWidth: cardWidth,
         ),
-        child: surface,
+        child: SizedBox(
+          width: cardWidth,
+          child: Material(
+            key: const ValueKey('app_sheet_card'),
+            color: theme.colorScheme.surfaceContainerHigh,
+            elevation: 0,
+            shape: shape,
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [handle, child],
+              ),
+            ),
+          ),
+        ),
       );
     }
+
+    final surface = Material(
+      key: const ValueKey('app_sheet_card'),
+      color: theme.colorScheme.surfaceContainerHigh,
+      elevation: 0,
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          handle,
+          Expanded(child: child),
+        ],
+      ),
+    );
+
     if (cardHeight != null) {
       return SizedBox(
         width: cardWidth,

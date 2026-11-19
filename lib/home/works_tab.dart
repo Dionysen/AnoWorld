@@ -704,45 +704,35 @@ class WorksTabState extends State<WorksTab> {
   Future<void> _folderMenu(ProjectFolder folder) async {
     final action = await showAppSheet<String>(
       context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePadding,
-          AppTheme.spaceSm,
-          AppTheme.pagePadding,
-          AppTheme.pagePadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppButton(
-              label: '打开',
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('open'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '重命名',
-              variant: AppButtonVariant.secondary,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('rename'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '解散文件夹',
-              variant: AppButtonVariant.secondary,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('dissolve'),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppButton(
-              label: '删除文件夹',
-              variant: AppButtonVariant.danger,
-              expanded: true,
-              onPressed: () => Navigator.of(ctx).pop('delete'),
-            ),
-          ],
-        ),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: AppTheme.spaceSm),
+          AppListTile(
+            title: '打开',
+            icon: Icons.folder_open_outlined,
+            onTap: () => Navigator.of(ctx).pop('open'),
+          ),
+          AppListTile(
+            title: '重命名',
+            icon: Icons.drive_file_rename_outline,
+            onTap: () => Navigator.of(ctx).pop('rename'),
+          ),
+          AppListTile(
+            title: '解散文件夹',
+            icon: Icons.folder_off_outlined,
+            onTap: () => Navigator.of(ctx).pop('dissolve'),
+          ),
+          AppListTile(
+            title: '删除文件夹',
+            icon: Icons.delete_outline,
+            danger: true,
+            showDivider: false,
+            onTap: () => Navigator.of(ctx).pop('delete'),
+          ),
+          const SizedBox(height: AppTheme.pagePadding),
+        ],
       ),
     );
     if (!mounted) return;
