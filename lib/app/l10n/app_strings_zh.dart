@@ -837,6 +837,15 @@ class AppStringsZh extends AppStrings {
   String get continueAction => '继续';
 
   @override
+  String get historyBack => '后退';
+
+  @override
+  String get historyForward => '前进';
+
+  @override
+  String get historyFastForward => '快进';
+
+  @override
   String get scenePlaceholder => '场景';
 
   @override

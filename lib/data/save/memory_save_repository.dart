@@ -36,6 +36,8 @@ class MemorySaveRepository implements SaveRepository {
     PlayViewMode mode = PlayViewMode.visualNovel,
     List<TavernChatMessage> chat = const <TavernChatMessage>[],
     List<String> replyChoices = const <String>[],
+    List<MainSavePointer> history = const <MainSavePointer>[],
+    int historyCursor = -1,
   }) async {
     _slots[slotId] = SaveSlot(
       id: slotId,
@@ -46,6 +48,8 @@ class MemorySaveRepository implements SaveRepository {
       mode: mode,
       chat: List<TavernChatMessage>.unmodifiable(chat),
       replyChoices: List<String>.unmodifiable(replyChoices),
+      history: List<MainSavePointer>.unmodifiable(history),
+      historyCursor: historyCursor,
     );
   }
 

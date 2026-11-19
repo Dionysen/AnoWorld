@@ -283,6 +283,9 @@ abstract class AppStrings extends AppLocalizations {
   String get generatingSegment;
   String get generateThisSegment;
   String get continueAction;
+  String get historyBack;
+  String get historyForward;
+  String get historyFastForward;
   String get scenePlaceholder;
   String get noBackgroundImage;
   String backgroundLabel(String id);

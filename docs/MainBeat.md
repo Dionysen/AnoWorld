@@ -212,7 +212,16 @@ BridgeSession {
   turnCount: number        // 当前站已生成拍数，用于收敛触顶
   summary?: string         // 当前站压缩摘要，供下一跳上下文
 }
+
+// VN 回退时间线（与 pointer 同槽保存）：
+history: MainSavePointer[]   // 记录过的每一句 / 待生成位置，旧 → 新
+historyCursor: number        // 当前所在下标；-1 表示旧档未记录
 ```
+
+回退：`pointer` 始终是**当前查看位置**，`history` 末尾是最新进度。时间线按「句」记录——同一句的
+`lines` / `choices` / `needsBridge` 只更新该条，不算新的一步。后退 / 前进移动 `historyCursor` 并
+`MainRuntime.restore`；快进按顺序重放已记录位置，到末尾停；已在末尾时「前进」等同继续推进。
+回退后再生成会截断光标之后的旧记录（同位置重放则复用原记录，不重复）。
 
 故事包仍以骨架（+ 可选预写 Beat）为准；存档存指针 + 本局区间会话，不要求把 AI 发挥写回 `project.json`（作者可另做「固化本场」创作动作）。
 

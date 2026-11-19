@@ -86,6 +86,43 @@ void main() {
     expect(loaded?.bridge?.generatedBeats.single.id, 'bridge_n1_1');
   });
 
+  test('file save repository round-trips VN history', () async {
+    final temp = await Directory.systemTemp.createTemp('anoworld_saves_hist_');
+    addTearDown(() async {
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+
+    final paths = ProjectPaths(documentsDirectory: () async => temp);
+    paths.seedLibraryRoot(p.join(temp.path, 'AnoWorld'));
+    final repo = FileSaveRepository(paths: paths);
+
+    const history = [
+      MainSavePointer(nodeId: 'n1', beatId: 'b1', lineIndex: 0, phase: 'lines'),
+      MainSavePointer(nodeId: 'n1', beatId: 'b1', lineIndex: 1, phase: 'lines'),
+      MainSavePointer(
+        nodeId: 'n1',
+        beatId: 'b1',
+        lineIndex: 1,
+        phase: 'choices',
+      ),
+    ];
+
+    await repo.save(
+      slotId: 'slot_hist',
+      projectId: 'proj_hist',
+      pointer: history[1],
+      history: history,
+      historyCursor: 1,
+    );
+
+    final loaded = await repo.load('slot_hist');
+    expect(loaded?.history, hasLength(3));
+    expect(loaded?.historyCursor, 1);
+    expect(loaded?.history.last.phase, 'choices');
+    expect(loaded?.pointer.lineIndex, 1);
+    expect(loaded?.pointer.phase, 'lines');
+  });
+
   test('file save repository round-trips chat transcript', () async {
     final temp = await Directory.systemTemp.createTemp('anoworld_saves_chat_');
     addTearDown(() async {

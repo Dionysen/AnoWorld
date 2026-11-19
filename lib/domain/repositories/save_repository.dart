@@ -13,6 +13,8 @@ class SaveSlot {
     this.mode = PlayViewMode.visualNovel,
     this.chat = const <TavernChatMessage>[],
     this.replyChoices = const <String>[],
+    this.history = const <MainSavePointer>[],
+    this.historyCursor = -1,
   });
 
   /// Unique slot id (one project may have many slots).
@@ -30,6 +32,12 @@ class SaveSlot {
 
   /// Pending reply chips for chat (restored with transcript).
   final List<String> replyChoices;
+
+  /// VN position timeline (oldest → newest) for back / forward / fast-forward.
+  final List<MainSavePointer> history;
+
+  /// Cursor into [history]; `-1` when absent (legacy slot).
+  final int historyCursor;
 }
 
 /// Per-story play progress: many slots per [SaveSlot.projectId].
@@ -49,6 +57,8 @@ abstract interface class SaveRepository {
     PlayViewMode mode = PlayViewMode.visualNovel,
     List<TavernChatMessage> chat = const <TavernChatMessage>[],
     List<String> replyChoices = const <String>[],
+    List<MainSavePointer> history = const <MainSavePointer>[],
+    int historyCursor = -1,
   });
 
   Future<void> clear(String slotId);

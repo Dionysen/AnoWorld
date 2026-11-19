@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
@@ -9,12 +11,15 @@ import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/main_runtime.dart';
+import 'package:anoworld/domain/runtime/play_history.dart';
 import 'package:anoworld/domain/runtime/play_pointer.dart';
 import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
+import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_surface.dart';
@@ -66,6 +71,10 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   /// Tavern chat transcript (chat mode only).
   final List<TavernChatMessage> _chat = <TavernChatMessage>[];
   List<String> _replyChoices = const <String>[];
+
+  /// VN position timeline (back / forward / fast-forward).
+  final PlayHistory _history = PlayHistory();
+  Timer? _fastForwardTimer;
 
   Project get _project => widget.project;
 
@@ -125,10 +134,17 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           .addPostFrameCallback((_) => _ensureChatOpening());
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        _recordPosition();
         await _persist();
         await _ensureBridge();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _fastForwardTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadSlot(String slotId) async {
@@ -150,6 +166,17 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           _bridge = bridge;
         }
         _runtime = MainRuntime(main, save: slot.pointer);
+        _history.clear();
+        if (slot.history.isEmpty) {
+          // Legacy slot: seed the timeline with the restored position.
+          _recordPosition();
+        } else {
+          _history.entries.addAll(slot.history);
+          _history.cursor = slot.historyCursor.clamp(
+            0,
+            slot.history.length - 1,
+          );
+        }
         setState(() => _status = context.strings.progressLoaded);
       }
     }
@@ -215,6 +242,12 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     ];
   }
 
+  /// Records the runtime cursor as the newest VN progress.
+  void _recordPosition() {
+    if (_isChat) return;
+    _history.record(_runtime.toSave());
+  }
+
   Future<void> _persist() async {
     if (!mounted) return;
     await AppScope.savesOf(context).save(
@@ -226,21 +259,126 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       chat: _isChat ? List<TavernChatMessage>.unmodifiable(_chat) : const [],
       replyChoices:
           _isChat ? List<String>.unmodifiable(_replyChoices) : const [],
+      history:
+          _isChat ? const <MainSavePointer>[] : _history.entries.toList(),
+      historyCursor: _isChat ? -1 : _history.cursor,
     );
   }
 
   void _advance() {
     if (!_runtime.canAdvance) return;
-    setState(() => _runtime.advance());
+    setState(() {
+      _runtime.advance();
+      _recordPosition();
+    });
     _persist();
     _ensureBridge();
   }
 
   void _choose(Choice choice) {
-    setState(() => _runtime.choose(choice.id));
-    _syncBridgeNode();
+    _stopFastForward();
+    setState(() {
+      _runtime.choose(choice.id);
+      _syncBridgeNode();
+      _recordPosition();
+    });
     _persist();
     _ensureBridge();
+  }
+
+  void _goBack() {
+    _stopFastForward();
+    final target = _history.stepBack();
+    if (target == null) return;
+    AppLog.instance.info(
+      '视觉小说后退到第 ${_history.cursor + 1}/${_history.entries.length} 步',
+      tag: 'play.vn',
+    );
+    _restorePosition(target);
+  }
+
+  void _goForward() {
+    _stopFastForward();
+    final target = _history.stepForward();
+    if (target == null) return;
+    _restorePosition(target);
+  }
+
+  /// Whether the story can still move past the current point.
+  bool get _canContinueStory =>
+      !_busy &&
+      !_runtime.pointer.isEnded &&
+      (_runtime.canAdvance || _runtime.needsBridge);
+
+  /// Forward button: replay the next recorded line, or — already at the newest
+  /// progress — keep the story going (next line / write the missing beat).
+  void _forward() {
+    _stopFastForward();
+    if (_history.canForward) {
+      _goForward();
+      return;
+    }
+    if (_runtime.canAdvance) {
+      _advance();
+      return;
+    }
+    if (_runtime.needsBridge) _ensureBridge();
+  }
+
+  /// Replays recorded lines until the newest progress; stops there.
+  void _startFastForward() {
+    if (_fastForwardTimer != null || !_history.canForward) return;
+    AppLog.instance.info(
+      '视觉小说快进：剩余 ${_history.entries.length - 1 - _history.cursor} 步',
+      tag: 'play.vn',
+    );
+    _fastForwardTimer = Timer.periodic(
+      const Duration(milliseconds: 90),
+      (_) {
+        final target = _history.stepForward();
+        if (target == null) {
+          _stopFastForward();
+          return;
+        }
+        _restorePosition(target, persist: false);
+        if (!_history.canForward) _stopFastForward();
+      },
+    );
+    setState(() {});
+  }
+
+  void _stopFastForward() {
+    final timer = _fastForwardTimer;
+    if (timer == null) return;
+    timer.cancel();
+    _fastForwardTimer = null;
+    if (mounted) setState(() {});
+    _persist();
+  }
+
+  void _restorePosition(MainSavePointer target, {bool persist = true}) {
+    setState(() {
+      _runtime.restore(target);
+      _syncBridgeNode();
+      _status = null;
+    });
+    if (persist) _persist();
+  }
+
+  /// Tap on the stage: replay forward when scrubbed back, otherwise next line
+  /// (or ask AI to write when the beat is missing).
+  void _onStageTap() {
+    _stopFastForward();
+    if (_busy) return;
+    if (_history.canForward) {
+      _goForward();
+      return;
+    }
+    if (_runtime.canAdvance) {
+      _advance();
+      return;
+    }
+    if (_runtime.needsBridge) _ensureBridge();
   }
 
   Future<void> _onChatSend(String raw) async {
@@ -403,12 +541,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   }
 
   void _restart() {
+    _stopFastForward();
     setState(() {
       _runtime = MainRuntime(_baseMain);
       _bridge = null;
       _chat.clear();
       _replyChoices = const [];
       _status = context.strings.statusRestarted;
+      _history.clear();
+      _recordPosition();
     });
     if (_isChat) {
       _persist().then((_) {
@@ -428,7 +569,10 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     if (node == null) return;
 
     if (node.tags.contains('ending')) {
-      setState(_runtime.endStory);
+      setState(() {
+        _runtime.endStory();
+        _recordPosition();
+      });
       await _persist();
       return;
     }
@@ -457,6 +601,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       if (!mounted) return;
       setState(() {
         _runtime.adoptBridgeBeat(beat);
+        _recordPosition();
         _bridge = session.copyWith(
           generatedBeats: [...session.generatedBeats, beat],
           turnCount: session.turnCount + 1,
@@ -490,6 +635,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       );
       setState(() {
         _runtime.adoptBridgeBeat(beat);
+        _recordPosition();
         _bridge = session.copyWith(
           generatedBeats: [...session.generatedBeats, beat],
           turnCount: session.turnCount + 1,
@@ -520,6 +666,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       );
       setState(() {
         _runtime.adoptBridgeBeat(beat);
+        _recordPosition();
         _bridge = session.copyWith(
           generatedBeats: [...session.generatedBeats, beat],
           turnCount: session.turnCount + 1,
@@ -572,8 +719,12 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
             _runtime.main.nodeById(edge.to)?.title ?? edge.to,
           ),
           onPressed: () {
-            setState(() => _runtime.jumpToNode(edge.to));
-            _syncBridgeNode();
+            _stopFastForward();
+            setState(() {
+              _runtime.jumpToNode(edge.to);
+              _syncBridgeNode();
+              _recordPosition();
+            });
             _persist();
             _ensureBridge();
           },
@@ -643,7 +794,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
               status: _status,
               bridging: _busy,
               centerActions: _centerActions(),
-              onAdvance: _advance,
+              canBack: _history.canBack,
+              canForward: _history.canForward || _canContinueStory,
+              canFastForward: _history.canForward,
+              fastForwarding: _fastForwardTimer != null,
+              onStageTap: _onStageTap,
+              onBack: _goBack,
+              onForward: _forward,
+              onFastForward:
+                  _fastForwardTimer != null ? _stopFastForward : _startFastForward,
             ),
     );
   }
@@ -669,7 +828,14 @@ class _VnStage extends StatelessWidget {
     required this.status,
     required this.bridging,
     required this.centerActions,
-    required this.onAdvance,
+    required this.canBack,
+    required this.canForward,
+    required this.canFastForward,
+    required this.fastForwarding,
+    required this.onStageTap,
+    required this.onBack,
+    required this.onForward,
+    required this.onFastForward,
   });
 
   final MainRuntime runtime;
@@ -678,7 +844,14 @@ class _VnStage extends StatelessWidget {
   final String? status;
   final bool bridging;
   final List<_VnCenterAction> centerActions;
-  final VoidCallback onAdvance;
+  final bool canBack;
+  final bool canForward;
+  final bool canFastForward;
+  final bool fastForwarding;
+  final VoidCallback onStageTap;
+  final VoidCallback onBack;
+  final VoidCallback onForward;
+  final VoidCallback onFastForward;
 
   @override
   Widget build(BuildContext context) {
@@ -687,57 +860,150 @@ class _VnStage extends StatelessWidget {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final line = runtime.currentLine;
     final showChoices = centerActions.isNotEmpty;
-    final canTapAdvance = runtime.canAdvance && !showChoices && !bridging;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: canTapAdvance ? onAdvance : null,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          const _VnBackground(),
-          if (showChoices)
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              // Keep choices above the dialogue band (SLG layout).
-              bottom: 160 + bottomInset,
-              child: _VnChoiceOverlay(actions: centerActions),
-            ),
-          Positioned(
-            left: AppTheme.pagePadding,
-            right: AppTheme.pagePadding,
-            bottom: AppTheme.pagePadding + bottomInset,
-            child: _VnDialogueBox(
-              line: runtime.pointer.isEnded ? null : line,
-              speaker: runtime.pointer.isEnded || line == null
-                  ? null
-                  : speakerLabel(line),
-              narration: !runtime.pointer.isEnded &&
-                  line != null &&
-                  isNarration(line),
-              accent: scheme.primary,
-              placeholder: () {
-                if (runtime.pointer.isEnded) {
-                  return strings.segmentEnded;
-                }
-                if (line != null) return null;
-                if (runtime.pointer.phase == PlayPhase.choices) {
-                  return strings.choosePlease;
-                }
-                if (runtime.needsBridge || bridging) {
-                  return bridging
-                      ? strings.statusWriting
-                      : strings.segmentNotWritten;
-                }
-                return '…';
-              }(),
-              status: status,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Very short viewports: keep the dialogue readable, drop the history bar.
+        final showHistory = constraints.maxHeight >= 260;
+        final maxDialogueHeight =
+            (constraints.maxHeight * 0.55).clamp(96.0, 360.0);
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onStageTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const _VnBackground(),
+              Column(
+                children: [
+                  Expanded(
+                    child: showChoices
+                        ? _VnChoiceOverlay(actions: centerActions)
+                        : const SizedBox.expand(),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      AppTheme.pagePadding,
+                      0,
+                      AppTheme.pagePadding,
+                      AppTheme.pagePadding + bottomInset,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ConstrainedBox(
+                          constraints:
+                              BoxConstraints(maxHeight: maxDialogueHeight),
+                          child: _VnDialogueBox(
+                            line: runtime.pointer.isEnded ? null : line,
+                            speaker: runtime.pointer.isEnded || line == null
+                                ? null
+                                : speakerLabel(line),
+                            narration: !runtime.pointer.isEnded &&
+                                line != null &&
+                                isNarration(line),
+                            accent: scheme.primary,
+                            placeholder: () {
+                              if (runtime.pointer.isEnded) {
+                                return strings.segmentEnded;
+                              }
+                              if (line != null) return null;
+                              if (runtime.pointer.phase == PlayPhase.choices) {
+                                return strings.choosePlease;
+                              }
+                              if (runtime.needsBridge || bridging) {
+                                return bridging
+                                    ? strings.statusWriting
+                                    : strings.segmentNotWritten;
+                              }
+                              return '…';
+                            }(),
+                            status: status,
+                          ),
+                        ),
+                        if (showHistory) ...[
+                          const SizedBox(height: AppTheme.spaceSm),
+                          _VnHistoryBar(
+                            enabled: !bridging,
+                            canBack: canBack,
+                            canForward: canForward,
+                            canFastForward: canFastForward,
+                            fastForwarding: fastForwarding,
+                            onBack: onBack,
+                            onForward: onForward,
+                            onFastForward: onFastForward,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+}
+
+/// Back / forward / fast-forward row under the dialogue box.
+class _VnHistoryBar extends StatelessWidget {
+  const _VnHistoryBar({
+    required this.enabled,
+    required this.canBack,
+    required this.canForward,
+    required this.canFastForward,
+    required this.fastForwarding,
+    required this.onBack,
+    required this.onForward,
+    required this.onFastForward,
+  });
+
+  /// Generation in flight: rewinding would be overridden when the beat lands.
+  final bool enabled;
+  final bool canBack;
+
+  /// Forward can also keep the story going at the newest progress.
+  final bool canForward;
+
+  /// Fast-forward only replays recorded lines, so it needs history ahead.
+  final bool canFastForward;
+  final bool fastForwarding;
+  final VoidCallback onBack;
+  final VoidCallback onForward;
+  final VoidCallback onFastForward;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AppIconButton(
+          icon: Icons.skip_previous_rounded,
+          tooltip: strings.historyBack,
+          onPressed: enabled && canBack ? onBack : null,
+        ),
+        const SizedBox(width: AppTheme.spaceMd),
+        AppIconButton(
+          icon: Icons.skip_next_rounded,
+          tooltip: strings.historyForward,
+          onPressed: enabled && canForward ? onForward : null,
+        ),
+        const SizedBox(width: AppTheme.spaceMd),
+        AppIconButton(
+          icon: fastForwarding
+              ? Icons.pause_rounded
+              : Icons.fast_forward_rounded,
+          tooltip: strings.historyFastForward,
+          onPressed: enabled && (canFastForward || fastForwarding)
+              ? onFastForward
+              : null,
+        ),
+      ],
     );
   }
 }
@@ -759,28 +1025,27 @@ class _VnChoiceOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(
+          vertical: AppTheme.pagePadding,
+          horizontal: AppTheme.pagePadding,
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.pagePadding,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < actions.length; i++) ...[
-                  if (i > 0) const SizedBox(height: AppTheme.spaceSm),
-                  AppButton(
-                    label: actions[i].label,
-                    onPressed: actions[i].onPressed,
-                    variant: actions[i].variant,
-                    expanded: true,
-                  ),
-                ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < actions.length; i++) ...[
+                if (i > 0) const SizedBox(height: AppTheme.spaceSm),
+                AppButton(
+                  label: actions[i].label,
+                  onPressed: actions[i].onPressed,
+                  variant: actions[i].variant,
+                  expanded: true,
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -812,37 +1077,39 @@ class _VnDialogueBox extends StatelessWidget {
         : stripDialogueSpeakerLabel(line!.text);
 
     return AppSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (status != null) ...[
-            AppText(status!, role: AppTextRole.caption),
-            const SizedBox(height: AppTheme.spaceSm),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (status != null) ...[
+              AppText(status!, role: AppTextRole.caption),
+              const SizedBox(height: AppTheme.spaceSm),
+            ],
+            if (speaker != null) ...[
+              AppText(
+                speaker!,
+                role: AppTextRole.label,
+                color: accent,
+                fontWeight: FontWeight.w700,
+                maxLines: 1,
+              ),
+              const SizedBox(height: AppTheme.spaceSm),
+            ],
+            if (body != null)
+              AppText(
+                body,
+                role: AppTextRole.body,
+                fontStyle: narration ? FontStyle.italic : null,
+              )
+            else if (placeholder != null)
+              AppText(
+                placeholder!,
+                role: AppTextRole.body,
+                fontStyle: FontStyle.italic,
+              ),
           ],
-          if (speaker != null) ...[
-            AppText(
-              speaker!,
-              role: AppTextRole.label,
-              color: accent,
-              fontWeight: FontWeight.w700,
-              maxLines: 1,
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-          ],
-          if (body != null)
-            AppText(
-              body,
-              role: AppTextRole.body,
-              fontStyle: narration ? FontStyle.italic : null,
-            )
-          else if (placeholder != null)
-            AppText(
-              placeholder!,
-              role: AppTextRole.body,
-              fontStyle: FontStyle.italic,
-            ),
-        ],
+        ),
       ),
     );
   }

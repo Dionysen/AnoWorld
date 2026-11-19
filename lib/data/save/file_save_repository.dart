@@ -69,6 +69,7 @@ class FileSaveRepository implements SaveRepository {
     final bridgeMap = map.optionalMap('bridge');
     final chatRaw = map.optionalList('chat');
     final choicesRaw = map.optionalList('replyChoices');
+    final historyRaw = map.optionalList('history');
     final projectId = map.requireString('projectId');
     // Legacy one-file-per-project used the project id as the filename.
     final id = map.optionalString('id') ??
@@ -91,6 +92,14 @@ class FileSaveRepository implements SaveRepository {
           .map((item) => '$item'.trim())
           .where((s) => s.isNotEmpty)
           .toList(growable: false),
+      history: historyRaw
+          .map(
+            (item) => MainSavePointer.fromJson(
+              asJsonMap(item, path: 'history[]'),
+            ),
+          )
+          .toList(growable: false),
+      historyCursor: (map.optionalNum('historyCursor') ?? -1).toInt(),
     );
   }
 
@@ -103,6 +112,8 @@ class FileSaveRepository implements SaveRepository {
     PlayViewMode mode = PlayViewMode.visualNovel,
     List<TavernChatMessage> chat = const <TavernChatMessage>[],
     List<String> replyChoices = const <String>[],
+    List<MainSavePointer> history = const <MainSavePointer>[],
+    int historyCursor = -1,
   }) async {
     final file = await _slotFile(slotId);
     final payload = <String, dynamic>{
@@ -115,6 +126,9 @@ class FileSaveRepository implements SaveRepository {
       if (chat.isNotEmpty)
         'chat': chat.map((m) => m.toJson()).toList(growable: false),
       if (replyChoices.isNotEmpty) 'replyChoices': replyChoices,
+      if (history.isNotEmpty)
+        'history': history.map((p) => p.toJson()).toList(growable: false),
+      if (historyCursor >= 0) 'historyCursor': historyCursor,
     };
     await file.writeAsString(
       '${const JsonEncoder.withIndent('  ').convert(payload)}\n',
