@@ -822,6 +822,9 @@ class AppStringsZh extends AppStrings {
   String get regenerateReply => '重新生成回复';
 
   @override
+  String get regenerateSegment => '重新生成';
+
+  @override
   String get segmentEnded => '本段结束';
 
   @override

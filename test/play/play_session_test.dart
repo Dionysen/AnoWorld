@@ -443,6 +443,91 @@ void main() {
     expect(client.calls, greaterThanOrEqualTo(3));
   });
 
+  testWidgets('VN regenerate drops the current beat and writes a new one',
+      (tester) async {
+    final blank = const ProjectFactory().createBlank(
+      id: 'p_regen',
+      title: '重写',
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final client = _QueuedTextClient([
+      _beatJson('旧拍。'),
+      _beatJson('预写甲。'),
+      _beatJson('预写乙。'),
+      _beatJson('新拍。'),
+      _beatJson('新预写。'),
+    ]);
+    final settings = testSettingsController();
+    await settings.updateAi(
+      settings.ai.copyWith(
+        text: const AiTextEndpoint(
+          kind: AiTextProviderKind.openAiCompatible,
+          baseUrl: 'http://localhost:8080/v1',
+          apiKey: 'sk-test',
+          model: 'demo',
+        ),
+        minBridgeLines: 1,
+      ),
+    );
+    final saves = MemorySaveRepository();
+
+    await tester.pumpWidget(
+      testScoped(
+        settings: settings,
+        textClient: client,
+        saves: saves,
+        home: PlaySessionPage(
+          project: blank,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    client.releaseNext();
+    await tester.pump();
+    await tester.pump();
+    // Drain the two background prefetches.
+    client.releaseNext();
+    await tester.pump();
+    await tester.pump();
+    client.releaseNext();
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('旧拍。'), findsOneWidget);
+    expect(client.calls, 3);
+
+    final regen = find.byTooltip('重新生成');
+    expect(regen, findsOneWidget);
+    await tester.tap(regen);
+    await tester.pump();
+
+    // Old beat is gone; spinner while the replacement is written.
+    expect(find.text('旧拍。'), findsNothing);
+    expect(find.byType(AppBusyIndicator), findsOneWidget);
+
+    client.releaseNext();
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('新拍。'), findsOneWidget);
+
+    // Prefetch refill after regenerate.
+    client.releaseNext();
+    await tester.pump();
+    await tester.pump();
+
+    expect(client.calls, greaterThanOrEqualTo(4));
+    final slots = await saves.listForProject(blank.meta.id);
+    expect(slots, isNotEmpty);
+    expect(slots.first.bridge?.generatedBeats, isNotEmpty);
+    expect(
+      slots.first.bridge!.generatedBeats.first.lines.first.text,
+      '新拍。',
+    );
+  });
+
   testWidgets('VN narration omits speaker label and uses italic body',
       (tester) async {
     final withNarration = sample.copyWith(

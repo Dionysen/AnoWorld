@@ -507,6 +507,18 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     return _chat.last.role == TavernChatRole.assistant;
   }
 
+  /// VN: redo the upcoming beat, or drop the current AI beat (and everything
+  /// after it) then write a replacement from that cut point.
+  bool get _canRegenerateVn {
+    if (_isChat || _runtime.pointer.isEnded) return false;
+    if (_runtime.needsBridge) return true;
+    final beatId = _runtime.pointer.beatId;
+    if (beatId.isEmpty) return false;
+    final bridge = _bridge;
+    if (bridge == null) return false;
+    return bridge.generatedBeats.any((b) => b.id == beatId);
+  }
+
   Future<void> _regenerateLastAssistant() async {
     if (!_canRegenerateChat) return;
     setState(() {
@@ -516,6 +528,66 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     });
     await _persist();
     await _generateAssistantTurn(refreshChoices: true);
+  }
+
+  Future<void> _regenerateVnSegment() async {
+    if (!_canRegenerateVn) return;
+    _stopFastForward();
+    // Cancel in-flight adopt / prefetch so a stale reply cannot land.
+    _invalidatePrefetch();
+
+    final nodeId = _runtime.pointer.nodeId;
+    final beatId = _runtime.pointer.beatId;
+
+    if (_runtime.needsBridge) {
+      AppLog.instance.info('重新生成：重写下一段', tag: 'play.vn');
+      setState(() => _status = null);
+      await _persist();
+      await _ensureBridge();
+      return;
+    }
+
+    final bridge = _bridge;
+    if (bridge == null || beatId.isEmpty) return;
+    final dropFrom = bridge.generatedBeats.indexWhere((b) => b.id == beatId);
+    if (dropFrom < 0) return;
+
+    final kept = bridge.generatedBeats.sublist(0, dropFrom);
+    _history.truncateFromBeat(beatId);
+
+    final main = _mergeBeats(_baseMain, kept);
+    final resume = _history.current;
+    final runtime = resume == null
+        ? MainRuntime(main, save: MainSavePointer(nodeId: nodeId, beatId: ''))
+        : MainRuntime(main, save: resume);
+    // Always reopen the interval so the next generate replaces the cut beat.
+    if (!runtime.needsBridge) {
+      runtime.requestBridge();
+    }
+
+    final nextBridge = BridgeSession(
+      nodeId: nodeId,
+      generatedBeats: kept,
+      turnCount: kept.where((b) => b.nodeId == nodeId).length,
+      summary: kept
+          .where((b) => b.nodeId == nodeId)
+          .map((b) => b.lines.map((l) => l.text).join(' '))
+          .join(' ')
+          .trim(),
+    );
+
+    AppLog.instance.info(
+      '重新生成：截断拍 $beatId（保留 ${kept.length} 拍）',
+      tag: 'play.vn',
+    );
+
+    setState(() {
+      _runtime = runtime;
+      _bridge = nextBridge;
+      _status = null;
+    });
+    await _persist();
+    await _ensureBridge();
   }
 
   void _openChatSettings() {
@@ -899,6 +971,12 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           : null,
       onBack: () => Navigator.of(context).maybePop(),
       actions: [
+        if (!chatMode && _canRegenerateVn)
+          AppCircleButton(
+            icon: Icons.refresh_rounded,
+            tooltip: context.strings.regenerateSegment,
+            onPressed: _regenerateVnSegment,
+          ),
         if (!chatMode && _generating)
           AppBusyIndicator(
             semanticLabel: context.strings.generatingSegment,

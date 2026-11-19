@@ -107,4 +107,24 @@ void main() {
     expect(history.canBack, isFalse);
     expect(history.canForward, isFalse);
   });
+
+  test('truncateFromBeat drops that beat and everything after', () {
+    final history = PlayHistory()
+      ..record(_at('b1', 0))
+      ..record(_at('b1', 1))
+      ..record(_at('b2', 0))
+      ..record(_at('b2', 1))
+      ..record(_at('b3', 0));
+
+    // Cursor mid-b2: still cuts the whole b2 segment, not only the line.
+    history.stepBack();
+    history.stepBack();
+    expect(history.current?.beatId, 'b2');
+    expect(history.current?.lineIndex, 0);
+
+    expect(history.truncateFromBeat('b2'), isTrue);
+    expect(history.entries.map((e) => e.beatId), ['b1', 'b1']);
+    expect(history.cursor, 1);
+    expect(history.truncateFromBeat('missing'), isFalse);
+  });
 }

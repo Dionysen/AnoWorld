@@ -278,6 +278,7 @@ abstract class AppStrings extends AppLocalizations {
   String get fallbackBeatText;
   String gotoNode(String name);
   String get regenerateReply;
+  String get regenerateSegment;
   String get segmentEnded;
   String get restart;
   String get generatingSegment;

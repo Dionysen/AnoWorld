@@ -87,6 +87,20 @@ class PlayHistory {
     cursor = -1;
   }
 
+  /// Drops [beatId] and every entry after its first appearance.
+  ///
+  /// Used when the player regenerates the current segment: the whole beat is
+  /// discarded, not just the line under the cursor.
+  /// Returns `true` when anything was removed.
+  bool truncateFromBeat(String beatId) {
+    if (beatId.isEmpty || entries.isEmpty) return false;
+    final start = entries.indexWhere((e) => e.beatId == beatId);
+    if (start < 0) return false;
+    entries.removeRange(start, entries.length);
+    cursor = entries.isEmpty ? -1 : entries.length - 1;
+    return true;
+  }
+
   /// Line identity: the phase of the same line is not a separate position.
   static bool _sameLine(MainSavePointer a, MainSavePointer b) =>
       a.nodeId == b.nodeId &&
