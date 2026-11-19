@@ -99,7 +99,6 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
       // Keep State alive; paint nothing and pass all hits through.
       return const SizedBox.shrink();
     }
-
     final keyboardPin = _showBloom
         ? 0.0
         : AppBottomChromeMetrics.keyboardPinOffset(context);
@@ -108,41 +107,47 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
     final anchorRight = AppBottomChromeMetrics.assistantButtonRight;
     final showCollapsedButton = visible && !_showBloom;
 
-    return Stack(
-      fit: StackFit.expand,
-      clipBehavior: Clip.none,
-      children: [
-        if (_showBloom) ...[
-          Positioned.fill(
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (_) => _dismissFromOutside(),
-            ),
-          ),
-          Positioned(
-            right: anchorRight,
-            bottom: anchorBottom,
-            child: CreateAssistantBloomShell(
-              progress: _bloom,
-              onTapAnchor: _toggleAnchor,
-              child: const CreateAssistantPanel(),
-            ),
-          ),
-        ],
-        if (showCollapsedButton)
-          Positioned(
-            right: anchorRight,
-            bottom: anchorBottom,
-            child: RepaintBoundary(
-              child: AppBottomNavIconCapsule(
-                icon: Icons.auto_awesome_outlined,
-                selectedIcon: Icons.auto_awesome,
-                tooltip: '创作助手',
-                onPressed: _openBloom,
+    return Offstage(
+      // A sheet / dialog sits above this overlay entry, so stay out of the
+      // way: keep the panel mounted (draft + pending awaits survive) but stop
+      // painting and hit-testing until the popup closes.
+      offstage: widget.controller.modalOpen,
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.none,
+        children: [
+          if (_showBloom) ...[
+            Positioned.fill(
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (_) => _dismissFromOutside(),
               ),
             ),
-          ),
-      ],
+            Positioned(
+              right: anchorRight,
+              bottom: anchorBottom,
+              child: CreateAssistantBloomShell(
+                progress: _bloom,
+                onTapAnchor: _toggleAnchor,
+                child: const CreateAssistantPanel(),
+              ),
+            ),
+          ],
+          if (showCollapsedButton)
+            Positioned(
+              right: anchorRight,
+              bottom: anchorBottom,
+              child: RepaintBoundary(
+                child: AppBottomNavIconCapsule(
+                  icon: Icons.auto_awesome_outlined,
+                  selectedIcon: Icons.auto_awesome,
+                  tooltip: '创作助手',
+                  onPressed: _openBloom,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

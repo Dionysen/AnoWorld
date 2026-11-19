@@ -11,9 +11,15 @@ class CreateAssistantController extends ChangeNotifier {
   bool _homeStories = false;
   int _storyRouteCount = 0;
   int _coverCount = 0;
+  final Set<Route<dynamic>> _popups = <Route<dynamic>>{};
 
   bool get visible =>
       (_homeStories || _storyRouteCount > 0) && _coverCount == 0;
+
+  /// A sheet / dialog is on top of the page. The root overlay puts the
+  /// assistant chrome above every route, so it must stop painting instead of
+  /// covering the popup (story picker, confirmations, menus).
+  bool get modalOpen => _popups.isNotEmpty;
 
   bool get homeStories => _homeStories;
 
@@ -33,6 +39,11 @@ class CreateAssistantController extends ChangeNotifier {
       _notify();
       return;
     }
+    if (route is PopupRoute) {
+      _popups.add(route);
+      _notify();
+      return;
+    }
     if (_shouldCover(route)) {
       _coverCount++;
       _notify();
@@ -42,6 +53,10 @@ class CreateAssistantController extends ChangeNotifier {
   void onRoutePopped(Route<dynamic> route) {
     if (route is StoryChromeRoute) {
       if (_storyRouteCount > 0) _storyRouteCount--;
+      _notify();
+      return;
+    }
+    if (_popups.remove(route)) {
       _notify();
       return;
     }
