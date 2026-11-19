@@ -14,7 +14,6 @@ import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
-import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
@@ -180,7 +179,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
         final catalog = _settings.plotElements;
         final rows = catalog.effectiveList;
         return AppPage(
-          title: '剧情元素',
+          title: '剧情元素库',
           onBack: () => Navigator.of(context).maybePop(),
           actions: [
             AppIconButton(
@@ -204,7 +203,6 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
                   AppSegmentOption(value: _LibraryTab.categorized, label: '分类'),
                 ],
               ),
-              const SizedBox(height: AppTheme.spaceLg),
               if (rows.isEmpty)
                 AppPageGutter(
                   child: AppEmptyState(
@@ -218,11 +216,6 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
                   ),
                 )
               else if (_tab == _LibraryTab.all) ...[
-                const AppSectionHeader(
-                  '全局库',
-                  subtitle: '供 AI 织进支线的由头，故事里只勾选',
-                  gutter: true,
-                ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,

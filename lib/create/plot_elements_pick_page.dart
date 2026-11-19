@@ -4,7 +4,6 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
-import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
@@ -13,7 +12,6 @@ import 'package:anoworld/foundation/widgets/app_list_hairline.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
-import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -127,12 +125,6 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     );
   }
 
-  String _subtitle(int selected, int total) {
-    if (total == 0) return '库是空的';
-    if (selected == 0) return '还没选';
-    return '已选 $selected 项';
-  }
-
   String _preview(PlotElement element) {
     final text = element.clippedDescription;
     if (text.isEmpty) return '还没写描述';
@@ -210,6 +202,8 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
           title: '剧情元素',
           onBack: () => Navigator.of(context).maybePop(),
           actions: [
+            if (selectedCount > 0)
+              AppText('已选 $selectedCount', role: AppTextRole.caption),
             AppIconButton(
               icon: Icons.library_books_outlined,
               tooltip: '管理库',
@@ -226,7 +220,6 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
                   AppSegmentOption(value: _PickTab.categorized, label: '分类'),
                 ],
               ),
-              const SizedBox(height: AppTheme.spaceLg),
               if (_loading)
                 const AppPageGutter(
                   child: AppText('加载中…', role: AppTextRole.caption),
@@ -244,11 +237,6 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
                   ),
                 )
               else if (project != null) ...[
-                AppSectionHeader(
-                  '勾选进本故事',
-                  subtitle: _subtitle(selectedCount, rows.length),
-                  gutter: true,
-                ),
                 if (rows.isEmpty)
                   AppPageGutter(
                     child: AppEmptyState(

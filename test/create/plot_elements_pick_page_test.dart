@@ -23,8 +23,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('勾选进本故事'), findsOneWidget);
-    expect(find.text('还没选'), findsOneWidget);
+    expect(find.text('勾选进本故事'), findsNothing);
+    expect(find.text('还没选'), findsNothing);
     expect(find.text('救助流浪猫'), findsOneWidget);
 
     await tester.tap(find.text('救助流浪猫'));
@@ -34,7 +34,7 @@ void main() {
 
     final saved = await repo.open(sample.meta.id);
     expect(saved.plotElements.selectedIds, contains('pe_stray_cat'));
-    expect(find.text('已选 1 项'), findsOneWidget);
+    expect(find.text('已选 1'), findsOneWidget);
   });
 
   testWidgets('pick page shows selected count from project', (tester) async {
@@ -56,7 +56,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('已选 1 项'), findsOneWidget);
+    expect(find.text('已选 1'), findsOneWidget);
   });
 
   testWidgets('category tab opens a category page that still toggles', (

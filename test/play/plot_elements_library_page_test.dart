@@ -20,7 +20,8 @@ void main() {
     await tester.tap(find.text('剧情元素'));
     await tester.pumpAndSettle();
     expect(find.byType(PlotElementsLibraryPage), findsOneWidget);
-    expect(find.text('全局库'), findsOneWidget);
+    expect(find.text('剧情元素库'), findsOneWidget);
+    expect(find.text('全局库'), findsNothing);
     expect(find.text('救助流浪猫'), findsOneWidget);
   });
 
