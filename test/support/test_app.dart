@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:anoworld/app.dart';
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/folder/memory_project_folder_repository.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
@@ -92,6 +93,7 @@ Widget testScoped({
     settings: controller,
     libraryDisplay: libraryDisplay ?? LibraryDisplayController(),
     createAssistant: CreateAssistantController(),
+    projectChanges: ProjectChangeNotifier(),
     textClient: textClient,
     child: ListenableBuilder(
       listenable: controller,

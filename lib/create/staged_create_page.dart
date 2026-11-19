@@ -317,7 +317,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
         });
       case _Stage.main:
         final main = _main;
-        if (main == null || main.beats.isEmpty) {
+        if (main == null || main.nodes.isEmpty) {
           setState(() => _status = '请先生成走向');
           return;
         }

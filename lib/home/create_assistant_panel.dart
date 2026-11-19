@@ -1,12 +1,22 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/ai/ai_prompt_context.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
+import 'package:anoworld/domain/ai/create/create_tool_context.dart';
+import 'package:anoworld/domain/ai/create/create_tool_services.dart';
+import 'package:anoworld/domain/main/main_graph_document.dart';
+import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/repositories/project_repository.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
-import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -40,6 +50,8 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   String _projectTitle = '';
   final List<_AssistantLine> _lines = [];
   bool _loadingStories = false;
+  bool _generating = false;
+  int? _pendingLine;
   bool _ready = false;
   Timer? _composerDebounce;
 
@@ -91,10 +103,11 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       composer: _composer.text,
       lines: [
         for (final line in _lines)
-          CreateAssistantDraftLine(
-            role: line.role == _LineRole.user ? 'user' : 'assistant',
-            text: line.text,
-          ),
+          if (!line.pending)
+            CreateAssistantDraftLine(
+              role: line.role == _LineRole.user ? 'user' : 'assistant',
+              text: line.text,
+            ),
       ],
     );
   }
@@ -124,20 +137,16 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       final picked = await showAppSheet<String>(
         context: context,
         size: AppSheetSize.half,
-        builder: (sheetCtx) => AppPageGutter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AppText('选择故事', role: AppTextRole.subtitle),
-              const SizedBox(height: AppTheme.spaceSm),
-              for (final p in list)
-                AppListTile(
-                  title: p.title,
-                  onTap: () => Navigator.of(sheetCtx).pop(p.id),
-                ),
-            ],
-          ),
+        builder: (sheetCtx) => AppSheetScrollBody(
+          children: [
+            const AppText('选择故事', role: AppTextRole.subtitle),
+            const SizedBox(height: AppTheme.spaceSm),
+            for (final p in list)
+              AppListTile(
+                title: p.title,
+                onTap: () => Navigator.of(sheetCtx).pop(p.id),
+              ),
+          ],
         ),
       );
       if (picked == null || !mounted) return;
@@ -161,21 +170,248 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   }
 
   void _send() {
+    if (_generating) return;
     final text = _composer.text.trim();
     if (text.isEmpty) return;
+    final projectId = _projectId;
+    if (projectId == null) {
+      _reply('先在上面选一个故事，我才能读它的设定', user: text);
+      return;
+    }
+    final settings = AppScope.settingsOf(context);
+    final endpoint = settings.ai.text;
+    if (!endpoint.isConfigured ||
+        (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
+      _reply('先在设置里配好写故事的服务', user: text);
+      return;
+    }
+    final repo = AppScope.projectsOf(context);
+    final textClient = AppScope.textClientOf(context);
+    final promptCtx = settings.textPromptContext();
+    final plotCatalog = settings.plotElements;
     _composer.clear();
     setState(() {
       _lines.add(_AssistantLine(role: _LineRole.user, text: text));
+      _pendingLine = _lines.length;
       _lines.add(
         const _AssistantLine(
           role: _LineRole.assistant,
-          text: '创作助手还在完善，暂时没法代写。可以先在故事页改设定与角色',
+          text: '正在理顺走向…',
+          pending: true,
+        ),
+      );
+      _generating = true;
+    });
+    unawaited(_persist());
+    AppLog.instance.info(
+      '创作助手写情节（$projectId）',
+      tag: 'create.assistant',
+    );
+    unawaited(_generateGraph(
+      repo: repo,
+      textClient: textClient,
+      promptCtx: promptCtx,
+      plotCatalog: plotCatalog,
+      projectId: projectId,
+      prompt: text,
+    ));
+  }
+
+  /// Straight answer without calling the model (no story / no service).
+  void _reply(String answer, {required String user}) {
+    _composer.clear();
+    setState(() {
+      _lines.add(_AssistantLine(role: _LineRole.user, text: user));
+      _lines.add(_AssistantLine(role: _LineRole.assistant, text: answer));
+    });
+    unawaited(_persist());
+  }
+
+  Future<void> _generateGraph({
+    required ProjectRepository repo,
+    required AiTextClient textClient,
+    required AiPromptContext promptCtx,
+    required PlotElementCatalog plotCatalog,
+    required String projectId,
+    required String prompt,
+  }) async {
+    try {
+      final project = await repo.open(projectId);
+      final result = await CreateAgentRunner().runSingle(
+        toolName: 'main.generate_graph',
+        ctx: CreateToolContext(
+          project: project,
+          ai: promptCtx,
+          services: CreateToolServices(
+            textClient: textClient,
+            plotCatalog: plotCatalog,
+          ),
+        ),
+        args: <String, dynamic>{'prompt': prompt},
+      );
+      if (!mounted) return;
+      final preview = result.userConfirmPayload;
+      if (!result.ok || preview == null) {
+        _finishTurn(result.errorMessage ?? '没写出来，换个说法再试');
+        return;
+      }
+      final graph = MainGraphDocument.decodeSkeleton(
+        Map<String, dynamic>.from(preview['graph'] as Map),
+      );
+      _finishTurn(_describeProposal(graph));
+      final useIt = await _confirmGraph(project: project, graph: graph);
+      if (!mounted || !useIt) {
+        AppLog.instance.info('创作助手放弃这份情节', tag: 'create.assistant');
+        return;
+      }
+      await _applyGraph(repo: repo, project: project, graph: graph);
+    } catch (error, stack) {
+      if (!mounted) return;
+      _finishTurn('没写出来，稍后再试');
+      AppLog.instance.error(
+        '创作助手写情节失败',
+        tag: 'create.assistant',
+        error: error,
+        stackTrace: stack,
+      );
+    }
+  }
+
+  String _describeProposal(MainStory graph) {
+    final bits = <String>['${graph.nodes.length} 站'];
+    final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
+    if (branches > 0) bits.add('$branches 处岔路');
+    return '读了设定，理出 ${bits.join(' · ')}';
+  }
+
+  /// Replaces the placeholder bubble with the outcome of this turn.
+  void _finishTurn(String text) {
+    setState(() {
+      final index = _pendingLine;
+      if (index != null && index < _lines.length) {
+        _lines[index] = _AssistantLine(
+          role: _LineRole.assistant,
+          text: text,
+        );
+      } else {
+        _lines.add(_AssistantLine(role: _LineRole.assistant, text: text));
+      }
+      _pendingLine = null;
+      _generating = false;
+    });
+    unawaited(_persist());
+  }
+
+  Future<bool> _confirmGraph({
+    required Project project,
+    required MainStory graph,
+  }) async {
+    if (!mounted) return false;
+    final bits = <String>['${graph.nodes.length} 站'];
+    final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
+    if (branches > 0) bits.add('$branches 处岔路');
+    final replacing = project.main.hasAuthoredNodes;
+    final droppedBeats = project.main.beats.length;
+
+    final confirmed = await showAppSheet<bool>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (sheetContext) => AppSheetScrollBody(
+        footer: [
+          AppButton(
+            label: replacing ? '替换情节图' : '写入情节图',
+            expanded: true,
+            onPressed: () => Navigator.of(sheetContext).pop(true),
+          ),
+          const SizedBox(height: AppTheme.spaceSm),
+          AppButton(
+            label: '先不写',
+            variant: AppButtonVariant.ghost,
+            expanded: true,
+            onPressed: () => Navigator.of(sheetContext).pop(false),
+          ),
+        ],
+        children: [
+          const AppText('生成的情节', role: AppTextRole.subtitle),
+          const SizedBox(height: AppTheme.spaceXs),
+          AppText(bits.join(' · '), role: AppTextRole.caption),
+          if (replacing) ...[
+            const SizedBox(height: AppTheme.spaceXs),
+            AppText(
+              droppedBeats > 0
+                  ? '会替换现有的 ${project.main.nodes.length} 站，'
+                      '$droppedBeats 段剧情一起清掉'
+                  : '会替换现有的 ${project.main.nodes.length} 站',
+              role: AppTextRole.caption,
+            ),
+          ],
+          if (graph.summary.trim().isNotEmpty) ...[
+            const SizedBox(height: AppTheme.spaceMd),
+            AppText(graph.summary.trim(), role: AppTextRole.body),
+          ],
+          const SizedBox(height: AppTheme.spaceMd),
+          for (final node in graph.nodes)
+            AppListTile(
+              title: node.title,
+              subtitle: _synopsisOf(node),
+              icon: node.tags.contains('ending')
+                  ? Icons.flag_outlined
+                  : Icons.circle_outlined,
+            ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  static String? _synopsisOf(StoryNode node) {
+    final synopsis = node.synopsis?.trim();
+    return synopsis == null || synopsis.isEmpty ? null : synopsis;
+  }
+
+  Future<void> _applyGraph({
+    required ProjectRepository repo,
+    required Project project,
+    required MainStory graph,
+  }) async {
+    final next = project.copyWith(
+      main: graph,
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+    try {
+      await repo.save(next);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '创作助手写入情节图失败',
+        tag: 'create.assistant',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() {
+        _lines.add(
+          const _AssistantLine(
+            role: _LineRole.assistant,
+            text: '没能写进故事，稍后再试一次',
+          ),
+        );
+      });
+      unawaited(_persist());
+      return;
+    }
+    if (!mounted) return;
+    AppScope.projectChangesOf(context).markChanged(project.meta.id);
+    setState(() {
+      _lines.add(
+        const _AssistantLine(
+          role: _LineRole.assistant,
+          text: '情节图写好了，可以在情节图里继续调整',
         ),
       );
     });
     unawaited(_persist());
     AppLog.instance.info(
-      '创作助手消息（${_projectId ?? '未选故事'}）',
+      '创作助手写入情节图：${graph.nodes.length} 站',
       tag: 'create.assistant',
     );
   }
@@ -240,7 +476,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
                 if (constraints.maxHeight < 96) {
                   return const Center(
                     child: AppText(
-                      '说说想补哪段设定或角色',
+                      '说说这段故事该怎么走',
                       role: AppTextRole.caption,
                       textAlign: TextAlign.center,
                     ),
@@ -248,7 +484,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
                 }
                 return const Center(
                   child: AppEmptyState(
-                    message: '说说想补哪段设定或角色',
+                    message: '说说这段故事该怎么走',
                   ),
                 );
               }
@@ -306,7 +542,8 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
           ),
           child: AppChatComposer(
             controller: _composer,
-            hintText: '想创作或整理什么…',
+            hintText: '想写出怎样的情节…',
+            isGenerating: _generating,
             onSend: _send,
           ),
         ),
@@ -318,8 +555,16 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 enum _LineRole { user, assistant }
 
 class _AssistantLine {
-  const _AssistantLine({required this.role, required this.text});
+  const _AssistantLine({
+    required this.role,
+    required this.text,
+    this.pending = false,
+  });
 
   final _LineRole role;
   final String text;
+
+  /// Episode-in-progress bubble; not persisted so a stale "正在写…" cannot
+  /// come back on the next launch.
+  final bool pending;
 }

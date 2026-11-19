@@ -1,3 +1,4 @@
+import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/ai/http_openai_model_catalog.dart';
 import 'package:anoworld/domain/ai/ai_model_catalog.dart';
@@ -19,6 +20,7 @@ class AppScope extends InheritedWidget {
     required this.settings,
     required this.libraryDisplay,
     required this.createAssistant,
+    required this.projectChanges,
     this.modelCatalog,
     this.textClient,
     required super.child,
@@ -30,6 +32,7 @@ class AppScope extends InheritedWidget {
   final SettingsController settings;
   final LibraryDisplayController libraryDisplay;
   final CreateAssistantController createAssistant;
+  final ProjectChangeNotifier projectChanges;
   final AiModelCatalog? modelCatalog;
   final AiTextClient? textClient;
 
@@ -56,6 +59,9 @@ class AppScope extends InheritedWidget {
   static CreateAssistantController createAssistantOf(BuildContext context) =>
       of(context).createAssistant;
 
+  static ProjectChangeNotifier projectChangesOf(BuildContext context) =>
+      of(context).projectChanges;
+
   static AiModelCatalog modelCatalogOf(BuildContext context) =>
       of(context).modelCatalog ?? HttpOpenAiModelCatalog();
 
@@ -70,6 +76,7 @@ class AppScope extends InheritedWidget {
       settings != oldWidget.settings ||
       libraryDisplay != oldWidget.libraryDisplay ||
       createAssistant != oldWidget.createAssistant ||
+      projectChanges != oldWidget.projectChanges ||
       modelCatalog != oldWidget.modelCatalog ||
       textClient != oldWidget.textClient;
 }

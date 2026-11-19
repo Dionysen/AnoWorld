@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/folder/file_project_folder_repository.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
@@ -58,6 +59,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       widget.libraryDisplay ?? LibraryDisplayController();
   late final CreateAssistantController _createAssistant =
       widget.createAssistant ?? CreateAssistantController();
+  final ProjectChangeNotifier _projectChanges = ProjectChangeNotifier();
   final GlobalKey<CreateAssistantOverlayScopeState> _assistantOverlayKey =
       GlobalKey<CreateAssistantOverlayScopeState>();
   late final CreateAssistantNavigatorObserver _assistantObserver =
@@ -95,6 +97,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     if (widget.createAssistant == null) {
       _createAssistant.dispose();
     }
+    _projectChanges.dispose();
     super.dispose();
   }
 
@@ -114,6 +117,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       settings: _settings,
       libraryDisplay: _libraryDisplay,
       createAssistant: _createAssistant,
+      projectChanges: _projectChanges,
       textClient: widget.textClient,
       child: ListenableBuilder(
         listenable: _settings,

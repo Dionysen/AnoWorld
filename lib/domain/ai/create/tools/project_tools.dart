@@ -1,6 +1,9 @@
+import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/create/create_tool.dart';
 import 'package:anoworld/domain/ai/create/create_tool_result.dart';
+import 'package:anoworld/domain/ai/generate_main_graph_action.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/validation/project_issue.dart';
 
 List<CreateTool> buildProjectTools() {
@@ -166,6 +169,53 @@ List<CreateTool> buildProjectTools() {
           'schemaVersion': 1,
           'graph': graph,
         });
+      },
+    ),
+    CreateTool(
+      name: 'main.generate_graph',
+      description: '按世界书与提示词写情节骨架（不落盘，等用户确认）',
+      mutatesProject: false,
+      invoke: (ctx, args) async {
+        final project = ctx.project;
+        if (project == null) {
+          return CreateToolResult.error('没有打开的故事');
+        }
+        final ai = ctx.ai;
+        if (ai == null) {
+          return CreateToolResult.error('未配置文本服务');
+        }
+        final prompt = args['prompt']?.toString().trim() ?? '';
+        if (prompt.isEmpty) {
+          return CreateToolResult.error('先说一句想要的走向');
+        }
+        try {
+          final main = await GenerateMainGraphAction(
+            textClient: ctx.services.textClient,
+          ).generate(
+            ctx: ai,
+            project: project,
+            prompt: prompt,
+            plotCatalog: ctx.services.plotCatalog,
+          );
+          return CreateToolResult.userConfirmRequired(<String, dynamic>{
+            'schemaVersion': 1,
+            'summary': main.summary,
+            'nodeCount': main.nodes.length,
+            'branchCount':
+                main.edges.where((e) => e.kind == EdgeKind.branch).length,
+            'stations': [
+              for (final node in main.nodes)
+                <String, dynamic>{
+                  'title': node.title,
+                  if (node.synopsis != null) 'synopsis': node.synopsis,
+                  'ending': node.tags.contains('ending'),
+                },
+            ],
+            'graph': MainGraphDocument.encode(main),
+          });
+        } on AiTextException catch (error) {
+          return CreateToolResult.error(error.message);
+        }
       },
     ),
     CreateTool(

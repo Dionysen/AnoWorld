@@ -31,6 +31,13 @@ class MainStory {
     return null;
   }
 
+  /// True when someone actually authored a plot, ignoring the placeholder
+  /// opening station a blank story ships with.
+  bool get hasAuthoredNodes =>
+      nodes.length > 1 ||
+      edges.isNotEmpty ||
+      nodes.any((node) => node.beatIds.isNotEmpty);
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'summary': summary,
         'startNodeId': startNodeId,

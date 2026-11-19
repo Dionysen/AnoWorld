@@ -1,5 +1,6 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/create/create_prompt_profiles.dart';
 import 'package:anoworld/domain/ai/stage_result_mapper.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
@@ -162,13 +163,5 @@ class StagedCreateActions {
 {"cast":[{"name":"姓名","summary":"一句话","personality":"性格","speechStyle":"说话风格","exampleLines":["例句"]}]}
 根据用户提示生成 2～4 个角色；姓名要短、好记。只输出 JSON，不要 markdown，不要解释。''';
 
-  static const String _mainSchema = '''
-输出格式（只出脉络骨架，不要对白）：
-{"summary":"主线概括","stations":[{"title":"大站标题","synopsis":"本站必须达成的剧情目标","exits":[{"to":"下一站标题或end","kind":"default|branch","label":"可选标注"}]}],"edges":[{"from":"站标题","to":"站标题或end","kind":"default|branch","label":"可选"}]}
-规则：
-- 3～5 个 stations（大情节站）；synopsis 必填且短
-- 用 exits 或 edges 表达顺序与分支；至少一处 branch 或两条不同结局（to 可为 end）
-- 不要输出 lines / choices / 对白
-- 结局站可用 ending:true，或 exits.to = "end"
-- 只输出 JSON，不要 markdown，不要解释''';
+  static const String _mainSchema = CreatePromptProfiles.mainGraphTaskSuffix;
 }

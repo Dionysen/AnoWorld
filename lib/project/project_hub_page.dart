@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
@@ -51,13 +52,35 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   bool _loadScheduled = false;
   String? _projectDir;
   String? _coverAbsolutePath;
+  ProjectChangeNotifier? _projectChanges;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final changes = AppScope.projectChangesOf(context);
+    if (!identical(_projectChanges, changes)) {
+      _projectChanges?.removeListener(_onProjectChanged);
+      _projectChanges = changes..addListener(_onProjectChanged);
+    }
     if (_loadScheduled) return;
     _loadScheduled = true;
     _load();
+  }
+
+  @override
+  void dispose() {
+    _projectChanges?.removeListener(_onProjectChanged);
+    super.dispose();
+  }
+
+  /// Story written elsewhere (create assistant): refresh counts and entries.
+  void _onProjectChanged() {
+    final changes = _projectChanges;
+    if (changes == null || !changes.isChanged(widget.projectId)) return;
+    changes.clear(widget.projectId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {

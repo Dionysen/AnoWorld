@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/data/project/graph_node_thumbnail_files.dart';
 import 'package:anoworld/create/main_graph/main_graph_view_nav.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
@@ -63,6 +64,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   final _history = UndoStack();
   Timer? _saveDebounce;
   MainStory? _dragOriginMain;
+  ProjectChangeNotifier? _projectChanges;
 
   @override
   void initState() {
@@ -74,6 +76,7 @@ class _MainGraphPageState extends State<MainGraphPage> {
   void dispose() {
     _saveDebounce?.cancel();
     _history.removeListener(_onHistoryChanged);
+    _projectChanges?.removeListener(_onProjectChanged);
     _history.dispose();
     _viewportCamera.dispose();
     super.dispose();
@@ -86,9 +89,24 @@ class _MainGraphPageState extends State<MainGraphPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final changes = AppScope.projectChangesOf(context);
+    if (!identical(_projectChanges, changes)) {
+      _projectChanges?.removeListener(_onProjectChanged);
+      _projectChanges = changes..addListener(_onProjectChanged);
+    }
     if (_project == null && _loading) {
       _load();
     }
+  }
+
+  /// Story written elsewhere (create assistant): pull the new graph.
+  void _onProjectChanged() {
+    final changes = _projectChanges;
+    if (changes == null || !changes.isChanged(widget.projectId)) return;
+    changes.clear(widget.projectId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {

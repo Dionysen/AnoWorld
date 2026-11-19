@@ -2,6 +2,18 @@
 class CreatePromptProfiles {
   const CreatePromptProfiles._();
 
+  /// Stations + edges only; play fills beats per interval (docs/MainBeat.md).
+  static const String mainGraphTaskSuffix = '''
+输出格式（只出脉络骨架，不要对白）：
+{"summary":"主线概括","stations":[{"title":"大站标题","synopsis":"本站必须达成的剧情目标","exits":[{"to":"下一站标题或end","kind":"default|branch","label":"可选标注"}]}],"edges":[{"from":"站标题","to":"站标题或end","kind":"default|branch","label":"可选"}]}
+规则：
+- 3～6 个 stations（大情节站）；synopsis 必填且短，写清这一站要发生什么
+- 用 exits 或 edges 表达顺序与分支；至少一处 branch 或两条不同结局（to 可为 end）
+- 人物只用设定里已有的名字；世界设定里的事实不能改写
+- 不要输出 lines / choices / 对白
+- 结局站可用 ending:true，或 exits.to = "end"
+- 只输出 JSON，不要 markdown，不要解释''';
+
   static const String organizeCardTaskSuffix = '''
 你是角色卡导入整理助手。只做分类与归位，禁止改写、润色、发挥。
 只输出 JSON，不要 markdown 代码块，不要解释。
