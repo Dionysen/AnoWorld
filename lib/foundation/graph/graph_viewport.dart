@@ -505,27 +505,23 @@ class _GraphViewportState extends State<GraphViewport>
                   builder: (context, _) {
                     final node = byId[widget.selectedId!];
                     if (node == null) return const SizedBox.shrink();
-                    // Child-space top-left of the bar (layout y, above the
-                    // inset-shifted chip by [inset]).
-                    final childOrigin = Offset(node.x, node.y);
-                    final screen = MatrixUtils.transformPoint(
+                    // Overlay in viewport space: fixed chrome size (same as
+                    // undo/redo). Align first button to the card left edge
+                    // (node.x — not the port pad outside the block).
+                    final cardTopLeft = MatrixUtils.transformPoint(
                       _transform.value,
-                      childOrigin,
+                      Offset(node.x, node.y + inset),
                     );
-                    final scale =
-                        _transform.value.getMaxScaleOnAxis().clamp(0.001, 100.0);
                     return Positioned(
-                      left: screen.dx,
-                      top: screen.dy,
-                      child: Transform.scale(
-                        alignment: Alignment.topLeft,
-                        scale: scale,
-                        child: _SelectionActionBar(
-                          nodeId: node.id,
-                          onOpen: widget.onOpenNode,
-                          onCopy: widget.onCopyNode,
-                          onDelete: widget.onDeleteNode,
-                        ),
+                      left: cardTopLeft.dx,
+                      top: cardTopLeft.dy -
+                          AppCircleButton.diameter -
+                          AppTheme.spaceXs,
+                      child: _SelectionActionBar(
+                        nodeId: node.id,
+                        onOpen: widget.onOpenNode,
+                        onCopy: widget.onCopyNode,
+                        onDelete: widget.onDeleteNode,
                       ),
                     );
                   },
