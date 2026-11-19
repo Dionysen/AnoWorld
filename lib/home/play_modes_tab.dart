@@ -24,7 +24,7 @@ class PlayModesTab extends StatelessWidget {
             AppListTile(
               title: '剧情元素',
               subtitle: '全局库，给故事勾着用',
-              icon: Icons.auto_awesome_outlined,
+              icon: Icons.theater_comedy_outlined,
               trailing: const AppForwardIcon(),
               onTap: () => pushStoryRoute<void>(
                 context,

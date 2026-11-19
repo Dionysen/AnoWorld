@@ -187,7 +187,7 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
                               ? '未命名'
                               : rows[i].keyword,
                           subtitle: _preview(rows[i]),
-                          icon: Icons.auto_awesome_outlined,
+                          icon: Icons.theater_comedy_outlined,
                           trailing: AppSwitch(
                             value: selectedIds.contains(rows[i].id),
                             onChanged: (value) =>

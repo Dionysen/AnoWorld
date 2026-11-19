@@ -465,7 +465,7 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
             const SizedBox(height: AppTheme.spaceLg),
             AppDetailSection(
               title: '剧情元素',
-              icon: Icons.auto_awesome_outlined,
+              icon: Icons.theater_comedy_outlined,
               entries: _plotElementEntries(project),
               emptyHint: '还没选剧情元素',
               onEdit: () => _openEditor(

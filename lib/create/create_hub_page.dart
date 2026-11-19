@@ -162,7 +162,7 @@ class _CreateHubPageState extends State<CreateHubPage> {
                 AppListTile(
                   title: '剧情元素',
                   subtitle: _plotElementsSubtitle(project),
-                  icon: Icons.auto_awesome_outlined,
+                  icon: Icons.theater_comedy_outlined,
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(
                     PlotElementsPickPage(projectId: widget.projectId),

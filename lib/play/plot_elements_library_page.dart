@@ -227,7 +227,7 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
                                 ? '默认 · 已改 · ${_preview(rows[i])}'
                                 : '默认 · ${_preview(rows[i])}')
                             : _preview(rows[i]),
-                        icon: Icons.auto_awesome_outlined,
+                        icon: Icons.theater_comedy_outlined,
                         trailing: const AppForwardIcon(),
                         showDivider: false,
                         onTap: () => _edit(existing: rows[i]),
