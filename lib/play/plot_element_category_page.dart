@@ -7,7 +7,6 @@ import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
-import 'package:anoworld/foundation/widgets/app_list_hairline.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
@@ -65,6 +64,14 @@ class PlotElementCategoryPage extends StatelessWidget {
     await settings.renamePlotElementCategory(categoryId, name);
   }
 
+  String _rowSubtitle(PlotElementCatalog catalog, PlotElement element) {
+    final preview = _preview(element);
+    if (!catalog.isBuiltInId(element.id)) return preview;
+    return catalog.isModifiedBuiltIn(element.id)
+        ? '默认 · 已改 · $preview'
+        : '默认 · $preview';
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = AppScope.settingsOf(context);
@@ -73,6 +80,26 @@ class PlotElementCategoryPage extends StatelessWidget {
       builder: (context, _) {
         final catalog = settings.plotElements;
         final rows = catalog.elementsOfCategory(categoryId);
+        final header = <Widget>[
+          AppPageGutter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
+              child: AppText(_subtitle(catalog), role: AppTextRole.caption),
+            ),
+          ),
+          if (rows.isEmpty)
+            AppPageGutter(
+              child: AppEmptyState(
+                message: '这个分类还空着',
+                detail: '加一条，或在编辑条目时改分类',
+                action: AppButton(
+                  label: '加一条',
+                  onPressed: () => _edit(context),
+                  variant: AppButtonVariant.secondary,
+                ),
+              ),
+            ),
+        ];
         return AppPage(
           title: _title(catalog),
           onBack: () => Navigator.of(context).maybePop(),
@@ -89,51 +116,21 @@ class PlotElementCategoryPage extends StatelessWidget {
               onPressed: () => _edit(context),
             ),
           ],
-          body: AppPageBody.list(
-            children: [
-              AppPageGutter(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
-                  child: AppText(_subtitle(catalog), role: AppTextRole.caption),
-                ),
-              ),
-              if (rows.isEmpty)
-                AppPageGutter(
-                  child: AppEmptyState(
-                    message: '这个分类还空着',
-                    detail: '加一条，或在编辑条目时改分类',
-                    action: AppButton(
-                      label: '加一条',
-                      onPressed: () => _edit(context),
-                      variant: AppButtonVariant.secondary,
-                    ),
-                  ),
-                )
-              else
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < rows.length; i++) ...[
-                      AppListTile(
-                        title: rows[i].keyword.isEmpty
-                            ? '未命名'
-                            : rows[i].keyword,
-                        subtitle: catalog.isBuiltInId(rows[i].id)
-                            ? (catalog.isModifiedBuiltIn(rows[i].id)
-                                  ? '默认 · 已改 · ${_preview(rows[i])}'
-                                  : '默认 · ${_preview(rows[i])}')
-                            : _preview(rows[i]),
-                        icon: Icons.theater_comedy_outlined,
-                        trailing: const AppForwardIcon(),
-                        showDivider: false,
-                        onTap: () => _edit(context, existing: rows[i]),
-                      ),
-                      if (i < rows.length - 1) const AppListHairline(),
-                    ],
-                  ],
-                ),
-            ],
+          body: AppPageLazyList(
+            header: header,
+            itemCount: rows.length,
+            itemBuilder: (context, index) {
+              final row = rows[index];
+              return AppListTile(
+                key: ValueKey(row.id),
+                title: row.keyword.isEmpty ? '未命名' : row.keyword,
+                subtitle: _rowSubtitle(catalog, row),
+                icon: Icons.theater_comedy_outlined,
+                trailing: const AppForwardIcon(),
+                showDivider: index < rows.length - 1,
+                onTap: () => _edit(context, existing: row),
+              );
+            },
           ),
         );
       },

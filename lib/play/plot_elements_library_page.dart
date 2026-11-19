@@ -9,7 +9,6 @@ import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
-import 'package:anoworld/foundation/widgets/app_list_hairline.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
@@ -115,50 +114,26 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
     }
   }
 
-  Widget _categoryRow({
-    required String title,
-    required int count,
-    required IconData icon,
-    required String categoryId,
-  }) {
-    return AppListTile(
-      title: title,
-      subtitle: _countLabel(count),
-      icon: icon,
-      trailing: const AppForwardIcon(),
-      showDivider: false,
-      onTap: () => _openCategory(categoryId),
-    );
-  }
-
-  Widget _categoryList(PlotElementCatalog catalog) {
-    final uncategorizedCount = catalog.uncategorizedElements.length;
-    final rows = <Widget>[
+  List<({String id, String name, int count})> _categoryEntries(
+    PlotElementCatalog catalog,
+  ) {
+    final rows = <({String id, String name, int count})>[
       for (final category in catalog.categories)
-        _categoryRow(
-          title: category.name,
+        (
+          id: category.id,
+          name: category.name,
           count: catalog.elementsOfCategory(category.id).length,
-          icon: Icons.folder_outlined,
-          categoryId: category.id,
-        ),
-      if (uncategorizedCount > 0)
-        _categoryRow(
-          title: PlotElementCatalog.uncategorizedLabel,
-          count: uncategorizedCount,
-          icon: Icons.label_outline,
-          categoryId: '',
         ),
     ];
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < rows.length; i++) ...[
-          rows[i],
-          if (i < rows.length - 1) const AppListHairline(),
-        ],
-      ],
-    );
+    final uncategorizedCount = catalog.uncategorizedElements.length;
+    if (uncategorizedCount > 0) {
+      rows.add((
+        id: '',
+        name: PlotElementCatalog.uncategorizedLabel,
+        count: uncategorizedCount,
+      ));
+    }
+    return rows;
   }
 
   @override
@@ -188,52 +163,73 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
               onPressed: _createCategory,
             ),
           ],
-          body: AppPageBody.list(
-            children: [
-              AppUnderlineTabs<_LibraryTab>(
-                value: _tab,
-                onChanged: (value) => setState(() => _tab = value),
-                options: const [
-                  AppSegmentOption(value: _LibraryTab.all, label: '全部'),
-                  AppSegmentOption(value: _LibraryTab.categorized, label: '分类'),
-                ],
-              ),
-              if (rows.isEmpty)
-                AppPageGutter(
-                  child: AppEmptyState(
-                    message: '库是空的',
-                    detail: '加一条，或全部恢复默认',
-                    action: AppButton(
-                      label: '加一条',
-                      onPressed: () => _edit(),
-                      variant: AppButtonVariant.secondary,
-                    ),
-                  ),
-                )
-              else if (_tab == _LibraryTab.all) ...[
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < rows.length; i++) ...[
-                      AppListTile(
-                        title: rows[i].keyword.isEmpty
-                            ? '未命名'
-                            : rows[i].keyword,
-                        subtitle: _rowSubtitle(catalog, rows[i]),
-                        icon: Icons.theater_comedy_outlined,
-                        trailing: const AppForwardIcon(),
-                        showDivider: false,
-                        onTap: () => _edit(existing: rows[i]),
-                      ),
-                      if (i < rows.length - 1) const AppListHairline(),
-                    ],
-                  ],
-                ),
-              ] else
-                _categoryList(catalog),
-            ],
+          body: _buildBody(catalog, rows),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(PlotElementCatalog catalog, List<PlotElement> rows) {
+    final header = <Widget>[
+      AppUnderlineTabs<_LibraryTab>(
+        value: _tab,
+        onChanged: (value) => setState(() => _tab = value),
+        options: const [
+          AppSegmentOption(value: _LibraryTab.all, label: '全部'),
+          AppSegmentOption(value: _LibraryTab.categorized, label: '分类'),
+        ],
+      ),
+      if (rows.isEmpty)
+        AppPageGutter(
+          child: AppEmptyState(
+            message: '库是空的',
+            detail: '加一条，或全部恢复默认',
+            action: AppButton(
+              label: '加一条',
+              onPressed: () => _edit(),
+              variant: AppButtonVariant.secondary,
+            ),
           ),
+        ),
+    ];
+    if (rows.isEmpty) {
+      return AppPageLazyList(
+        header: header,
+        itemCount: 0,
+        itemBuilder: (context, index) => const SizedBox.shrink(),
+      );
+    }
+    if (_tab == _LibraryTab.all) {
+      return AppPageLazyList(
+        header: header,
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final row = rows[index];
+          return AppListTile(
+            key: ValueKey(row.id),
+            title: row.keyword.isEmpty ? '未命名' : row.keyword,
+            subtitle: _rowSubtitle(catalog, row),
+            icon: Icons.theater_comedy_outlined,
+            trailing: const AppForwardIcon(),
+            showDivider: index < rows.length - 1,
+            onTap: () => _edit(existing: row),
+          );
+        },
+      );
+    }
+    final categoryRows = _categoryEntries(catalog);
+    return AppPageLazyList(
+      header: header,
+      itemCount: categoryRows.length,
+      itemBuilder: (context, index) {
+        final entry = categoryRows[index];
+        return AppListTile(
+          title: entry.name,
+          subtitle: _countLabel(entry.count),
+          icon: entry.id.isEmpty ? Icons.label_outline : Icons.folder_outlined,
+          trailing: const AppForwardIcon(),
+          showDivider: index < categoryRows.length - 1,
+          onTap: () => _openCategory(entry.id),
         );
       },
     );

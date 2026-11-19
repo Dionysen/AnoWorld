@@ -44,7 +44,8 @@ class PlotElementCatalog {
       BuiltInPlotElementCategories.containsId(id);
 
   /// All categories in display order: built-ins (with renames), then custom.
-  List<PlotElementCategory> get categories => List.unmodifiable([
+  /// Cached — the catalog is immutable and row titles read this per item.
+  late final List<PlotElementCategory> categories = List.unmodifiable([
     for (final seed in BuiltInPlotElementCategories.all)
       categoryRenames[seed.id] == null
           ? seed
@@ -52,19 +53,23 @@ class PlotElementCatalog {
     ...customCategories,
   ]);
 
+  late final Map<String, PlotElementCategory> _categoryById = {
+    for (final category in categories) category.id: category,
+  };
+
   PlotElementCategory? categoryById(String id) {
     if (id.isEmpty) return null;
-    for (final category in categories) {
-      if (category.id == id) return category;
-    }
-    return null;
+    return _categoryById[id];
   }
 
   String categoryNameOf(String id) =>
       categoryById(id)?.name ?? uncategorizedLabel;
 
-  /// Visible library for pickers and management UI.
-  List<PlotElement> get effectiveList {
+  /// Visible library for pickers and management UI. Cached: rebuilding this
+  /// on every row/title read made long libraries sluggish.
+  late final List<PlotElement> effectiveList = _buildEffectiveList();
+
+  List<PlotElement> _buildEffectiveList() {
     final rows = <PlotElement>[];
     for (final seed in BuiltInPlotElements.all) {
       if (deletedBuiltInIds.contains(seed.id)) continue;
@@ -86,19 +91,31 @@ class PlotElementCatalog {
     return List.unmodifiable(rows);
   }
 
+  late final Map<String, PlotElement> _byId = {
+    for (final row in effectiveList) row.id: row,
+  };
+
+  late final Map<String, List<PlotElement>> _byCategory = _groupByCategory();
+
+  Map<String, List<PlotElement>> _groupByCategory() {
+    final grouped = <String, List<PlotElement>>{};
+    for (final row in effectiveList) {
+      (grouped[row.categoryId] ??= <PlotElement>[]).add(row);
+    }
+    return {
+      for (final entry in grouped.entries)
+        entry.key: List.unmodifiable(entry.value),
+    };
+  }
+
   /// Elements grouped under [categoryId] (empty string = uncategorized).
   List<PlotElement> elementsOfCategory(String categoryId) =>
-      List.unmodifiable(effectiveList.where((e) => e.categoryId == categoryId));
+      _byCategory[categoryId] ?? const <PlotElement>[];
 
   /// Elements whose category was removed or never set.
   List<PlotElement> get uncategorizedElements => elementsOfCategory('');
 
-  PlotElement? byId(String id) {
-    for (final row in effectiveList) {
-      if (row.id == id) return row;
-    }
-    return null;
-  }
+  PlotElement? byId(String id) => _byId[id];
 
   /// Resolve selected story ids to elements (skip missing).
   List<PlotElement> resolveSelected(Iterable<String> ids) {

@@ -8,7 +8,6 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
-import 'package:anoworld/foundation/widgets/app_list_hairline.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
@@ -133,9 +132,14 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
 
   String _countLabel(int count) => count == 0 ? '还空着' : '$count 条';
 
-  Widget _elementRow(PlotElement element, List<String> selectedIds) {
+  Widget _elementRow(
+    PlotElement element,
+    List<String> selectedIds, {
+    bool showDivider = false,
+  }) {
     final selected = selectedIds.contains(element.id);
     return AppListTile(
+      key: ValueKey(element.id),
       title: element.keyword.isEmpty ? '未命名' : element.keyword,
       subtitle: _preview(element),
       icon: Icons.theater_comedy_outlined,
@@ -143,16 +147,14 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
         value: selected,
         onChanged: (value) => _toggle(element.id, value),
       ),
-      showDivider: false,
+      showDivider: showDivider,
       onTap: () => _toggle(element.id, !selected),
     );
   }
 
-  List<Widget> _categoryRows(
+  List<({String id, String name, int count})> _categoryEntries(
     PlotElementCatalog catalog,
-    List<String> selectedIds,
   ) {
-    final uncategorizedCount = catalog.uncategorizedElements.length;
     final entries = <({String id, String name, int count})>[
       for (final category in catalog.categories)
         (
@@ -160,28 +162,16 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
           name: category.name,
           count: catalog.elementsOfCategory(category.id).length,
         ),
-      if (uncategorizedCount > 0)
-        (
-          id: '',
-          name: PlotElementCatalog.uncategorizedLabel,
-          count: uncategorizedCount,
-        ),
     ];
-    return [
-      for (var i = 0; i < entries.length; i++) ...[
-        AppListTile(
-          title: entries[i].name,
-          subtitle: _countLabel(entries[i].count),
-          icon: entries[i].id.isEmpty
-              ? Icons.label_outline
-              : Icons.folder_outlined,
-          trailing: const AppForwardIcon(),
-          showDivider: false,
-          onTap: () => _openCategory(catalog, entries[i].id),
-        ),
-        if (i < entries.length - 1) const AppListHairline(),
-      ],
-    ];
+    final uncategorizedCount = catalog.uncategorizedElements.length;
+    if (uncategorizedCount > 0) {
+      entries.add((
+        id: '',
+        name: PlotElementCatalog.uncategorizedLabel,
+        count: uncategorizedCount,
+      ));
+    }
+    return entries;
   }
 
   @override
@@ -210,65 +200,88 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
               onPressed: _openLibrary,
             ),
           ],
-          body: AppPageBody.list(
-            children: [
-              AppUnderlineTabs<_PickTab>(
-                value: _tab,
-                onChanged: (value) => setState(() => _tab = value),
-                options: const [
-                  AppSegmentOption(value: _PickTab.all, label: '全部'),
-                  AppSegmentOption(value: _PickTab.categorized, label: '分类'),
-                ],
-              ),
-              if (_loading)
-                const AppPageGutter(
-                  child: AppText('加载中…', role: AppTextRole.caption),
-                )
-              else if (_error != null)
-                AppPageGutter(
-                  child: AppEmptyState(
-                    message: '无法打开故事',
-                    detail: _error.toString(),
-                    action: AppButton(
-                      label: '重试',
-                      onPressed: _load,
-                      variant: AppButtonVariant.secondary,
-                    ),
-                  ),
-                )
-              else if (project != null) ...[
-                if (rows.isEmpty)
-                  AppPageGutter(
-                    child: AppEmptyState(
-                      message: '库里还没有剧情元素',
-                      detail: '去玩法里管理库',
-                      action: AppButton(
-                        label: '去管理库',
-                        onPressed: _openLibrary,
-                        variant: AppButtonVariant.secondary,
-                      ),
-                    ),
-                  )
-                else if (_tab == _PickTab.all)
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < rows.length; i++) ...[
-                        _elementRow(rows[i], selectedIds),
-                        if (i < rows.length - 1) const AppListHairline(),
-                      ],
-                    ],
-                  )
-                else
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: _categoryRows(catalog, selectedIds),
-                  ),
-              ],
-            ],
+          body: _buildBody(catalog, rows, project, selectedIds),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(
+    PlotElementCatalog catalog,
+    List<PlotElement> rows,
+    Project? project,
+    List<String> selectedIds,
+  ) {
+    final header = <Widget>[
+      AppUnderlineTabs<_PickTab>(
+        value: _tab,
+        onChanged: (value) => setState(() => _tab = value),
+        options: const [
+          AppSegmentOption(value: _PickTab.all, label: '全部'),
+          AppSegmentOption(value: _PickTab.categorized, label: '分类'),
+        ],
+      ),
+      if (_loading)
+        const AppPageGutter(
+          child: AppText('加载中…', role: AppTextRole.caption),
+        )
+      else if (_error != null)
+        AppPageGutter(
+          child: AppEmptyState(
+            message: '无法打开故事',
+            detail: _error.toString(),
+            action: AppButton(
+              label: '重试',
+              onPressed: _load,
+              variant: AppButtonVariant.secondary,
+            ),
           ),
+        )
+      else if (project != null && rows.isEmpty)
+        AppPageGutter(
+          child: AppEmptyState(
+            message: '库里还没有剧情元素',
+            detail: '去玩法里管理库',
+            action: AppButton(
+              label: '去管理库',
+              onPressed: _openLibrary,
+              variant: AppButtonVariant.secondary,
+            ),
+          ),
+        ),
+    ];
+    final idle = _loading || _error != null || project == null || rows.isEmpty;
+    if (idle) {
+      return AppPageLazyList(
+        header: header,
+        itemCount: 0,
+        itemBuilder: (context, index) => const SizedBox.shrink(),
+      );
+    }
+    if (_tab == _PickTab.all) {
+      return AppPageLazyList(
+        header: header,
+        itemCount: rows.length,
+        itemBuilder: (context, index) => _elementRow(
+          rows[index],
+          selectedIds,
+          showDivider: index < rows.length - 1,
+        ),
+      );
+    }
+    final entries = _categoryEntries(catalog);
+    return AppPageLazyList(
+      header: header,
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return AppListTile(
+          title: entry.name,
+          subtitle: _countLabel(entry.count),
+          icon: entry.id.isEmpty ? Icons.label_outline : Icons.folder_outlined,
+          trailing: const AppForwardIcon(),
+          showDivider: index < entries.length - 1,
+          onTap: () => _openCategory(catalog, entry.id),
         );
       },
     );
@@ -316,42 +329,45 @@ class _PickCategoryPageState extends State<_PickCategoryPage> {
   @override
   Widget build(BuildContext context) {
     final elements = widget.elements;
+    if (elements.isEmpty) {
+      return AppPage(
+        title: widget.title,
+        onBack: () => Navigator.of(context).maybePop(),
+        body: AppPageBody.list(
+          children: [
+            AppPageGutter(
+              child: AppEmptyState(
+                message: '这个分类还空着',
+                detail: '去玩法里把元素挪进来',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return AppPage(
       title: widget.title,
       onBack: () => Navigator.of(context).maybePop(),
-      body: AppPageBody.list(
-        children: [
-          if (elements.isEmpty)
-            AppPageGutter(
-              child: AppEmptyState(message: '这个分类还空着', detail: '去玩法里把元素挪进来'),
-            )
-          else
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < elements.length; i++) ...[
-                  AppListTile(
-                    title: elements[i].keyword.isEmpty
-                        ? '未命名'
-                        : elements[i].keyword,
-                    subtitle: _preview(elements[i]),
-                    icon: Icons.theater_comedy_outlined,
-                    trailing: AppSwitch(
-                      value: _selected.contains(elements[i].id),
-                      onChanged: (value) => _toggle(elements[i].id, value),
-                    ),
-                    showDivider: false,
-                    onTap: () => _toggle(
-                      elements[i].id,
-                      !_selected.contains(elements[i].id),
-                    ),
-                  ),
-                  if (i < elements.length - 1) const AppListHairline(),
-                ],
-              ],
+      body: AppPageLazyList(
+        itemCount: elements.length,
+        itemBuilder: (context, index) {
+          final element = elements[index];
+          return AppListTile(
+            key: ValueKey(element.id),
+            title: element.keyword.isEmpty ? '未命名' : element.keyword,
+            subtitle: _preview(element),
+            icon: Icons.theater_comedy_outlined,
+            trailing: AppSwitch(
+              value: _selected.contains(element.id),
+              onChanged: (value) => _toggle(element.id, value),
             ),
-        ],
+            showDivider: index < elements.length - 1,
+            onTap: () => _toggle(
+              element.id,
+              !_selected.contains(element.id),
+            ),
+          );
+        },
       ),
     );
   }

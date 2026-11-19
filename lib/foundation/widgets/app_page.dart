@@ -222,3 +222,48 @@ class AppPageBody extends StatelessWidget {
     );
   }
 }
+
+/// Lazily built flat list body for long collections.
+///
+/// Same padding as [AppPageBody.list], but rows are laid out on demand so a
+/// large library does not pay a full build/layout pass on every tab switch.
+/// [header] widgets are still built eagerly (they sit at the top).
+class AppPageLazyList extends StatelessWidget {
+  const AppPageLazyList({
+    super.key,
+    this.header = const <Widget>[],
+    required this.itemCount,
+    required this.itemBuilder,
+    this.padding = AppPageBody.listPadding,
+  });
+
+  final List<Widget> header;
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaBottom = MediaQuery.paddingOf(context).bottom;
+    final keyboardBottom = MediaQuery.viewInsetsOf(context).bottom;
+    final resolved = padding.resolve(Directionality.of(context));
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: resolved.copyWith(
+            bottom: resolved.bottom + mediaBottom + keyboardBottom,
+          ),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                if (index < header.length) return header[index];
+                return itemBuilder(context, index - header.length);
+              },
+              childCount: header.length + itemCount,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
