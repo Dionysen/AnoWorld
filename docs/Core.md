@@ -26,7 +26,7 @@ App 全局（设置，与酒馆同类）
 
 **Main ↔ Beat 字段与推进规则**：见 [MainBeat.md](./MainBeat.md)（权威 schema）。
 
-## 全局 AiPreset（设置 · 酒馆预设）
+## 全局 AiPreset（玩法 · 酒馆预设）
 
 - **拼装流水线（权威）**：每次文本 AI 调用前的段顺序、锚点、任务层与裁剪，见 [PromptPipeline.md](./PromptPipeline.md)。
 - **是什么**：与 SillyTavern **同名同构**的 AI 预设——导入/导出 ST 预设 JSON（`temperature`、`prompts`、`prompt_order` 等）。实现对照 NativeTavern：`AIPreset`、`GenerationPreset`、`PromptManagerConfig`。
@@ -48,7 +48,7 @@ App 全局（设置，与酒馆同类）
 
 **任务层**：在上述 ST 拼装完成之后，应用层再追加 AnoWorld 专用段（当前站 `synopsis`、合法下一站 JSON、schema），不由宏替代。
 
-- **故事包 schema v3**：在 v2 基础上增加 `plotElements.selectedIds`（勾选全局剧情元素 id；未知 id 展示时跳过）与 `plotElements.appliedPackIds`（已打开的元素包 id；缺省视为空，用于判断某条元素是否由包带入）。v2：已移除 `Project.presets` / `activePresetId`；v1 包读入时忽略上述字段。 `ProjectMeta.coverPath` 可选，相对 `assets/`（如 `cover.jpg`）；详情页可换封面。角色卡 system/post-history **不写进故事包**（导入页仅提示，请在设置 → AI 预设调整）。
+- **故事包 schema v3**：在 v2 基础上增加 `plotElements.selectedIds`（勾选全局剧情元素 id；未知 id 展示时跳过）与 `plotElements.appliedPackIds`（已打开的元素包 id；缺省视为空，用于判断某条元素是否由包带入）。v2：已移除 `Project.presets` / `activePresetId`；v1 包读入时忽略上述字段。 `ProjectMeta.coverPath` 可选，相对 `assets/`（如 `cover.jpg`）；详情页可换封面。角色卡 system/post-history **不写进故事包**（导入页仅提示，请在玩法 → 预设调整）。
 - **剧情元素（全局库）**：[`PlotElement`](../lib/domain/models/plot_element.dart) = `keyword` + `description`（≤300 字）+ `categoryId`（空 = 未分类）；出厂种子 [`BuiltInPlotElements`](../lib/domain/settings/built_in_plot_elements.dart)，出厂分类 `BuiltInPlotElementCategories`（日常 / 情感 / 冲突 / 危机 / 悬疑 / 心理 / 灵异，可改名不可删）；用户改删存 [`PlotElementCatalog`](../lib/domain/settings/plot_element_catalog.dart)（prefs `anoworld.plot_elements.v1`：overrides / deletedBuiltInIds / custom / customCategories / categoryRenames / packs）。[`PlotElementPack`](../lib/domain/models/plot_element_pack.dart) = `name` + `elementIds`，只引用全局条目 id；应用包即把 `elementIds` 一次性并入/移出故事勾选（[`PlotElementSelection.withIds`](../lib/domain/models/plot_element.dart)），不拷贝全文；删条目时同步从各包摘掉该 id。故事勾选另存 `appliedPackIds`（已打开的包），据此区分「这条是包带进来的」与「用户单独勾的」：包之间不互斥，取消一个包只移除不再被其他已打开包覆盖的 id；应用/取消前若与单独勾选或其他已打开包重叠，由 [`PlotElementCatalog.planPackApply`](../lib/domain/settings/plot_element_catalog.dart) / `planPackRemove` 给出受影响的条目，页面弹确认后再落盘。分类按 id 引用，改名不触碰条目；故事只存勾选 id。
 - **仍不做**：ST 正则链、插件；预设不得增删 Main 节点。
 
@@ -99,7 +99,7 @@ App 全局（设置，与酒馆同类）
 - **节点（大情节单元）**：里程碑式「这一步故事要发生什么」；`synopsis` = 本站必须达成或抵达的剧情目标（运行时 AI 的收敛锚点）。节点之间的流向（顺序、分支、汇合）在**主线节点编辑器**表达。
 - **粒度**：节点是情节级大站，不是每一句对白一个节点；句段级内容落在 Beat。
 - **分支与结局**：用 `edges` / 节点出口表达多路线；玩家选择最终应对齐到某条合法边或 `end`，从而可能达成不同结局。
-- **编辑 UX**：故事内先进入创作截面（设定 / 角色 / 情节），情节再进全端节点画布；改 AI 气质在 **设置 → AI → 预设**；底栏「画布 / 卡片」切换聚焦相机；走向全览用节点 PNG 缩略图（`assets/graph_nodes/{nodeId}.png`，创建/改文案后重渲；拖动改布局只即时改坐标并防抖落盘，不重渲缩略图）；结构编辑走通用 [`UndoStack`](../lib/foundation/history/undo_stack.dart)（整图快照，拖节点在松手时合并为一步）。验收见 [UX.md](./UX.md)。
+- **编辑 UX**：故事内先进入创作截面（设定 / 角色 / 情节），情节再进全端节点画布；改 AI 气质在 **玩法 → 预设**；底栏「画布 / 卡片」切换聚焦相机；走向全览用节点 PNG 缩略图（`assets/graph_nodes/{nodeId}.png`，创建/改文案后重渲；拖动改布局只即时改坐标并防抖落盘，不重渲缩略图）；结构编辑走通用 [`UndoStack`](../lib/foundation/history/undo_stack.dart)（整图快照，拖节点在松手时合并为一步）。验收见 [UX.md](./UX.md)。
 - **序列化**：故事包内完整 `Main` 仍用 [`MainStory.toJson`](../lib/domain/models/main_story.dart)；供 AI 生成 / 作提示词的紧凑图用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)（`anoworld.main_graph.skeleton` v1：`summary` + 站 + 边，可无 `beats` / `layout`）。反序列化可吃 skeleton 或完整 Main map。
 - **预写 Beat（可选）**：作者或创作 AI 可预写某节点内的开场钩子；**默认允许节点在创作结束时 Beat 仍为空**，交给游玩时 AI 填（校验规则见 MainBeat）。
 

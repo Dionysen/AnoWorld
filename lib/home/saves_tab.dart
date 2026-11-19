@@ -412,51 +412,44 @@ class SavesTabState extends State<SavesTab> {
                                           final action =
                                               await showAppSheet<String>(
                                             context: context,
-                                            builder: (ctx) => Padding(
-                                              padding: const EdgeInsets.fromLTRB(
-                                                AppTheme.pagePadding,
-                                                AppTheme.spaceSm,
-                                                AppTheme.pagePadding,
-                                                AppTheme.pagePadding,
-                                              ),
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.stretch,
-                                                children: [
-                                                  AppButton(
-                                                    label: '继续游玩',
-                                                    expanded: true,
-                                                    onPressed: () =>
-                                                        Navigator.of(ctx)
-                                                            .pop('resume'),
-                                                  ),
-                                                  const SizedBox(
-                                                    height: AppTheme.spaceSm,
-                                                  ),
-                                                  AppButton(
-                                                    label: '打开故事',
-                                                    variant: AppButtonVariant
-                                                        .secondary,
-                                                    expanded: true,
-                                                    onPressed: () =>
-                                                        Navigator.of(ctx)
-                                                            .pop('story'),
-                                                  ),
-                                                  const SizedBox(
-                                                    height: AppTheme.spaceSm,
-                                                  ),
-                                                  AppButton(
-                                                    label: '删除存档',
-                                                    variant:
-                                                        AppButtonVariant.danger,
-                                                    expanded: true,
-                                                    onPressed: () =>
-                                                        Navigator.of(ctx)
-                                                            .pop('delete'),
-                                                  ),
-                                                ],
-                                              ),
+                                            builder: (ctx) => Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                const SizedBox(
+                                                  height: AppTheme.spaceSm,
+                                                ),
+                                                AppListTile(
+                                                  title: '继续游玩',
+                                                  icon: Icons
+                                                      .play_arrow_rounded,
+                                                  onTap: () =>
+                                                      Navigator.of(ctx)
+                                                          .pop('resume'),
+                                                ),
+                                                AppListTile(
+                                                  title: '打开故事',
+                                                  icon: Icons
+                                                      .menu_book_outlined,
+                                                  onTap: () =>
+                                                      Navigator.of(ctx)
+                                                          .pop('story'),
+                                                ),
+                                                AppListTile(
+                                                  title: '删除存档',
+                                                  icon:
+                                                      Icons.delete_outline,
+                                                  danger: true,
+                                                  showDivider: false,
+                                                  onTap: () =>
+                                                      Navigator.of(ctx)
+                                                          .pop('delete'),
+                                                ),
+                                                const SizedBox(
+                                                  height: AppTheme.pagePadding,
+                                                ),
+                                              ],
                                             ),
                                           );
                                           if (!mounted) return;

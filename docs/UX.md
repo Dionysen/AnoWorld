@@ -23,7 +23,7 @@
 | 系统里有什么 | 玩家/作者要不要手填 | 三条路径里谁来补 |
 | --- | --- | --- |
 | 故事名 | 要，或从导入文件名带出 | 用户确认一下即可 |
-| 全局 AI 预设（设置） | 可不碰；内置默认即可 | 想换气质或导入酒馆 preset 时去设置 |
+| 全局 AI 预设（玩法 → 预设） | 可不碰；内置默认即可 | 想换气质或导入酒馆 preset 时去玩法 |
 | 世界观 / 设定 | 角色卡、小说里通常已有 | 路径 1/2 自动填；路径 3 用一句提示词生成 |
 | 角色 | 手建或从卡摘取；可勾一名 **主角** | 同上 |
 | 主线概括 + 大情节站 + 分支 | 角色卡里往往没有完整剧情树 | AI 从素材或提示词生成**脉络骨架**；用户可微调站名/走向 |
@@ -52,21 +52,20 @@
 
 首页用 `AppNavShell` 四分区（窄屏悬浮胶囊底栏 / 宽屏左侧栏；断点 **600**，与平台无关——桌面竖屏与手机同一套）：**会话** / **故事** / **玩法** / **我**。首页**不显示**软件标题栏（`AppPage.showTitle: false`）；桌面仍留空白自定义标题栏（仅背景，可拖动）。非主页（设置、故事详情、游玩等）在窗口/状态 chrome **下方**有软件标题栏（返回 + 标题 + 操作，高度 **44** / `pageTitleBarHeight`）；桌面自定义标题栏内不放控件与文字。有搜索的分区：搜索在最上，工具按钮在搜索下一行（正常 `pagePadding`）。全局**设置**在「我」页内容区右上齿轮进入，底栏不再有单独设置胶囊。软键盘对齐 NativeTavern：Android `adjustResize`，[`AppPage`](../lib/foundation/widgets/app_page.dart) 默认随键盘收缩；正文与居中对话框上移避让。悬浮底栏与收起态创作助手按 [`keyboardPinOffset`](../lib/foundation/widgets/app_bottom_nav_icon_capsule.dart) 钉在屏幕物理底边（可被键盘盖住，不跟着对话框弹跳）；展开的创作助手面板仍留在可视区内。抽屉按 `viewInsets` 上移；收起只 [`unfocus`](../lib/foundation/focus/app_keyboard.dart)。
 
-- **会话**：已开启的游玩进度（视觉小说与聊天同一列表；按最近存档时间；副标题带玩法）；最上胶囊搜索（[`AppSearchField`](../lib/foundation/widgets/app_search_field.dart)，不跟外观圆角滑块），下一行右侧**多选**；多选时同行换为取消 / 全选 / 删除。切到本页或从故事返回会刷新；点进直接续玩；「更多」可继续游玩 / 打开故事 / 删除这一条（只清进度）；空态「去故事」仍可用。
+- **会话**：已开启的游玩进度（视觉小说与聊天同一列表；按最近存档时间；副标题带玩法）；最上胶囊搜索（[`AppSearchField`](../lib/foundation/widgets/app_search_field.dart)，不跟外观圆角滑块），下一行右侧**多选**；多选时同行换为取消 / 全选 / 删除。切到本页或从故事返回会刷新；点进直接续玩；「更多」半屏菜单与其他列表一致，用带 icon 的 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart)：继续游玩 / 打开故事 / 删除存档（只清进度，`danger`）；空态「去故事」仍可用。
 - **创作助手**：[`CreateAssistantOverlayScope`](../lib/home/create_assistant_overlay.dart) 把 [`CreateAssistantHost`](../lib/home/create_assistant_host.dart) 插进根 `Overlay`（磨砂图标与底栏胶囊同款玻璃壳），**不随子页 push 重建**；路由变化后会再置顶，但抽屉 / 对话框等弹层（`PopupRoute`）打开时整体不绘制也不接收点击（`Offstage`，面板状态保留），弹层关闭后恢复，保证「当前故事」选择列表等弹在助手之上。仅在故事分区（非多选）及 [`pushStoryRoute`](../lib/home/story_assistant_navigation.dart) / [`AppStorySlidePageRoute`](../lib/foundation/widgets/app_page_route.dart) 子页显示；切到会话/玩法/我，或盖上不透明非故事页（如游玩）时隐藏。点开时由锚点向左上展开为半屏圆角面板（[`CreateAssistantBloomShell`](../lib/home/create_assistant_bloom_shell.dart)）；面板底与圆形按钮之间留一小段间距，[`CreateAssistantBloomOutline`](../lib/home/create_assistant_bloom_outline.dart) 预置一条整体轮廓（面板 + 细腰 + 圆形锚点）模拟水面张力；**点面板外任意区域**或再点锚点图标收起。当前故事、对话与输入框草稿写入本地（[`CreateAssistantDraftStore`](../lib/home/create_assistant_draft_store.dart)），下次打开恢复。锚点与情节画布「加一站」等高（[`AppBottomChromeMetrics`](../lib/foundation/widgets/app_bottom_nav_icon_capsule.dart)），不改动画布右下角工具位置。选中故事后，在输入框说一句想要的走向，就用该故事的世界书 + 角色 + 剧情元素作语料写情节骨架（`main.generate_graph` → [`GenerateMainGraphAction`](../lib/domain/ai/generate_main_graph_action.dart)）；结果先弹半屏预览（几站、几处岔路、每站一句话），确认后写入故事（有旧情节时提示会替换），再通知已打开的故事详情 / 情节图刷新（[`ProjectChangeNotifier`](../lib/app/project_change_notifier.dart)）。未选故事或没配写故事服务时直接回一句提示，不发请求。
 - **故事**：无分区标题；最上胶囊搜索，下一行左为**面包屑**、右为**更多**。列表/网格**末尾**有故事形加号按钮（无文字、无底栏，整块可点，语义标签「添加」）；点开半屏菜单，选项一律 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart)：新建空白故事 / 粘贴故事 / 分阶段提示词 / 导入角色卡 / 导入故事包 / 新建文件夹 / 试用「雨夜投宿」。点故事进详情；故事「更多」半屏菜单同样用无区分度 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart)（带 icon）：**开始故事**（先选玩法再开新存档）/ **查看故事**（详情）/ **编辑故事**（创作截面）/ **删除故事**（`danger` 强调色）。文件夹「更多」同款列表：**打开** / **重命名** / **解散文件夹** / **删除文件夹**（`danger`）。点文件夹进入下一层；新建/重命名文件夹用屏幕居中对话框（[`showAppPromptDialog`](../lib/foundation/widgets/app_prompt_dialog.dart)）；更多里改显示方式与头像形状、进多选；多选时工具行换为取消 / 全选 / 移到 / 删除，并隐藏该加号按钮。
-- **玩法**：全局素材库入口。当前有 **剧情元素**（[`PlotElementsLibraryPage`](../lib/play/plot_elements_library_page.dart)，软件标题为「剧情元素库」）：标题下用下划线页签分 **全部 / 分类 / 包**，页签下方直接接内容（无分区头，无额外间距）。全部按原顺序列出；分类页签列出各分类（名称 + 条数），点进 [`PlotElementCategoryPage`](../lib/play/plot_element_category_page.dart) 子页看该类条目，页内可改名、加一条。包页签列出元素包（名称 + 条数 + 前几个关键词），点进 [`PlotElementPackPage`](../lib/play/plot_element_pack_page.dart) 子页勾选哪些元素进这个包，页内可改名、删除包；删元素时自动从各包里摘掉该 id。出厂分类 **日常 / 情感 / 冲突 / 危机 / 悬疑 / 心理 / 灵异** 可改名。软件标题栏右侧三个圆形按钮依次是 **更多**（全部恢复默认）/ **加一条** / **新建分类**（在包页签下换成 **新建包**）。编辑条目时也能改分类。出厂种子可改可删，单项/全部恢复默认；故事侧只勾选，不在此改库。
+- **玩法**：全局素材库与写作预设入口，无分区标题，直接列条目。**剧情元素**（[`PlotElementsLibraryPage`](../lib/play/plot_elements_library_page.dart)，软件标题为「剧情元素库」）：标题下用下划线页签分 **全部 / 分类 / 包**，页签下方直接接内容（无分区头，无额外间距）。全部按原顺序列出；分类页签列出各分类（名称 + 条数），点进 [`PlotElementCategoryPage`](../lib/play/plot_element_category_page.dart) 子页看该类条目，页内可改名、加一条。包页签列出元素包（名称 + 条数 + 前几个关键词），点进 [`PlotElementPackPage`](../lib/play/plot_element_pack_page.dart) 子页勾选哪些元素进这个包，页内可改名、删除包；删元素时自动从各包里摘掉该 id。出厂分类 **日常 / 情感 / 冲突 / 危机 / 悬疑 / 心理 / 灵异** 可改名。软件标题栏右侧三个圆形按钮依次是 **更多**（全部恢复默认）/ **加一条** / **新建分类**（在包页签下换成 **新建包**）。编辑条目时也能改分类。出厂种子可改可删，单项/全部恢复默认；故事侧只勾选，不在此改库。**预设** 点进 [`AiPresetPage`](../lib/settings/ai_preset_page.dart)（内容即 [`AiPresetPanel`](../lib/settings/ai_preset_panel.dart)）：顶行 **预设**（副标题「控制输出风格和边界」，右显示当前名称，点开半屏抽屉选内置/自定义/导入）；其下 **采样**（无副标题）直接列出生成项（单次输出、上下文、温度、Top P、流式），**高级采样**点进子页（[`AdvancedSamplingPage`](../lib/settings/advanced_sampling_page.dart)）；再下 **预设提示词**（[`PromptManagerPanel`](../lib/settings/prompt_manager_panel.dart)）段列表全部显示，可拖动手柄改顺序；不可编辑段可点进只读查看。套用预设会写入 `AiSettings.generation` 与 `AiPresetCatalog.promptManager`，在面板内改动即为当前生效值。
 - **我**：无分区标题；内容区顶部右侧齿轮进设置；其下为当前身份行（[`MeUserHeader`](../lib/home/me_user_header.dart)，行高与设置列表项一致），点开 [`PersonaSettingsPage`](../lib/settings/persona_settings_page.dart) 管理多套身份（选用 / 编辑 / 添加 / 长按或编辑页删除；内置默认身份不可删）。
 
 库内文件夹与故事归属落在 `{library}/folders.json`（[`ProjectFolderRepository`](../lib/domain/repositories/project_folder_repository.dart)），与故事包目录分开。
 
 ## 设置（从首页「我」进入）
 
-设置内另有分区导航（窄屏悬浮胶囊底栏 / 宽屏侧栏）：**通用** / **外观** / **预设** / **AI** / **关于**。
+设置内另有分区导航（窄屏悬浮胶囊底栏 / 宽屏侧栏）：**通用** / **外观** / **AI** / **关于**。
 
 - **外观**：**主题**分组含主题模式（点开抽屉选跟随系统/浅/深，行尾显示当前）、主题颜色 / 自定义颜色；**界面**分组含字体等。列表类抽屉卡片相对屏幕两侧内缩、限宽，默认半屏，**抽屉内列表行贴满卡片左右**；主题颜色行尾显示当前包名；自定义颜色含「保存为主题」「恢复默认」；字体可选系统默认 / 本机 / 导入；字体大小/圆角滑块。各项列表与滑块左侧有图标。改完立即作用到全局封装控件。视觉约定见 [Style.md](./Style.md)。
 - **AI**：写故事与生图分开选服务商（半屏浮层抽屉，标题与说明固定不随列表滚）。服务地址、密钥为整行列表项（左标题/说明，右显示当前值；密钥打码），点开抽屉编辑后保存；切换服务商会记住上次内容。能自动查找模型的，填好后会拉出列表；点「模型」选用，也可点「查找模型」。文本通道另有 **思考程度**（自动 / 最低 / 低 / 中 / 高 / 最高）。
-- **预设**（[`AiPresetPanel`](../lib/settings/ai_preset_panel.dart)）：顶行 **预设**（副标题「控制输出风格和边界」，右显示当前名称，点开半屏抽屉选内置/自定义/导入）；其下 **采样**（无副标题）直接列出生成项（单次输出、上下文、温度、Top P、流式），**高级采样**点进子页（[`AdvancedSamplingPage`](../lib/settings/advanced_sampling_page.dart)）；再下 **预设提示词**（[`PromptManagerPanel`](../lib/settings/prompt_manager_panel.dart)）段列表全部显示，可拖动手柄改顺序；不可编辑段可点进只读查看。套用预设会写入 `AiSettings.generation` 与 `AiPresetCatalog.promptManager`，在面板内改动即为当前生效值。
 - **AI**（[`AiSettingsPanel`](../lib/settings/ai_settings_panel.dart)）：文本/生图 **服务地址、密钥、模型**；文本另有 **思考程度**（[`AiReasoningEffort`](../lib/domain/settings/ai_settings.dart)，请求时 OpenAI 用 `reasoning_effort`、OpenRouter 用 `reasoning.effort`）。写故事/游玩/分步创建走全局 [`AiPromptContext`](../lib/domain/ai/ai_prompt_context.dart)（预设 + 通用里的 Persona + 故事背景）。
 - **预设 · 预设提示词**：与 ST 相同的段类型与 `prompt_order`；左侧拖动手柄可改顺序；可编辑段点进改文案，不可编辑段点进只读查看；游玩与创作拼装时用 **世界书**、**角色**当卡字段注入对应段（实现渐进对齐）。发送前如何拼成模型输入见 [PromptPipeline.md](./PromptPipeline.md)。
 - **玩家身份**：首页「我」点当前身份进入管理页（可建多套、点选当前、编辑/删除）；名字与简介参与 `{{user}}` 等宏。设置 → **通用**：Debug 构建下可见 **高级** → **诊断日志**（内存环形缓冲、`ListView` 懒加载；控制台同步输出），正式版不显示。
@@ -100,7 +99,7 @@
 | `name` / `description` / `personality` / `mes_example` | 角色 |
 | `system_prompt` / `post_history_instructions` | 不写入故事包；导入后可提示粘贴到设置 → 提示词 |
 | 正则、插件 | 不导入 |
-| 酒馆 preset 文件 | 设置 → 预设 导入 |
+| 酒馆 preset 文件 | 玩法 → 预设 导入 |
 
 ### 体验要点
 
@@ -198,7 +197,7 @@
 | 这一站目标不对 / 分支不对 | 创作截面 → 情节走向 | nodes / edges / synopsis |
 | 过程戏这段不对 | 游玩中「重来这一段」或创作里预写钩子 | 区间会话 / 可选预写 Beats |
 | 想多一个结局或岔路 | 创作截面 → 情节走向 | nodes / edges |
-| 输出不对 | 设置 → 预设（提示词分段） | 全局 AiPreset |
+| 输出不对 | 玩法 → 预设（提示词分段） | 全局 AiPreset |
 | 图不好看 | 图片：再生或换自己的 | 资源槽 |
 
 全端同一套节点编辑器；底栏可切「画布 / 卡片」，见下一节。

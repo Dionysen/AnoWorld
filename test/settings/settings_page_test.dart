@@ -31,30 +31,12 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('通用'), findsWidgets);
     expect(find.text('外观'), findsWidgets);
-    expect(find.text('预设'), findsWidgets);
+    expect(find.text('预设'), findsNothing);
     expect(find.text('AI'), findsWidgets);
     expect(find.text('关于'), findsWidgets);
     // Debug builds expose Advanced; release shows the empty caption instead.
     expect(find.text('高级'), findsOneWidget);
     expect(find.text('玩家身份'), findsNothing);
-
-    await tester.tap(find.text('预设').last);
-    await tester.pumpAndSettle();
-    expect(find.text('采样'), findsOneWidget);
-    expect(find.text('预设提示词'), findsOneWidget);
-    expect(find.text('温度'), findsOneWidget);
-    expect(find.text('高级采样'), findsOneWidget);
-    await tester.tap(find.text('高级采样'));
-    await tester.pumpAndSettle();
-    expect(find.text('Top K'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.arrow_back).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('尚未选用'));
-    await tester.pumpAndSettle();
-    expect(find.text('选择预设'), findsOneWidget);
-    expect(find.text('内置'), findsOneWidget);
-    await tester.tapAt(const Offset(8, 200));
-    await tester.pumpAndSettle();
 
     await tester.tap(find.text('AI').last);
     await tester.pumpAndSettle();
