@@ -96,28 +96,37 @@ class _AppDetailSectionState extends State<AppDetailSection> {
                 iconSize: compact ? 16 : 20,
                 onPressed: widget.onEdit,
               );
+              // Icon centers on the title + subtitle block; the edit button
+              // stays top-aligned with the title.
               final heading = Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(widget.icon, size: 20, color: scheme.primary),
-                  const SizedBox(width: AppTheme.spaceSm),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        AppText(
-                          widget.title,
-                          role: AppTextRole.subtitle,
-                          maxLines: 1,
-                        ),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: AppTheme.spaceXs),
-                          AppText(
-                            subtitle,
-                            role: AppTextRole.caption,
-                            maxLines: 2,
+                        Icon(widget.icon, size: 20, color: scheme.primary),
+                        const SizedBox(width: AppTheme.spaceSm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              AppText(
+                                widget.title,
+                                role: AppTextRole.subtitle,
+                                maxLines: 1,
+                              ),
+                              if (subtitle.isNotEmpty) ...[
+                                const SizedBox(height: AppTheme.spaceXs),
+                                AppText(
+                                  subtitle,
+                                  role: AppTextRole.caption,
+                                  maxLines: 2,
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),

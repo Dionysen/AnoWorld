@@ -71,6 +71,37 @@ void main() {
     expect(find.text('2 个角色，33 token'), findsOneWidget);
   });
 
+  testWidgets('icon centers on the title and subtitle block', (tester) async {
+    await tester.pumpWidget(
+      testScoped(
+        home: Scaffold(
+          body: AppDetailSection(
+            title: '世界书',
+            icon: Icons.public_outlined,
+            subtitle: '83 条设定，51 条常驻，42638 token',
+            entries: const [
+              AppDetailEntry(title: '开场素材', body: '小城雨夜。'),
+            ],
+            onEdit: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final icon = tester.getRect(find.byIcon(Icons.public_outlined));
+    final title = tester.getRect(find.text('世界书'));
+    final subtitle = tester.getRect(
+      find.text('83 条设定，51 条常驻，42638 token'),
+    );
+    final blockMiddle = (title.top + subtitle.bottom) / 2;
+
+    expect(icon.center.dy, moreOrLessEquals(blockMiddle, epsilon: 1.5));
+    // The edit button keeps hugging the title, so it stays above the icon.
+    final edit = tester.getRect(find.byTooltip('编辑'));
+    expect(edit.center.dy, lessThan(icon.center.dy));
+  });
+
   testWidgets('narrow width does not overflow entry actions', (tester) async {
     const body = '第一行。\n第二行。\n第三行。\n第四行。';
 
