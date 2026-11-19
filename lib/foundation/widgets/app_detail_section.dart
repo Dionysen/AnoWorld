@@ -7,11 +7,16 @@ import 'app_detail_entry.dart';
 import 'app_expandable_text.dart';
 import 'app_icon_button.dart';
 import 'app_list_hairline.dart';
+import 'app_list_tile.dart';
 import 'app_page_gutter.dart';
 import 'app_text.dart';
 
 /// Flat story-detail block: section header + hairline-separated entries.
-class AppDetailSection extends StatelessWidget {
+///
+/// Long sections only mount the first [initialVisibleCount] rows until the
+/// user taps「还有 n 条」. Each row body stays collapsed to [previewLines]
+/// until expanded.
+class AppDetailSection extends StatefulWidget {
   const AppDetailSection({
     super.key,
     required this.title,
@@ -20,6 +25,7 @@ class AppDetailSection extends StatelessWidget {
     required this.onEdit,
     this.emptyHint,
     this.previewLines = 3,
+    this.initialVisibleCount = 8,
   });
 
   final String title;
@@ -29,17 +35,46 @@ class AppDetailSection extends StatelessWidget {
   final String? emptyHint;
   final int previewLines;
 
+  /// How many entry rows to build before「还有 n 条」.
+  final int initialVisibleCount;
+
+  @override
+  State<AppDetailSection> createState() => _AppDetailSectionState();
+}
+
+class _AppDetailSectionState extends State<AppDetailSection> {
+  bool _showAll = false;
+
+  @override
+  void didUpdateWidget(covariant AppDetailSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.entries, widget.entries) &&
+        oldWidget.entries.length != widget.entries.length) {
+      _showAll = false;
+    }
+  }
+
+  List<AppDetailEntry> get _visibleEntries {
+    return widget.entries
+        .where(
+          (e) =>
+              e.title.trim().isNotEmpty ||
+              e.body.trim().isNotEmpty ||
+              e.tags.isNotEmpty,
+        )
+        .toList(growable: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final visible = entries
-        .where((e) =>
-            e.title.trim().isNotEmpty ||
-            e.body.trim().isNotEmpty ||
-            e.tags.isNotEmpty)
-        .toList(growable: false);
+    final visible = _visibleEntries;
     final isEmpty = visible.isEmpty;
-    final emptyHint = this.emptyHint ?? '这里还没有内容';
+    final emptyHint = widget.emptyHint ?? '这里还没有内容';
+    final cap = widget.initialVisibleCount < 1 ? 1 : widget.initialVisibleCount;
+    final capped = !_showAll && visible.length > cap;
+    final shown = capped ? visible.take(cap).toList(growable: false) : visible;
+    final hiddenCount = capped ? visible.length - shown.length : 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,15 +88,15 @@ class AppDetailSection extends StatelessWidget {
                 tooltip: '编辑',
                 size: compact ? 28 : 36,
                 iconSize: compact ? 16 : 20,
-                onPressed: onEdit,
+                onPressed: widget.onEdit,
               );
               final heading = Row(
                 children: [
-                  Icon(icon, size: 20, color: scheme.primary),
+                  Icon(widget.icon, size: 20, color: scheme.primary),
                   const SizedBox(width: AppTheme.spaceSm),
                   Expanded(
                     child: AppText(
-                      title,
+                      widget.title,
                       role: AppTextRole.subtitle,
                       maxLines: 1,
                     ),
@@ -96,13 +131,19 @@ class AppDetailSection extends StatelessWidget {
               child: AppText(emptyHint, role: AppTextRole.caption),
             ),
           )
-        else
-          for (var i = 0; i < visible.length; i++)
+        else ...[
+          for (var i = 0; i < shown.length; i++)
             _DetailEntryRow(
-              key: ValueKey('$i\u0000${visible[i].title}\u0000${visible[i].body}'),
-              entry: visible[i],
-              previewLines: previewLines,
+              key: ValueKey<String>('$i\u0000${shown[i].title}'),
+              entry: shown[i],
+              previewLines: widget.previewLines,
             ),
+          if (hiddenCount > 0)
+            AppListTile(
+              title: '还有 $hiddenCount 条',
+              onTap: () => setState(() => _showAll = true),
+            ),
+        ],
       ],
     );
   }
@@ -124,6 +165,9 @@ class _DetailEntryRow extends StatefulWidget {
 
 class _DetailEntryRowState extends State<_DetailEntryRow> {
   bool _expanded = false;
+
+  /// ~40 glyphs/line at typical phone widths for compact body.
+  static const int _glyphsPerPreviewLine = 40;
 
   @override
   void didUpdateWidget(covariant _DetailEntryRow oldWidget) {
@@ -152,8 +196,29 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
       if (body.codeUnitAt(i) == 0x0A) lines++;
       if (lines > widget.previewLines) return true;
     }
-    // Compact body ~40 glyphs/line at typical phone widths.
-    return body.length > widget.previewLines * 40;
+    return body.length > widget.previewLines * _glyphsPerPreviewLine;
+  }
+
+  /// Truncate for collapsed layout so huge bodies are not measured fully.
+  String _previewBody(String body) {
+    final maxChars = widget.previewLines * _glyphsPerPreviewLine;
+    var lines = 0;
+    var end = body.length;
+    for (var i = 0; i < body.length; i++) {
+      if (body.codeUnitAt(i) == 0x0A) {
+        lines++;
+        if (lines >= widget.previewLines) {
+          end = i;
+          break;
+        }
+      }
+      if (i + 1 >= maxChars) {
+        end = i + 1;
+        break;
+      }
+    }
+    if (end >= body.length) return body;
+    return body.substring(0, end);
   }
 
   Future<void> _copy() async {
@@ -265,6 +330,8 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
     final body = widget.entry.body.trim();
     final hasCopy = widget.entry.clipboardText.isNotEmpty;
     final canExpand = _bodyLikelyOverflows(body);
+    final showFull = _expanded || !canExpand;
+    final displayBody = showFull ? body : _previewBody(body);
     final actions = _entryActions(hasCopy: hasCopy, canExpand: canExpand);
 
     return Column(
@@ -297,8 +364,8 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
                       actions.isNotEmpty)
                     const SizedBox(height: AppTheme.spaceXs),
                   AppExpandableText(
-                    text: body,
-                    expanded: _expanded || !canExpand,
+                    text: displayBody,
+                    expanded: showFull,
                     previewLines: widget.previewLines,
                     role: AppTextRole.compactBody,
                   ),

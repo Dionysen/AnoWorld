@@ -124,4 +124,89 @@ void main() {
     expect(copied, contains(body));
     expect(find.textContaining('已复制'), findsOneWidget);
   });
+
+  testWidgets('section caps entries then reveals the rest', (tester) async {
+    final entries = [
+      for (var i = 1; i <= 10; i++)
+        AppDetailEntry(
+          title: '条目$i',
+          body: '正文$i',
+        ),
+    ];
+
+    await tester.pumpWidget(
+      testScoped(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: AppDetailSection(
+              title: '世界书',
+              icon: Icons.public_outlined,
+              entries: entries,
+              onEdit: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('条目1'), findsOneWidget);
+    expect(find.text('条目8'), findsOneWidget);
+    expect(find.text('条目9'), findsNothing);
+    expect(find.text('条目10'), findsNothing);
+    expect(find.text('还有 2 条'), findsOneWidget);
+
+    final more = find.text('还有 2 条');
+    await tester.ensureVisible(more);
+    await tester.pumpAndSettle();
+    await tester.tap(more);
+    await tester.pumpAndSettle();
+
+    expect(find.text('还有 2 条'), findsNothing);
+    expect(find.text('条目9'), findsOneWidget);
+    expect(find.text('条目10'), findsOneWidget);
+  });
+
+  testWidgets('collapsed long body still copies full text', (tester) async {
+    final longBody = List.generate(20, (i) => '第${i + 1}行很长的设定内容。').join('\n');
+    String? copied;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    await tester.pumpWidget(
+      testScoped(
+        home: Scaffold(
+          body: AppDetailSection(
+            title: '世界书',
+            icon: Icons.public_outlined,
+            entries: [
+              AppDetailEntry(
+                title: '长设定',
+                body: longBody,
+              ),
+            ],
+            onEdit: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('展开'), findsOneWidget);
+    expect(find.textContaining('第20行'), findsNothing);
+
+    await tester.tap(find.byTooltip('复制'));
+    await tester.pumpAndSettle();
+    expect(copied, contains('长设定'));
+    expect(copied, contains('第20行很长的设定内容。'));
+  });
 }
