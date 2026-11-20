@@ -10,6 +10,7 @@ import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_services.dart';
 import 'package:anoworld/domain/main/apply_cast_patch.dart';
 import 'package:anoworld/domain/main/apply_main_graph_patch.dart';
+import 'package:anoworld/domain/main/apply_plot_patch.dart';
 import 'package:anoworld/domain/main/apply_world_book_patch.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
 import 'package:anoworld/domain/main/patch_preview.dart';
@@ -312,6 +313,13 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
             project: project,
             preview: preview,
           );
+        case 'plot.select':
+          await _reviewPlotPatch(
+            repo: repo,
+            project: project,
+            catalog: plotCatalog,
+            preview: preview,
+          );
         default:
           _finishTurn(strings.assistantFailedRetry);
       }
@@ -465,6 +473,47 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       tag: 'create.assistant',
     );
     await _applyCast(repo: repo, project: project, cast: cast);
+  }
+
+  Future<void> _reviewPlotPatch({
+    required ProjectRepository repo,
+    required Project project,
+    required PlotElementCatalog catalog,
+    required Map<String, dynamic> preview,
+  }) async {
+    final strings = context.strings;
+    final ops = _previewOps(preview);
+    if (ops.isEmpty) {
+      _finishTurn(strings.patchNoChange);
+      return;
+    }
+    final patch = buildPlotPreview(
+      PlotPatchState(catalog: catalog, selection: project.plotElements),
+      ops,
+    );
+    _finishTurn('${strings.proposalLead} ${strings.opCount(ops.length)}');
+    final picked = await _askPatchSelection(patch);
+    if (!mounted || picked == null) {
+      AppLog.instance.info('创作助手放弃剧情元素改动', tag: 'create.assistant');
+      return;
+    }
+    final PlotPatchState next;
+    try {
+      next = patch.applySelected(picked);
+    } on ApplyPlotPatchException catch (error) {
+      _finishTurn(error.message);
+      return;
+    }
+    AppLog.instance.info(
+      '创作助手写入剧情元素 ${picked.length}/${ops.length} 条',
+      tag: 'create.assistant',
+    );
+    await _applyPlot(
+      repo: repo,
+      project: project,
+      catalog: catalog,
+      next: next,
+    );
   }
 
   Future<bool> _confirmGraph({
@@ -627,6 +676,59 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     unawaited(_persist());
     AppLog.instance.info(
       '创作助手写入世界书：${worldBook.entries.length} 条',
+      tag: 'create.assistant',
+    );
+  }
+
+  Future<void> _applyPlot({
+    required ProjectRepository repo,
+    required Project project,
+    required PlotElementCatalog catalog,
+    required PlotPatchState next,
+  }) async {
+    final settings = AppScope.settingsOf(context);
+    // New library rows land first so the saved selection always resolves.
+    if (!identical(next.catalog, catalog)) {
+      await settings.updatePlotElements(next.catalog);
+    }
+    final updated = project.copyWith(
+      plotElements: next.selection,
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+    try {
+      await repo.save(updated);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '创作助手写入剧情元素失败',
+        tag: 'create.assistant',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() {
+        _lines.add(
+          _AssistantLine(
+            role: _LineRole.assistant,
+            text: context.strings.assistantNoSave,
+          ),
+        );
+      });
+      unawaited(_persist());
+      return;
+    }
+    if (!mounted) return;
+    AppScope.projectChangesOf(context).markChanged(project.meta.id);
+    setState(() {
+      _lines.add(
+        _AssistantLine(
+          role: _LineRole.assistant,
+          text: context.strings.assistantPlotSaved,
+        ),
+      );
+    });
+    unawaited(_persist());
+    AppLog.instance.info(
+      '创作助手写入剧情元素：已选 ${next.selection.count} 项',
       tag: 'create.assistant',
     );
   }

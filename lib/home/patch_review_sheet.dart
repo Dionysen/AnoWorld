@@ -200,6 +200,7 @@ class _PatchOpRow extends StatelessWidget {
         PatchTargetKind.node => strings.patchKindNode,
         PatchTargetKind.edge => strings.patchKindEdge,
         PatchTargetKind.storySummary => strings.patchKindStorySummary,
+        PatchTargetKind.plotElement => strings.patchKindPlotElement,
       };
     final label = change.label.trim();
     return label.isEmpty ? '$verb$kind' : '$verb$kind：$label';

@@ -153,7 +153,7 @@
 | `world` | `world.list_entries` / `world.read_entry` | `world.patch` |
 | `cast` | `cast.list_members` / `cast.read_member` | `cast.patch` |
 | `main` | `main.read_graph`（阶段 3 用紧凑骨架代替分段读） | `main.replace`（整图）/ `main.patch`（局部） |
-| `plot` | 未做：剧情元素目前只在 L1 目录里列已选项 | `plot.select`（只勾选，不改库） |
+| `plot` | `plot.list_elements`（全局库：id / 分类 / 关键词 / 是否已选，可按关键词过滤） | `plot.select`（`select` / `deselect` / `add_element`；新增会写进全局库，已有条目正文不改） |
 | `preset` | 未做：预设本身即系统提示，已全量注入 | `preset.patch`（不做，见 §8） |
 
 阶段 3 已把写工具统一成 `*.patch` / `main.replace`，旧名 `world.patch_propose`、`cast.patch_propose`、`main.patch_graph`、`main.generate_graph` 全部删除，没有别名并存。`main.list_nodes` / `main.get_node` 这类分段读暂不实现：紧凑骨架一次返回更省回合，等预算裁剪（阶段 5）真的需要细读再加。
@@ -385,6 +385,21 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 **为什么不在 `OpenAiChatClient` 里兜底**：那里只有拼好的字符串，丢哪一段都会破坏语义。预算必须在知道「这段是规则 / 这段是旧对话」的地方做，也就是 `AiPromptContext` 与各 action。
 
 **代价**：`assemblePlaySystem` 每回合多拼一次 system（纯字符串 + 宏展开，无 IO）。用一次多余的字符串拼接换掉「模型收到超窗请求直接报错」，值得。
+
+### 7.7 之后补上的剧情元素入口
+
+阶段表里的五块里，剧情元素此前只有 L1 目录的「已选项」，模型既看不到整个库，也没法改勾选。现在补齐两个工具：
+
+| 落点 | 内容 |
+| --- | --- |
+| [`apply_plot_patch.dart`](../lib/domain/main/apply_plot_patch.dart)（新建） | `ApplyPlotPatch`：`select` / `deselect` 改故事勾选；`add_element` 生成 `pe_` 新行写进全局库并勾上（同关键词+同说明重复提交时复用旧行，避免重试灌库）。`PlotPatchState` 把库与勾选绑在一起，因为新建会同时动两边 |
+| [`patch_preview.dart`](../lib/domain/main/patch_preview.dart) | 新增 `buildPlotPreview` 与 `PatchTargetKind.plotElement`；每个条目按 `selected` 布尔值做 diff，新增行按 added 展示 |
+| [`project_tools.dart`](../lib/domain/ai/create/tools/project_tools.dart) | `plot.list_elements`（读：id / 分类 / 关键词 / 是否已选，可按词过滤）；`plot.select`（写：只产出 `userConfirmRequired`） |
+| [`create_proposals.dart`](../lib/domain/ai/create/create_proposals.dart) | `patchPlot` 先 dry-run 校验，库中没有的 id 直接报错给模型，不生成半截提案 |
+| [`create_assistant_target.dart`](../lib/domain/ai/create/create_assistant_target.dart) | `plot.list_elements` 进所有目标的读白名单；`plot.select` 只给情节图目标（勾选属于情节层，写仍然只改当前层） |
+| [`create_assistant_panel.dart`](../lib/home/create_assistant_panel.dart) | `plot.select` 走同一条确认链路：逐条勾选 → 应用选中 → 命中新元素时先写全局库再保存故事勾选 |
+
+**没做的**：改已有库条目的正文（`upsertCustom` 的改写路径）仍只在剧情元素库页面；AI 只能勾选或新增，避免一次误改污染全库。
 
 ---
 

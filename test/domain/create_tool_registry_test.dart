@@ -14,7 +14,9 @@ import 'package:anoworld/domain/ai/create/create_tool_services.dart';
 import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/full_graph_json.dart';
@@ -396,6 +398,130 @@ void main() {
     );
     expect(whole.ok, isTrue);
     expect(whole.payload?['ref'], 'cast:${member.id}');
+  });
+  test('plot.select proposes selection ops against the library', () async {
+    final project = const ProjectFactory().createRainNightSample();
+    final catalog = PlotElementCatalog(
+      custom: <PlotElement>[
+        PlotElement(id: 'pe_rain', keyword: '暴雨封路', description: '出城的桥被冲断'),
+      ],
+    );
+    final ctx = CreateToolContext(
+      project: project,
+      services: CreateToolServices(plotCatalog: catalog),
+    );
+
+    final result = await CreateAgentRunner().runSingle(
+      toolName: 'plot.select',
+      ctx: ctx,
+      args: {
+        'ops': [
+          {'op': 'select', 'ids': ['pe_rain']},
+        ],
+      },
+    );
+
+    expect(result.ok, isTrue);
+    final preview = result.userConfirmPayload;
+    expect(preview!['kind'], 'plot.select');
+    expect(preview['selectedIds'], contains('pe_rain'));
+  });
+
+  test('plot.select rejects ids that are not in the library', () async {
+    final catalog = PlotElementCatalog(
+      custom: <PlotElement>[
+        PlotElement(id: 'pe_rain', keyword: '暴雨封路', description: '出城的桥被冲断'),
+      ],
+    );
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      services: CreateToolServices(plotCatalog: catalog),
+    );
+
+    final result = await CreateAgentRunner().runSingle(
+      toolName: 'plot.select',
+      ctx: ctx,
+      args: {
+        'ops': [
+          {'op': 'select', 'ids': ['pe_nope']},
+        ],
+      },
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.errorMessage, contains('pe_nope'));
+  });
+
+  test('plot.select needs a library', () async {
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      services: const CreateToolServices(),
+    );
+
+    final result = await CreateAgentRunner().runSingle(
+      toolName: 'plot.select',
+      ctx: ctx,
+      args: {
+        'ops': [
+          {'op': 'select', 'ids': ['pe_rain']},
+        ],
+      },
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.errorMessage, contains('剧情元素库'));
+  });
+
+  test('plot.list_elements marks what the story already selected', () async {
+    final project = const ProjectFactory().createRainNightSample();
+    final catalog = PlotElementCatalog(
+      custom: <PlotElement>[
+        PlotElement(id: 'pe_rain', keyword: '暴雨封路', description: '出城的桥被冲断'),
+        PlotElement(id: 'pe_letter', keyword: '旧信', description: '一封迟到十年的信'),
+      ],
+    );
+    final withSelection = project.copyWith(
+      plotElements: const PlotElementSelection(selectedIds: ['pe_rain']),
+    );
+    final ctx = CreateToolContext(
+      project: withSelection,
+      services: CreateToolServices(plotCatalog: catalog),
+    );
+
+    final all = await CreateAgentRunner().runSingle(
+      toolName: 'plot.list_elements',
+      ctx: ctx,
+    );
+    expect(all.ok, isTrue);
+    expect(all.payload?['count'], catalog.effectiveList.length);
+
+    final filtered = await CreateAgentRunner().runSingle(
+      toolName: 'plot.list_elements',
+      ctx: ctx,
+      args: {'keyword': '旧信'},
+    );
+    expect(filtered.payload?['count'], 1);
+    final rows = filtered.payload?['elements'] as List;
+    expect((rows.single as Map)['id'], 'pe_letter');
+    expect((rows.single as Map)['selected'], isFalse);
+
+    final rain = await CreateAgentRunner().runSingle(
+      toolName: 'plot.list_elements',
+      ctx: ctx,
+      args: {'keyword': '暴雨封路'},
+    );
+    expect(((rain.payload?['elements'] as List).single as Map)['selected'],
+        isTrue);
+  });
+
+  test('the plot write tool is offered only for the graph target', () {
+    const graph = CreateAssistantTarget.graph;
+    const world = CreateAssistantTarget.world;
+
+    expect(graph.toolAllowlist, contains('plot.select'));
+    expect(graph.toolAllowlist, contains('plot.list_elements'));
+    expect(world.toolAllowlist, isNot(contains('plot.select')));
+    expect(world.toolAllowlist, contains('plot.list_elements'));
   });
 }
 

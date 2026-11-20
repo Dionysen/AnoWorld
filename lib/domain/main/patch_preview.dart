@@ -1,12 +1,13 @@
 import 'package:anoworld/domain/main/apply_cast_patch.dart';
 import 'package:anoworld/domain/main/apply_main_graph_patch.dart';
+import 'package:anoworld/domain/main/apply_plot_patch.dart';
 import 'package:anoworld/domain/main/apply_world_book_patch.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 
 /// What one diff entry refers to.
-enum PatchTargetKind { worldBook, cast, node, edge, storySummary }
+enum PatchTargetKind { worldBook, cast, node, edge, storySummary, plotElement }
 
 /// One field difference inside a patch op.
 ///
@@ -216,6 +217,48 @@ PatchPreview<MainStory> buildMainGraphPreview(
   );
 }
 
+PatchPreview<PlotPatchState> buildPlotPreview(
+  PlotPatchState base,
+  List<Map<String, dynamic>> ops,
+) {
+  const applier = ApplyPlotPatch();
+  final items = <PatchPreviewItem>[];
+  var current = base;
+  for (var i = 0; i < ops.length; i++) {
+    final op = ops[i];
+    final name = _opName(op);
+    if (name.isEmpty) {
+      items.add(_broken(i, '', '缺少操作类型'));
+      continue;
+    }
+    final before = _plotSnapshot(current);
+    final PlotPatchState next;
+    try {
+      next = applier.apply(current, <Map<String, dynamic>>[op]);
+    } on ApplyPlotPatchException catch (error) {
+      items.add(_broken(i, name, error.message));
+      continue;
+    }
+    items.add(
+      PatchPreviewItem(
+        index: i,
+        opName: name,
+        changes: _diff(before, _plotSnapshot(next)),
+      ),
+    );
+    current = next;
+  }
+  return PatchPreview<PlotPatchState>(
+    base: base,
+    ops: ops,
+    items: items,
+    applyOps: (list) => applier.apply(
+      PlotPatchState(catalog: base.catalog, selection: base.selection),
+      list,
+    ),
+  );
+}
+
 PatchPreviewItem _broken(int index, String opName, String message) =>
     PatchPreviewItem(
       index: index,
@@ -271,6 +314,21 @@ Map<String, _Entity> _castSnapshot(List<CastMember> cast) => {
             'speechStyle': member.speechStyle,
             'exampleLines': member.exampleLines,
             'isProtagonist': member.isProtagonist,
+          },
+        ),
+    };
+
+Map<String, _Entity> _plotSnapshot(PlotPatchState state) => {
+      for (final element in state.catalog.effectiveList)
+        element.id: _Entity(
+          kind: PatchTargetKind.plotElement,
+          id: element.id,
+          label: element.keyword,
+          fields: {
+            'keyword': element.keyword,
+            'category': state.catalog.categoryNameOf(element.categoryId),
+            'description': element.description,
+            'selected': state.selection.selectedIds.contains(element.id),
           },
         ),
     };

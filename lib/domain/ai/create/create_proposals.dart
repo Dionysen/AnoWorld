@@ -4,10 +4,12 @@ import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/stage_result_mapper.dart';
 import 'package:anoworld/domain/main/apply_cast_patch.dart';
 import 'package:anoworld/domain/main/apply_main_graph_patch.dart';
+import 'package:anoworld/domain/main/apply_plot_patch.dart';
 import 'package:anoworld/domain/main/apply_world_book_patch.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/domain/validation/project_validator.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 
@@ -135,6 +137,34 @@ class CreateProposals {
         'members': [for (final member in next) member.toJson()],
       };
     } on ApplyCastPatchException catch (error) {
+      throw CreateProposalException(error.message);
+    }
+  }
+
+  /// Story plot-element selection ops (`plot.select`).
+  Map<String, dynamic> patchPlot(
+    Project project,
+    PlotElementCatalog catalog,
+    Map<String, dynamic> args,
+  ) {
+    final ops = readOps(args);
+    try {
+      final next = const ApplyPlotPatch().apply(
+        PlotPatchState(
+          catalog: catalog,
+          selection: project.plotElements,
+        ),
+        ops,
+      );
+      return <String, dynamic>{
+        'schemaVersion': 1,
+        'kind': 'plot.select',
+        'opCount': ops.length,
+        'ops': ops,
+        'selectedIds': next.selection.selectedIds,
+        'selectedCount': next.selection.selectedIds.length,
+      };
+    } on ApplyPlotPatchException catch (error) {
       throw CreateProposalException(error.message);
     }
   }

@@ -481,6 +481,7 @@ abstract class AppStrings extends AppLocalizations {
   String get assistantGraphSaved;
   String get assistantWorldSaved;
   String get assistantCastSaved;
+  String get assistantPlotSaved;
   String get proposalLead;
   String stopCount(int count);
   String branchCount(int count);
@@ -507,6 +508,7 @@ abstract class AppStrings extends AppLocalizations {
   String get patchKindNode;
   String get patchKindEdge;
   String get patchKindStorySummary;
+  String get patchKindPlotElement;
   String get patchBeforeLabel;
   String get patchAfterLabel;
   String patchFieldLabel(String field);

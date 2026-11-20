@@ -385,6 +385,90 @@ List<CreateTool> buildProjectTools() {
       },
     ),
     CreateTool(
+      name: 'plot.list_elements',
+      description: '列出全局剧情元素库（id、分类、关键词、是否已选），'
+          '可用 keyword 过滤；勾选或新增前先看这里',
+      mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'keyword': stringSchema('只看关键词里含这个词的条目'),
+        },
+      ),
+      invoke: (ctx, args) async {
+        final catalog = ctx.services.plotCatalog;
+        if (catalog == null) {
+          return CreateToolResult.error('剧情元素库还没准备好');
+        }
+        final needle = (args['keyword']?.toString() ?? '').trim().toLowerCase();
+        final selected = (ctx.project?.plotElements.selectedIds ?? const [])
+            .toSet();
+        final rows = <Map<String, dynamic>>[];
+        for (final element in catalog.effectiveList) {
+          if (needle.isNotEmpty &&
+              !element.keyword.toLowerCase().contains(needle)) {
+            continue;
+          }
+          rows.add(<String, dynamic>{
+            'id': element.id,
+            'keyword': element.keyword,
+            'category': catalog.categoryNameOf(element.categoryId),
+            'selected': selected.contains(element.id),
+          });
+        }
+        return CreateToolResult.success(<String, dynamic>{
+          'schemaVersion': 1,
+          'count': rows.length,
+          'elements': rows,
+        });
+      },
+    ),
+    CreateTool(
+      name: 'plot.select',
+      description: '提交剧情元素改动 ops：select 勾选、deselect 取消勾选、'
+          'add_element 新建一条并勾上（会写进全局剧情元素库）',
+      mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'ops': arraySchema(
+            objectSchema(
+              <String, dynamic>{
+                'op': stringSchema('select | deselect | add_element'),
+                'ids': arraySchema(
+                  stringSchema('剧情元素 id，如 pe_xxx'),
+                  description: 'select / deselect 要处理的条目',
+                ),
+                'keyword': stringSchema('add_element：触发用的关键词，如「暴雨封路」'),
+                'description': stringSchema(
+                  'add_element：一句话说明 + 一个可用的分叉示例，300 字内',
+                ),
+                'category': stringSchema('add_element：分类名，如 悬疑 / 危机；不确定就不填'),
+              },
+              const <String>['op'],
+            ),
+            description: '按顺序应用的改动列表',
+          ),
+        },
+        const <String>['ops'],
+      ),
+      invoke: (ctx, args) async {
+        final project = ctx.project;
+        if (project == null) {
+          return CreateToolResult.error('没有打开的故事');
+        }
+        final catalog = ctx.services.plotCatalog;
+        if (catalog == null) {
+          return CreateToolResult.error('剧情元素库还没准备好');
+        }
+        try {
+          return CreateToolResult.userConfirmRequired(
+            proposals.patchPlot(project, catalog, args),
+          );
+        } on CreateProposalException catch (error) {
+          return CreateToolResult.error(error.message);
+        }
+      },
+    ),
+    CreateTool(
       name: 'refine.field',
       description: 'P0.5 单字段润色扩写',
       mutatesProject: false,

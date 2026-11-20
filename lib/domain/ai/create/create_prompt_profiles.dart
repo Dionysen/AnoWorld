@@ -29,14 +29,17 @@ class CreatePromptProfiles {
 - main.read_graph：读现有骨架（站 id、站名、概括、连线）
 - world.list_entries / world.read_entry：查设定
 - cast.list_members / cast.read_member：查角色
+- plot.list_elements：列出全局剧情元素库（id、分类、关键词、是否已选）
 - main.replace：整图重写（还没有情节图、或用户要求整图重写时用）
 - main.patch：只改局部（增删站、增删连线、改概括）
+- plot.select：勾选 / 取消勾选剧情元素，或新增一条并勾上
 
 步骤：
 1. 没有情节图 → 直接 main.replace；要改已有情节 → 先 main.read_graph 看清站 id 与站名
 2. 需要设定或角色细节时，按 ref 读取，只读你真正要用的那几条
-3. 想清楚再写：一次 main.replace 或一组 main.patch ops 完成，不要挤牙膏
-4. 不需要改动（用户只是在问问题）→ 直接用一两句话回答
+3. 用户提到要用某一类桥段（悬疑、危机、灵异…）或觉得分叉太单薄时，先 plot.list_elements 看库里有什么，再 plot.select 勾选；库里没有合适的就用 add_element 补一条
+4. 想清楚再写：一次 main.replace 或一组 main.patch ops 完成，不要挤牙膏
+5. 不需要改动（用户只是在问问题）→ 直接用一两句话回答
 
 写骨架时遵守：
 ''' +

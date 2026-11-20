@@ -1,7 +1,10 @@
+import 'package:anoworld/domain/main/apply_plot_patch.dart';
 import 'package:anoworld/domain/main/patch_preview.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/world_book.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 MainStory _graph() => const MainStory(
@@ -154,6 +157,66 @@ void main() {
     test('a broken edge reference is reported instead of thrown', () {
       final patch = buildMainGraphPreview(_graph(), [
         {'op': 'upsert_edge', 'from': 'n1', 'to': 'nowhere'},
+      ]);
+
+      expect(patch.items.single.error, isNotNull);
+      expect(patch.defaultSelection, isEmpty);
+    });
+  });
+
+  group('plot preview', () {
+    PlotPatchState base() => PlotPatchState(
+          catalog: PlotElementCatalog(
+            custom: <PlotElement>[
+              PlotElement(
+                id: 'pe_rain',
+                keyword: '暴雨封路',
+                description: '出城的桥被冲断',
+              ),
+            ],
+          ),
+          selection: const PlotElementSelection(),
+        );
+
+    test('selecting shows the element as newly ticked', () {
+      final patch = buildPlotPreview(base(), [
+        {
+          'op': 'select',
+          'ids': ['pe_rain'],
+        },
+      ]);
+
+      final change = patch.items.single.changes.single;
+      expect(change.kind, PatchTargetKind.plotElement);
+      expect(change.label, '暴雨封路');
+      expect(change.added, isFalse);
+      expect(change.fields.single.field, 'selected');
+      expect(change.fields.single.before, false);
+      expect(change.fields.single.after, true);
+      expect(patch.applySelected({0}).selection.selectedIds, ['pe_rain']);
+    });
+
+    test('adding shows the new library row', () {
+      final patch = buildPlotPreview(base(), [
+        {
+          'op': 'add_element',
+          'keyword': '断电',
+          'description': '整条街忽然停电',
+        },
+      ]);
+
+      final change = patch.items.single.changes.single;
+      expect(change.added, isTrue);
+      expect(change.label, '断电');
+      expect(change.fields.map((f) => f.field), contains('keyword'));
+    });
+
+    test('an unknown id is reported instead of thrown', () {
+      final patch = buildPlotPreview(base(), [
+        {
+          'op': 'select',
+          'ids': ['pe_missing'],
+        },
       ]);
 
       expect(patch.items.single.error, isNotNull);

@@ -23,6 +23,7 @@ enum CreateAssistantTarget {
     'world.read_entry',
     'cast.list_members',
     'cast.read_member',
+    'plot.list_elements',
   ];
 
   /// Write tools allowed for this target; only its own layer can be changed.
@@ -30,6 +31,7 @@ enum CreateAssistantTarget {
         CreateAssistantTarget.graph => const <String>[
             'main.replace',
             'main.patch',
+            'plot.select',
           ],
         CreateAssistantTarget.world => const <String>['world.patch'],
         CreateAssistantTarget.cast => const <String>['cast.patch'],

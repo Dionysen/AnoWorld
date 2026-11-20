@@ -82,12 +82,16 @@ class CreateContextIndex {
 
   String _plotBlock(Project project, PlotElementCatalog? catalog) {
     final ids = project.plotElements.selectedIds;
-    if (ids.isEmpty) return '【剧情元素】还没选';
+    if (ids.isEmpty) {
+      return '【剧情元素】还没选（plot.list_elements 可看全库）';
+    }
     if (catalog == null) return '【剧情元素】已选 ${ids.length} 项';
     final rows = catalog.resolveSelected(ids);
     if (rows.isEmpty) return '【剧情元素】已选 ${ids.length} 项';
     final shown = _cap(rows);
-    final lines = <String>['【剧情元素】已选 ${rows.length} 项'];
+    final lines = <String>[
+      '【剧情元素】已选 ${rows.length} 项（plot.list_elements 可看全库）',
+    ];
     for (final element in shown.rows) {
       final category = catalog.categoryNameOf(element.categoryId);
       final head = category.isEmpty ? '' : '$category · ';

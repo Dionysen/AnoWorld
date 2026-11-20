@@ -1409,6 +1409,9 @@ class AppStringsZh extends AppStrings {
   String get assistantCastSaved => '角色写好了，可以在角色页继续调整';
 
   @override
+  String get assistantPlotSaved => '剧情元素变了，之后的生成会按新的来';
+
+  @override
   String get proposalLead => '读了设定，理出';
 
   @override
@@ -1478,6 +1481,9 @@ class AppStringsZh extends AppStrings {
   String get patchKindStorySummary => '主线概括';
 
   @override
+  String get patchKindPlotElement => '剧情元素';
+
+  @override
   String get patchBeforeLabel => '原';
 
   @override
@@ -1503,6 +1509,10 @@ class AppStringsZh extends AppStrings {
         'label' => '标注',
         'detail' => '说明',
         'storySummary' => '主线概括',
+        'keyword' => '关键词',
+        'category' => '分类',
+        'description' => '说明',
+        'selected' => '已选',
         _ => field,
       };
 
