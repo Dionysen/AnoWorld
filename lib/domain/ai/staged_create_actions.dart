@@ -163,5 +163,9 @@ class StagedCreateActions {
 {"cast":[{"name":"姓名","summary":"一句话","personality":"性格","speechStyle":"说话风格","exampleLines":["例句"]}]}
 根据用户提示生成 2～4 个角色；姓名要短、好记。只输出 JSON，不要 markdown，不要解释。''';
 
-  static const String _mainSchema = CreatePromptProfiles.mainGraphTaskSuffix;
+  static const String _mainSchema = '输出格式：\n'
+      '${CreatePromptProfiles.skeletonFormat}\n'
+      '规则：\n'
+      '${CreatePromptProfiles.skeletonRules}\n'
+      '只输出 JSON，不要 markdown，不要解释。';
 }

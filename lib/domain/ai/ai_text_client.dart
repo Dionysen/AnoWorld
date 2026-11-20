@@ -24,6 +24,19 @@ abstract class AiTextClient {
   });
 }
 
+/// Capability: one model turn that may answer with text or ask to call tools.
+///
+/// Kept apart from [AiTextClient] so simple one-shot callers (and their fakes)
+/// do not have to know about tool calling at all.
+abstract class AiToolTurnClient {
+  Future<OpenAiChatCompletion> completeTurn({
+    required AiTextEndpoint endpoint,
+    required List<OpenAiChatMessage> messages,
+    List<OpenAiTool> tools = const <OpenAiTool>[],
+    GenerationPreset? generation,
+  });
+}
+
 class AiTextException implements Exception {
   AiTextException(this.message);
 
@@ -34,7 +47,7 @@ class AiTextException implements Exception {
 }
 
 /// Adapts [OpenAiChatClient] to [AiTextEndpoint] settings.
-class EndpointAiTextClient implements AiTextClient {
+class EndpointAiTextClient implements AiTextClient, AiToolTurnClient {
   EndpointAiTextClient({OpenAiChatClient? chat})
       : _chat = chat ?? OpenAiChatClient();
 
@@ -47,10 +60,45 @@ class EndpointAiTextClient implements AiTextClient {
     required String user,
     GenerationPreset? generation,
   }) async {
+    final result = await _send(
+      endpoint: endpoint,
+      messages: <OpenAiChatMessage>[
+        OpenAiChatMessage(role: 'system', content: system),
+        OpenAiChatMessage(role: 'user', content: user),
+      ],
+      generation: generation,
+    );
+    return AiTextCompletion(
+      content: result.content,
+      reasoning: result.reasoning,
+    );
+  }
+
+  @override
+  Future<OpenAiChatCompletion> completeTurn({
+    required AiTextEndpoint endpoint,
+    required List<OpenAiChatMessage> messages,
+    List<OpenAiTool> tools = const <OpenAiTool>[],
+    GenerationPreset? generation,
+  }) {
+    return _send(
+      endpoint: endpoint,
+      messages: messages,
+      generation: generation,
+      tools: tools,
+    );
+  }
+
+  Future<OpenAiChatCompletion> _send({
+    required AiTextEndpoint endpoint,
+    required List<OpenAiChatMessage> messages,
+    required GenerationPreset? generation,
+    List<OpenAiTool> tools = const <OpenAiTool>[],
+  }) async {
+    final openRouter = endpoint.kind == AiTextProviderKind.openRouter;
+    final effort = endpoint.reasoningEffort;
     try {
-      final openRouter = endpoint.kind == AiTextProviderKind.openRouter;
-      final effort = endpoint.reasoningEffort;
-      final result = await _chat.complete(
+      return await _chat.complete(
         baseUrl: endpoint.baseUrl,
         fallbackBaseUrl: endpoint.kind.defaultBaseUrl,
         apiKey: endpoint.apiKey,
@@ -62,14 +110,8 @@ class EndpointAiTextClient implements AiTextClient {
         reasoning: openRouter && effort.openRouterEffort != null
             ? <String, dynamic>{'effort': effort.openRouterEffort}
             : null,
-        messages: <OpenAiChatMessage>[
-          OpenAiChatMessage(role: 'system', content: system),
-          OpenAiChatMessage(role: 'user', content: user),
-        ],
-      );
-      return AiTextCompletion(
-        content: result.content,
-        reasoning: result.reasoning,
+        messages: messages,
+        tools: tools,
       );
     } on OpenAiChatException catch (error) {
       throw AiTextException(error.message);

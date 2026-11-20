@@ -41,17 +41,19 @@
 
 ### 1.3 已有的工具骨架
 
-`lib/domain/ai/create/` 下已经有一套工具注册表，命名风格是 `域.动作`：
+`lib/domain/ai/create/` 下已经有一套工具注册表，命名风格是 `域.动作`（下表为阶段 3 前的旧名，现行名见 §5.1）：
 
 - 读：`world.list_entries`、`world.read_entry`、`cast.list_members`、`cast.read_member`、`main.read_graph`
-- 写：`world.patch_propose`、`cast.patch_propose`、`main.patch_graph`、`main.generate_graph`
+- 写（旧）：`world.patch_propose`、`cast.patch_propose`、`main.patch_graph`、`main.generate_graph`
 - 补丁落地：`lib/domain/main/apply_*_patch.dart`，按 `id` 合并，缺省字段沿用旧值
 
-这套东西**方向是对的**，问题在于：
+    50|这套东西**方向是对的**，当时的问题在于：
 
 1. 回合是规则挑工具（`CreateAgentRunner._pickTool`），不是模型自己选。
 2. 一次性单步，没有「先读 → 再判断 → 再改」的多步循环。
 3. 读工具登记了但从不被调用，形同虚设。
+
+（上述三点已在阶段 3 解决，见 §7.4。）
 
 ### 1.4 三个硬缺口
 
@@ -71,7 +73,7 @@
 
 **C. 意图靠字符串匹配。**
 
-`CreateAgentRunner.wantsFullGraphRewrite` 用硬编码中文关键词判断「整图重写」。工具化之后这个判断应交还给模型。
+阶段 3 前 `CreateAgentRunner.wantsFullGraphRewrite` 用硬编码中文关键词判断「整图重写」。现在这个判断已交还给模型（整图用 `main.replace`，局部用 `main.patch`），方法已删除。
 
 ---
 
@@ -148,13 +150,13 @@
 
 | 域 | 读 | 写 |
 | --- | --- | --- |
-| `world` | `world.list` / `world.get` | `world.patch` |
-| `cast` | `cast.list` / `cast.get` | `cast.patch` |
-| `main` | `main.list_nodes` / `main.get_node` / `main.list_edges` / `main.get_edge` | `main.patch` |
-| `plot` | `plot.list` / `plot.get` | `plot.select`（只勾选，不改库） |
-| `preset` | `preset.list` / `preset.get` | `preset.patch`（调预设需谨慎，见 §8） |
+| `world` | `world.list_entries` / `world.read_entry` | `world.patch` |
+| `cast` | `cast.list_members` / `cast.read_member` | `cast.patch` |
+| `main` | `main.read_graph`（阶段 3 用紧凑骨架代替分段读） | `main.replace`（整图）/ `main.patch`（局部） |
+| `plot` | 未做：剧情元素目前只在 L1 目录里列已选项 | `plot.select`（只勾选，不改库） |
+| `preset` | 未做：预设本身即系统提示，已全量注入 | `preset.patch`（不做，见 §8） |
 
-现有 `world.list_entries` 等可保留为别名，或一次性收敛成 `world.list`（迁移成本低，调用点就在 `project_tools.dart`）。
+阶段 3 已把写工具统一成 `*.patch` / `main.replace`，旧名 `world.patch_propose`、`cast.patch_propose`、`main.patch_graph`、`main.generate_graph` 全部删除，没有别名并存。`main.list_nodes` / `main.get_node` 这类分段读暂不实现：紧凑骨架一次返回更省回合，等预算裁剪（阶段 5）真的需要细读再加。
 
 ### 5.2 入参与返回
 
@@ -207,21 +209,21 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 ## 6. 渐进披露策略
 
-### 6.1 创作侧（可以做完整工具循环）
+### 6.1 创作侧（真工具循环，已实现）
 
-创作是一次任务，允许几秒等待。目标流程：
+创作是一次任务，允许几秒等待。现行流程（阶段 3）：
 
 ```text
 用户一句话
-  → 注入：五块 L1 目录 + 任务规则
-  → 模型自行决定：调 world.list / world.get / cast.get …
-  → 模型产出 ops
-  → 结构校验 + 预算校验
-  → 半屏预览（逐条可勾选，见 §7 阶段 2）
+  → 注入：五块 L1 目录 + 目标流程规则 + 该目标的工具声明
+  → 模型自行决定：调 world.read_entry / cast.read_member / main.read_graph …
+  → 模型产出骨架或 ops（一次 main.replace / 一组 main.patch / *.patch）
+  → 结构校验（ProjectValidator 干跑）
+  → 半屏预览（逐条可勾选，见 §7.2）
   → 应用 / 放弃
 ```
 
-这一步的收益最直接：**不再把整份世界书与骨架 JSON 塞进 user 消息**，长故事也不会因提示词过长而失焦。
+收益最直接：**不再把整份世界书与骨架 JSON 塞进 user 消息**，长故事也不会因提示词过长而失焦。循环落在 [`create_agent_loop.dart`](../lib/domain/ai/create/create_agent_loop.dart)，见 §7.4。
 
 ### 6.2 聊天侧（不做真工具调用，已定）
 
@@ -250,7 +252,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | **0** | 协议层：消息支持 `tool_calls`，请求带 `tools`，响应解析 `tool_calls`；统一工具返回信封 | — | **协议层已完成** |
 | **1** | `EntityRef` 引用解析；补 `edge.detail` 与 `exampleLines` 两个字段缺口 | 0 | **已完成** |
 | **2** | 确认 UI：逐条 op 勾选 + 字段级 diff | 1 | **已完成** |
-| **3** | 创作侧改成真循环：模型选工具 → 读 → 改 → 预览；退役 `wantsFullGraphRewrite` | 2 | 未开始 |
+| **3** | 创作侧改成真循环：模型选工具 → 读 → 改 → 预览；退役 `wantsFullGraphRewrite` | 2 | **已完成** |
 | **4** | 聊天侧命中注入：世界书 `keys` 与剧情元素关键词；三档取舍 | 1（不依赖 2、3） | 未开始 |
 | **5** | 上下文预算裁剪，接入 `contextLength` | 4 | 未开始 |
 
@@ -295,7 +297,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | --- | --- |
 | [`patch_preview.dart`](../lib/domain/main/patch_preview.dart)（新建） | 逐条 op 单独应用并对比前后快照，产出 `PatchPreviewItem`（每条 op 的增/删/改实体与字段 before/after）；`applySelected` 只回放勾选的 op |
 | [`patch_review_sheet.dart`](../lib/home/patch_review_sheet.dart)（新建） | 半屏确认抽屉：每行一个开关 + 字段级 diff（`原：…` / `改：…`），底部按钮实时显示选中条数 |
-| [`create_assistant_panel.dart`](../lib/home/create_assistant_panel.dart) | `main.patch_graph` / `world.patch_propose` / `cast.patch_propose` 三条路径都走新抽屉；整图生成仍是整包替换 |
+| [`create_assistant_panel.dart`](../lib/home/create_assistant_panel.dart) | `main.patch` / `world.patch` / `cast.patch` 三条路径都走新抽屉；整图重写仍是整包替换 |
 
 **做法**：不新增 applier 接口，而是让预览层对每条 op 调用一次现有 `apply`，再用「id → 字段快照」做 diff。这样：
 
@@ -306,6 +308,31 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 **默认勾选**：有实际改动且能单独应用的 op。空改动、引用坏掉的 op 默认不勾，并在行内标红说明。
 
 **仍有限制**：若用户取消某条 op 而后续 op 依赖它（例如取消「新建站」却保留「连到该站」），回放时 applier 会抛错，面板把错误文本回填到对话里，不会写坏数据。
+
+### 7.4 阶段 3 实际落地
+
+创作助手换成真循环，一次回合内由模型自己决定读什么、改什么。
+
+| 落点 | 内容 |
+| --- | --- |
+| [`create_agent_loop.dart`](../lib/domain/ai/create/create_agent_loop.dart)（新建） | 循环体：送 system + 用户话 + 工具声明 → 收 `tool_calls` → 逐个执行 → 把结果以 `role: tool` 回填 → 直到产出提议或模型直接回答；上限 6 步 |
+| [`create_context_index.dart`](../lib/domain/ai/create/create_context_index.dart)（新建） | L1 目录：设定 `wb:<id> · 标题 · 常驻`、角色 `cast:<id> · 名字 · 一句话`、情节 `node:<id> · 站名 · 出边数`、已选剧情元素；每层有行数上限 |
+| [`create_proposals.dart`](../lib/domain/ai/create/create_proposals.dart)（新建） | 把模型给的骨架 / ops 校验成确认载荷（含 `ProjectValidator` 干跑），工具与文本兜底共用 |
+| [`create_tool.dart`](../lib/domain/ai/create/create_tool.dart) | `CreateTool` 增加 JSON Schema `parameters`，`declaration()` 产出 `OpenAiTool` |
+| [`create_tool_registry.dart`](../lib/domain/ai/create/create_tool_registry.dart) | 按白名单取工具与声明：`allowed(names)` / `declarations(names)` |
+| [`ai_text_client.dart`](../lib/domain/ai/ai_text_client.dart) | 新增窄接口 `AiToolTurnClient.completeTurn`（消息 + 工具 + 生成参数），`EndpointAiTextClient` 实现它 |
+| [`ai_prompt_context.dart`](../lib/domain/ai/ai_prompt_context.dart) | `assembleSystem(inlineWorldBook: false)` 时不再内联整份世界书，改用传入的 L1 目录 |
+| [`create_prompt_profiles.dart`](../lib/domain/ai/create/create_prompt_profiles.dart) | 三个目标各自的工具流程与内容规则；骨架规则抽成 `skeletonRules` 与分阶段创作共用 |
+
+**写工具改为「模型产出内容，工具只校验」**：`main.replace` / `main.patch` / `world.patch` / `cast.patch` 接收模型给的骨架或 ops，不再自己再调一次模型。这一步去掉了嵌套调用，否则内层提示词又会把整份世界书塞回去，L1/L2/L3 全白做。
+
+**一并收敛的四处**：
+- `GenerateMainGraphAction` / `ProposeMainGraphPatchAction` / `ProposeWorldBookPatchAction` / `ProposeCastPatchAction` 连同测试一起删除：它们的作用已被「模型自己写 + `CreateProposals` 校验」取代。
+- `CreateAgentRunner._pickTool` 与 `wantsFullGraphRewrite` 删除：选工具不再靠中文关键词。
+- 确认载荷的 `kind` 改成与工具同名：`main.replace` / `main.patch` / `world.patch` / `cast.patch`。
+- 白名单拆成「所有读工具 + 当前目标的写工具」，读可以跨层，写只能改当前层。
+
+**降级路径**：模型不支持工具、只回一段文本时，先尝试把它当 JSON 改动解析（`CreateProposals.fromText`）。是骨架 / ops 就照常进确认抽屉，否则当作普通回答显示在气泡里。这样老模型与只吃纯 JSON 的本地模型仍能用。
 
 ---
 
@@ -324,8 +351,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 1. **`world.list` 是否全量返回？**
    故事世界书可能上百条。倾向 `limit` 默认 50，超过时返回 `truncated: true` 并提示可按关键词过滤。
 
-2. **旧工具名是否收敛？**
-   `world.list_entries` 与 `world.list` 并存会让模型倾向选旧的。倾向一次改净。
+2. **旧工具名是否收敛？**（已定，阶段 3）写工具一次改净，没有别名并存；读工具保留 `*.list_*` / `*.read_*` 具名形式，因为它们本来就不重名。
 
 3. **命中注入的匹配窗口有多长？**
    取最近几轮对话、是否计入上一拍的旁白，需要实测后再定。

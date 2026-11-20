@@ -27,8 +27,13 @@ class AiPromptContext {
     String worldInfoBefore = '',
     required String taskSuffix,
     String worldInfoAfter = '',
+    /// When false the full world book is not inlined and [worldInfoBefore] is
+    /// used as the only lore block (the create-assistant L1 directory).
+    bool inlineWorldBook = true,
   }) {
-    final lore = project?.worldBook.combinedText ?? worldInfoBefore;
+    final lore = inlineWorldBook
+        ? (project?.worldBook.combinedText ?? worldInfoBefore)
+        : worldInfoBefore;
     final plotBlock = project == null || plotCatalog == null
         ? ''
         : plotCatalog.promptBlockForSelected(

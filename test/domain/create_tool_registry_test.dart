@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/openai_chat_client.dart';
+import 'package:anoworld/foundation/ai/openai_chat_message.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
@@ -15,32 +19,79 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/full_graph_json.dart';
 
-class _FakeTextClient implements AiTextClient {
+const AiTextEndpoint _endpoint = AiTextEndpoint(
+  kind: AiTextProviderKind.openAiCompatible,
+  baseUrl: 'http://localhost:8080/v1',
+  apiKey: 'sk',
+  model: 'demo',
+);
+
+AiPromptContext _promptCtx() => AiPromptContext(
+      endpoint: _endpoint,
+      generation: const GenerationPreset(),
+      promptManager: PromptManagerConfig.defaultConfig(),
+    );
+
+/// Scripted tool-loop client: one queued reply per model turn.
+class _ScriptedTurnClient implements AiToolTurnClient {
+  _ScriptedTurnClient(this.replies);
+
+  final List<OpenAiChatCompletion> replies;
+  int calls = 0;
+
+  /// Messages of the last turn, so tests can assert what the model was told.
+  List<OpenAiChatMessage> lastMessages = const <OpenAiChatMessage>[];
+
   @override
-  Future<AiTextCompletion> complete({
+  Future<OpenAiChatCompletion> completeTurn({
     required AiTextEndpoint endpoint,
-    required String system,
-    required String user,
+    required List<OpenAiChatMessage> messages,
+    List<OpenAiTool> tools = const <OpenAiTool>[],
     GenerationPreset? generation,
   }) async {
-    throw UnimplementedError();
+    lastMessages = messages;
+    if (calls >= replies.length) {
+      throw AiTextException('no more replies');
+    }
+    return replies[calls++];
   }
 }
 
-class _ScriptedTextClient implements AiTextClient {
-  _ScriptedTextClient(this.reply);
+OpenAiChatCompletion _call(
+  String name,
+  Map<String, dynamic> args, {
+  int index = 0,
+}) {
+  return OpenAiChatCompletion(
+    content: '',
+    toolCalls: [
+      OpenAiToolCall(
+        id: 'call_$index',
+        name: name,
+        arguments: _encode(args),
+      ),
+    ],
+  );
+}
 
-  final String reply;
-
-  @override
-  Future<AiTextCompletion> complete({
-    required AiTextEndpoint endpoint,
-    required String system,
-    required String user,
-    GenerationPreset? generation,
-  }) async {
-    return AiTextCompletion(content: reply);
+String _encode(Map<String, dynamic> args) {
+  final buffer = StringBuffer('{');
+  var first = true;
+  for (final entry in args.entries) {
+    if (!first) buffer.write(',');
+    first = false;
+    buffer.write('"${entry.key}":${_value(entry.value)}');
   }
+  buffer.write('}');
+  return buffer.toString();
+}
+
+String _value(Object? value) {
+  if (value == null) return 'null';
+  if (value is num || value is bool) return '$value';
+  if (value is List) return '[${value.map(_value).join(',')}]';
+  if (value is Map) return _encode(Map<String, dynamic>.from(value));
+  return '"${value.toString().replaceAll('"', r'\"')}"';
 }
 
 void main() {
@@ -64,7 +115,7 @@ void main() {
     );
     final ctx = CreateToolContext(
       draft: draft,
-      services: CreateToolServices(textClient: _FakeTextClient()),
+      services: const CreateToolServices(),
     );
     final result = await runner.runSingle(
       toolName: 'card.sanitize_draft',
@@ -77,111 +128,189 @@ void main() {
     expect(sanitized.draft.castItems.first.value.summary, contains('**hi**'));
   });
 
-  test('main.generate_graph asks for confirmation with a skeleton', () async {
-    const endpoint = AiTextEndpoint(
-      kind: AiTextProviderKind.openAiCompatible,
-      baseUrl: 'http://localhost:8080/v1',
-      apiKey: 'sk',
-      model: 'demo',
-    );
+  test('main.replace takes stations from the model and asks for confirm',
+      () async {
     final ctx = CreateToolContext(
       project: const ProjectFactory().createRainNightSample(),
-      ai: AiPromptContext(
-        endpoint: endpoint,
-        generation: const GenerationPreset(),
-        promptManager: PromptManagerConfig.defaultConfig(),
-      ),
-      services: CreateToolServices(
-        textClient: _ScriptedTextClient(buildFullGraphJson()),
-      ),
+      services: const CreateToolServices(),
     );
 
     final result = await CreateAgentRunner().runSingle(
-      toolName: 'main.generate_graph',
+      toolName: 'main.replace',
       ctx: ctx,
-      args: const {'prompt': '今晚必须出城'},
+      args: {'graph': buildFullGraphJson()},
     );
+    // Raw JSON in one string is not the argument shape; a map is.
+    expect(result.ok, isFalse);
 
-    expect(result.ok, isTrue);
-    final preview = result.userConfirmPayload;
+    final graph = _decodeGraph(buildFullGraphJson());
+    final ok = await CreateAgentRunner().runSingle(
+      toolName: 'main.replace',
+      ctx: ctx,
+      args: graph,
+    );
+    expect(ok.ok, isTrue);
+    final preview = ok.userConfirmPayload;
     expect(preview, isNotNull);
-    expect(preview?['stations'], isA<List>());
-    expect(preview?['nodeCount'], greaterThanOrEqualTo(20));
-    expect(preview?['graph'], isA<Map>());
+    expect(preview!['kind'], 'main.replace');
+    expect(preview['nodeCount'], greaterThanOrEqualTo(20));
+    expect(preview['graph'], isA<Map>());
   });
 
-  test('runTurn picks patch when graph exists', () async {
+  test('main.patch applies ops onto the existing graph', () async {
     final project = const ProjectFactory().createRainNightSample();
     final ctx = CreateToolContext(
       project: project,
-      ai: AiPromptContext(
-        endpoint: const AiTextEndpoint(
-          kind: AiTextProviderKind.openAiCompatible,
-          baseUrl: 'http://localhost:8080/v1',
-          apiKey: 'sk',
-          model: 'demo',
-        ),
-        generation: const GenerationPreset(),
-        promptManager: PromptManagerConfig.defaultConfig(),
-      ),
-      services: CreateToolServices(
-        textClient: _ScriptedTextClient('''
-{"ops":[{"op":"set_summary","summary":"补丁概括"},{"op":"upsert_node","title":"新岔路","synopsis":"另一条世界线"}]}
-'''),
-      ),
+      services: const CreateToolServices(),
     );
+    final result = await CreateAgentRunner().runSingle(
+      toolName: 'main.patch',
+      ctx: ctx,
+      args: {
+        'ops': [
+          {'op': 'set_summary', 'summary': '补丁概括'},
+          {'op': 'upsert_node', 'title': '新岔路', 'synopsis': '另一条世界线'},
+        ],
+      },
+    );
+    expect(result.ok, isTrue);
+    final preview = result.userConfirmPayload;
+    expect(preview!['kind'], 'main.patch');
+    expect(preview['opCount'], 2);
+    expect(preview['summary'], '补丁概括');
+  });
+
+  test('main.patch reports broken ops instead of throwing', () async {
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      services: const CreateToolServices(),
+    );
+    final result = await CreateAgentRunner().runSingle(
+      toolName: 'main.patch',
+      ctx: ctx,
+      args: {
+        'ops': [
+          {'op': 'remove_node', 'id': 'nope'},
+        ],
+      },
+    );
+    expect(result.ok, isFalse);
+    expect(result.errorMessage, contains('删不了站'));
+  });
+
+  test('runTurn reads the graph, then patches it', () async {
+    final client = _ScriptedTurnClient([
+      _call('main.read_graph', const {}),
+      _call(
+          'main.patch',
+          {
+            'ops': [
+              {'op': 'set_summary', 'summary': '补丁概括'},
+            ],
+          },
+          index: 1),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
     final turn = await CreateAgentRunner().runTurn(
       target: CreateAssistantTarget.graph,
-      prompt: '加一条岔路',
+      prompt: '把主线概括改短',
       ctx: ctx,
     );
-    expect(turn.toolName, 'main.patch_graph');
-    expect(turn.result.ok, isTrue);
-    expect(turn.result.userConfirmPayload?['kind'], 'main.patch_graph');
+
+    expect(turn.calledTools, ['main.read_graph', 'main.patch']);
+    expect(turn.proposal?['kind'], 'main.patch');
+    // The tool result travelled back to the model before the patch turn.
+    final toolMessages = client.lastMessages.where((m) => m.role == 'tool');
+    expect(toolMessages, isNotEmpty);
+    expect(toolMessages.first.content, contains('"ok":true'));
   });
 
-  test('runTurn world uses world.patch_propose', () async {
+  test('runTurn answers in text when the model calls no tool', () async {
+    final client = _ScriptedTurnClient([
+      const OpenAiChatCompletion(content: '这条线目前没有需要改的地方'),
+    ]);
     final ctx = CreateToolContext(
       project: const ProjectFactory().createRainNightSample(),
-      ai: AiPromptContext(
-        endpoint: const AiTextEndpoint(
-          kind: AiTextProviderKind.openAiCompatible,
-          baseUrl: 'http://localhost:8080/v1',
-          apiKey: 'sk',
-          model: 'demo',
-        ),
-        generation: const GenerationPreset(),
-        promptManager: PromptManagerConfig.defaultConfig(),
-      ),
-      services: CreateToolServices(
-        textClient: _ScriptedTextClient('''
-{"ops":[{"op":"upsert_entry","title":"新设定","body":"内容","alwaysOn":true}]}
-'''),
-      ),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
     );
+
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.graph,
+      prompt: '看看情节合理吗',
+      ctx: ctx,
+    );
+
+    expect(turn.hasAnswer, isTrue);
+    expect(turn.answer, '这条线目前没有需要改的地方');
+    expect(turn.proposal, isNull);
+  });
+
+  test('runTurn reads a JSON reply as a proposal for weak models', () async {
+    final client = _ScriptedTurnClient([
+      const OpenAiChatCompletion(
+        content: '{"ops":[{"op":"upsert_entry","title":"新设定","body":"内容"}]}',
+      ),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
     final turn = await CreateAgentRunner().runTurn(
       target: CreateAssistantTarget.world,
-      prompt: '加一条常驻设定',
+      prompt: '加一条设定',
       ctx: ctx,
     );
-    expect(turn.toolName, 'world.patch_propose');
-    expect(turn.result.ok, isTrue);
+
+    expect(turn.proposal?['kind'], 'world.patch');
+    expect(turn.proposal?['opCount'], 1);
   });
 
-  test('main.generate_graph needs a configured text service', () async {
+  test('runTurn needs a tool-capable client', () async {
     final ctx = CreateToolContext(
       project: const ProjectFactory().createRainNightSample(),
-      ai: null,
-      services: CreateToolServices(textClient: _FakeTextClient()),
+      ai: _promptCtx(),
+      services: const CreateToolServices(),
     );
 
-    final result = await CreateAgentRunner().runSingle(
-      toolName: 'main.generate_graph',
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.world,
+      prompt: '加一条设定',
       ctx: ctx,
     );
 
-    expect(result.ok, isFalse);
-    expect(result.errorMessage, '未配置文本服务');
+    expect(turn.proposal, isNull);
+    expect(turn.errorMessage, '先用一个支持工具调用的服务');
+  });
+
+  test('runTurn only offers tools for the target layer writes', () async {
+    final client = _ScriptedTurnClient([
+      const OpenAiChatCompletion(content: '好'),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.world,
+      prompt: '加一条设定',
+      ctx: ctx,
+    );
+
+    final system = client.lastMessages.first.content;
+    expect(system, contains('wb:'));
+    expect(system, contains('world.patch'));
+    // The L1 directory replaces the full world book bodies.
+    expect(system, isNot(contains('边陲小城外常有过路旅人')));
   });
 
   test('world.read_entry accepts a ref and returns one field', () async {
@@ -189,7 +318,7 @@ void main() {
     final entry = project.worldBook.entries.first;
     final ctx = CreateToolContext(
       project: project,
-      services: CreateToolServices(textClient: _FakeTextClient()),
+      services: const CreateToolServices(),
     );
 
     final whole = await CreateAgentRunner().runSingle(
@@ -231,7 +360,7 @@ void main() {
     final entry = project.worldBook.entries.first;
     final ctx = CreateToolContext(
       project: project,
-      services: CreateToolServices(textClient: _FakeTextClient()),
+      services: const CreateToolServices(),
     );
 
     final result = await CreateAgentRunner().runSingle(
@@ -249,7 +378,7 @@ void main() {
     final member = project.cast.first;
     final ctx = CreateToolContext(
       project: project,
-      services: CreateToolServices(textClient: _FakeTextClient()),
+      services: const CreateToolServices(),
     );
 
     final single = await CreateAgentRunner().runSingle(
@@ -268,4 +397,9 @@ void main() {
     expect(whole.ok, isTrue);
     expect(whole.payload?['ref'], 'cast:${member.id}');
   });
+}
+
+Map<String, dynamic> _decodeGraph(String raw) {
+  final decoded = json.decode(raw);
+  return Map<String, dynamic>.from(decoded as Map);
 }

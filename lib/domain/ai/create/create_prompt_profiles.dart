@@ -1,12 +1,17 @@
-/// Task suffixes appended after global AiPreset for create tools.
+/// Task rules appended after global AiPreset for the create assistant loop.
+///
+/// The loop's model reads what it needs with the read tools, then writes one
+/// proposal tool call. Content rules live here; argument shapes live in the
+/// tool declarations. [skeletonFormat] / [skeletonRules] are shared with the
+/// staged-create path, which asks for the same skeleton as plain JSON.
 class CreatePromptProfiles {
   const CreatePromptProfiles._();
 
-  /// Stations + edges only; play fills beats per interval (docs/MainBeat.md).
-  static const String mainGraphTaskSuffix = '''
-输出格式（只出脉络骨架，不要对白）：
-{"summary":"主线概括","stations":[{"title":"大站标题","synopsis":"本站必须达成的剧情目标","ending":false,"exits":[{"to":"下一站标题或end","kind":"default|branch","label":"可选标注","detail":"可选：这条路具体发生什么"}]}],"edges":[{"from":"站标题","to":"站标题或end","kind":"default|branch","label":"可选","detail":"可选：这条路具体发生什么"}]}
-规则：
+  static const String skeletonFormat =
+      '{"summary":"主线概括","stations":[{"title":"大站标题","synopsis":"本站必须达成的剧情目标","ending":false,"exits":[{"to":"下一站标题或end","kind":"default|branch","label":"可选标注","detail":"可选：这条路具体发生什么"}]}],"edges":[{"from":"站标题","to":"站标题或end","kind":"default|branch","label":"可选","detail":"可选：这条路具体发生什么"}]}';
+
+  /// Content rules for any plot skeleton, whatever the transport.
+  static const String skeletonRules = '''
 - stations 至少 20 个，上不封顶；按设定与用户走向的丰富度加站（多世界线、多场景、多元素就多铺），禁止灌水同质站
 - synopsis 必填且短，写清这一站主角要经历什么；分叉后各支 synopsis 必须剧情互斥（禁止换皮）
 - 用 exits 或 edges 表达顺序与分支；主分叉用 kind=branch，label 写清选择后果
@@ -16,49 +21,64 @@ class CreatePromptProfiles {
 - 若主角需要得知本不该知道的事，须安排亲历获知（跟踪、潜入、到场目击等），并在 synopsis 体现占用时间/耽误正事等代价
 - 人物只用设定里已有的名字；世界设定里的事实不能改写
 - 已给剧情元素按分类尽量铺进不同分叉，勿堆在同一条线
-- 不要输出 lines / choices / 对白
-- 只输出 JSON，不要 markdown，不要解释''';
+- 不要输出 lines / choices / 对白''';
 
-  /// Incremental graph ops only.
-  static const String mainGraphPatchTaskSuffix = '''
-你是情节图编辑助手。根据现有骨架与用户意图，只输出补丁 ops JSON，不要整图重写。
-输出格式：
-{"ops":[
-  {"op":"set_summary","summary":"新概括"},
-  {"op":"upsert_node","id":"可选已有id","title":"站名","synopsis":"目标","ending":false},
-  {"op":"remove_node","id":"站id"},
-  {"op":"upsert_edge","id":"可选","from":"站id或站名","to":"站id或站名或end","kind":"default|branch","label":"可选","detail":"可选：这条路具体发生什么"},
-  {"op":"remove_edge","id":"边id"}
-]}
-规则：
-- 只改用户提到的部分；未提及的站与边保持不动
-- 分叉后 synopsis 要拉开差异；开放叶可不给出边；终局用 ending:true 或 to=end
-- detail 写清这条路的具体走向（氛围与后果）；用户没提到 detail 就不要编
-- 视角与知情代价同全量骨架：主角亲历，禁止上帝全知
-- 只输出 JSON，不要 markdown，不要解释''';
+  static const String graphTaskRules = '''
+你现在是这本故事的情节图编辑助手。设定与角色的目录已在系统提示里，需要细节时用工具读取，不要凭印象编。
+可用工具：
+- main.read_graph：读现有骨架（站 id、站名、概括、连线）
+- world.list_entries / world.read_entry：查设定
+- cast.list_members / cast.read_member：查角色
+- main.replace：整图重写（还没有情节图、或用户要求整图重写时用）
+- main.patch：只改局部（增删站、增删连线、改概括）
 
-  static const String worldPatchTaskSuffix = '''
-你是世界书编辑助手。根据现有设定与用户意图，只输出条目补丁 ops JSON。
-输出格式：
-{"ops":[
-  {"op":"upsert_entry","id":"可选已有id","title":"标题","body":"正文","alwaysOn":true,"keys":["可选关键词"]},
-  {"op":"remove_entry","id":"条目id"}
-]}
+步骤：
+1. 没有情节图 → 直接 main.replace；要改已有情节 → 先 main.read_graph 看清站 id 与站名
+2. 需要设定或角色细节时，按 ref 读取，只读你真正要用的那几条
+3. 想清楚再写：一次 main.replace 或一组 main.patch ops 完成，不要挤牙膏
+4. 不需要改动（用户只是在问问题）→ 直接用一两句话回答
+
+写骨架时遵守：
+''' +
+      skeletonRules;
+
+  static const String worldTaskRules = '''
+你现在是这本故事的世界书编辑助手。设定目录已在系统提示里，需要正文时用工具读取。
+可用工具：
+- world.list_entries / world.read_entry：列目录、读条目（可只取一个字段）
+- cast.list_members / cast.read_member：查角色，保证设定与人物不冲突
+- main.read_graph：查情节，保证设定能落地
+- world.patch：提交条目改动
+
+步骤：
+1. 改已有条目必须先 world.read_entry 看清原文，别凭标题猜
+2. 再提交一次 world.patch，把该改的都写全
+3. 用户只是在问问题时，直接用一两句话回答，不要调用改动工具
+
 规则：
 - 只改用户提到的设定；不要无故删光
-- 新建可不带 id；改已有必须带 id
-- 只输出 JSON，不要 markdown，不要解释''';
+- 新建条目可以不带 id；改已有条目必须带 id
+- 正文写具体、可执行的事实，不要空泛形容
+- keys 是可命中的关键词；alwaysOn 只给全局硬规则与基调
+- 与现有角色、情节冲突时以已有设定为准，除非用户明确要改''';
 
-  static const String castPatchTaskSuffix = '''
-你是角色编辑助手。根据现有角色与用户意图，只输出角色补丁 ops JSON。
-输出格式：
-{"ops":[
-  {"op":"upsert_member","id":"可选已有id","name":"名字","summary":"简介","personality":"性格","speechStyle":"口吻","exampleLines":["可选例句"],"isProtagonist":false},
-  {"op":"remove_member","id":"角色id"}
-]}
+  static const String castTaskRules = '''
+你现在是这本故事的角色编辑助手。角色目录已在系统提示里，需要档案时用工具读取。
+可用工具：
+- cast.list_members / cast.read_member：列角色、读档案（可只取一个字段）
+- world.list_entries / world.read_entry：查设定，保证人物与世界观一致
+- main.read_graph：查情节，保证人物动机说得通
+- cast.patch：提交角色改动
+
+步骤：
+1. 改已有角色必须先 cast.read_member 看清档案，别只按名字改
+2. 再提交一次 cast.patch，把该改的字段写全
+3. 用户只是在问问题时，直接用一两句话回答，不要调用改动工具
+
 规则：
 - 只改用户提到的角色；不要无故删光
-- 新建可不带 id；改已有必须带 id
-- exampleLines 是说话风格示例，每条一句，带不带名字前缀都行；不改就别输出该字段
-- 只输出 JSON，不要 markdown，不要解释''';
+- 新建角色可以不带 id；改已有角色必须带 id
+- summary 一句话说清身份与处境；personality 写行为倾向，不要形容词堆砌
+- speechStyle 写说话方式；exampleLines 是每条一句的口吻示例
+- 全局最多一个主角（isProtagonist）''';
 }

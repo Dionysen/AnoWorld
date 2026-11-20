@@ -1,19 +1,19 @@
-import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/create/create_proposals.dart';
 import 'package:anoworld/domain/ai/create/create_tool.dart';
 import 'package:anoworld/domain/ai/create/create_tool_result.dart';
-import 'package:anoworld/domain/ai/generate_main_graph_action.dart';
-import 'package:anoworld/domain/ai/propose_cast_patch_action.dart';
-import 'package:anoworld/domain/ai/propose_main_graph_patch_action.dart';
-import 'package:anoworld/domain/ai/propose_world_book_patch_action.dart';
 import 'package:anoworld/domain/main/entity_ref.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
-import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/validation/project_issue.dart';
 import 'package:anoworld/foundation/text/token_estimator.dart';
 
+/// Read + write tools for the three editable story layers.
+///
+/// Write tools never call the model themselves: the loop's model produces the
+/// ops or the skeleton, these tools only validate and shape the proposal.
 List<CreateTool> buildProjectTools() {
+  const proposals = CreateProposals();
   return [
     CreateTool(
       name: 'project.validate',
@@ -39,7 +39,7 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'project.read_summary',
-      description: '故事层概览（渐进披露入口）',
+      description: '故事层概览：各层条目数量与主线概括',
       mutatesProject: false,
       invoke: (ctx, _) async {
         final project = ctx.project;
@@ -60,7 +60,7 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'world.list_entries',
-      description: '列出世界书条目 id 与标题',
+      description: '列出世界书条目 id 与标题；正文用 world.read_entry 取',
       mutatesProject: false,
       invoke: (ctx, _) async {
         final project = ctx.project;
@@ -85,6 +85,13 @@ List<CreateTool> buildProjectTools() {
       name: 'world.read_entry',
       description: '按引用或 id 读取世界书条目（可截断、可只取一个字段）',
       mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'ref': stringSchema('条目引用，如 wb:wb_03 或 wb:wb_03.body'),
+          'id': stringSchema('条目 id（没有 ref 时使用）'),
+          'maxChars': integerSchema('正文最多返回多少字，默认 4000'),
+        },
+      ),
       invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
@@ -128,7 +135,7 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'cast.list_members',
-      description: '列出角色 id 与姓名',
+      description: '列出角色 id 与姓名；档案用 cast.read_member 取',
       mutatesProject: false,
       invoke: (ctx, _) async {
         final project = ctx.project;
@@ -153,6 +160,12 @@ List<CreateTool> buildProjectTools() {
       name: 'cast.read_member',
       description: '按引用或 id 读取角色字段（可只取一个字段）',
       mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'ref': stringSchema('角色引用，如 cast:c_02 或 cast:c_02.speechStyle'),
+          'id': stringSchema('角色 id（没有 ref 时使用）'),
+        },
+      ),
       invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
@@ -194,7 +207,7 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'main.read_graph',
-      description: '读取主线紧凑骨架',
+      description: '读取主线紧凑骨架（站 id、站名、概括、连线）',
       mutatesProject: false,
       invoke: (ctx, _) async {
         final project = ctx.project;
@@ -212,183 +225,161 @@ List<CreateTool> buildProjectTools() {
       },
     ),
     CreateTool(
-      name: 'main.generate_graph',
-      description: '按世界书与提示词写情节骨架（不落盘，等用户确认）',
+      name: 'main.replace',
+      description: '提交整图重写：给 summary 与 stations（可带 edges）。'
+          '没有情节图或用户要求整图重写时用；会替换现有情节图，等用户确认',
       mutatesProject: false,
+      parameters: _graphParams(),
       invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
           return CreateToolResult.error('没有打开的故事');
         }
-        final ai = ctx.ai;
-        if (ai == null) {
-          return CreateToolResult.error('未配置文本服务');
-        }
-        final prompt = args['prompt']?.toString().trim() ?? '';
-        if (prompt.isEmpty) {
-          return CreateToolResult.error('先说一句想要的走向');
-        }
         try {
-          final main = await GenerateMainGraphAction(
-            textClient: ctx.services.textClient,
-          ).generate(
-            ctx: ai,
-            project: project,
-            prompt: prompt,
-            plotCatalog: ctx.services.plotCatalog,
+          return CreateToolResult.userConfirmRequired(
+            proposals.replaceGraph(project, args),
           );
-          return CreateToolResult.userConfirmRequired(<String, dynamic>{
-            'schemaVersion': 1,
-            'kind': 'main.generate_graph',
-            'summary': main.summary,
-            'nodeCount': main.nodes.length,
-            'branchCount':
-                main.edges.where((e) => e.kind == EdgeKind.branch).length,
-            'stations': [
-              for (final node in main.nodes)
-                <String, dynamic>{
-                  'title': node.title,
-                  if (node.synopsis != null) 'synopsis': node.synopsis,
-                  'ending': node.tags.contains('ending'),
-                },
-            ],
-            'graph': MainGraphDocument.encode(main),
-          });
-        } on AiTextException catch (error) {
+        } on CreateProposalException catch (error) {
           return CreateToolResult.error(error.message);
         }
       },
     ),
     CreateTool(
-      name: 'main.patch_graph',
-      description: '按用户意图增量改情节骨架（不落盘，等用户确认）',
+      name: 'main.patch',
+      description: '提交情节图局部改动 ops：改概括、增删站、增删连线。'
+          '只给用户提到的部分，未提及的保持不动',
       mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'ops': arraySchema(
+            objectSchema(
+              <String, dynamic>{
+                'op': stringSchema(
+                  'set_summary | upsert_node | remove_node | upsert_edge | remove_edge',
+                ),
+                'summary': stringSchema('set_summary 用：新主线概括'),
+                'id': stringSchema(
+                  '站 / 边 id；upsert 新条目时省略，改已有条目必须给',
+                ),
+                'title': stringSchema('upsert_node 用：站名'),
+                'synopsis': stringSchema('upsert_node 用：本站要达成的剧情目标'),
+                'ending': <String, dynamic>{
+                  'type': 'boolean',
+                  'description': 'upsert_node 用：这一站是否终局',
+                },
+                'from': stringSchema('upsert_edge 用：起点站 id 或站名'),
+                'to': stringSchema('upsert_edge 用：终点站 id / 站名 / end'),
+                'kind': stringSchema('upsert_edge 用：default 或 branch'),
+                'label': stringSchema('upsert_edge 用：选项标注'),
+                'detail': stringSchema('upsert_edge 用：这条路具体发生什么'),
+              },
+              const <String>['op'],
+            ),
+            description: '按顺序应用的改动列表',
+          ),
+        },
+        const <String>['ops'],
+      ),
       invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
           return CreateToolResult.error('没有打开的故事');
         }
-        final ai = ctx.ai;
-        if (ai == null) {
-          return CreateToolResult.error('未配置文本服务');
-        }
-        final prompt = args['prompt']?.toString().trim() ?? '';
-        if (prompt.isEmpty) {
-          return CreateToolResult.error('先说想改哪里');
-        }
         try {
-          final proposal = await ProposeMainGraphPatchAction(
-            textClient: ctx.services.textClient,
-          ).propose(
-            ctx: ai,
-            project: project,
-            prompt: prompt,
-            plotCatalog: ctx.services.plotCatalog,
+          return CreateToolResult.userConfirmRequired(
+            proposals.patchGraph(project, args),
           );
-          return CreateToolResult.userConfirmRequired(<String, dynamic>{
-            'schemaVersion': 1,
-            'kind': 'main.patch_graph',
-            'opCount': proposal.ops.length,
-            'ops': proposal.ops,
-            'summary': proposal.main.summary,
-            'nodeCount': proposal.main.nodes.length,
-            'stations': [
-              for (final node in proposal.main.nodes)
-                <String, dynamic>{
-                  'title': node.title,
-                  if (node.synopsis != null) 'synopsis': node.synopsis,
-                  'ending': node.tags.contains('ending'),
-                },
-            ],
-            'graph': MainGraphDocument.encode(proposal.main),
-          });
-        } on AiTextException catch (error) {
+        } on CreateProposalException catch (error) {
           return CreateToolResult.error(error.message);
         }
       },
     ),
     CreateTool(
-      name: 'world.patch_propose',
-      description: '按用户意图提议改世界书（不落盘，等用户确认）',
+      name: 'world.patch',
+      description: '提交世界书条目改动 ops：upsert_entry 新增或改写、remove_entry 删除。'
+          '改已有条目必须带 id',
       mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'ops': arraySchema(
+            objectSchema(
+              <String, dynamic>{
+                'op': stringSchema('upsert_entry | remove_entry'),
+                'id': stringSchema('条目 id；新增时省略，改写必须给'),
+                'title': stringSchema('条目标题'),
+                'body': stringSchema('正文：具体、可执行的事实'),
+                'alwaysOn': <String, dynamic>{
+                  'type': 'boolean',
+                  'description': '是否无条件注入（全局硬规则与基调）',
+                },
+                'keys': arraySchema(
+                  stringSchema('可命中该条目的关键词'),
+                  description: '关键词列表',
+                ),
+              },
+              const <String>['op'],
+            ),
+            description: '按顺序应用的改动列表',
+          ),
+        },
+        const <String>['ops'],
+      ),
       invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
           return CreateToolResult.error('没有打开的故事');
         }
-        final ai = ctx.ai;
-        if (ai == null) {
-          return CreateToolResult.error('未配置文本服务');
-        }
-        final prompt = args['prompt']?.toString().trim() ?? '';
-        if (prompt.isEmpty) {
-          return CreateToolResult.error('先说想改哪条设定');
-        }
         try {
-          final proposal = await ProposeWorldBookPatchAction(
-            textClient: ctx.services.textClient,
-          ).propose(ctx: ai, project: project, prompt: prompt);
-          return CreateToolResult.userConfirmRequired(<String, dynamic>{
-            'schemaVersion': 1,
-            'kind': 'world.patch_propose',
-            'opCount': proposal.ops.length,
-            'ops': proposal.ops,
-            'entryCount': proposal.worldBook.entries.length,
-            'entries': [
-              for (final e in proposal.worldBook.entries)
-                <String, dynamic>{
-                  'id': e.id,
-                  'title': e.title,
-                  'alwaysOn': e.alwaysOn,
-                },
-            ],
-            'worldBook': proposal.worldBook.toJson(),
-          });
-        } on AiTextException catch (error) {
+          return CreateToolResult.userConfirmRequired(
+            proposals.patchWorldBook(project, args),
+          );
+        } on CreateProposalException catch (error) {
           return CreateToolResult.error(error.message);
         }
       },
     ),
     CreateTool(
-      name: 'cast.patch_propose',
-      description: '按用户意图提议改角色（不落盘，等用户确认）',
+      name: 'cast.patch',
+      description: '提交角色改动 ops：upsert_member 新增或改写、remove_member 删除。'
+          '改已有角色必须带 id',
       mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'ops': arraySchema(
+            objectSchema(
+              <String, dynamic>{
+                'op': stringSchema('upsert_member | remove_member'),
+                'id': stringSchema('角色 id；新增时省略，改写必须给'),
+                'name': stringSchema('名字'),
+                'summary': stringSchema('一句话说清身份与处境'),
+                'personality': stringSchema('性格：行为倾向，不要形容词堆砌'),
+                'speechStyle': stringSchema('说话方式'),
+                'exampleLines': arraySchema(
+                  stringSchema('一条口吻示例'),
+                  description: '例句列表，每条一句',
+                ),
+                'isProtagonist': <String, dynamic>{
+                  'type': 'boolean',
+                  'description': '是否主角（全局最多一个）',
+                },
+              },
+              const <String>['op'],
+            ),
+            description: '按顺序应用的改动列表',
+          ),
+        },
+        const <String>['ops'],
+      ),
       invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
           return CreateToolResult.error('没有打开的故事');
         }
-        final ai = ctx.ai;
-        if (ai == null) {
-          return CreateToolResult.error('未配置文本服务');
-        }
-        final prompt = args['prompt']?.toString().trim() ?? '';
-        if (prompt.isEmpty) {
-          return CreateToolResult.error('先说想改哪个角色');
-        }
         try {
-          final proposal = await ProposeCastPatchAction(
-            textClient: ctx.services.textClient,
-          ).propose(ctx: ai, project: project, prompt: prompt);
-          return CreateToolResult.userConfirmRequired(<String, dynamic>{
-            'schemaVersion': 1,
-            'kind': 'cast.patch_propose',
-            'opCount': proposal.ops.length,
-            'ops': proposal.ops,
-            'castCount': proposal.cast.length,
-            'cast': [
-              for (final c in proposal.cast)
-                <String, dynamic>{
-                  'id': c.id,
-                  'name': c.name,
-                  'isProtagonist': c.isProtagonist,
-                },
-            ],
-            'members': [
-              for (final c in proposal.cast) c.toJson(),
-            ],
-          });
-        } on AiTextException catch (error) {
+          return CreateToolResult.userConfirmRequired(
+            proposals.patchCast(project, args),
+          );
+        } on CreateProposalException catch (error) {
           return CreateToolResult.error(error.message);
         }
       },
@@ -410,6 +401,51 @@ List<CreateTool> buildProjectTools() {
       },
     ),
   ];
+}
+
+/// `main.replace` arguments: summary + stations (+ optional top-level edges).
+Map<String, dynamic> _graphParams() {
+  final exit = objectSchema(
+    <String, dynamic>{
+      'to': stringSchema('下一站站名 / 站 id / end'),
+      'kind': stringSchema('default 或 branch'),
+      'label': stringSchema('选项标注：选这条会怎样'),
+      'detail': stringSchema('这条路具体发生什么（氛围与后果）'),
+    },
+    const <String>['to'],
+  );
+  final station = objectSchema(
+    <String, dynamic>{
+      'title': stringSchema('站名'),
+      'synopsis': stringSchema('本站要达成的剧情目标，短'),
+      'ending': <String, dynamic>{
+        'type': 'boolean',
+        'description': '是否终局；无出边的开放叶不要标',
+      },
+      'exits': arraySchema(exit, description: '本站的出边'),
+    },
+    const <String>['title', 'synopsis'],
+  );
+  return objectSchema(
+    <String, dynamic>{
+      'summary': stringSchema('主线概括'),
+      'stations': arraySchema(station, description: '至少 20 站，上不封顶'),
+      'edges': arraySchema(
+        objectSchema(
+          <String, dynamic>{
+            'from': stringSchema('起点站名 / 站 id'),
+            'to': stringSchema('终点站名 / 站 id / end'),
+            'kind': stringSchema('default 或 branch'),
+            'label': stringSchema('选项标注'),
+            'detail': stringSchema('这条路具体发生什么'),
+          },
+          const <String>['from', 'to'],
+        ),
+        description: '跨站连线；与 station.exits 二选一即可',
+      ),
+    },
+    const <String>['summary', 'stations'],
+  );
 }
 
 /// Outcome of reading the `ref` / `id` arguments of a read tool.
@@ -464,9 +500,7 @@ Map<String, dynamic> _fieldEnvelope({
     out = '${out.substring(0, maxChars)}…';
     truncated = true;
   }
-  final text = out is String
-      ? out
-      : (out is List ? out.join('\n') : '$out');
+  final text = out is String ? out : (out is List ? out.join('\n') : '$out');
   return <String, dynamic>{
     'schemaVersion': 1,
     'ref': ref.format(),

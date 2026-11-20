@@ -11,12 +11,12 @@
 | `project.validate` | 结构校验 |
 | `project.read_summary` | 故事概览 |
 | `world.list_entries` / `world.read_entry` | 渐进读设定 |
-| `world.patch_propose` | 增量改世界书（`userConfirmRequired`） |
+| `world.patch` | 提交世界书条目改动（`userConfirmRequired`） |
 | `cast.list_members` / `cast.read_member` | 渐进读角色 |
-| `cast.patch_propose` | 增量改角色（`userConfirmRequired`） |
+| `cast.patch` | 提交角色改动（`userConfirmRequired`） |
 | `main.read_graph` | 主线紧凑骨架 |
-| `main.generate_graph` | 整图写情节骨架（至少约 20 站；`userConfirmRequired`） |
-| `main.patch_graph` | 增量改情节骨架（ops；`userConfirmRequired`） |
+| `main.replace` | 提交整图骨架（至少约 20 站；`userConfirmRequired`） |
+| `main.patch` | 提交情节图局部 ops（`userConfirmRequired`） |
 | `refine.field` | 占位 |
 | `ingest.segment` | 占位 |
 
@@ -25,8 +25,10 @@
 ## 创作助手（通用 Agent）
 
 - UI：[`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) 选当前故事 + **改哪里**（情节图 / 世界书 / 角色），见 [`CreateAssistantTarget`](../lib/domain/ai/create/create_assistant_target.dart)。
-- 回合：`runTurn(target, prompt)` 规则挑工具（有图且非「整图重写」→ `main.patch_graph`；世界书/角色 → 对应 `patch_propose`）。
-- 确认：半屏预览后写回；情节图全量替换会提示清掉旧站；增量只应用 ops。
+- 回合：`runTurn(target, prompt)` 走 [`CreateAgentLoop`](../lib/domain/ai/create/create_agent_loop.dart)——注入五层 L1 目录与该目标的工具，模型自己读（`*.read_*` / `main.read_graph`）、自己写（`main.replace` / `main.patch` / `*.patch`），最多 6 步。选工具不再靠关键词，读工具真正会被调用。
+- 白名单：所有读工具 + 当前目标的写工具；读可跨层，写只能改当前层。
+- 确认：半屏预览后写回；情节图整包替换会提示清掉旧站；增量只应用勾选的 ops。
+- 模型不支持工具时：先把它回的文本当 JSON 改动解析（骨架 / ops），能解析就照常进确认抽屉，否则作为普通回答显示。
 - 全量骨架规则：≥20 站、上不封顶；分叉 synopsis 互斥；开放叶可无出边；剧情元素按分类注入。见 [`CreatePromptProfiles`](../lib/domain/ai/create/create_prompt_profiles.dart)。
 
 ## 格式
@@ -36,5 +38,6 @@
 
 ## 未做
 
-- 完整多轮 LLM tool-loop、跨域一次改多处、`refine.field` 精修。
-- 五块上下文（预设 / 世界书 / 角色 / 情节图 / 剧情元素）的渐进披露与统一寻址。目标方案见 [AgentTools.md](./AgentTools.md)。
+- 聊天侧命中注入与跨域一次改多处；`refine.field` 精修。
+- 上下文预算裁剪（`contextLength` 仍未参与裁剪）。
+- 五块上下文在聊天侧的渐进披露与统一寻址。目标方案见 [AgentTools.md](./AgentTools.md)。

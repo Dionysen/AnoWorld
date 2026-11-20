@@ -251,6 +251,8 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     required String prompt,
   }) async {
     final strings = context.strings;
+    final toolClient =
+        textClient is AiToolTurnClient ? textClient as AiToolTurnClient : null;
     try {
       final project = await repo.open(projectId);
       final turn = await CreateAgentRunner().runTurn(
@@ -260,20 +262,28 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
           project: project,
           ai: promptCtx,
           services: CreateToolServices(
-            textClient: textClient,
+            toolClient: toolClient,
             plotCatalog: plotCatalog,
           ),
         ),
       );
       if (!mounted) return;
-      final preview = turn.result.userConfirmPayload;
-      if (!turn.result.ok || preview == null) {
-        _finishTurn(turn.result.errorMessage ?? strings.assistantFailedRetry);
+      if (turn.hasAnswer) {
+        _finishTurn(turn.answer);
+        return;
+      }
+      final preview = turn.proposal;
+      if (preview == null) {
+        _finishTurn(
+          turn.errorMessage ??
+              turn.toolError ??
+              strings.assistantFailedRetry,
+        );
         return;
       }
       final kind = preview['kind']?.toString() ?? turn.toolName;
       switch (kind) {
-        case 'main.generate_graph':
+        case 'main.replace':
           final graph = MainGraphDocument.decodeSkeleton(
             Map<String, dynamic>.from(preview['graph'] as Map),
           );
@@ -284,19 +294,19 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
             return;
           }
           await _applyGraph(repo: repo, project: project, graph: graph);
-        case 'main.patch_graph':
+        case 'main.patch':
           await _reviewGraphPatch(
             repo: repo,
             project: project,
             preview: preview,
           );
-        case 'world.patch_propose':
+        case 'world.patch':
           await _reviewWorldPatch(
             repo: repo,
             project: project,
             preview: preview,
           );
-        case 'cast.patch_propose':
+        case 'cast.patch':
           await _reviewCastPatch(
             repo: repo,
             project: project,

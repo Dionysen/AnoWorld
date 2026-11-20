@@ -14,22 +14,27 @@ enum CreateAssistantTarget {
     };
   }
 
-  /// Tools the agent may call for this target (allowlist).
-  List<String> get toolAllowlist => switch (this) {
-        CreateAssistantTarget.graph => const [
-            'main.read_graph',
-            'main.generate_graph',
-            'main.patch_graph',
+  /// Read tools every target may use: cross-layer context is what makes the
+  /// proposal consistent, and reading cannot corrupt the story.
+  static const List<String> readTools = <String>[
+    'project.read_summary',
+    'main.read_graph',
+    'world.list_entries',
+    'world.read_entry',
+    'cast.list_members',
+    'cast.read_member',
+  ];
+
+  /// Write tools allowed for this target; only its own layer can be changed.
+  List<String> get writeTools => switch (this) {
+        CreateAssistantTarget.graph => const <String>[
+            'main.replace',
+            'main.patch',
           ],
-        CreateAssistantTarget.world => const [
-            'world.list_entries',
-            'world.read_entry',
-            'world.patch_propose',
-          ],
-        CreateAssistantTarget.cast => const [
-            'cast.list_members',
-            'cast.read_member',
-            'cast.patch_propose',
-          ],
+        CreateAssistantTarget.world => const <String>['world.patch'],
+        CreateAssistantTarget.cast => const <String>['cast.patch'],
       };
+
+  /// Tools the agent may call for this target (allowlist).
+  List<String> get toolAllowlist => <String>[...readTools, ...writeTools];
 }

@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/openai_chat_client.dart';
+import 'package:anoworld/foundation/ai/openai_chat_message.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/home/create_assistant_draft.dart';
@@ -14,10 +18,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../support/full_graph_json.dart';
 import '../support/test_app.dart';
 
-class _ScriptedTextClient implements AiTextClient {
+/// One scripted model turn: plain text, or a single tool call.
+class _Reply {
+  const _Reply.text(this.text)
+      : tool = null,
+        args = const <String, dynamic>{};
+
+  const _Reply.tool(this.tool, [this.args = const <String, dynamic>{}])
+      : text = '';
+
+  final String text;
+  final String? tool;
+  final Map<String, dynamic> args;
+}
+
+class _ScriptedTextClient implements AiTextClient, AiToolTurnClient {
   _ScriptedTextClient(this.replies);
 
-  final List<String> replies;
+  final List<_Reply> replies;
   int calls = 0;
 
   @override
@@ -27,10 +45,36 @@ class _ScriptedTextClient implements AiTextClient {
     required String user,
     GenerationPreset? generation,
   }) async {
+    return AiTextCompletion(content: _next().text);
+  }
+
+  @override
+  Future<OpenAiChatCompletion> completeTurn({
+    required AiTextEndpoint endpoint,
+    required List<OpenAiChatMessage> messages,
+    List<OpenAiTool> tools = const <OpenAiTool>[],
+    GenerationPreset? generation,
+  }) async {
+    final reply = _next();
+    final tool = reply.tool;
+    if (tool == null) return OpenAiChatCompletion(content: reply.text);
+    return OpenAiChatCompletion(
+      content: reply.text,
+      toolCalls: <OpenAiToolCall>[
+        OpenAiToolCall(
+          id: 'call_$calls',
+          name: tool,
+          arguments: jsonEncode(reply.args),
+        ),
+      ],
+    );
+  }
+
+  _Reply _next() {
     if (calls >= replies.length) {
       throw AiTextException('no more replies');
     }
-    return AiTextCompletion(content: replies[calls++]);
+    return replies[calls++];
   }
 }
 
@@ -86,7 +130,7 @@ void main() {
       testScoped(
         projects: repo,
         settings: settings,
-        textClient: _ScriptedTextClient([_graphJson]),
+        textClient: _ScriptedTextClient([_Reply.text(_graphJson)]),
         home: Scaffold(
           body: SizedBox(
             width: 380,
@@ -149,7 +193,7 @@ void main() {
       testScoped(
         projects: repo,
         settings: settings,
-        textClient: _ScriptedTextClient([_worldPatchJson]),
+        textClient: _ScriptedTextClient([_Reply.text(_worldPatchJson)]),
         home: Scaffold(
           body: SizedBox(
             width: 380,
@@ -190,6 +234,68 @@ void main() {
       saved.worldBook.entries.firstWhere((e) => e.id == 'bg_world').body,
       '边陲小城常年下雨。',
     );
+  });
+
+  testWidgets('reads the graph before proposing a patch', (tester) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repo = MemoryProjectRepository(
+      seed: {
+        'proj_rain_night': const ProjectFactory().createRainNightSample(),
+      },
+    );
+    final store = CreateAssistantDraftStore();
+    await store.save(
+      const CreateAssistantDraft(
+        projectId: 'proj_rain_night',
+        projectTitle: '雨夜投宿',
+        composer: '',
+        lines: [],
+      ),
+    );
+    final settings = testSettingsController();
+    await settings.updateAi(settings.ai.copyWith(text: _endpoint));
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        settings: settings,
+        textClient: _ScriptedTextClient([
+          const _Reply.tool('main.read_graph'),
+          const _Reply.tool('main.patch', {
+            'ops': [
+              {'op': 'set_summary', 'summary': '雨夜出城，天亮前必须走脱'},
+            ],
+          }),
+        ]),
+        home: Scaffold(
+          body: SizedBox(
+            width: 380,
+            height: 640,
+            child: CreateAssistantPanel(draftStore: store),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '概括改短');
+    await tester.tap(find.byTooltip('发送'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('这次要改这些'), findsOneWidget);
+    expect(find.textContaining('修改主线概括'), findsOneWidget);
+    expect(find.textContaining('改：雨夜出城，天亮前必须走脱'), findsOneWidget);
+
+    await tester.tap(find.text('写入选中的 1 条'));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.open('proj_rain_night');
+    expect(saved.main.summary, '雨夜出城，天亮前必须走脱');
+    expect(saved.main.nodes, isNotEmpty);
   });
 
   testWidgets('asks for a story before calling the model', (tester) async {

@@ -256,7 +256,7 @@ historyCursor: number        // 当前所在下标；-1 表示旧档未记录
 
 ### 6.1 AI 读写用的骨架 JSON
 
-故事包落盘仍是完整 `Main`（含 `beats`）。给模型生成走向、或把当前图塞进提示词时，用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)。全量生成（`main.generate_graph`）要求至少约 **20** 站、上不封顶；增量 `main.patch_graph` 不套此下限。开放叶可无出边；分叉站 `synopsis` 须拉开差异。
+故事包落盘仍是完整 `Main`（含 `beats`）。给模型生成走向、或把当前图塞进提示词时，用 [`MainGraphDocument`](../lib/domain/main/main_graph_document.dart)。全量骨架（`main.replace`）要求至少约 **20** 站、上不封顶；增量 `main.patch` 不套此下限。开放叶可无出边；分叉站 `synopsis` 须拉开差异。
 
 | 字段 | 说明 |
 | --- | --- |
