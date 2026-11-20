@@ -5,17 +5,13 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
-import 'package:anoworld/domain/card_import/card_organize_action.dart';
-import 'package:anoworld/domain/card_import/card_organize_models.dart';
 import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/card_import/st_character_card_parser.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
-import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
-import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
@@ -229,103 +225,6 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
     });
   }
 
-  Future<void> _organizeDraft() async {
-    final draft = _draft;
-    if (draft == null || _busy) return;
-    setState(() {
-      _busy = true;
-      _status = null;
-    });
-    try {
-      final settings = AppScope.settingsOf(context);
-      final ctx = settings.textPromptContext();
-      final text = AppScope.textClientOf(context);
-      final action = CardOrganizeAction(textClient: text);
-      final proposal = await action.propose(ctx: ctx, draft: draft);
-      if (!mounted) return;
-      setState(() => _busy = false);
-      if (proposal.changes.isEmpty) {
-        setState(() => _status = context.strings.cardOrganizeNoChange);
-        return;
-      }
-      final applied = await _showOrganizePreview(proposal);
-      if (applied == true && mounted) {
-        setState(() {
-          _draft = proposal.draftAfter;
-          _status = context.strings.cardOrganizeApplied(
-            proposal.changes.length,
-          );
-        });
-      }
-    } on CardOrganizeException catch (error) {
-      if (!mounted) return;
-      AppLog.instance.warning(error.message, tag: 'card.import');
-      setState(() {
-        _busy = false;
-        _status = error.message;
-      });
-    } catch (error, stack) {
-      if (!mounted) return;
-      AppLog.instance.error(
-        '整理失败',
-        tag: 'card.import',
-        error: error,
-        stackTrace: stack,
-      );
-      setState(() {
-        _busy = false;
-        _status = context.strings.cardOrganizeFailed(error);
-      });
-    }
-  }
-
-  Future<bool?> _showOrganizePreview(CardOrganizeProposal proposal) {
-    return showAppSheet<bool>(
-      context: context,
-      size: AppSheetSize.half,
-      builder: (sheetContext) => AppSheetScrollBody(
-        footer: [
-          Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  label: sheetContext.ui.cancel,
-                  variant: AppButtonVariant.secondary,
-                  onPressed: () => Navigator.of(sheetContext).pop(false),
-                ),
-              ),
-              const SizedBox(width: AppTheme.spaceSm),
-              Expanded(
-                child: AppButton(
-                  label: sheetContext.strings.cardApply,
-                  onPressed: () => Navigator.of(sheetContext).pop(true),
-                ),
-              ),
-            ],
-          ),
-        ],
-        children: [
-          AppText(
-            sheetContext.strings.cardOrganizePreviewTitle,
-            role: AppTextRole.subtitle,
-          ),
-          const SizedBox(height: AppTheme.spaceXs),
-          AppText(
-            sheetContext.strings.cardOrganizePreviewHint,
-            role: AppTextRole.caption,
-          ),
-          const SizedBox(height: AppTheme.spaceMd),
-          for (final line in proposal.changes)
-            AppListTile(
-              title: line.label,
-              subtitle: line.detail,
-              showDivider: false,
-            ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _writeProject() async {
     final draft = _draft;
     if (draft == null || _busy) return;
@@ -428,12 +327,6 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
                     label: strings.cardSanitize,
                     variant: AppButtonVariant.secondary,
                     onPressed: _busy ? null : _sanitizeDraft,
-                    expanded: true,
-                  ),
-                  const SizedBox(height: AppTheme.spaceSm),
-                  AppButton(
-                    label: strings.cardOrganize,
-                    onPressed: _busy ? null : _organizeDraft,
                     expanded: true,
                   ),
                 ],

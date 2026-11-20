@@ -416,7 +416,6 @@ abstract class AppStrings extends AppLocalizations {
   String get cardTidySection;
   String get cardTidyHint;
   String get cardSanitize;
-  String get cardOrganize;
   String get cardCastSection;
   String get cardCastSectionHint;
   String get cardWorldBookSection;
@@ -426,19 +425,13 @@ abstract class AppStrings extends AppLocalizations {
   String get cardAiNoteHint;
   String get cardWrite;
   String get cardWriteHint;
-  String get cardOrganizePreviewTitle;
-  String get cardOrganizePreviewHint;
-  String get cardApply;
   String cardReadCount(int count);
   String get cardSanitizeNoChange;
   String cardSanitizeChanged(int count);
-  String get cardOrganizeNoChange;
-  String cardOrganizeApplied(int count);
   String get cardNeedOneCast;
   String get cardReadUnavailable;
   String cardReadFailed(Object error);
   String cardWriteFailed(Object error);
-  String cardOrganizeFailed(Object error);
   String cardCannotRead(String file);
   String cardUnsupportedFormat(String extension);
 

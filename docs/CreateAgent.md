@@ -8,8 +8,6 @@
 | --- | --- |
 | `card.list_sources` | 导入草稿素材片段 |
 | `card.sanitize_draft` | 去 HTML，保留 Markdown |
-| `card.organize_propose` | AI 分类整理提议（模型优先；无用或误拆时回退通用启发式） |
-| `card.organize_apply` | 应用整理 JSON（子串校验） |
 | `project.validate` | 结构校验 |
 | `project.read_summary` | 故事概览 |
 | `world.list_entries` / `world.read_entry` | 渐进读设定 |

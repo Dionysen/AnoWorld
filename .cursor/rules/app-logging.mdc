@@ -19,15 +19,15 @@ alwaysApply: true
 
 ## tag 约定
 
-- 用小写点分：`card.import`、`card.organize`、`create.tool`、`play.chat`、`lifecycle`
+- 用小写点分：`card.import`、`create.tool`、`play.chat`、`lifecycle`
 - 同一模块复用同一 tag，便于筛日志
 
 ## 写法示例
 
 ```dart
-AppLog.instance.info('开始分类整理：世界书 $n 条', tag: 'card.organize');
+AppLog.instance.info('读入角色卡 1 张', tag: 'card.import');
 
-AppLog.instance.warning('模型未返回有效操作，尝试规则整理', tag: 'card.organize');
+AppLog.instance.warning('格式已是 Markdown，无需再清', tag: 'card.import');
 
 try {
   // ...

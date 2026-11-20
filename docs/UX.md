@@ -80,13 +80,13 @@
 
 **用户想要的感觉**：选一个卡 → 看软件读懂了什么 → 勾选留下 → 写入故事再改。
 
-**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」或「AI 分类整理」（预览后应用）；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
+**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
 
 ### 用户做的事
 
 1. 选择角色卡文件（可多张：第一张作主角与故事名，其余当配角）。
 2. 看「读到了这些」：角色、世界书条目；用开关划掉不要的（卡内 system 等不写入故事，提示去设置调全局提示词）。
-3. 可选「清理格式」「AI 分类整理」：前者规则去 HTML，后者只归类不编剧情，应用前看预览。
+3. 可选「清理格式」：规则去 HTML，保留 Markdown。
 4. 点「写入故事」：生成故事并打开创作截面，继续改设定 / 角色 / 情节。
 5. （后续）再生成短脉络骨架并开玩——本阶段不挡写入。
 

@@ -23,7 +23,7 @@ class StCardImportItem<T> {
   final T value;
   final bool included;
 
-  /// Stable key for organize / provenance (`cast:…`, `world:…`).
+  /// Stable key for import provenance (`cast:…`, `world:…`).
   final String? sourceId;
 
   StCardImportItem<T> copyWith({

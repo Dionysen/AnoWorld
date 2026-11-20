@@ -1217,13 +1217,10 @@ class AppStringsZh extends AppStrings {
   String get cardTidySection => '整理';
 
   @override
-  String get cardTidyHint => '去掉网页标记，保留 Markdown；可归到角色与设定';
+  String get cardTidyHint => '去掉网页标记，保留 Markdown';
 
   @override
   String get cardSanitize => '清理格式';
-
-  @override
-  String get cardOrganize => 'AI 分类整理';
 
   @override
   String get cardCastSection => '角色';
@@ -1253,15 +1250,6 @@ class AppStringsZh extends AppStrings {
   String get cardWriteHint => '写入后可在创作里继续改设定、角色与情节';
 
   @override
-  String get cardOrganizePreviewTitle => '整理预览';
-
-  @override
-  String get cardOrganizePreviewHint => '只归类素材，不替你编剧情';
-
-  @override
-  String get cardApply => '应用';
-
-  @override
   String cardReadCount(int count) => '已读入 $count 张卡，可勾选要留下的内容';
 
   @override
@@ -1269,12 +1257,6 @@ class AppStringsZh extends AppStrings {
 
   @override
   String cardSanitizeChanged(int count) => '已调整 $count 处排版';
-
-  @override
-  String get cardOrganizeNoChange => '模型未建议改动，换模型重试或手动改角色/设定';
-
-  @override
-  String cardOrganizeApplied(int count) => '已应用 $count 条整理';
 
   @override
   String get cardNeedOneCast => '至少留下一个角色';
@@ -1287,9 +1269,6 @@ class AppStringsZh extends AppStrings {
 
   @override
   String cardWriteFailed(Object error) => '写入失败：$error';
-
-  @override
-  String cardOrganizeFailed(Object error) => '整理失败：$error';
 
   @override
   String cardCannotRead(String file) => '无法读取 $file';
