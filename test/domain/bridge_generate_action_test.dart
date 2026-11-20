@@ -301,4 +301,62 @@ void main() {
     expect(beat.choices.single.target.type, TransitionType.node);
     expect(beat.choices.single.target.nodeId, 'n2');
   });
+
+  test('parseBeatJson caps choices at maxChoicesPerBeat', () {
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final beat = BridgeGenerateAction.parseBeatJson(
+      '''{"lines":[{"speaker":"旁白","text":"多选项"}],"choices":[
+        {"text":"一","target":{"type":"end"}},
+        {"text":"二","target":{"type":"end"}},
+        {"text":"三","target":{"type":"beat","beatId":"$kBridgeStayBeatId"}},
+        {"text":"四","target":{"type":"end"}},
+        {"text":"五","target":{"type":"end"}}
+      ]}''',
+      project: blank,
+      nodeId: blank.main.startNodeId,
+      beatId: 'bridge_x_1',
+      legalNodeIds: const {},
+      forceConverge: false,
+      openMode: true,
+    );
+    expect(beat.choices, hasLength(BridgeSession.maxChoicesPerBeat));
+    expect(
+      beat.choices.any((c) => c.target.beatId == kBridgeStayBeatId),
+      isTrue,
+    );
+  });
+
+  test('capChoices prefers stay then node over end', () {
+    final capped = BridgeGenerateAction.capChoices([
+      const Choice(
+        id: 'e1',
+        text: '结束1',
+        target: Transition(type: TransitionType.end),
+      ),
+      const Choice(
+        id: 'e2',
+        text: '结束2',
+        target: Transition(type: TransitionType.end),
+      ),
+      Choice(
+        id: 's',
+        text: '继续',
+        target: Transition.toBeat(kBridgeStayBeatId),
+      ),
+      Choice(
+        id: 'n',
+        text: '去站',
+        target: Transition.toNode('n2'),
+      ),
+      const Choice(
+        id: 'e3',
+        text: '结束3',
+        target: Transition(type: TransitionType.end),
+      ),
+    ]);
+    expect(capped, hasLength(3));
+    expect(capped[0].id, 's');
+    expect(capped[1].id, 'n');
+    expect(capped[2].id, 'e1');
+  });
 }

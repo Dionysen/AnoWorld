@@ -44,6 +44,53 @@ class _QueuedTextClient implements AiTextClient {
   }
 }
 
+/// Serves linear beat JSON or a branch-batch payload (echoing choiceIds).
+class _VnPrefetchClient implements AiTextClient {
+  _VnPrefetchClient(this._beatTexts);
+
+  final List<String> _beatTexts;
+  int _textIndex = 0;
+  int calls = 0;
+  final List<Completer<void>> _gates = <Completer<void>>[];
+
+  void releaseNext() {
+    if (_gates.isEmpty) return;
+    _gates.removeAt(0).complete();
+  }
+
+  String _nextText() {
+    if (_textIndex >= _beatTexts.length) {
+      throw AiTextException('no more beat texts');
+    }
+    return _beatTexts[_textIndex++];
+  }
+
+  @override
+  Future<AiTextCompletion> complete({
+    required AiTextEndpoint endpoint,
+    required String system,
+    required String user,
+    GenerationPreset? generation,
+  }) async {
+    final gate = Completer<void>();
+    _gates.add(gate);
+    await gate.future;
+    calls++;
+    if (user.contains('请为下列选项各写')) {
+      final ids = RegExp(r'choiceId:(\S+)')
+          .allMatches(user)
+          .map((m) => m.group(1)!)
+          .toList(growable: false);
+      final branches = [
+        for (final id in ids)
+          '{"choiceId":"$id","beat":${_beatJson(_nextText())}}',
+      ];
+      return AiTextCompletion(content: '{"branches":[${branches.join(",")}]}');
+    }
+    return AiTextCompletion(content: _beatJson(_nextText()));
+  }
+}
+
 String _beatJson(String text, {bool stay = true}) {
   final choice = stay
       ? '{"text":"继续","target":{"type":"beat","beatId":"__stay__"}}'
@@ -366,18 +413,17 @@ void main() {
     expect(find.text('本段结束'), findsOneWidget);
   });
 
-  testWidgets('VN prefetches ahead with title spinner, no writing caption',
+  testWidgets('VN branch-prefetches when tip has choices; spinner only in title',
       (tester) async {
     final blank = const ProjectFactory().createBlank(
       id: 'p_prefetch',
       title: '预写',
       now: DateTime.utc(2026, 1, 1),
     );
-    final client = _QueuedTextClient([
-      _beatJson('第一拍。'),
-      _beatJson('第二拍。'),
-      _beatJson('第三拍。'),
-      _beatJson('第四拍。'),
+    final client = _VnPrefetchClient([
+      '第一拍。',
+      '第二拍。',
+      '第三拍。',
     ]);
     final settings = testSettingsController();
     await settings.updateAi(
@@ -388,15 +434,16 @@ void main() {
           apiKey: 'sk-test',
           model: 'demo',
         ),
-        // One line per beat so the stage can advance with a single tap.
         minBridgeLines: 1,
       ),
     );
+    final saves = MemorySaveRepository();
 
     await tester.pumpWidget(
       testScoped(
         settings: settings,
         textClient: client,
+        saves: saves,
         home: PlaySessionPage(
           project: blank,
           mode: PlayViewMode.visualNovel,
@@ -406,31 +453,29 @@ void main() {
     );
     await tester.pump();
 
-    // Immediate generate: spinner in the title bar, no dialogue caption.
     expect(find.byType(AppBusyIndicator), findsOneWidget);
     expect(find.text('正在写这一段…'), findsNothing);
 
+    // Adopt first beat.
     client.releaseNext();
-    // Do not pumpAndSettle — prefetch holds a pending Completer.
     await tester.pump();
     await tester.pump();
 
     expect(find.text('第一拍。'), findsOneWidget);
-    expect(find.text('正在写这一段…'), findsNothing);
     expect(find.byType(AppBusyIndicator), findsOneWidget);
 
-    // Background prefetch of the next two beats.
-    client.releaseNext();
-    await tester.pump();
-    await tester.pump();
+    // Tip has choices → one branch-batch call (not two linear beats).
     client.releaseNext();
     await tester.pump();
     await tester.pump();
 
-    expect(client.calls, 3);
+    expect(client.calls, 2);
     expect(find.byType(AppBusyIndicator), findsNothing);
 
-    // Advance to choices, then stay — consumes a prefetched beat.
+    final slotsAfterPrefetch = await saves.listForProject(blank.meta.id);
+    expect(slotsAfterPrefetch, isNotEmpty);
+    expect(slotsAfterPrefetch.first.bridge?.branchEdges, isNotEmpty);
+
     await tester.tap(find.text('第一拍。'));
     await tester.pump();
     await tester.pump();
@@ -440,29 +485,27 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.text('第二拍。'), findsOneWidget);
-    // Consuming dropped the buffer below 2 → a 4th write starts immediately.
+    // After adopt, tip again has choices → another branch batch starts.
     expect(find.byType(AppBusyIndicator), findsOneWidget);
-    expect(client.calls, 3);
 
     client.releaseNext();
     await tester.pump();
     await tester.pump();
-    expect(client.calls, 4);
+    expect(client.calls, 3);
   });
 
-  testWidgets('VN regenerate drops the current beat and writes a new one',
+  testWidgets('VN regenerate prunes subtree and writes a new beat',
       (tester) async {
     final blank = const ProjectFactory().createBlank(
       id: 'p_regen',
       title: '重写',
       now: DateTime.utc(2026, 1, 1),
     );
-    final client = _QueuedTextClient([
-      _beatJson('旧拍。'),
-      _beatJson('预写甲。'),
-      _beatJson('预写乙。'),
-      _beatJson('新拍。'),
-      _beatJson('新预写。'),
+    final client = _VnPrefetchClient([
+      '旧拍。',
+      '分支拍。',
+      '新拍。',
+      '新分支。',
     ]);
     final settings = testSettingsController();
     await settings.updateAi(
@@ -495,23 +538,19 @@ void main() {
     client.releaseNext();
     await tester.pump();
     await tester.pump();
-    // Drain the two background prefetches.
-    client.releaseNext();
-    await tester.pump();
-    await tester.pump();
+    // Branch batch for the tip with choices.
     client.releaseNext();
     await tester.pump();
     await tester.pump();
 
     expect(find.text('旧拍。'), findsOneWidget);
-    expect(client.calls, 3);
+    expect(client.calls, 2);
 
     final regen = find.byTooltip('重新生成');
     expect(regen, findsOneWidget);
     await tester.tap(regen);
     await tester.pump();
 
-    // Old beat is gone; spinner while the replacement is written.
     expect(find.text('旧拍。'), findsNothing);
     expect(find.byType(AppBusyIndicator), findsOneWidget);
 
@@ -520,18 +559,19 @@ void main() {
     await tester.pump();
     expect(find.text('新拍。'), findsOneWidget);
 
-    // Prefetch refill after regenerate.
+    // Branch refill after regenerate.
     client.releaseNext();
     await tester.pump();
     await tester.pump();
 
-    expect(client.calls, greaterThanOrEqualTo(4));
+    expect(client.calls, greaterThanOrEqualTo(3));
     final slots = await saves.listForProject(blank.meta.id);
     expect(slots, isNotEmpty);
     expect(slots.first.bridge?.generatedBeats, isNotEmpty);
     expect(
-      slots.first.bridge!.generatedBeats.first.lines.first.text,
-      '新拍。',
+      slots.first.bridge!.generatedBeats
+          .any((b) => b.lines.first.text == '新拍。'),
+      isTrue,
     );
   });
 

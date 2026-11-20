@@ -165,13 +165,19 @@ Transition {
 适用于 **视觉小说** 游玩：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥。落点：[`BridgeSession`](../lib/domain/runtime/bridge_session.dart)、[`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)、[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)（`PlayPhase.needsBridge`）、[`PlaySessionPage`](../lib/play/play_session_page.dart)（仅 VN 模式）。
 
 1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + 出边列表（可空）+ 区间摘要。进站若已是 `needsBridge`，游玩页自动生成。游玩入口 [`ensurePlayableMain`](../lib/domain/project/project_factory.dart) 会去掉无出边站上「仅结束」的旧占位拍（不写回包），避免空白故事只能点结束。
-2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。每拍 `lines` 的**最少句数**由设置 → AI → **视觉小说演出 → 每段最少句数**（[`AiSettings.minBridgeLines`](../lib/domain/settings/ai_settings.dart)，默认 3，范围 1–10）决定：提示词写进「lines 至少 N 句」，模型给少了会用同一拍重试一次，仍不足则接受最后结果（不做截断或补写）。`type: beat` + `beatId: __stay__` 表示继续本区间（再选 → `needsBridge`）。玩家点标题栏 **重新生成**：[`PlayHistory.truncateFromBeat`](../lib/domain/runtime/play_history.dart) 丢掉当前拍及之后条目，`generatedBeats` 同步截到该拍之前，清空预写缓冲并 `requestBridge` 后立刻再生成；若当前已是 `needsBridge`，只作废进行中的请求再写下一段。游玩页后台预留目标恒为 **2** 拍：队列少于 2 立刻开写，采用/弹出后马上补（未采用的队列不写存档）；`needsBridge` 优先弹队列，预写到达时若正在等下一段则自动采用；生成中只在标题栏转圈，不对白框写「正在写」。
-3. **有出边**：  
-   - `maxBridgeBeats` 默认 4；触顶后禁止 stay，必须合法 `node`/`end`。  
-   - UI 可提供「前往：{下一站}」保底；失败时用 `fallbackChoices`（合法出边）。
-4. **无出边（开放区间）**：不触顶强制收敛；prompt 要求 stay「继续」为主，可 `end`；空 choices 时自动补「继续」；`fallbackChoices` = 「继续」+「告一段落」。
-5. **入下一站**：合法 `node` Transition 后更新当前 `nodeId` / `turnCount` / `summary`；**保留**本局已生成的全部 `generatedBeats`（供历史与回退），会话写入存档附件，**不写回**故事包。
-6. **范围**：本节状态机只服务 VN。聊天见 §3.3。
+2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。每拍 `choices` **最多 3**（prompt + 解析截断，优先 stay / 合法出站）。每拍 `lines` 的**最少句数**由设置 → AI → **视觉小说演出 → 每段最少句数**（[`AiSettings.minBridgeLines`](../lib/domain/settings/ai_settings.dart)，默认 3，范围 1–10）决定。`type: beat` + `beatId: __stay__` 表示继续本区间（再选 → `needsBridge`）。
+3. **剧情树预写**（[`PlaySessionPage`](../lib/play/play_session_page.dart)）：情节图是骨架；游玩时 AI 生长的拍 + [`branchEdges`](../lib/domain/runtime/bridge_session.dart) 构成**本局剧情树**，完整进存档。  
+   - **最新拍无 choices**：线性队列目标 **2**；每推进一步检测补齐（不再用 `defaultMaxBeats` 截断预取深度）。  
+   - **最新拍有 choices**：不再追加线性拍；[`BridgeBranchPrefetchAction`](../lib/domain/ai/bridge_branch_prefetch_action.dart) **一次调用**为至多 3 条可续写选项（stay / 合法 `node`；`end` 不预写）各写 **1** 拍，写入 `generatedBeats` + `branchEdges`。  
+   - **点选**：若已有 `fromBeatId+choiceId→toBeatId` 则直接采用；否则现场生成并挂边。**不清空**其它分支。回退改选同样查边复用。  
+   - **重新生成**：[`pruneSubtree`](../lib/domain/runtime/bridge_session.dart) 删当前拍及其后代；**兄弟分支保留**；清空线性缓冲后重写当前路径。  
+   - 生成中只在标题栏转圈，不对白框写「正在写」。
+4. **有出边**：  
+   - `maxBridgeBeats` 默认 4；触顶后禁止 stay，必须合法 `node`/`end`（约束生成内容，不挡预取策略）。  
+   - UI 可提供「前往：{下一站}」保底；失败时用 `fallbackChoices`（合法出边，亦 ≤3）。
+5. **无出边（开放区间）**：不触顶强制收敛；prompt 要求 stay「继续」为主，可 `end`；空 choices 时自动补「继续」；`fallbackChoices` = 「继续」+「告一段落」。
+6. **入下一站**：合法 `node` Transition 后更新当前 `nodeId` / `turnCount` / `summary`；**保留**本局全部 `generatedBeats` 与 `branchEdges`，会话写入存档附件，**不写回**故事包。
+7. **范围**：本节状态机只服务 VN。聊天见 §3.3。
 
 ### 3.3 双模式
 
@@ -205,10 +211,15 @@ MainSavePointer {
   // flags?: map         // 日后变量；MVP 可省略
 }
 
-// 开启区间 AI 时附加（本局，不进故事包）：
+// 开启区间 AI 时附加（本局，不进故事包；可作导出导入的剧情树载体）：
 BridgeSession {
   nodeId: Id               // 当前开放区间所在站
-  generatedBeats: Beat[]   // 本局已生成拍（跨站保留，供回退）
+  generatedBeats: Beat[]   // 本局全部生成拍（全部分支累积）
+  branchEdges?: {          // 决策脉络；旧档可缺省 → []
+    fromBeatId: Id
+    choiceId: Id
+    toBeatId: Id
+  }[]
   turnCount: number        // 当前站已生成拍数，用于收敛触顶
   summary?: string         // 当前站压缩摘要，供下一跳上下文
 }
@@ -221,7 +232,7 @@ historyCursor: number        // 当前所在下标；-1 表示旧档未记录
 回退：`pointer` 始终是**当前查看位置**，`history` 末尾是最新进度。时间线按「句」记录——同一句的
 `lines` / `choices` / `needsBridge` 只更新该条，不算新的一步。后退 / 前进移动 `historyCursor` 并
 `MainRuntime.restore`；快进按顺序重放已记录位置，到末尾停；已在末尾时「前进」等同继续推进。
-回退后再生成会截断光标之后的旧记录（同位置重放则复用原记录，不重复）。
+回退改选会截断光标之后的**足迹**（`history`），但 **`generatedBeats` / `branchEdges` 不随改选抹掉**——其它分支可再次进入；有边则复用已有拍。
 
 故事包仍以骨架（+ 可选预写 Beat）为准；存档存指针 + 本局区间会话，不要求把 AI 发挥写回 `project.json`（作者可另做「固化本场」创作动作）。
 

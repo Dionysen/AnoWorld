@@ -93,7 +93,7 @@ $nextStationBlock
       ))
           .content;
       try {
-        final beat = _parseBeat(
+        final beat = parseBeatJson(
           raw,
           project: project,
           nodeId: nodeId,
@@ -157,14 +157,33 @@ $nextStationBlock
         ),
       ];
     }
-    return [
+    return capChoices([
       for (var i = 0; i < outs.length; i++)
         Choice(
           id: 'fb_$i',
           text: _fallbackChoiceText(main, outs[i]),
           target: Transition.toNode(outs[i].to),
         ),
-    ];
+    ]);
+  }
+
+  /// Keep at most [BridgeSession.maxChoicesPerBeat], preferring stay then exits.
+  static List<Choice> capChoices(List<Choice> choices) {
+    const max = BridgeSession.maxChoicesPerBeat;
+    if (choices.length <= max) {
+      return List<Choice>.unmodifiable(choices);
+    }
+    int rank(Choice c) => switch (c.target.type) {
+          TransitionType.beat => 0,
+          TransitionType.node => 1,
+          TransitionType.end => 2,
+        };
+    final ranked = [...choices]..sort((a, b) {
+        final byRank = rank(a).compareTo(rank(b));
+        if (byRank != 0) return byRank;
+        return choices.indexOf(a).compareTo(choices.indexOf(b));
+      });
+    return List<Choice>.unmodifiable(ranked.take(max));
   }
 
   static String _fallbackChoiceText(MainStory main, StoryEdge edge) {
@@ -182,6 +201,8 @@ $nextStationBlock
     final minLineRule = minLines > 1
         ? '- lines 至少 $minLines 句（对白与叙述合计），每句单独一条。'
         : '';
+    const choiceCap =
+        'choices 最多 ${BridgeSession.maxChoicesPerBeat} 个。';
     if (openMode) {
       return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
 输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[{"text":"...","target":{...}}]}
@@ -191,12 +212,13 @@ $nextStationBlock
 - 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）；不要把玩家写成角色列表外的路人。
 - 第三人称叙述：speaker 用「旁白」。
 $minLineRule
+- $choiceCap
 本站开放续写：优先给继续选项 {"type":"beat","beatId":"$kBridgeStayBeatId"}；也可给 {"type":"end"} 告一段落。
 禁止发明情节站 nodeId。''';
     }
     final converge = forceConverge
-        ? '必须给 1～3 个 choices，且每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。'
-        : '可给过程选项；若继续本站用 {"type":"beat","beatId":"$kBridgeStayBeatId"}；导向下一站必须用合法 nodeId。';
+        ? '必须给 1～${BridgeSession.maxChoicesPerBeat} 个 choices，且每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。'
+        : '可给过程选项（$choiceCap）；若继续本站用 {"type":"beat","beatId":"$kBridgeStayBeatId"}；导向下一站必须用合法 nodeId。';
     return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
 输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[{"text":"...","target":{...}}]}
 规则：
@@ -205,6 +227,7 @@ $minLineRule
 - 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）。
 - 第三人称叙述：speaker 用「旁白」。
 $minLineRule
+- $choiceCap
 $converge
 禁止发明不在合法下一站列表里的 nodeId。''';
   }
@@ -249,7 +272,8 @@ $converge
     return speaker;
   }
 
-  static Beat _parseBeat(
+  /// Shared Beat JSON mapper (also used by branch batch prefetch).
+  static Beat parseBeatJson(
     String raw, {
     required Project project,
     required String nodeId,
@@ -353,6 +377,8 @@ $converge
       );
     }
 
+    final capped = capChoices(choices);
+
     return Beat(
       id: beatId,
       nodeId: nodeId,
@@ -363,7 +389,7 @@ $converge
       ),
       appearances: const [],
       lines: lines,
-      choices: choices,
+      choices: capped,
     );
   }
 }

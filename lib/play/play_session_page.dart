@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/bridge_branch_prefetch_action.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
 import 'package:anoworld/domain/chat/tavern_chat_generate_action.dart';
 import 'package:anoworld/domain/chat/tavern_reply_choice_action.dart';
@@ -71,11 +72,13 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   bool _assistantBusy = false;
   bool _choicesBusy = false;
 
-  /// Prefetched beats for the current station, not yet adopted.
-  /// Target depth: [_prefetchTarget] so the player usually has the next
-  /// two generations ready while reading the current one.
+  /// Linear stay-path beats ahead of the player (not yet adopted).
+  /// Target depth: [_prefetchTarget] while the newest beat has no choices.
   final List<Beat> _prefetchQueue = <Beat>[];
   static const int _prefetchTarget = 2;
+
+  /// Beat id for which branch batch prefetch was armed / completed.
+  String? _branchSourceBeatId;
 
   /// Bumped to discard in-flight results after restart / node change.
   int _generateEpoch = 0;
@@ -291,15 +294,42 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     _ensureBridge();
   }
 
-  void _choose(Choice choice) {
+  Future<void> _choose(Choice choice) async {
     _stopFastForward();
+    final fromBeatId = _runtime.pointer.beatId;
+    final linkedId = _bridge?.toBeatId(fromBeatId, choice.id);
+    final linked =
+        linkedId == null ? null : _bridge?.beatById(linkedId);
+
     setState(() {
       _runtime.choose(choice.id);
       _syncBridgeNode();
       _recordPosition();
+      _branchSourceBeatId = null;
     });
-    _persist();
-    _ensureBridge();
+
+    // Reuse a beat already grown on the story tree for this choice.
+    if (linked != null && _runtime.needsBridge) {
+      AppLog.instance.info(
+        '采用脉络拍 ${linked.id}（选项 ${choice.id}）',
+        tag: 'play.vn',
+      );
+      _adoptBeat(
+        linked,
+        _bridge ?? BridgeSession(nodeId: linked.nodeId),
+        fromBeatId: fromBeatId,
+        choiceId: choice.id,
+      );
+      await _persist();
+      _maintainPrefetchBuffer();
+      return;
+    }
+
+    await _persist();
+    await _ensureBridge(
+      linkFromBeatId: fromBeatId.isEmpty ? null : fromBeatId,
+      linkChoiceId: fromBeatId.isEmpty ? null : choice.id,
+    );
   }
 
   void _goBack() {
@@ -533,7 +563,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   Future<void> _regenerateVnSegment() async {
     if (!_canRegenerateVn) return;
     _stopFastForward();
-    // Cancel in-flight adopt / prefetch so a stale reply cannot land.
+    // Cancel in-flight adopt / linear prefetch so a stale reply cannot land.
     _invalidatePrefetch();
 
     final nodeId = _runtime.pointer.nodeId;
@@ -549,13 +579,13 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
     final bridge = _bridge;
     if (bridge == null || beatId.isEmpty) return;
-    final dropFrom = bridge.generatedBeats.indexWhere((b) => b.id == beatId);
-    if (dropFrom < 0) return;
+    if (bridge.beatById(beatId) == null) return;
 
-    final kept = bridge.generatedBeats.sublist(0, dropFrom);
+    // Drop this beat and its descendants; keep sibling branches.
+    final pruned = bridge.pruneSubtree(beatId);
     _history.truncateFromBeat(beatId);
 
-    final main = _mergeBeats(_baseMain, kept);
+    final main = _mergeBeats(_baseMain, pruned.generatedBeats);
     final resume = _history.current;
     final runtime = resume == null
         ? MainRuntime(main, save: MainSavePointer(nodeId: nodeId, beatId: ''))
@@ -565,11 +595,10 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       runtime.requestBridge();
     }
 
-    final nextBridge = BridgeSession(
+    final nextBridge = pruned.copyWith(
       nodeId: nodeId,
-      generatedBeats: kept,
-      turnCount: kept.where((b) => b.nodeId == nodeId).length,
-      summary: kept
+      turnCount: pruned.turnsForNode(nodeId),
+      summary: pruned.generatedBeats
           .where((b) => b.nodeId == nodeId)
           .map((b) => b.lines.map((l) => l.text).join(' '))
           .join(' ')
@@ -577,7 +606,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     );
 
     AppLog.instance.info(
-      '重新生成：截断拍 $beatId（保留 ${kept.length} 拍）',
+      '重新生成：剪子树 $beatId（保留 ${pruned.generatedBeats.length} 拍，'
+      '${pruned.branchEdges.length} 条边）',
       tag: 'play.vn',
     );
 
@@ -645,9 +675,16 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   void _invalidatePrefetch() {
     _prefetchQueue.clear();
+    _branchSourceBeatId = null;
     _generateEpoch++;
     _generating = false;
     _prefetchPaused = false;
+  }
+
+  /// Furthest generated beat ahead of the player (queue tip, else current).
+  Beat? get _newestBeat {
+    if (_prefetchQueue.isNotEmpty) return _prefetchQueue.last;
+    return _runtime.currentBeat;
   }
 
   void _restart() {
@@ -685,19 +722,20 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     );
   }
 
-  bool _canPrefetchMore(String nodeId) {
+  bool _canLinearPrefetchMore(String nodeId) {
     if (_runtime.pointer.isEnded) return false;
     final node = _runtime.main.nodeById(nodeId);
     if (node == null || node.tags.contains('ending')) return false;
-    final hasOutbound =
-        _runtime.main.edges.any((e) => e.from == nodeId);
-    if (!hasOutbound) return true;
-    final base = _bridge ?? BridgeSession(nodeId: nodeId);
-    final planned = base.turnCount + _prefetchQueue.length;
-    return planned < BridgeSession.defaultMaxBeats;
+    final newest = _newestBeat;
+    // Newest tip already branches — next write is branch batch, not linear.
+    if (newest != null && newest.choices.isNotEmpty) return false;
+    return true;
   }
 
-  Future<void> _ensureBridge() async {
+  Future<void> _ensureBridge({
+    String? linkFromBeatId,
+    String? linkChoiceId,
+  }) async {
     if (_isChat || !mounted) return;
 
     final node = _runtime.currentNode;
@@ -715,26 +753,31 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     if (_runtime.needsBridge) {
       _syncBridgeNode();
       if (_prefetchQueue.isNotEmpty) {
-        _consumePrefetch();
-        // Refill as soon as the buffer drops below 2 — don't wait on disk.
+        _consumePrefetch(
+          fromBeatId: linkFromBeatId,
+          choiceId: linkChoiceId,
+        );
         _maintainPrefetchBuffer();
         _persist();
         return;
       }
       // A background write may be about to land in the queue; wait for it.
       if (_generating) return;
-      await _generateOne(adopt: true);
+      await _generateOne(
+        adopt: true,
+        linkFromBeatId: linkFromBeatId,
+        linkChoiceId: linkChoiceId,
+      );
       _maintainPrefetchBuffer();
       return;
     }
 
-    // While reading AI content, keep the background buffer at 2.
     if (_shouldMaintainPrefetch) {
       _maintainPrefetchBuffer();
     }
   }
 
-  /// Once the AI interval has started, always aim for [_prefetchTarget] ahead.
+  /// Once the AI interval has started, keep linear buffer or arm branch batch.
   bool get _shouldMaintainPrefetch {
     if (_runtime.pointer.isEnded) return false;
     if (_runtime.needsBridge) return true;
@@ -744,15 +787,21 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     return _prefetchQueue.isNotEmpty;
   }
 
-  /// Start a background write whenever reserved beats are below target.
+  /// Linear fill to 2, or branch-batch when the newest beat has choices.
   Future<void> _maintainPrefetchBuffer() async {
     if (_isChat || !mounted || _generating) return;
     if (!_shouldMaintainPrefetch && !_runtime.needsBridge) return;
+
+    final newest = _newestBeat;
+    if (newest != null && newest.choices.isNotEmpty) {
+      await _ensureBranchPrefetch(newest);
+      return;
+    }
+
     final node = _runtime.currentNode;
     if (node == null) return;
     if (_prefetchQueue.length >= _prefetchTarget) return;
-    if (!_canPrefetchMore(node.id)) return;
-    // Hard need (empty + waiting): clear a prior soft pause so play can resume.
+    if (!_canLinearPrefetchMore(node.id)) return;
     if (_prefetchPaused) {
       if (_prefetchQueue.isNotEmpty || !_runtime.needsBridge) return;
       _prefetchPaused = false;
@@ -764,11 +813,120 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     );
     await _generateOne(adopt: false);
     if (!mounted) return;
-    // Keep going until the buffer holds two reserved beats.
     _maintainPrefetchBuffer();
   }
 
-  void _consumePrefetch() {
+  /// Grow up to 3 post-choice beats for [source] in one model call.
+  Future<void> _ensureBranchPrefetch(Beat source) async {
+    if (_isChat || !mounted || _generating) return;
+    if (source.choices.isEmpty) return;
+
+    final base = _bridge ?? BridgeSession(nodeId: source.nodeId);
+    final requests = <BridgeBranchPrefetchRequest>[];
+    for (final choice in source.choices) {
+      if (requests.length >= BridgeSession.maxChoicesPerBeat) break;
+      if (choice.target.type == TransitionType.end) continue;
+      if (base.toBeatId(source.id, choice.id) != null) continue;
+      final String targetNodeId;
+      if (choice.target.type == TransitionType.beat) {
+        targetNodeId = source.nodeId;
+      } else if (choice.target.type == TransitionType.node) {
+        final id = choice.target.nodeId;
+        if (id == null || id.isEmpty) continue;
+        targetNodeId = id;
+      } else {
+        continue;
+      }
+      requests.add(
+        BridgeBranchPrefetchRequest(
+          choice: choice,
+          targetNodeId: targetNodeId,
+        ),
+      );
+    }
+
+    if (requests.isEmpty) {
+      _branchSourceBeatId = source.id;
+      return;
+    }
+    // Already fully armed for this source — do not spam the model.
+    if (_branchSourceBeatId == source.id) return;
+
+    final epoch = _generateEpoch;
+    setState(() => _generating = true);
+
+    final settings = AppScope.settingsOf(context);
+    try {
+      final action = BridgeBranchPrefetchAction(
+        textClient: AppScope.textClientOf(context),
+      );
+      final results = await action.generate(
+        ctx: settings.textPromptContext(),
+        project: _project.copyWith(main: _runtime.main),
+        sourceNodeId: source.nodeId,
+        session: base,
+        branches: requests,
+        plotCatalog: settings.plotElements,
+        userAliases: _userAliases(),
+        minLines: settings.ai.minBridgeLines,
+      );
+      if (!mounted || epoch != _generateEpoch) return;
+
+      var session = _bridge ?? base;
+      var linked = 0;
+      for (final row in results) {
+        final beat = row.beat;
+        if (beat == null) continue;
+        session = session
+            .withBeat(beat)
+            .withBranchEdge(
+              fromBeatId: source.id,
+              choiceId: row.choiceId,
+              toBeatId: beat.id,
+            );
+        linked++;
+      }
+      setState(() {
+        _bridge = session;
+        _generating = false;
+        _prefetchPaused = false;
+        // Only mark complete when every requested path has a beat.
+        _branchSourceBeatId =
+            linked >= requests.length ? source.id : null;
+      });
+      AppLog.instance.info(
+        '分支脉络已写入 $linked/${requests.length} 路（源 ${source.id}）',
+        tag: 'play.vn',
+      );
+      await _persist();
+    } on AiTextException catch (error) {
+      if (!mounted || epoch != _generateEpoch) return;
+      setState(() {
+        _generating = false;
+        _prefetchPaused = true;
+        _branchSourceBeatId = null;
+      });
+      AppLog.instance.warning(
+        '分支批写失败：${error.message}',
+        tag: 'play.vn',
+      );
+    } catch (error, stack) {
+      if (!mounted || epoch != _generateEpoch) return;
+      AppLog.instance.error(
+        '分支批写异常',
+        tag: 'play.vn',
+        error: error,
+        stackTrace: stack,
+      );
+      setState(() {
+        _generating = false;
+        _prefetchPaused = true;
+        _branchSourceBeatId = null;
+      });
+    }
+  }
+
+  void _consumePrefetch({String? fromBeatId, String? choiceId}) {
     if (_prefetchQueue.isEmpty) return;
     final beat = _prefetchQueue.removeAt(0);
     final session = _bridge ?? BridgeSession(nodeId: beat.nodeId);
@@ -776,20 +934,41 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       '采用预写拍 ${beat.id}，缓冲剩余 ${_prefetchQueue.length}',
       tag: 'play.vn',
     );
-    _adoptBeat(beat, session);
+    _adoptBeat(
+      beat,
+      session,
+      fromBeatId: fromBeatId,
+      choiceId: choiceId,
+    );
   }
 
-  void _adoptBeat(Beat beat, BridgeSession session) {
+  void _adoptBeat(
+    Beat beat,
+    BridgeSession session, {
+    String? fromBeatId,
+    String? choiceId,
+  }) {
     setState(() {
       _runtime.adoptBridgeBeat(beat);
       _recordPosition();
-      _bridge = session.copyWith(
-        generatedBeats: [...session.generatedBeats, beat],
-        turnCount: session.turnCount + 1,
-        summary:
-            '${session.summary} ${beat.lines.map((l) => l.text).join(' ')}'
-                .trim(),
-      );
+      var next = session.withBeat(beat).copyWith(
+            nodeId: beat.nodeId,
+            turnCount: session.withBeat(beat).turnsForNode(beat.nodeId),
+            summary:
+                '${session.summary} ${beat.lines.map((l) => l.text).join(' ')}'
+                    .trim(),
+          );
+      if (fromBeatId != null &&
+          fromBeatId.isNotEmpty &&
+          choiceId != null &&
+          choiceId.isNotEmpty) {
+        next = next.withBranchEdge(
+          fromBeatId: fromBeatId,
+          choiceId: choiceId,
+          toBeatId: beat.id,
+        );
+      }
+      _bridge = next;
       _generating = false;
       _prefetchPaused = false;
       _status = null;
@@ -806,7 +985,11 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     _maintainPrefetchBuffer();
   }
 
-  Future<void> _generateOne({required bool adopt}) async {
+  Future<void> _generateOne({
+    required bool adopt,
+    String? linkFromBeatId,
+    String? linkChoiceId,
+  }) async {
     final node = _runtime.currentNode;
     if (node == null || _generating) return;
 
@@ -835,13 +1018,21 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       );
       if (!mounted || epoch != _generateEpoch) return;
       if (adopt) {
-        _adoptBeat(beat, _bridge ?? BridgeSession(nodeId: node.id));
+        _adoptBeat(
+          beat,
+          _bridge ?? BridgeSession(nodeId: node.id),
+          fromBeatId: linkFromBeatId,
+          choiceId: linkChoiceId,
+        );
         await _persist();
       } else {
         setState(() {
           _prefetchQueue.add(beat);
           _generating = false;
         });
+        // Also park in the story-tree library (not only the linear queue).
+        final parked = (_bridge ?? BridgeSession(nodeId: node.id)).withBeat(beat);
+        _bridge = parked;
         AppLog.instance.info(
           '预写完成 ${beat.id}（缓冲 ${_prefetchQueue.length}/$_prefetchTarget）',
           tag: 'play.vn',
@@ -856,11 +1047,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         text: error.message,
       );
       if (adopt) {
-        _adoptBeat(fallback, _bridge ?? BridgeSession(nodeId: node.id));
+        _adoptBeat(
+          fallback,
+          _bridge ?? BridgeSession(nodeId: node.id),
+          fromBeatId: linkFromBeatId,
+          choiceId: linkChoiceId,
+        );
         setState(() => _status = context.strings.statusSafeExit);
         await _persist();
       } else {
-        // Prefetch failure: pause until the next adopt; player can still play.
         setState(() {
           _generating = false;
           _prefetchPaused = true;
@@ -869,10 +1064,13 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
           '后台预写失败：${error.message}',
           tag: 'play.vn',
         );
-        // If the player is already waiting, fall through to a blocking adopt.
         if (_runtime.needsBridge && _prefetchQueue.isEmpty) {
           _prefetchPaused = false;
-          await _generateOne(adopt: true);
+          await _generateOne(
+            adopt: true,
+            linkFromBeatId: linkFromBeatId,
+            linkChoiceId: linkChoiceId,
+          );
           _maintainPrefetchBuffer();
         }
       }
@@ -890,7 +1088,12 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         text: context.strings.fallbackBeatText,
       );
       if (adopt) {
-        _adoptBeat(fallback, _bridge ?? BridgeSession(nodeId: node.id));
+        _adoptBeat(
+          fallback,
+          _bridge ?? BridgeSession(nodeId: node.id),
+          fromBeatId: linkFromBeatId,
+          choiceId: linkChoiceId,
+        );
         setState(() => _status = context.strings.statusSafeExit);
         await _persist();
       } else {
@@ -900,7 +1103,11 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         });
         if (_runtime.needsBridge && _prefetchQueue.isEmpty) {
           _prefetchPaused = false;
-          await _generateOne(adopt: true);
+          await _generateOne(
+            adopt: true,
+            linkFromBeatId: linkFromBeatId,
+            linkChoiceId: linkChoiceId,
+          );
           _maintainPrefetchBuffer();
         }
       }
