@@ -9,7 +9,6 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 
 /// Lazy list over the in-memory log ring (newest first).
 class AppLogViewerPage extends StatefulWidget {
@@ -20,8 +19,6 @@ class AppLogViewerPage extends StatefulWidget {
 }
 
 class _AppLogViewerPageState extends State<AppLogViewerPage> {
-  static final _time = DateFormat('HH:mm:ss');
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -58,7 +55,7 @@ class _AppLogViewerPageState extends State<AppLogViewerPage> {
               if (entry == null) return const SizedBox.shrink();
               return _LogRow(
                 entry: entry,
-                timeLabel: _time.format(entry.time),
+                timeLabel: entry.timeLabel,
                 accent: _levelColor(theme, entry.level),
                 onCopy: () => _copyEntry(context, entry),
               );

@@ -67,10 +67,7 @@ class BridgeBranchPrefetchAction {
       throw AiTextException('当前情节站不存在');
     }
 
-    AppLog.instance.info(
-      '分支批写开始：${limited.length} 路',
-      tag: 'play.vn',
-    );
+    AppLog.instance.info('分支预写 ${limited.length} 路', tag: 'play.vn');
 
     final branchLines = <String>[];
     for (final b in limited) {
@@ -170,8 +167,10 @@ ${branchLines.join('\n')}''';
     }
 
     final results = <BridgeBranchPrefetchResult>[];
+    final stamp = DateTime.now().microsecondsSinceEpoch;
     var ok = 0;
-    for (final b in limited) {
+    for (var i = 0; i < limited.length; i++) {
+      final b = limited[i];
       final beatMap = byChoice[b.choice.id];
       if (beatMap == null) {
         results.add(BridgeBranchPrefetchResult(choiceId: b.choice.id));
@@ -188,7 +187,8 @@ ${branchLines.join('\n')}''';
           jsonEncode(beatMap),
           project: project,
           nodeId: destNode,
-          beatId: 'bridge_${destNode}_${b.choice.id}',
+          // Short unique id — never nest choiceId (ids stay readable in logs).
+          beatId: 'bridge_${destNode}_$stamp$i',
           legalNodeIds: exits,
           forceConverge: false,
           openMode: openMode,
@@ -196,7 +196,7 @@ ${branchLines.join('\n')}''';
         );
         if (minLines > 1 && beat.lines.length < minLines) {
           AppLog.instance.warning(
-            '分支拍句数不足，按当前结果继续：${beat.lines.length}/$minLines 句',
+            '分支拍句数不足：${beat.lines.length}/$minLines',
             tag: 'play.vn',
           );
         }
@@ -206,17 +206,19 @@ ${branchLines.join('\n')}''';
         ok++;
       } on BridgeMapException catch (error) {
         AppLog.instance.warning(
-          '分支拍 ${b.choice.id} 解析失败：${error.message}',
+          '分支拍解析失败：${error.message}',
           tag: 'play.vn',
         );
         results.add(BridgeBranchPrefetchResult(choiceId: b.choice.id));
       }
     }
 
-    AppLog.instance.info(
-      '分支批写完成：$ok/${limited.length} 路',
-      tag: 'play.vn',
-    );
+    if (ok < limited.length) {
+      AppLog.instance.warning(
+        '分支预写部分成功 $ok/${limited.length}',
+        tag: 'play.vn',
+      );
+    }
     return results;
   }
 }

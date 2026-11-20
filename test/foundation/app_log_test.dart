@@ -39,4 +39,19 @@ void main() {
     expect(entry?.error, isA<StateError>());
     AppLog.instance.clear();
   });
+
+  test('entries expose HH:mm:ss.SSS timeLabel in fullText', () {
+    if (!kDebugMode) return;
+
+    AppLog.instance.clear();
+    AppLog.instance.info('hello', tag: 'test');
+    final entry = AppLog.instance.entryAtNewestFirst(0);
+    expect(entry, isNotNull);
+    expect(
+      entry!.timeLabel,
+      matches(RegExp(r'^\d{2}:\d{2}:\d{2}\.\d{3}$')),
+    );
+    expect(entry.fullText, startsWith(entry.timeLabel));
+    AppLog.instance.clear();
+  });
 }

@@ -310,10 +310,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
     // Reuse a beat already grown on the story tree for this choice.
     if (linked != null && _runtime.needsBridge) {
-      AppLog.instance.info(
-        '采用脉络拍 ${linked.id}（选项 ${choice.id}）',
-        tag: 'play.vn',
-      );
+      AppLog.instance.info('采用分支预写', tag: 'play.vn');
       _adoptBeat(
         linked,
         _bridge ?? BridgeSession(nodeId: linked.nodeId),
@@ -606,8 +603,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     );
 
     AppLog.instance.info(
-      '重新生成：剪子树 $beatId（保留 ${pruned.generatedBeats.length} 拍，'
-      '${pruned.branchEdges.length} 条边）',
+      '重新生成：保留 ${pruned.generatedBeats.length} 拍',
       tag: 'play.vn',
     );
 
@@ -895,7 +891,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
             linked >= requests.length ? source.id : null;
       });
       AppLog.instance.info(
-        '分支脉络已写入 $linked/${requests.length} 路（源 ${source.id}）',
+        '分支就绪 $linked/${requests.length}',
         tag: 'play.vn',
       );
       await _persist();
@@ -931,7 +927,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     final beat = _prefetchQueue.removeAt(0);
     final session = _bridge ?? BridgeSession(nodeId: beat.nodeId);
     AppLog.instance.info(
-      '采用预写拍 ${beat.id}，缓冲剩余 ${_prefetchQueue.length}',
+      '采用预写，缓冲 ${_prefetchQueue.length}',
       tag: 'play.vn',
     );
     _adoptBeat(
@@ -1034,7 +1030,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         final parked = (_bridge ?? BridgeSession(nodeId: node.id)).withBeat(beat);
         _bridge = parked;
         AppLog.instance.info(
-          '预写完成 ${beat.id}（缓冲 ${_prefetchQueue.length}/$_prefetchTarget）',
+          '线性预写 ${_prefetchQueue.length}/$_prefetchTarget',
           tag: 'play.vn',
         );
         await _onPrefetchArrived();

@@ -88,7 +88,7 @@ class AppLog extends ChangeNotifier {
   }
 
   void _printToConsole(AppLogEntry entry) {
-    final head = '${entry.level.name.toUpperCase()} '
+    final head = '${entry.timeLabel} ${entry.level.name.toUpperCase()} '
         '[${entry.tag}] ${entry.message}';
     if (entry.level == AppLogLevel.error) {
       developer.log(
