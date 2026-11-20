@@ -150,11 +150,11 @@
 
 | 域 | 读 | 写 |
 | --- | --- | --- |
-| `world` | `world.list_entries` / `world.read_entry` | `world.patch` |
-| `cast` | `cast.list_members` / `cast.read_member` | `cast.patch` |
-| `main` | `main.read_graph`（阶段 3 用紧凑骨架代替分段读） | `main.replace`（整图）/ `main.patch`（局部） |
-| `plot` | `plot.list_elements`（全局库：id / 分类 / 关键词 / 是否已选，可按关键词过滤） | `plot.select`（`select` / `deselect` / `add_element`；新增会写进全局库，已有条目正文不改） |
-| `preset` | 未做：预设本身即系统提示，已全量注入 | `preset.patch`（不做，见 §8） |
+| `world` | `world.list_entries`（`limit` 默认 50，可 `keyword` 过滤）/ `world.read_entry` | `world.patch` |
+| `cast` | `cast.list_members`（同上）/ `cast.read_member` | `cast.patch` |
+| `main` | `main.read_graph`（紧凑骨架）/ `main.list_nodes` / `main.get_node` | `main.replace`（整图）/ `main.patch`（局部） |
+| `plot` | `plot.list_elements`（`limit` + `keyword`；id / 分类 / 关键词 / 是否已选） | `plot.select`（`select` / `deselect` / `add_element`；新增会写进全局库，已有条目正文不改） |
+| `preset` | 进 L1 段目录（段名 + 启用状态），预设只读 | `preset.patch`（不做，见 §8） |
 
 阶段 3 已把写工具统一成 `*.patch` / `main.replace`，旧名 `world.patch_propose`、`cast.patch_propose`、`main.patch_graph`、`main.generate_graph` 全部删除，没有别名并存。`main.list_nodes` / `main.get_node` 这类分段读暂不实现：紧凑骨架一次返回更省回合，等预算裁剪（阶段 5）真的需要细读再加。
 
@@ -415,8 +415,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 ## 8b. 仍待定
 
-1. **`world.list` 是否全量返回？**
-   故事世界书可能上百条。倾向 `limit` 默认 50，超过时返回 `truncated: true` 并提示可按关键词过滤。
+1. **`world.list` 是否全量返回？**（已定）不全量。三个 `*.list_*` 统一 `limit` 默认 **50**、上限 **200**，超出返回 `truncated: true` + `hint`，并支持 `keyword` 过滤，避免百条世界书一次灌满窗口。
 
 2. **旧工具名是否收敛？**（已定，阶段 3）写工具一次改净，没有别名并存；读工具保留 `*.list_*` / `*.read_*` 具名形式，因为它们本来就不重名。
 

@@ -10,7 +10,7 @@
 | `card.sanitize_draft` | 去 HTML，保留 Markdown |
 | `project.validate` | 结构校验 |
 | `project.read_summary` | 故事概览 |
-| `world.list_entries` / `world.read_entry` | 渐进读设定 |
+| `world.list_entries` / `world.read_entry` | 渐进读设定（list 默认 50 条，可 `keyword` / `limit`） |
 | `world.patch` | 提交世界书条目改动（`userConfirmRequired`） |
 | `cast.list_members` / `cast.read_member` | 渐进读角色 |
 | `cast.patch` | 提交角色改动（`userConfirmRequired`） |

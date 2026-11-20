@@ -11,10 +11,12 @@ import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
 import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_services.dart';
+import 'package:anoworld/domain/ai/create/tools/project_tools.dart';
 import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -399,6 +401,79 @@ void main() {
     expect(whole.ok, isTrue);
     expect(whole.payload?['ref'], 'cast:${member.id}');
   });
+  test('world.list_entries pages long books and can be filtered', () async {
+    final base = const ProjectFactory().createRainNightSample();
+    final entries = <WorldBookEntry>[
+      for (var i = 0; i < 60; i++)
+        WorldBookEntry(
+          id: 'wb_$i',
+          title: '条目$i',
+          body: '内容$i',
+          keys: i == 0 ? const <String>['雨'] : const <String>[],
+        ),
+    ];
+    final ctx = CreateToolContext(
+      project: base.copyWith(worldBook: WorldBook(entries: entries)),
+      services: const CreateToolServices(),
+    );
+
+    final all = await CreateAgentRunner().runSingle(
+      toolName: 'world.list_entries',
+      ctx: ctx,
+    );
+    expect(all.payload?['total'], 60);
+    expect(all.payload?['count'], kListDefaultLimit);
+    expect(all.payload?['truncated'], isTrue);
+    expect(all.payload?['hint'], contains('还有 10 条'));
+
+    final small = await CreateAgentRunner().runSingle(
+      toolName: 'world.list_entries',
+      ctx: ctx,
+      args: {'limit': 5},
+    );
+    expect(small.payload?['count'], 5);
+    expect((small.payload?['entries'] as List), hasLength(5));
+
+    final filtered = await CreateAgentRunner().runSingle(
+      toolName: 'world.list_entries',
+      ctx: ctx,
+      args: {'keyword': '雨'},
+    );
+    expect(filtered.payload?['total'], 1);
+    expect(filtered.payload?['truncated'], isFalse);
+    expect(filtered.payload?['hint'], isNull);
+    expect(((filtered.payload?['entries'] as List).single as Map)['id'], 'wb_0');
+  });
+
+  test('cast.list_members pages and filters by name', () async {
+    final base = const ProjectFactory().createRainNightSample();
+    final cast = <CastMember>[
+      for (var i = 0; i < 55; i++)
+        CastMember(id: 'c_$i', name: '角色$i', summary: '简介$i'),
+    ];
+    final ctx = CreateToolContext(
+      project: base.copyWith(cast: cast),
+      services: const CreateToolServices(),
+    );
+
+    final all = await CreateAgentRunner().runSingle(
+      toolName: 'cast.list_members',
+      ctx: ctx,
+    );
+    expect(all.payload?['total'], 55);
+    expect(all.payload?['count'], kListDefaultLimit);
+    expect(all.payload?['truncated'], isTrue);
+
+    final filtered = await CreateAgentRunner().runSingle(
+      toolName: 'cast.list_members',
+      ctx: ctx,
+      args: {'keyword': '角色1'},
+    );
+    // 角色1, 角色10..19 → 11 rows.
+    expect(filtered.payload?['total'], 11);
+    expect(filtered.payload?['truncated'], isFalse);
+  });
+
   test('plot.select proposes selection ops against the library', () async {
     final project = const ProjectFactory().createRainNightSample();
     final catalog = PlotElementCatalog(

@@ -4,6 +4,7 @@ import 'package:anoworld/domain/ai/create/create_tool_result.dart';
 import 'package:anoworld/domain/main/entity_ref.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
 import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/validation/project_issue.dart';
 import 'package:anoworld/foundation/text/token_estimator.dart';
@@ -60,24 +61,42 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'world.list_entries',
-      description: '列出世界书条目 id 与标题；正文用 world.read_entry 取',
+      description: '列出世界书条目 id 与标题；正文用 world.read_entry 取。'
+          '默认最多 $kListDefaultLimit 条，超出会标 truncated',
       mutatesProject: false,
-      invoke: (ctx, _) async {
+      parameters: objectSchema(
+        <String, dynamic>{
+          'keyword': stringSchema('只看标题、正文或关键词里含这个词的条目'),
+          'limit': integerSchema(
+            '最多返回多少条，默认 $kListDefaultLimit，最多 $kListMaxLimit',
+          ),
+        },
+      ),
+      invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
           return CreateToolResult.error('没有打开的故事');
         }
+        final needle = _needleOf(args);
+        final matched = <WorldBookEntry>[
+          for (final e in project.worldBook.entries)
+            if (needle.isEmpty || _worldEntryMatches(e, needle)) e,
+        ];
+        final page = _page(matched, args);
         return CreateToolResult.success(<String, dynamic>{
           'schemaVersion': 1,
-          'entries': project.worldBook.entries
-              .map(
-                (e) => <String, dynamic>{
-                  'id': e.id,
-                  'title': e.title,
-                  'alwaysOn': e.alwaysOn,
-                },
-              )
-              .toList(growable: false),
+          'total': page.total,
+          'count': page.rows.length,
+          'truncated': page.truncated,
+          if (page.truncated) 'hint': _listHint(page.rest),
+          'entries': [
+            for (final e in page.rows)
+              <String, dynamic>{
+                'id': e.id,
+                'title': e.title,
+                'alwaysOn': e.alwaysOn,
+              },
+          ],
         });
       },
     ),
@@ -135,24 +154,42 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'cast.list_members',
-      description: '列出角色 id 与姓名；档案用 cast.read_member 取',
+      description: '列出角色 id 与姓名；档案用 cast.read_member 取。'
+          '默认最多 $kListDefaultLimit 人',
       mutatesProject: false,
-      invoke: (ctx, _) async {
+      parameters: objectSchema(
+        <String, dynamic>{
+          'keyword': stringSchema('只看姓名或简介里含这个词的角色'),
+          'limit': integerSchema(
+            '最多返回多少条，默认 $kListDefaultLimit，最多 $kListMaxLimit',
+          ),
+        },
+      ),
+      invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
           return CreateToolResult.error('没有打开的故事');
         }
+        final needle = _needleOf(args);
+        final matched = <CastMember>[
+          for (final c in project.cast)
+            if (needle.isEmpty || _castMemberMatches(c, needle)) c,
+        ];
+        final page = _page(matched, args);
         return CreateToolResult.success(<String, dynamic>{
           'schemaVersion': 1,
-          'cast': project.cast
-              .map(
-                (c) => <String, dynamic>{
-                  'id': c.id,
-                  'name': c.name,
-                  'isProtagonist': c.isProtagonist,
-                },
-              )
-              .toList(growable: false),
+          'total': page.total,
+          'count': page.rows.length,
+          'truncated': page.truncated,
+          if (page.truncated) 'hint': _listHint(page.rest),
+          'cast': [
+            for (final c in page.rows)
+              <String, dynamic>{
+                'id': c.id,
+                'name': c.name,
+                'isProtagonist': c.isProtagonist,
+              },
+          ],
         });
       },
     ),
@@ -387,11 +424,14 @@ List<CreateTool> buildProjectTools() {
     CreateTool(
       name: 'plot.list_elements',
       description: '列出全局剧情元素库（id、分类、关键词、是否已选），'
-          '可用 keyword 过滤；勾选或新增前先看这里',
+          '可用 keyword 过滤；勾选或新增前先看这里。默认最多 $kListDefaultLimit 条',
       mutatesProject: false,
       parameters: objectSchema(
         <String, dynamic>{
           'keyword': stringSchema('只看关键词里含这个词的条目'),
+          'limit': integerSchema(
+            '最多返回多少条，默认 $kListDefaultLimit，最多 $kListMaxLimit',
+          ),
         },
       ),
       invoke: (ctx, args) async {
@@ -399,26 +439,31 @@ List<CreateTool> buildProjectTools() {
         if (catalog == null) {
           return CreateToolResult.error('剧情元素库还没准备好');
         }
-        final needle = (args['keyword']?.toString() ?? '').trim().toLowerCase();
+        final needle = _needleOf(args);
         final selected = (ctx.project?.plotElements.selectedIds ?? const [])
             .toSet();
-        final rows = <Map<String, dynamic>>[];
-        for (final element in catalog.effectiveList) {
-          if (needle.isNotEmpty &&
-              !element.keyword.toLowerCase().contains(needle)) {
-            continue;
-          }
-          rows.add(<String, dynamic>{
-            'id': element.id,
-            'keyword': element.keyword,
-            'category': catalog.categoryNameOf(element.categoryId),
-            'selected': selected.contains(element.id),
-          });
-        }
+        final matched = <PlotElement>[
+          for (final element in catalog.effectiveList)
+            if (needle.isEmpty ||
+                element.keyword.toLowerCase().contains(needle))
+              element,
+        ];
+        final page = _page(matched, args);
         return CreateToolResult.success(<String, dynamic>{
           'schemaVersion': 1,
-          'count': rows.length,
-          'elements': rows,
+          'total': page.total,
+          'count': page.rows.length,
+          'truncated': page.truncated,
+          if (page.truncated) 'hint': _listHint(page.rest),
+          'elements': [
+            for (final element in page.rows)
+              <String, dynamic>{
+                'id': element.id,
+                'keyword': element.keyword,
+                'category': catalog.categoryNameOf(element.categoryId),
+                'selected': selected.contains(element.id),
+              },
+          ],
         });
       },
     ),
@@ -594,6 +639,50 @@ Map<String, dynamic> _fieldEnvelope({
     'truncated': truncated,
     'tokenEstimate': TokenEstimator.estimate(text),
   };
+}
+
+/// Rows a `*.list_*` read returns when the model does not ask for a size.
+const int kListDefaultLimit = 50;
+
+/// Upper bound so one list call cannot flood the context window.
+const int kListMaxLimit = 200;
+
+/// Lower-cased `keyword` argument; empty when absent.
+String _needleOf(Map<String, dynamic> args) =>
+    (args['keyword']?.toString() ?? '').trim().toLowerCase();
+
+/// First `limit` rows of [rows] plus how many were withheld.
+({List<T> rows, int total, bool truncated, int rest}) _page<T>(
+  List<T> rows,
+  Map<String, dynamic> args,
+) {
+  final asked = (args['limit'] as num?)?.toInt() ?? kListDefaultLimit;
+  final limit = asked < 1
+      ? kListDefaultLimit
+      : (asked > kListMaxLimit ? kListMaxLimit : asked);
+  if (rows.length <= limit) {
+    return (rows: rows, total: rows.length, truncated: false, rest: 0);
+  }
+  return (
+    rows: rows.take(limit).toList(growable: false),
+    total: rows.length,
+    truncated: true,
+    rest: rows.length - limit,
+  );
+}
+
+String _listHint(int rest) =>
+    '还有 $rest 条没列出，用 keyword 收窄，或把 limit 调大';
+
+bool _worldEntryMatches(WorldBookEntry entry, String needle) {
+  return entry.title.toLowerCase().contains(needle) ||
+      entry.body.toLowerCase().contains(needle) ||
+      entry.keys.any((key) => key.toLowerCase().contains(needle));
+}
+
+bool _castMemberMatches(CastMember member, String needle) {
+  return member.name.toLowerCase().contains(needle) ||
+      member.summary.toLowerCase().contains(needle);
 }
 
 Object? _worldField(WorldBookEntry entry, String field) => switch (field) {
