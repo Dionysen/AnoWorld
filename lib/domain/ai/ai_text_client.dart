@@ -38,9 +38,17 @@ abstract class AiToolTurnClient {
 }
 
 class AiTextException implements Exception {
-  AiTextException(this.message);
+  AiTextException(this.message, {this.code});
 
   final String message;
+
+  /// Machine-readable cause when the provider said why a reply was unusable
+  /// (`truncated`, `thinking_only`, `empty`): callers can retry smaller
+  /// instead of only showing text. Mirrors [OpenAiChatException.code].
+  final String? code;
+
+  /// Output hit the reply-token limit: the useful part is missing.
+  static const String truncated = 'truncated';
 
   @override
   String toString() => message;
@@ -114,7 +122,7 @@ class EndpointAiTextClient implements AiTextClient, AiToolTurnClient {
         tools: tools,
       );
     } on OpenAiChatException catch (error) {
-      throw AiTextException(error.message);
+      throw AiTextException(error.message, code: error.code);
     }
   }
 }

@@ -38,9 +38,9 @@ class AiGenerationSettingsPanel extends StatelessWidget {
             AppSlider(
               label: strings.maxOutputLabel,
               icon: Icons.output_outlined,
-              value: g.maxTokens.toDouble().clamp(256, 8192),
-              min: 256,
-              max: 8192,
+              value: g.maxTokens.toDouble().clamp(_outputMin, _outputMax),
+              min: _outputMin,
+              max: _outputMax,
               step: 256,
               valueText: (v) => '${v.round()} token',
               onChanged: (v) =>
@@ -112,6 +112,12 @@ class AiGenerationSettingsPanel extends StatelessWidget {
 
   static const _contextMin = 4096.0;
   static const _contextMax = 200000.0;
+
+  /// Output cap range. Reasoning models spend a few thousand tokens thinking
+  /// before the answer, so a long JSON (60+ stations) needs more than the old
+  /// 8k ceiling; DeepSeek / most gateways accept 32k.
+  static const double _outputMin = 256;
+  static const double _outputMax = 32768;
 
   static double _contextSlider(int contextLength) {
     final clamped =

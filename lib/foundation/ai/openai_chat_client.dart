@@ -158,9 +158,7 @@ class OpenAiChatClient {
     // Tool-call replies legitimately carry no text; only treat "neither text
     // nor tools" as an empty response.
     if (content.trim().isEmpty && toolCalls.isEmpty) {
-      throw OpenAiChatException(
-        _emptyReplyMessage(finishReason, hasReasoning: reasoningText != null),
-      );
+      throw _emptyReply(finishReason, reasoningText);
     }
     if (content.trim().isNotEmpty &&
         (reasoningText == null || reasoningText.isEmpty)) {
@@ -169,12 +167,7 @@ class OpenAiChatClient {
       reasoningText = extracted.$2;
     }
     if (content.trim().isEmpty && toolCalls.isEmpty) {
-      throw OpenAiChatException(
-        _emptyReplyMessage(
-          finishReason,
-          hasReasoning: reasoningText != null && reasoningText.isNotEmpty,
-        ),
-      );
+      throw _emptyReply(finishReason, reasoningText);
     }
     return OpenAiChatCompletion(
       content: content,
@@ -187,17 +180,27 @@ class OpenAiChatClient {
   }
 
   /// Names what actually went wrong instead of one opaque「没有内容」.
-  static String _emptyReplyMessage(
-    String? finishReason, {
-    required bool hasReasoning,
-  }) {
+  static OpenAiChatException _emptyReply(
+    String? finishReason,
+    String? reasoningText,
+  ) {
     if (finishReason == 'length') {
-      return '这次的输出触到长度上限被截断了，少生成一点再试';
+      return OpenAiChatException(
+        '这次的输出触到长度上限被截断了，少生成一点再试',
+        code: OpenAiChatException.truncated,
+      );
     }
+    final hasReasoning = reasoningText != null && reasoningText.trim().isNotEmpty;
     if (hasReasoning) {
-      return '模型只写了思考，没给出正文，稍后再试';
+      return OpenAiChatException(
+        '模型只写了思考，没给出正文，稍后再试',
+        code: OpenAiChatException.thinkingOnly,
+      );
     }
-    return '模型没有返回可用内容';
+    return OpenAiChatException(
+      '模型没有返回可用内容',
+      code: OpenAiChatException.empty,
+    );
   }
 
   /// Reads OpenAI-style `message.tool_calls`; empty when absent or unusable.
@@ -266,9 +269,22 @@ class OpenAiChatClient {
 }
 
 class OpenAiChatException implements Exception {
-  OpenAiChatException(this.message);
+  OpenAiChatException(this.message, {this.code});
 
   final String message;
+
+  /// Machine-readable cause for replies that carried no usable content
+  /// (`truncated` / `thinking_only` / `empty`); null for request errors.
+  final String? code;
+
+  /// `finish_reason: length` — the reply was cut off by the output limit.
+  static const String truncated = 'truncated';
+
+  /// The model spent its whole budget on reasoning and left no answer.
+  static const String thinkingOnly = 'thinking_only';
+
+  /// Neither text nor tool calls came back.
+  static const String empty = 'empty';
 
   @override
   String toString() => message;

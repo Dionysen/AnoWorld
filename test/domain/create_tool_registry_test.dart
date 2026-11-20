@@ -93,6 +93,39 @@ String _encode(Map<String, dynamic> args) {
   return buffer.toString();
 }
 
+/// Fails the first [truncations] model turns the way the real client does when
+/// `finish_reason` is `length`, then replays [replies].
+class _TruncatingTurnClient implements AiToolTurnClient {
+  _TruncatingTurnClient({required this.truncations, required this.replies});
+
+  final int truncations;
+  final List<OpenAiChatCompletion> replies;
+  int calls = 0;
+  List<OpenAiChatMessage> lastMessages = const <OpenAiChatMessage>[];
+
+  @override
+  Future<OpenAiChatCompletion> completeTurn({
+    required AiTextEndpoint endpoint,
+    required List<OpenAiChatMessage> messages,
+    List<OpenAiTool> tools = const <OpenAiTool>[],
+    GenerationPreset? generation,
+  }) async {
+    lastMessages = messages;
+    calls++;
+    if (calls <= truncations) {
+      throw AiTextException(
+        '这次的输出触到长度上限被截断了，少生成一点再试',
+        code: AiTextException.truncated,
+      );
+    }
+    final index = calls - truncations - 1;
+    if (index >= replies.length) {
+      throw AiTextException('no more replies');
+    }
+    return replies[index];
+  }
+}
+
 String _value(Object? value) {
   if (value == null) return 'null';
   if (value is num || value is bool) return '$value';
@@ -1078,6 +1111,57 @@ void main() {
         .map((s) => s['title'])
         .toList();
     expect(titles, contains('追加站'));
+  });
+
+  test('runTurn retries smaller when the reply is cut off by the length limit',
+      () async {
+    final client = _TruncatingTurnClient(
+      truncations: 1,
+      replies: [
+        _call('main.replace', _decodeGraph(buildFullGraphJson()), index: 1),
+        const OpenAiChatCompletion(content: ''),
+      ],
+    );
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.graph,
+      prompt: '生成不少于 60 站的情节图',
+      ctx: ctx,
+    );
+
+    // The turn survives: a smaller batch was asked for instead of failing.
+    expect(turn.errorMessage, isNull);
+    expect(turn.proposal?['kind'], 'main.replace');
+    expect(
+      client.lastMessages.where((m) => m.content.contains('触到输出上限')),
+      hasLength(1),
+    );
+  });
+
+  test('runTurn gives up after repeated truncation', () async {
+    final client = _TruncatingTurnClient(truncations: 3, replies: const []);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    await expectLater(
+      CreateAgentRunner().runTurn(
+        target: CreateAssistantTarget.graph,
+        prompt: '生成不少于 60 站的情节图',
+        ctx: ctx,
+      ),
+      throwsA(
+        isA<AiTextException>().having((e) => e.code, 'code', 'truncated'),
+      ),
+    );
+    expect(client.calls, 3);
   });
 }
 

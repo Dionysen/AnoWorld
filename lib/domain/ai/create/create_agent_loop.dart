@@ -41,6 +41,17 @@ class CreateAgentLoop {
   /// turn reads several layers and then writes each of them, so it needs more.
   final int maxSteps;
 
+  /// How many times a reply cut off by the output limit is retried with a
+  /// smaller batch before the turn gives up.
+  static const int maxTruncationRetries = 2;
+
+  /// Sent after a truncated reply: halves the batch and forbids double quotes
+  /// inside the JSON, which is what usually broke the arguments.
+  static const String truncatedRetryPrompt =
+      '上一次回复触到输出上限被截断了，整段内容没拿到。'
+      '这次只交 10～15 站（含这些站的出边），其余站等下一批用 main.patch 补，'
+      '不要试图一次写完整图；JSON 字符串里引用词句用「」，不要用双引号。';
+
   /// Most recent conversation lines replayed into a turn. Ten lines covers
   /// "改一下 → 不行 → 再改" without dragging the whole transcript back in.
   static const int maxHistoryTurns = 10;
@@ -83,9 +94,31 @@ class CreateAgentLoop {
     ];
     final staged = <String, CreateTurnProposal>{};
     final called = <String>[];
+    var truncations = 0;
 
     for (var step = 0; step < maxSteps; step++) {
-      final turn = await _nextTurn(client, ai, messages, allow, budget);
+      final _ModelTurn turn;
+      try {
+        turn = await _nextTurn(client, ai, messages, allow, budget);
+      } on AiTextException catch (error) {
+        // A reply cut off by the output limit carries no usable tool call.
+        // Ask once more for a smaller batch instead of failing the turn:
+        // reasoning models spend several thousand tokens thinking first.
+        if (error.code != AiTextException.truncated ||
+            truncations >= maxTruncationRetries) {
+          if (staged.isNotEmpty) break;
+          rethrow;
+        }
+        truncations++;
+        AppLog.instance.warning(
+          '创作回合输出被截断，改成小批重试（$truncations/$maxTruncationRetries）',
+          tag: 'create.tool',
+        );
+        messages.add(
+          const OpenAiChatMessage(role: 'user', content: truncatedRetryPrompt),
+        );
+        continue;
+      }
       if (turn.toolCalls.isEmpty) {
         if (staged.isNotEmpty) {
           return _proposalBatch(staged, called, turn.content);
