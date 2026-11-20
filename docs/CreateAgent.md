@@ -37,3 +37,4 @@
 ## 未做
 
 - 完整多轮 LLM tool-loop、跨域一次改多处、`refine.field` 精修。
+- 五块上下文（预设 / 世界书 / 角色 / 情节图 / 剧情元素）的渐进披露与统一寻址。目标方案见 [AgentTools.md](./AgentTools.md)。
