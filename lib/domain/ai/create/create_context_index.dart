@@ -1,4 +1,3 @@
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
@@ -19,7 +18,6 @@ class CreateContextIndex {
     required Project project,
     PlotElementCatalog? plotCatalog,
     PromptManagerConfig? presetManager,
-    required CreateAssistantTarget target,
   }) {
     final blocks = <String>[
       '【故事】${project.meta.title}',
@@ -28,7 +26,6 @@ class CreateContextIndex {
       _graphBlock(project),
       _plotBlock(project, plotCatalog),
       _presetBlock(presetManager),
-      '【当前要改】${_targetLabel(target)}',
     ];
     return blocks.where((b) => b.trim().isNotEmpty).join('\n');
   }
@@ -124,13 +121,6 @@ class CreateContextIndex {
     lines.addAll(shown.tail);
     return lines.join('\n');
   }
-
-  static String _targetLabel(CreateAssistantTarget target) => switch (target) {
-        CreateAssistantTarget.graph => '情节图',
-        CreateAssistantTarget.world => '世界书',
-        CreateAssistantTarget.cast => '角色',
-        CreateAssistantTarget.all => '全部（世界书 / 角色 / 情节图 / 剧情元素）',
-      };
 
   _Capped<T> _cap<T>(List<T> rows) {
     if (rows.length <= maxLines) return _Capped<T>(rows, const <String>[]);

@@ -8,7 +8,6 @@ import 'package:anoworld/foundation/ai/openai_chat_message.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_chat_turn.dart';
 import 'package:anoworld/domain/ai/create/create_history_fit.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
@@ -258,7 +257,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.graph,
       prompt: '把主线概括改短',
       ctx: ctx,
     );
@@ -282,7 +280,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.graph,
       prompt: '看看情节合理吗',
       ctx: ctx,
     );
@@ -305,7 +302,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.world,
       prompt: '加一条设定',
       ctx: ctx,
     );
@@ -322,7 +318,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.world,
       prompt: '加一条设定',
       ctx: ctx,
     );
@@ -342,7 +337,6 @@ void main() {
     );
 
     await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.world,
       prompt: '加一条设定',
       ctx: ctx,
     );
@@ -546,7 +540,6 @@ void main() {
     );
 
     final result = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.world,
       prompt: '看看这两条设定',
       ctx: ctx,
     );
@@ -578,7 +571,6 @@ void main() {
         );
 
     await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.cast,
       prompt: '把林晚写得更冷一点',
       ctx: ctx(const GenerationPreset()),
       history: const <CreateChatTurn>[
@@ -596,7 +588,6 @@ void main() {
     // When the rules plus this prompt leave too little room, older lines go
     // first and the newest line stays.
     await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.cast,
       prompt: '这次只改语气',
       ctx: ctx(const GenerationPreset(contextLength: 2048, maxTokens: 1900)),
       history: <CreateChatTurn>[
@@ -758,14 +749,24 @@ void main() {
         isTrue);
   });
 
-  test('the plot write tool is offered only for the graph target', () {
-    const graph = CreateAssistantTarget.graph;
-    const world = CreateAssistantTarget.world;
+  test('a turn may read every layer and write every layer', () {
+    const allowed = CreateToolRegistry.assistantTools;
 
-    expect(graph.toolAllowlist, contains('plot.select'));
-    expect(graph.toolAllowlist, contains('plot.list_elements'));
-    expect(world.toolAllowlist, isNot(contains('plot.select')));
-    expect(world.toolAllowlist, contains('plot.list_elements'));
+    expect(
+      allowed,
+      containsAll(<String>[
+        'world.patch',
+        'cast.patch',
+        'main.patch',
+        'main.replace',
+        'plot.select',
+      ]),
+    );
+    expect(allowed, contains('world.read_entry'));
+    expect(allowed, contains('cast.read_member'));
+    expect(allowed, contains('plot.list_elements'));
+    // Card-import tools belong to the import flow, not the chat loop.
+    expect(allowed, isNot(contains('card.sanitize_draft')));
   });
 
   test('declarations use provider-safe tool names', () async {
@@ -779,13 +780,12 @@ void main() {
     );
 
     await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.all,
       prompt: '看看',
       ctx: ctx,
     );
 
     final declarations = CreateToolRegistry()
-        .declarations(CreateAssistantTarget.all.toolAllowlist);
+        .declarations(CreateToolRegistry.assistantTools);
     expect(declarations, isNotEmpty);
     final safe = RegExp(r'^[a-zA-Z0-9_-]+$');
     for (final tool in declarations) {
@@ -832,7 +832,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.world,
       prompt: '加个渡口',
       ctx: ctx,
     );
@@ -844,23 +843,6 @@ void main() {
       (m) => m.toolCalls.isNotEmpty,
     );
     expect(assistant.toolCalls.single.name, 'world_patch');
-  });
-
-  test('the all target may write every layer', () {
-    const all = CreateAssistantTarget.all;
-
-    expect(
-      all.toolAllowlist,
-      containsAll(<String>[
-        'world.patch',
-        'cast.patch',
-        'main.patch',
-        'main.replace',
-        'plot.select',
-      ]),
-    );
-    expect(all.toolAllowlist, contains('world.read_entry'));
-    expect(all.toolAllowlist, contains('cast.read_member'));
   });
 
   test('runTurn stages changes from several layers in one turn', () async {
@@ -888,7 +870,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.all,
       prompt: '补一个渡口，再加个船夫',
       ctx: ctx,
     );
@@ -926,7 +907,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.world,
       prompt: '加渡口和船灯',
       ctx: ctx,
     );
@@ -1027,7 +1007,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.graph,
       prompt: '加一站',
       ctx: ctx,
     );
@@ -1065,7 +1044,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.graph,
       prompt: '加一站',
       ctx: ctx,
     );
@@ -1096,7 +1074,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.graph,
       prompt: '生成不少于 40 站的情节图',
       ctx: ctx,
     );
@@ -1129,7 +1106,6 @@ void main() {
     );
 
     final turn = await CreateAgentRunner().runTurn(
-      target: CreateAssistantTarget.graph,
       prompt: '生成不少于 60 站的情节图',
       ctx: ctx,
     );
@@ -1153,7 +1129,6 @@ void main() {
 
     await expectLater(
       CreateAgentRunner().runTurn(
-        target: CreateAssistantTarget.graph,
         prompt: '生成不少于 60 站的情节图',
         ctx: ctx,
       ),

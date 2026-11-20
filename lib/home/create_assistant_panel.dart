@@ -6,7 +6,6 @@ import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_chat_turn.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_services.dart';
@@ -27,10 +26,10 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
-import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/create_assistant_draft.dart';
 import 'package:anoworld/home/create_assistant_draft_store.dart';
 import 'package:anoworld/home/patch_review_sheet.dart';
@@ -38,10 +37,14 @@ import 'package:flutter/material.dart';
 
 /// Create-assistant conversation body (inside [CreateAssistantBloomShell]).
 class CreateAssistantPanel extends StatefulWidget {
-  const CreateAssistantPanel({super.key, this.draftStore});
+  const CreateAssistantPanel({super.key, this.draftStore, this.controller});
 
   /// Injectable for tests; defaults to SharedPreferences-backed store.
   final CreateAssistantDraftStore? draftStore;
+
+  /// Assistant controller of the app. The panel follows the story whose edit
+  /// page is open until the user picks another one by hand.
+  final CreateAssistantController? controller;
 
   /// Minimum panel height before layout chrome + composer can fit.
   static const minLayoutHeight = 380;
@@ -57,7 +60,6 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 
   String? _projectId;
   String _projectTitle = '';
-  CreateAssistantTarget _target = CreateAssistantTarget.graph;
   final List<_AssistantLine> _lines = [];
   bool _loadingStories = false;
   bool _generating = false;
@@ -69,11 +71,39 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   bool _ready = false;
   Timer? _composerDebounce;
 
+  CreateAssistantController? _assistant;
+
+  /// Story to adopt once the draft is restored / the running turn finishes.
+  String? _pendingStory;
+
+  /// Last [CreateAssistantController.storyVersion] this panel reacted to.
+  int _seenStoryVersion = -1;
+
+  /// Guards the async story switch against an older open winning the race.
+  int _storyRequest = 0;
+
   @override
   void initState() {
     super.initState();
     _composer.addListener(_onComposerChanged);
+    _listenToController(widget.controller);
     unawaited(_restore());
+  }
+
+  @override
+  void didUpdateWidget(covariant CreateAssistantPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      _listenToController(widget.controller);
+    }
+  }
+
+  void _listenToController(CreateAssistantController? controller) {
+    if (identical(_assistant, controller)) return;
+    _assistant?.removeListener(_onStoryContextChanged);
+    _assistant = controller?..addListener(_onStoryContextChanged);
+    _seenStoryVersion = -1;
+    _onStoryContextChanged();
   }
 
   Future<void> _restore() async {
@@ -82,7 +112,6 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     setState(() {
       _projectId = draft.projectId;
       _projectTitle = draft.projectTitle;
-      _target = draft.target;
       _lines
         ..clear()
         ..addAll(
@@ -102,6 +131,63 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
         tag: 'create.assistant',
       );
     }
+    _syncStory();
+  }
+
+  /// Reacts to edit pages opening / closing, not to every controller change
+  /// (visibility toggles and popups must not revert a manual pick).
+  void _onStoryContextChanged() {
+    final assistant = _assistant;
+    if (assistant == null || assistant.storyVersion == _seenStoryVersion) return;
+    _seenStoryVersion = assistant.storyVersion;
+    _syncStory();
+  }
+
+  /// Follows the story of the edit page that just opened.
+  ///
+  /// A running turn keeps its own project, so the switch waits for the review
+  /// sheet instead of pulling the story out from under it.
+  void _syncStory() {
+    final storyId = _assistant?.storyContext;
+    if (storyId == null || storyId.isEmpty || storyId == _projectId) {
+      _pendingStory = null;
+      return;
+    }
+    if (!_ready || _generating) {
+      _pendingStory = storyId;
+      return;
+    }
+    _pendingStory = null;
+    unawaited(_followStory(storyId));
+  }
+
+  Future<void> _followStory(String projectId) async {
+    final request = ++_storyRequest;
+    try {
+      final project = await AppScope.projectsOf(context).open(projectId);
+      if (!mounted || request != _storyRequest || _projectId == projectId) {
+        return;
+      }
+      setState(() {
+        _projectId = projectId;
+        _projectTitle = project.meta.title;
+        // The previous story's conversation stays readable, but it must not
+        // steer this one.
+        _historyStart = _lines.length;
+      });
+      await _persist();
+      AppLog.instance.info(
+        '创作助手跟随当前故事：${project.meta.title}',
+        tag: 'create.assistant',
+      );
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '创作助手切换故事失败',
+        tag: 'create.assistant',
+        error: error,
+        stackTrace: stack,
+      );
+    }
   }
 
   void _onComposerChanged() {
@@ -116,7 +202,6 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       projectId: _projectId,
       projectTitle: _projectTitle,
       composer: _composer.text,
-      target: _target,
       lines: [
         for (final line in _lines)
           if (!line.pending)
@@ -230,7 +315,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     });
     unawaited(_persist());
     AppLog.instance.info(
-      '创作助手 ${_target.wireName}（$projectId）',
+      '创作助手开始回合（$projectId）',
       tag: 'create.assistant',
     );
     unawaited(
@@ -272,7 +357,6 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     try {
       final project = await repo.open(projectId);
       final turn = await CreateAgentRunner().runTurn(
-        target: _target,
         prompt: prompt,
         history: history,
         ctx: CreateToolContext(
@@ -397,6 +481,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       _generating = false;
     });
     unawaited(_persist());
+    if (_pendingStory != null) _syncStory();
   }
 
   /// Ops carried by a proposal payload.
@@ -716,6 +801,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 
   @override
   void dispose() {
+    _assistant?.removeListener(_onStoryContextChanged);
     _composerDebounce?.cancel();
     _composer.removeListener(_onComposerChanged);
     // Best-effort flush; store handles errors.
@@ -831,47 +917,12 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
             hintText: strings.assistantComposerHint,
             isGenerating: _generating,
             onSend: _send,
-            trailing: _buildTargetSwitch(strings),
           ),
         ),
       ],
     );
   }
 
-  /// Edit scope: icon-only, left of send so it reads as part of the prompt.
-  Widget _buildTargetSwitch(AppStrings strings) {
-    return AppIconSegmented<CreateAssistantTarget>(
-      value: _target,
-      options: [
-        AppSegmentOption(
-          value: CreateAssistantTarget.graph,
-          label: strings.assistantTargetGraph,
-          icon: Icons.account_tree_outlined,
-        ),
-        AppSegmentOption(
-          value: CreateAssistantTarget.world,
-          label: strings.assistantTargetWorld,
-          icon: Icons.public_outlined,
-        ),
-        AppSegmentOption(
-          value: CreateAssistantTarget.cast,
-          label: strings.assistantTargetCast,
-          icon: Icons.groups_outlined,
-        ),
-        AppSegmentOption(
-          value: CreateAssistantTarget.all,
-          label: strings.assistantTargetAll,
-          icon: Icons.layers_outlined,
-        ),
-      ],
-      onChanged: _generating
-          ? (_) {}
-          : (value) {
-              setState(() => _target = value);
-              unawaited(_persist());
-            },
-    );
-  }
 }
 
 enum _LineRole { user, assistant }

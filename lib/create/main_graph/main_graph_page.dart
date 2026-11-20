@@ -38,6 +38,7 @@ import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
+import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -52,7 +53,12 @@ class MainGraphPage extends StatefulWidget {
 }
 
 class _MainGraphPageState extends State<MainGraphPage>
-    with ProjectChangeWatcher<MainGraphPage> {
+    with
+        ProjectChangeWatcher<MainGraphPage>,
+        CreateAssistantStoryScope<MainGraphPage> {
+  @override
+  String get assistantStoryId => widget.projectId;
+
   static const _ops = MainGraphOps();
 
   Project? _project;

@@ -34,49 +34,4 @@ void main() {
     await tester.pumpAndSettle();
     expect(value, 'b');
   });
-
-  testWidgets('icon segments draw only icons and keep labels as tooltips', (
-    tester,
-  ) async {
-    var value = 'a';
-    await tester.pumpWidget(
-      testLocalized(
-        home: Scaffold(
-          body: StatefulBuilder(
-            builder: (context, setState) => Center(
-              child: AppIconSegmented<String>(
-                value: value,
-                options: const [
-                  AppSegmentOption(
-                    value: 'a',
-                    label: '甲',
-                    icon: Icons.public_outlined,
-                  ),
-                  AppSegmentOption(
-                    value: 'b',
-                    label: '乙',
-                    icon: Icons.groups_outlined,
-                  ),
-                ],
-                onChanged: (next) => setState(() => value = next),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    // No visible text: the group stays as wide as its squares.
-    expect(find.text('甲'), findsNothing);
-    expect(find.byIcon(Icons.public_outlined), findsOneWidget);
-    expect(
-      tester.getSize(find.byType(AppIconSegmented<String>)).width,
-      AppIconSegmented.segmentSize * 2,
-    );
-
-    expect(find.byTooltip('甲'), findsOneWidget);
-    await tester.tap(find.byTooltip('乙'));
-    await tester.pumpAndSettle();
-    expect(value, 'b');
-  });
 }

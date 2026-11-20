@@ -24,6 +24,26 @@ class CreateToolRegistry {
         ...buildProjectTools(),
       ];
 
+  /// Tools one assistant turn may call: every story read tool plus every write
+  /// tool. The assistant has no per-layer scope, so the model decides which
+  /// layer to change; card-import tools stay out (not part of the chat loop).
+  static const List<String> assistantTools = <String>[
+    'project.read_summary',
+    'main.read_graph',
+    'main.list_nodes',
+    'main.get_node',
+    'world.list_entries',
+    'world.read_entry',
+    'cast.list_members',
+    'cast.read_member',
+    'plot.list_elements',
+    'main.replace',
+    'main.patch',
+    'world.patch',
+    'cast.patch',
+    'plot.select',
+  ];
+
   Iterable<CreateTool> get catalog => _tools.values;
 
   /// Looks a tool up by canonical name or by the wire name the model echoed.

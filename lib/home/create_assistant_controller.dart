@@ -12,6 +12,48 @@ class CreateAssistantController extends ChangeNotifier {
   int _storyRouteCount = 0;
   int _coverCount = 0;
   final Set<Route<dynamic>> _popups = <Route<dynamic>>{};
+  bool _disposed = false;
+
+  /// Story edit pages currently mounted, in mount order. The assistant follows
+  /// the newest one, so a subpage (plot graph, world book) wins over the story
+  /// hub below it and popping back falls to the hub again.
+  final List<_StoryScope> _storyScopes = <_StoryScope>[];
+  int _storyVersion = 0;
+
+  /// Story whose edit page is on top, or null outside story pages.
+  String? get storyContext =>
+      _storyScopes.isEmpty ? null : _storyScopes.last.projectId;
+
+  /// Bumped whenever an edit page opens or closes. Listeners that only care
+  /// about navigation can skip the other notifications (visibility, popups).
+  int get storyVersion => _storyVersion;
+
+  /// Registers an open edit page. Re-entering the same page is a no-op, so a
+  /// rebuild cannot reorder the stack.
+  void enterStory(Object owner, String projectId) {
+    final index = _storyScopes.indexWhere((s) => identical(s.owner, owner));
+    if (index >= 0) {
+      if (_storyScopes[index].projectId == projectId) return;
+      _storyScopes[index] = _StoryScope(owner, projectId);
+    } else {
+      _storyScopes.add(_StoryScope(owner, projectId));
+    }
+    _storyVersion++;
+    AppLog.instance.info(
+      '创作助手跟随故事页面（$projectId）',
+      tag: 'create.assistant',
+    );
+    _notify();
+  }
+
+  /// Drops a closed edit page; the page underneath takes over again.
+  void leaveStory(Object owner) {
+    final index = _storyScopes.indexWhere((s) => identical(s.owner, owner));
+    if (index < 0) return;
+    _storyScopes.removeAt(index);
+    _storyVersion++;
+    _notify();
+  }
 
   bool get visible =>
       (_homeStories || _storyRouteCount > 0) && _coverCount == 0;
@@ -74,16 +116,23 @@ class CreateAssistantController extends ChangeNotifier {
   }
 
   void _notify() {
-    // NavigatorObserver callbacks can fire during build/layout.
+    if (_disposed) return;
+    // NavigatorObserver callbacks and page mounts can fire during build/layout.
     final phase = SchedulerBinding.instance.schedulerPhase;
     if (phase == SchedulerPhase.idle ||
         phase == SchedulerPhase.postFrameCallbacks) {
       notifyListeners();
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifyListeners();
+        if (!_disposed) notifyListeners();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }
 
@@ -125,4 +174,12 @@ class CreateAssistantNavigatorObserver extends NavigatorObserver {
     if (newRoute != null) controller.onRoutePushed(newRoute);
     _afterStackChange();
   }
+}
+
+/// One open edit page pointing the assistant at its story.
+class _StoryScope {
+  const _StoryScope(this.owner, this.projectId);
+
+  final Object owner;
+  final String projectId;
 }

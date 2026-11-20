@@ -1,4 +1,3 @@
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_context_index.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
@@ -15,7 +14,6 @@ void main() {
   test('lists ids, titles and layer sizes but no bodies', () {
     final text = index.build(
       project: project,
-      target: CreateAssistantTarget.graph,
     );
 
     expect(text, contains('【故事】雨夜投宿'));
@@ -23,7 +21,6 @@ void main() {
     expect(text, contains('cast:c_hero · 少年（主角） · 离家远行的旅人'));
     expect(text, contains('node:n1 · 城门 · 出边 1'));
     expect(text, contains('node:n2 · 客栈 · 出边 0'));
-    expect(text, contains('【当前要改】情节图'));
     // The L1 directory must stay an index: no entry bodies.
     expect(text, isNot(contains('边陲小城外常有过路旅人')));
   });
@@ -63,7 +60,6 @@ void main() {
 
     final text = index.build(
       project: withEnding,
-      target: CreateAssistantTarget.graph,
     );
 
     expect(text, contains('2 站 · 2 条线（分支 1'));
@@ -79,7 +75,6 @@ void main() {
 
     final text = const CreateContextIndex(maxLines: 2).build(
       project: many,
-      target: CreateAssistantTarget.cast,
     );
 
     expect(text, contains('【角色】共 5 人'));
@@ -97,11 +92,9 @@ void main() {
     final text = index.build(
       project: withPlot,
       plotCatalog: catalog,
-      target: CreateAssistantTarget.world,
     );
 
     expect(text, contains('【剧情元素】已选 2 项'));
-    expect(text, contains('【当前要改】世界书'));
   });
 
   test('says so when a layer is empty', () {
@@ -109,21 +102,9 @@ void main() {
 
     final text = index.build(
       project: empty,
-      target: CreateAssistantTarget.cast,
     );
 
     expect(text, contains('【角色】还没有角色'));
-  });
-
-  test('the all target names every editable layer', () {
-    final text = index.build(
-      project: project,
-      target: CreateAssistantTarget.all,
-    );
-
-    expect(text, contains('【当前要改】全部'));
-    expect(text, contains('世界书'));
-    expect(text, contains('情节图'));
   });
 
   test('names the preset sections as read-only rules', () {
@@ -141,7 +122,6 @@ void main() {
     final text = index.build(
       project: project,
       presetManager: config,
-      target: CreateAssistantTarget.world,
     );
 
     expect(text, contains('【预设】1 段'));
@@ -171,7 +151,6 @@ void main() {
     final text = index.build(
       project: project,
       presetManager: config,
-      target: CreateAssistantTarget.world,
     );
 
     expect(text, contains('【预设】2 段'));
@@ -182,7 +161,6 @@ void main() {
   test('omits the preset block when no manager is given', () {
     final text = index.build(
       project: project,
-      target: CreateAssistantTarget.world,
     );
 
     expect(text, isNot(contains('【预设】')));

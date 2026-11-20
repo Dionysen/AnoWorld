@@ -489,7 +489,6 @@ abstract class AppStrings extends AppLocalizations {
   String get assistantTargetGraph;
   String get assistantTargetWorld;
   String get assistantTargetCast;
-  String get assistantTargetAll;
   String opCount(int count);
 
   // Patch review (per-op tick + field diff).

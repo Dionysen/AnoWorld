@@ -1,7 +1,8 @@
-/// Task rules appended after global AiPreset for the create assistant loop.
+/// Task rules appended after the global AiPreset for the create-assistant loop.
 ///
-/// The loop's model reads what it needs with the read tools, then writes one
-/// proposal tool call. Content rules live here; argument shapes live in the
+/// The assistant has no per-layer scope: one turn may read any layer and stage
+/// writes on several of them, and the panel merges them into a single
+/// confirmation sheet. Content rules live here; argument shapes live in the
 /// tool declarations. [skeletonFormat] / [skeletonRules] are shared with the
 /// staged-create path, which asks for the same skeleton as plain JSON.
 class CreatePromptProfiles {
@@ -24,54 +25,11 @@ class CreatePromptProfiles {
 - 输出 JSON 时字符串里引用词句用「」，不要用双引号；引号与换行都要转义
 - 不要输出 lines / choices / 对白''';
 
-  static const String graphTaskRules = '''
-你现在是这本故事的情节图编辑助手。设定与角色的目录已在系统提示里，需要细节时用工具读取，不要凭印象编。
-可用工具：
-- main.read_graph：读现有骨架（站 id、站名、概括、连线）
-- main.list_nodes：只列站（id、站名、出边数、是否终局），站多时先看这里
-- main.get_node：细看一站（概括、标签、出入连线），ref 如 node:n2
-- world.list_entries / world.read_entry：查设定
-- cast.list_members / cast.read_member：查角色
-- plot.list_elements：列出全局剧情元素库（id、分类、关键词、是否已选）
-- main.replace：整图重写（还没有情节图、或用户要求整图重写时用）
-- main.patch：只改局部（增删站、增删连线、改概括）
-- plot.select：勾选 / 取消勾选剧情元素，或新增一条并勾上
+  static const String taskRules =
+      '''
+你现在是这本故事的编辑助手，可以改世界书、角色、情节图与剧情元素。各层目录已在系统提示里，需要正文时用工具读取。
+哪些层要改由你判断：用户的请求落在哪一层就改哪一层，别顺手改没提到的层。
 
-步骤：
-1. 没有情节图 → 直接 main.replace；要改已有情节 → 先 main.read_graph 看清站 id 与站名；图很大只要看某几站时用 main.list_nodes / main.get_node
-2. 需要设定或角色细节时，按 ref 读取，只读你真正要用的那几条
-3. 用户提到要用某一类桥段（悬疑、危机、灵异…）或觉得分叉太单薄时，先 plot.list_elements 看库里有什么，再 plot.select 勾选；库里没有合适的就用 add_element 补一条
-4. 想清楚再写：一次写工具别超过 20 站。图更大就分几次提交——先用 main.replace 交开头一段，再用 main.patch 的 upsert_node / upsert_edge 接着补（同一回合的多次改动会合成一张确认单）
-5. 不需要改动（用户只是在问问题）→ 直接用一两句话回答
-
-写骨架时遵守：
-''' +
-      skeletonRules;
-
-  static const String worldTaskRules = '''
-你现在是这本故事的世界书编辑助手。设定目录已在系统提示里，需要正文时用工具读取。
-可用工具：
-- world.list_entries / world.read_entry：列目录、读条目（可只取一个字段）
-- cast.list_members / cast.read_member：查角色，保证设定与人物不冲突
-- main.read_graph：查情节，保证设定能落地
-- world.patch：提交条目改动
-
-步骤：
-1. 改已有条目必须先 world.read_entry 看清原文，别凭标题猜
-2. 再提交一次 world.patch，把该改的都写全
-3. 用户只是在问问题时，直接用一两句话回答，不要调用改动工具
-
-规则：
-- 只改用户提到的设定；不要无故删光
-- 新建条目可以不带 id；改已有条目必须带 id
-- 正文写具体、可执行的事实，不要空泛形容
-- keys 是可命中的关键词；alwaysOn 只给全局硬规则与基调
-- 与现有角色、情节冲突时以已有设定为准，除非用户明确要改''';
-
-  /// Cross-layer mode: the model may stage writes on several layers in one
-  /// turn; the panel merges them into a single confirmation sheet.
-  static const String allTaskRules = '''
-你现在是这本故事的全层编辑助手，可以同时改世界书、角色、情节图与剧情元素。各层目录已在系统提示里，需要正文时用工具读取。
 可用工具：
 - 读：world.list_entries / world.read_entry、cast.list_members / cast.read_member、main.read_graph / main.list_nodes / main.get_node、plot.list_elements
 - 写：world.patch、cast.patch、main.patch / main.replace、plot.select
@@ -81,29 +39,10 @@ class CreatePromptProfiles {
 2. 一个回合里可以调用多次写工具：需要改几层就提交几次，用户会看到一张合并的确认单
 3. 各层改动要互相一致：新增角色要能落进情节，情节里用到的新设定要真的建条目
 4. 同一层需要多次改时，尽量用一次写工具把 ops 写全；但一次写工具别超过 20 站，图更大就分几次 main.patch 提交（同一回合会合并）
-5. 不需要改动（用户只是在问问题）→ 直接用一两句话回答，不要调用写工具
+5. 一条 ops 里只放同一层的改动，别把设定 op 和角色 op 混在同一个数组里
+6. 只回答、不需要改动时（用户只是在问问题）→ 直接用一两句话回答，不要调用写工具
 
 写情节图时遵守：
 ''' +
       skeletonRules;
-
-  static const String castTaskRules = '''
-你现在是这本故事的角色编辑助手。角色目录已在系统提示里，需要档案时用工具读取。
-可用工具：
-- cast.list_members / cast.read_member：列角色、读档案（可只取一个字段）
-- world.list_entries / world.read_entry：查设定，保证人物与世界观一致
-- main.read_graph：查情节，保证人物动机说得通
-- cast.patch：提交角色改动
-
-步骤：
-1. 改已有角色必须先 cast.read_member 看清档案，别只按名字改
-2. 再提交一次 cast.patch，把该改的字段写全
-3. 用户只是在问问题时，直接用一两句话回答，不要调用改动工具
-
-规则：
-- 只改用户提到的角色；不要无故删光
-- 新建角色可以不带 id；改已有角色必须带 id
-- summary 一句话说清身份与处境；personality 写行为倾向，不要形容词堆砌
-- speechStyle 写说话方式；exampleLines 是每条一句的口吻示例
-- 全局最多一个主角（isProtagonist）''';
 }

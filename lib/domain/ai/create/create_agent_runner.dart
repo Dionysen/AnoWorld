@@ -1,5 +1,4 @@
 import 'package:anoworld/domain/ai/create/create_agent_loop.dart';
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_chat_turn.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_registry.dart';
@@ -52,14 +51,12 @@ class CreateAgentRunner {
   /// [history] is the earlier conversation the user can still see, so follow-up
   /// asks ("再冷一点") have a referent; the loop trims it to the budget.
   Future<CreateAgentTurnResult> runTurn({
-    required CreateAssistantTarget target,
     required String prompt,
     required CreateToolContext ctx,
     List<CreateChatTurn> history = const <CreateChatTurn>[],
   }) async {
-    AppLog.instance.info('创作回合 ${target.wireName}', tag: 'create.tool');
+    AppLog.instance.info('创作回合开始', tag: 'create.tool');
     final result = await (_loop ?? CreateAgentLoop(registry: _registry)).run(
-      target: target,
       prompt: prompt,
       ctx: ctx,
       history: history,

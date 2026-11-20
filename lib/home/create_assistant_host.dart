@@ -148,7 +148,9 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
                     child: CreateAssistantBloomShell(
                       progress: _bloom,
                       onTapAnchor: _toggleAnchor,
-                      child: const CreateAssistantPanel(),
+                      child: CreateAssistantPanel(
+                        controller: widget.controller,
+                      ),
                     ),
                   ),
                 ],

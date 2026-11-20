@@ -17,6 +17,7 @@ import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:flutter/material.dart';
 
@@ -31,7 +32,12 @@ class CreateHubPage extends StatefulWidget {
 }
 
 class _CreateHubPageState extends State<CreateHubPage>
-    with ProjectChangeWatcher<CreateHubPage> {
+    with
+        ProjectChangeWatcher<CreateHubPage>,
+        CreateAssistantStoryScope<CreateHubPage> {
+  @override
+  String get assistantStoryId => widget.projectId;
+
   Project? _project;
   Object? _error;
   bool _loading = true;

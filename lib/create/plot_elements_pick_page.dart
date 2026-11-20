@@ -20,6 +20,7 @@ import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
+import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/plot_elements_library_page.dart';
 import 'package:anoworld/play/plot_element_pack_ui.dart';
@@ -38,7 +39,12 @@ class PlotElementsPickPage extends StatefulWidget {
 enum _PickTab { all, categorized, packs }
 
 class _PlotElementsPickPageState extends State<PlotElementsPickPage>
-    with ProjectChangeWatcher<PlotElementsPickPage> {
+    with
+        ProjectChangeWatcher<PlotElementsPickPage>,
+        CreateAssistantStoryScope<PlotElementsPickPage> {
+  @override
+  String get assistantStoryId => widget.projectId;
+
   Project? _project;
   Object? _error;
   bool _loading = true;

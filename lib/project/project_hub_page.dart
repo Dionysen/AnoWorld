@@ -32,6 +32,7 @@ import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
+import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/play_mode_sheet.dart';
 import 'package:anoworld/play/play_session_page.dart';
@@ -49,7 +50,12 @@ class ProjectHubPage extends StatefulWidget {
 }
 
 class _ProjectHubPageState extends State<ProjectHubPage>
-    with ProjectChangeWatcher<ProjectHubPage> {
+    with
+        ProjectChangeWatcher<ProjectHubPage>,
+        CreateAssistantStoryScope<ProjectHubPage> {
+  @override
+  String get assistantStoryId => widget.projectId;
+
   Project? _project;
   Object? _error;
   bool _loading = true;

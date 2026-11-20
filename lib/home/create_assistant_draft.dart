@@ -1,5 +1,3 @@
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
-
 /// Persisted create-assistant conversation (story pick + messages + composer).
 class CreateAssistantDraft {
   const CreateAssistantDraft({
@@ -7,14 +5,12 @@ class CreateAssistantDraft {
     this.projectTitle = '',
     this.composer = '',
     this.lines = const [],
-    this.target = CreateAssistantTarget.graph,
   });
 
   final String? projectId;
   final String projectTitle;
   final String composer;
   final List<CreateAssistantDraftLine> lines;
-  final CreateAssistantTarget target;
 
   bool get isEmpty =>
       (projectId == null || projectId!.isEmpty) &&
@@ -26,7 +22,6 @@ class CreateAssistantDraft {
         'projectId': projectId,
         'projectTitle': projectTitle,
         'composer': composer,
-        'target': target.wireName,
         'lines': [for (final line in lines) line.toJson()],
       };
 
@@ -48,9 +43,6 @@ class CreateAssistantDraft {
           ? map['projectTitle'] as String
           : '',
       composer: map['composer'] is String ? map['composer'] as String : '',
-      target: CreateAssistantTarget.parse(
-        map['target'] is String ? map['target'] as String : null,
-      ),
       lines: lines,
     );
   }

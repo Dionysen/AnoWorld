@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/context_budget.dart';
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_chat_turn.dart';
 import 'package:anoworld/domain/ai/create/create_context_index.dart';
 import 'package:anoworld/domain/ai/create/create_history_fit.dart';
@@ -57,7 +56,6 @@ class CreateAgentLoop {
   static const int maxHistoryTurns = 10;
 
   Future<CreateAgentTurnResult> run({
-    required CreateAssistantTarget target,
     required String prompt,
     required CreateToolContext ctx,
     List<CreateChatTurn> history = const <CreateChatTurn>[],
@@ -79,9 +77,8 @@ class CreateAgentLoop {
       return CreateAgentTurnResult.error('先说想改哪里');
     }
 
-    final allow = target.toolAllowlist;
     final budget = ContextBudget.of(ai.generation);
-    final system = _systemPrompt(target, ctx);
+    final system = _systemPrompt(ctx);
     final earlier = _fitHistory(history, budget, system, trimmed);
     final messages = <OpenAiChatMessage>[
       OpenAiChatMessage(role: 'system', content: system),
@@ -99,7 +96,7 @@ class CreateAgentLoop {
     for (var step = 0; step < maxSteps; step++) {
       final _ModelTurn turn;
       try {
-        turn = await _nextTurn(client, ai, messages, allow, budget);
+        turn = await _nextTurn(client, ai, messages, budget);
       } on AiTextException catch (error) {
         // A reply cut off by the output limit carries no usable tool call.
         // Ask once more for a smaller batch instead of failing the turn:
@@ -123,7 +120,7 @@ class CreateAgentLoop {
         if (staged.isNotEmpty) {
           return _proposalBatch(staged, called, turn.content);
         }
-        return _answerOrProposal(target, ctx, turn.content, called);
+        return _answerOrProposal(ctx, turn.content, called);
       }
       messages.add(
         OpenAiChatMessage(
@@ -218,25 +215,19 @@ class CreateAgentLoop {
     return CreateAgentTurnResult.error('这一步没走完，换个说法再试');
   }
 
-  String _systemPrompt(CreateAssistantTarget target, CreateToolContext ctx) {
+  String _systemPrompt(CreateToolContext ctx) {
     final project = ctx.project!;
     final index = const CreateContextIndex().build(
       project: project,
       plotCatalog: ctx.services.plotCatalog,
       presetManager: ctx.ai!.promptManager,
-      target: target,
     );
     return ctx.ai!.assembleSystem(
       project: project,
       plotCatalog: ctx.services.plotCatalog,
       inlineWorldBook: false,
       worldInfoBefore: index,
-      taskSuffix: switch (target) {
-        CreateAssistantTarget.graph => CreatePromptProfiles.graphTaskRules,
-        CreateAssistantTarget.world => CreatePromptProfiles.worldTaskRules,
-        CreateAssistantTarget.cast => CreatePromptProfiles.castTaskRules,
-        CreateAssistantTarget.all => CreatePromptProfiles.allTaskRules,
-      },
+      taskSuffix: CreatePromptProfiles.taskRules,
     );
   }
 
@@ -276,7 +267,6 @@ class CreateAgentLoop {
     AiToolTurnClient client,
     AiPromptContext ai,
     List<OpenAiChatMessage> messages,
-    List<String> allow,
     ContextBudget budget,
   ) async {
     final fitted = const CreateHistoryFit().fit(messages, budget: budget);
@@ -289,7 +279,7 @@ class CreateAgentLoop {
     final completion = await client.completeTurn(
       endpoint: ai.endpoint,
       messages: fitted.messages,
-      tools: _registry.declarations(allow),
+      tools: _registry.declarations(CreateToolRegistry.assistantTools),
       generation: ai.generation,
     );
     if (completion.finishReason == 'length') {
@@ -443,7 +433,6 @@ class CreateAgentLoop {
   }
 
   CreateAgentTurnResult _answerOrProposal(
-    CreateAssistantTarget target,
     CreateToolContext ctx,
     String content,
     List<String> called,
@@ -455,7 +444,6 @@ class CreateAgentLoop {
     final Map<String, dynamic>? proposal;
     try {
       proposal = _proposals.fromText(
-        target: target,
         project: ctx.project!,
         raw: text,
         catalog: ctx.services.plotCatalog,

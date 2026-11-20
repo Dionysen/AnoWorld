@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/stage_result_mapper.dart';
 import 'package:anoworld/domain/main/apply_cast_patch.dart';
 import 'package:anoworld/domain/main/apply_main_graph_patch.dart';
@@ -182,7 +181,6 @@ class CreateProposals {
   /// Throws [CreateProposalException] when it does parse as a proposal but the
   /// content is unusable, so the caller can pass the reason to the user.
   Map<String, dynamic>? fromText({
-    required CreateAssistantTarget target,
     required Project project,
     required String raw,
     PlotElementCatalog? catalog,
@@ -190,25 +188,14 @@ class CreateProposals {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) return null;
     final map = Map<String, dynamic>.from(decoded);
-    switch (target) {
-      case CreateAssistantTarget.world:
-        return map.containsKey('ops') ? patchWorldBook(project, map) : null;
-      case CreateAssistantTarget.cast:
-        return map.containsKey('ops') ? patchCast(project, map) : null;
-      case CreateAssistantTarget.graph:
-        if (map.containsKey('stations')) return replaceGraph(project, map);
-        if (map.containsKey('ops')) return patchGraph(project, map);
-        return null;
-      case CreateAssistantTarget.all:
-        if (map.containsKey('stations')) return replaceGraph(project, map);
-        if (!map.containsKey('ops')) return null;
-        return _allKindFromOps(project, catalog, map);
-    }
+    if (map.containsKey('stations')) return replaceGraph(project, map);
+    if (!map.containsKey('ops')) return null;
+    return _kindFromOps(project, catalog, map);
   }
 
-  /// Cross-layer text replies have no target to tell the layer apart, so the
-  /// op names decide which builder validates them.
-  Map<String, dynamic> _allKindFromOps(
+  /// A plain-text reply does not say which layer it is for, so the op names
+  /// decide which builder validates (and rejects) it.
+  Map<String, dynamic> _kindFromOps(
     Project project,
     PlotElementCatalog? catalog,
     Map<String, dynamic> map,

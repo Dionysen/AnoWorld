@@ -1433,9 +1433,6 @@ class AppStringsZh extends AppStrings {
   String get assistantTargetCast => '角色';
 
   @override
-  String get assistantTargetAll => '全部';
-
-  @override
   String opCount(int count) => '$count 处改动';
 
   @override

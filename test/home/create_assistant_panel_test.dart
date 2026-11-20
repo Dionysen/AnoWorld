@@ -6,12 +6,12 @@ import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/openai_chat_client.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
-import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
-import 'package:anoworld/foundation/widgets/app_segmented.dart';
+import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
+import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/create_assistant_draft.dart';
 import 'package:anoworld/home/create_assistant_draft_store.dart';
 import 'package:anoworld/home/create_assistant_panel.dart';
@@ -108,7 +108,7 @@ void main() {
   });
 
   testWidgets(
-    'story picker heads the panel and scope sits by the send button',
+    'story picker heads the panel and nothing else crowds the composer',
     (tester) async {
       tester.view.physicalSize = const Size(900, 900);
       tester.view.devicePixelRatio = 1;
@@ -149,27 +149,23 @@ void main() {
       expect(find.text('创作助手'), findsNothing);
       expect(find.text('当前故事'), findsOneWidget);
 
-      // The four scopes ride in the composer row as icon-only segments, left of
-      // send; the label survives as its tooltip.
+      // The assistant always edits the whole story: no scope switch by the
+      // send button, so the composer holds the field and send only.
       for (final label in ['情节图', '世界书', '角色', '全部']) {
-        expect(
-          find.descendant(
-            of: find.byType(AppIconSegmented<CreateAssistantTarget>),
-            matching: find.byTooltip(label),
-          ),
-          findsOneWidget,
-        );
-        expect(find.text(label), findsNothing);
+        expect(find.byTooltip(label), findsNothing);
       }
-      final scope = tester.getRect(find.byTooltip('情节图', skipOffstage: false));
       final send = tester.getRect(find.byTooltip('发送'));
-      expect(scope.center.dy, closeTo(send.center.dy, 2));
-      expect(scope.right, lessThan(send.left));
-      expect(scope.height, AppIconSegmented.segmentSize);
+      final field = tester.getRect(
+        find.descendant(
+          of: find.byType(AppChatComposer),
+          matching: find.byType(TextField),
+        ),
+      );
+      expect(send.left, greaterThan(field.center.dx));
     },
   );
 
-  testWidgets('scope switch still fits a narrow panel', (tester) async {
+  testWidgets('composer still fits a narrow panel', (tester) async {
     tester.view.physicalSize = const Size(900, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -200,13 +196,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(
-      find.descendant(
-        of: find.byType(AppChatComposer),
-        matching: find.byType(AppIconSegmented<CreateAssistantTarget>),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byType(AppChatComposer), findsOneWidget);
+    expect(find.byTooltip('发送'), findsOneWidget);
   });
 
   testWidgets('writes a generated plot graph into the selected story', (
@@ -304,9 +295,6 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('世界书'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), '世界观改冷一点，再加一个渡口');
@@ -443,9 +431,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('全部'));
-    await tester.pumpAndSettle();
-
     await tester.enterText(find.byType(TextField), '补一个渡口，再加个船夫');
     await tester.tap(find.byTooltip('发送'));
     await tester.pumpAndSettle();
@@ -565,5 +550,77 @@ void main() {
     expect(sent, contains('林晚现在什么语气'));
     expect(sent, contains('偏温和，像在哄人'));
     expect(sent.last, '再冷一点');
+  });
+
+  testWidgets('follows the story whose edit page just opened', (tester) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repo = MemoryProjectRepository(
+      seed: {
+        'proj_rain_night': const ProjectFactory().createRainNightSample(),
+        'proj_mountain': const ProjectFactory().createRainNightSample(
+          id: 'proj_mountain',
+          title: '山中来信',
+        ),
+      },
+    );
+    final store = CreateAssistantDraftStore();
+    await store.save(
+      const CreateAssistantDraft(
+        projectId: 'proj_rain_night',
+        projectTitle: '雨夜投宿',
+        composer: '',
+        lines: [],
+      ),
+    );
+    final assistant = CreateAssistantController();
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        textClient: _ScriptedTextClient(const []),
+        home: Scaffold(
+          body: SizedBox(
+            width: 380,
+            height: 640,
+            child: CreateAssistantPanel(
+              draftStore: store,
+              controller: assistant,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('雨夜投宿'), findsOneWidget);
+
+    // The story hub is open; opening its plot graph (same story) keeps it.
+    final hub = Object();
+    final graph = Object();
+    assistant.enterStory(hub, 'proj_rain_night');
+    await tester.pumpAndSettle();
+    expect(find.text('雨夜投宿'), findsOneWidget);
+
+    // Another story's edit page moves the assistant with it.
+    assistant.enterStory(graph, 'proj_mountain');
+    await tester.pumpAndSettle();
+    expect(find.text('山中来信'), findsOneWidget);
+    expect(find.text('雨夜投宿'), findsNothing);
+
+    // Closing that page hands the assistant back to the page underneath.
+    assistant.leaveStory(graph);
+    await tester.pumpAndSettle();
+    expect(find.text('雨夜投宿'), findsOneWidget);
+
+    // A manual pick is kept: no page changed, so nothing overrides it.
+    await tester.tap(find.byType(AppSelectField));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('山中来信').last);
+    await tester.pumpAndSettle();
+    expect(find.text('山中来信'), findsOneWidget);
+    expect(find.text('雨夜投宿'), findsNothing);
   });
 }

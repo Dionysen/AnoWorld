@@ -433,8 +433,6 @@ void main() {
 
     await tester.tap(find.byTooltip('创作助手'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('世界书'));
-    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '世界观改冷一点');
     await tester.tap(find.byTooltip('发送'));
     await tester.pump();

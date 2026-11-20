@@ -25,9 +25,9 @@
 
 ## 创作助手（通用 Agent）
 
-- UI：[`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) 顶部只放「当前故事」选择（取代原来的「创作助手」标题）；编辑范围（情节图 / 世界书 / 角色 / 全部）是输入框右侧、发送键左边的四个图标按钮（`AppIconSegmented`，文字只作 tooltip），见 [`CreateAssistantTarget`](../lib/domain/ai/create/create_assistant_target.dart)。
-- 回合：`runTurn(target, prompt)` 走 [`CreateAgentLoop`](../lib/domain/ai/create/create_agent_loop.dart)——注入五层 L1 目录（含预设段名与启用状态，预设只读）与该目标的工具，模型自己读（`*.read_*` / `main.read_graph`）、自己写（`main.replace` / `main.patch` / `*.patch`），最多 10 步。选工具不再靠关键词，读工具真正会被调用。
-- 白名单：所有读工具 + 当前目标的写工具；选「全部」时五个写工具全开。读可跨层；单层目标仍只写自己那层。剧情元素是例外的一半：`plot.list_elements` 所有目标可读，`plot.select`（勾选 / 新增）挂在情节图与「全部」上。
+- UI：[`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) 顶部只放「当前故事」选择（取代原来的「创作助手」标题），并自动跟随当前打开的编辑页：进入某个故事的故事页 / 情节图 / 世界书 / 角色 / 剧情元素选择页时切到该故事（[`CreateAssistantStoryScope`](../lib/home/create_assistant_story_scope.dart) → `CreateAssistantController.storyContext`，子页盖在父页之上、返回后落回父页的故事），用户仍可手动改选。没有编辑范围开关：一次回合永远是全层可读可写，由模型自己判断改哪一层。
+- 回合：`runTurn(prompt)` 走 [`CreateAgentLoop`](../lib/domain/ai/create/create_agent_loop.dart)——注入五层 L1 目录（含预设段名与启用状态，预设只读）与全部工具，模型自己读（`*.read_*` / `main.read_graph`）、自己写（`main.replace` / `main.patch` / `*.patch`），最多 10 步。选工具不再靠关键词，读工具真正会被调用。
+- 白名单：[`CreateToolRegistry.assistantTools`](../lib/domain/ai/create/create_tool_registry.dart) 是所有读工具 + 五个写工具（`main.replace` / `main.patch` / `world.patch` / `cast.patch` / `plot.select`）。卡片导入工具（`card.*`）不参与聊天回合。
 - 工具名：内部与日志用带点的规范名（`world.patch`），发给模型时换成下划线（`world_patch`）——OpenAI 兼容网关要求 `tools[].function.name` 匹配 `^[a-zA-Z0-9_-]+$`，带点会直接 400。注册表两种叫法都认，回放 `tool_calls` 时也写成下划线。
 - 跨层：提议不再结束回合，而是按层暂存（同一层重复提交会合并 ops 再校验），模型收到「已暂存，可继续」的 tool 结果后可以接着写别的层；回合结束时把这一批一起交给面板。
 - 大图分批：一次写工具装不下 60 站（推理模型的思考也算在输出上限里）。先 `main.replace` 交开头一批，后续 `main.patch` 会跑在**已暂存的图上**，最后仍合成一条整图确认行——不会出现「整图替换 + 局部补丁」两份互相覆盖的提议。
@@ -35,7 +35,7 @@
 - 输出上限：`finish_reason=length` 时，工具循环按真实原因报错（不再是一句「没有内容」），并**自动改小批重试**（`maxTruncationRetries` = 2，提示「这次只交 10～15 站」）。思考型模型每次先花 2～4k token 推理，8k 上限几乎必然截断 60 站大图——设置里 **单次最长输出** 已放开到 32768（[`AiGenerationSettingsPanel`](../lib/settings/ai_generation_settings_panel.dart)）。
 - 对话记忆：面板把当前故事最近 10 条对话（用户能看到的那种气泡，不含「正在写」占位）随回合送进模型，`CreateAgentLoop` 再按剩余预算从旧到新丢，所以「再冷一点」有指代。换故事时旧对话仍留在屏幕上，但不再喂给模型。工具调用与工具结果不跨回合重放。
 - 确认：半屏抽屉按层分组（世界书 / 角色 / 情节图 / 剧情元素），逐项勾选，确认后**一次 `repo.save`** 写回所有层；剧情元素库的新行先落设置再存故事。整图替换占一行，并明说会清掉旧站；增量只应用勾选的 ops。
-- 模型不支持工具时：先把它回的文本当 JSON 改动解析（骨架 / ops），能解析就照常进确认抽屉，否则作为普通回答显示。「全部」目标的文本兜底按 op 名判断层（`upsert_entry` / `upsert_member` / `select`…）。
+- 模型不支持工具时：先把它回的文本当 JSON 改动解析（`stations` → 整图，`ops` → 按 op 名判断层：`upsert_entry` / `upsert_member` / `select`…），能解析就照常进确认抽屉，否则作为普通回答显示。
 - 全量骨架规则：≥20 站、上不封顶；分叉 synopsis 互斥；开放叶可无出边；剧情元素按分类注入。见 [`CreatePromptProfiles`](../lib/domain/ai/create/create_prompt_profiles.dart)。
 
 ## 格式

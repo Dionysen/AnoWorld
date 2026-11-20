@@ -24,6 +24,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:flutter/material.dart';
 
 /// Edit world-book entries (always-on + keyword-triggered).
@@ -37,7 +38,12 @@ class WorldBookEditorPage extends StatefulWidget {
 }
 
 class _WorldBookEditorPageState extends State<WorldBookEditorPage>
-    with ProjectChangeWatcher<WorldBookEditorPage> {
+    with
+        ProjectChangeWatcher<WorldBookEditorPage>,
+        CreateAssistantStoryScope<WorldBookEditorPage> {
+  @override
+  String get assistantStoryId => widget.projectId;
+
   Project? _project;
   Object? _error;
   bool _loading = true;

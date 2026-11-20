@@ -21,6 +21,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:flutter/material.dart';
 
 /// Edit cast members for a project.
@@ -34,7 +35,12 @@ class CastEditorPage extends StatefulWidget {
 }
 
 class _CastEditorPageState extends State<CastEditorPage>
-    with ProjectChangeWatcher<CastEditorPage> {
+    with
+        ProjectChangeWatcher<CastEditorPage>,
+        CreateAssistantStoryScope<CastEditorPage> {
+  @override
+  String get assistantStoryId => widget.projectId;
+
   Project? _project;
   Object? _error;
   bool _loading = true;
