@@ -335,6 +335,134 @@ void main() {
     expect(find.text('Alpha'), findsOneWidget);
   });
 
+  testWidgets('pans out to a node far outside the first screen', (
+    tester,
+  ) async {
+    String? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 300,
+            child: GraphViewport(
+              nodes: const [
+                GraphNodeData(
+                  id: 'near',
+                  label: 'Near',
+                  x: 20,
+                  y: 20,
+                  width: 120,
+                  height: 80,
+                ),
+                GraphNodeData(
+                  id: 'far',
+                  label: 'Far',
+                  x: 2600,
+                  y: 1800,
+                  width: 160,
+                  height: 96,
+                ),
+              ],
+              edges: const [],
+              selectedId: null,
+              onSelect: (id) => selected = id,
+              onMove: (_, __, ___) {},
+              onConnect: (_, __, ___) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The big graph must not end at the old fixed 1200px margin: the camera
+    // can still reach the last card, and it answers taps there.
+    await tester.drag(
+      find.byType(InteractiveViewer),
+      const Offset(-2400, -1700),
+    );
+    await tester.pumpAndSettle();
+
+    final farChip = find.ancestor(
+      of: find.text('Far'),
+      matching: find.byType(GraphNodeChip),
+    );
+    final viewportRect = tester.getRect(find.byType(InteractiveViewer));
+    final chipCenter = tester.getCenter(farChip);
+    expect(viewportRect.contains(chipCenter), isTrue);
+
+    await tester.tapAt(chipCenter);
+    await tester.pump();
+
+    expect(selected, 'far');
+  });
+
+  testWidgets('node drag cannot leave the scene corner', (tester) async {
+    // Cards keep a scene origin at x=0 / y=0 so the pannable child always
+    // contains them; dragging further would strand a card off-canvas.
+    late StateSetter setHarness;
+    var node = const GraphNodeData(
+      id: 'a',
+      label: 'Alpha',
+      x: 80,
+      y: 60,
+      width: 160,
+      height: 96,
+    );
+    Offset? last;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              setHarness = setState;
+              return SizedBox(
+                width: 640,
+                height: 480,
+                child: GraphViewport(
+                  nodes: [node],
+                  edges: const [],
+                  selectedId: 'a',
+                  onSelect: (_) {},
+                  onMove: (id, x, y) {
+                    last = Offset(x, y);
+                    setHarness(() {
+                      node = GraphNodeData(
+                        id: node.id,
+                        label: node.label,
+                        x: x,
+                        y: y,
+                        width: node.width,
+                        height: node.height,
+                      );
+                    });
+                  },
+                  onConnect: (_, __, ___) {},
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(GraphNodeChip)),
+    );
+    await tester.pump();
+    await gesture.moveBy(const Offset(-400, -400));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(last, const Offset(0, 0));
+  });
+
   testWidgets('chip pointer down arms drag', (tester) async {
     var armed = false;
     await tester.pumpWidget(

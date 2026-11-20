@@ -103,6 +103,10 @@ class _GraphViewportState extends State<GraphViewport>
 
   static const double _portHitRadius = 48;
 
+  /// Slack kept beyond the furthest node so the last card is not glued to the
+  /// edge of the pannable scene.
+  static const double _contentMargin = 240;
+
   @override
   void initState() {
     super.initState();
@@ -234,7 +238,29 @@ class _GraphViewportState extends State<GraphViewport>
     if (id == null || grab == null) return;
     final scene = _scenePoint(event.position);
     if (scene == null) return;
-    widget.onMove(id, scene.dx - grab.dx, scene.dy - grab.dy);
+    // The scene starts at its top-left corner and grows right / down, so a
+    // card dragged past that corner would sit outside the pannable child and
+    // stop responding to taps. Keep every node inside the scene.
+    widget.onMove(
+      id,
+      math.max(0, scene.dx - grab.dx),
+      math.max(0, scene.dy - grab.dy),
+    );
+  }
+
+  /// Size of the pan/zoom child: the viewport plus every node, so a big graph
+  /// stays reachable instead of ending at a fixed margin.
+  Size _contentExtent(Size viewport) {
+    var right = viewport.width;
+    var bottom = viewport.height;
+    for (final node in widget.nodes) {
+      right = math.max(
+        right,
+        node.x + node.resolvedWidth + GraphNodeChip.horizontalPad,
+      );
+      bottom = math.max(bottom, node.y + node.resolvedHeight);
+    }
+    return Size(right + _contentMargin, bottom + _contentMargin);
   }
 
   void _endNodeDrag({required bool commit}) {
@@ -392,6 +418,7 @@ class _GraphViewportState extends State<GraphViewport>
         final showEndActions =
             widget.onAddNode != null || widget.onArrange != null;
         final inset = GraphViewport.sceneTopInset;
+        final content = _contentExtent(nextSize);
 
         return Stack(
           fit: StackFit.expand,
@@ -429,18 +456,24 @@ class _GraphViewportState extends State<GraphViewport>
                   panEnabled: canvasInteractive,
                   scaleEnabled: canvasInteractive,
                   constrained: false,
-                  boundaryMargin: const EdgeInsets.all(800),
+                  // One viewport of slack on each side: every node can be
+                  // brought to the middle, and the view has nowhere to get
+                  // lost in.
+                  boundaryMargin: EdgeInsets.symmetric(
+                    horizontal: width,
+                    vertical: height,
+                  ),
                   child: SizedBox(
-                    width: width + 1200,
-                    height: height + 1200 + inset,
+                    width: content.width,
+                    height: content.height + inset,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
                         Positioned(
                           left: 0,
                           top: inset,
-                          width: width + 1200,
-                          height: height + 1200,
+                          width: content.width,
+                          height: content.height,
                           child: CustomPaint(
                             painter: GraphEdgePainter(
                               nodes: byId,
