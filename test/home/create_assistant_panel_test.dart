@@ -121,7 +121,7 @@ void main() {
         },
       );
       final store = CreateAssistantDraftStore();
-      await store.save(
+      await _seedDraft(store,
         const CreateAssistantDraft(
           projectId: 'proj_rain_night',
           projectTitle: '雨夜投宿',
@@ -172,7 +172,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'proj_rain_night',
         projectTitle: '雨夜投宿',
@@ -212,7 +212,7 @@ void main() {
       seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'proj_rain_night',
         projectTitle: '雨夜投宿',
@@ -270,7 +270,7 @@ void main() {
       seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'proj_rain_night',
         projectTitle: '雨夜投宿',
@@ -329,7 +329,7 @@ void main() {
       seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'proj_rain_night',
         projectTitle: '雨夜投宿',
@@ -392,7 +392,7 @@ void main() {
       seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'proj_rain_night',
         projectTitle: '雨夜投宿',
@@ -469,7 +469,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: null,
         projectTitle: '',
@@ -511,7 +511,7 @@ void main() {
       seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'proj_rain_night',
         projectTitle: '雨夜投宿',
@@ -568,12 +568,12 @@ void main() {
       },
     );
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'proj_rain_night',
         projectTitle: '雨夜投宿',
         composer: '',
-        lines: [],
+        lines: [CreateAssistantDraftLine(role: 'user', text: '雨夜的对话')],
       ),
     );
     final assistant = CreateAssistantController();
@@ -604,16 +604,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('雨夜投宿'), findsOneWidget);
 
-    // Another story's edit page moves the assistant with it.
+    // Another story's edit page moves the assistant with it, and swaps in
+    // that story's own conversation.
     assistant.enterStory(graph, 'proj_mountain');
     await tester.pumpAndSettle();
     expect(find.text('山中来信'), findsOneWidget);
     expect(find.text('雨夜投宿'), findsNothing);
+    expect(find.text('雨夜的对话'), findsNothing);
 
     // Closing that page hands the assistant back to the page underneath.
     assistant.leaveStory(graph);
     await tester.pumpAndSettle();
     expect(find.text('雨夜投宿'), findsOneWidget);
+    expect(find.text('雨夜的对话'), findsOneWidget);
 
     // A manual pick is kept: no page changed, so nothing overrides it.
     await tester.tap(find.byType(AppSelectField));
@@ -623,4 +626,100 @@ void main() {
     expect(find.text('山中来信'), findsOneWidget);
     expect(find.text('雨夜投宿'), findsNothing);
   });
+
+  testWidgets('each story keeps its own transcript, deleted with the card', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repo = MemoryProjectRepository(
+      seed: {
+        'proj_rain_night': const ProjectFactory().createRainNightSample(),
+        'proj_mountain': const ProjectFactory().createRainNightSample(
+          id: 'proj_mountain',
+          title: '山中来信',
+        ),
+      },
+    );
+    final store = CreateAssistantDraftStore();
+    await store.save(
+      const CreateAssistantDrafts(
+        lastProjectId: 'proj_rain_night',
+        byStory: {
+          'proj_rain_night': CreateAssistantDraft(
+            projectId: 'proj_rain_night',
+            projectTitle: '雨夜投宿',
+            composer: '雨夜的输入',
+            lines: [CreateAssistantDraftLine(role: 'user', text: '雨夜的对话')],
+          ),
+          'proj_mountain': CreateAssistantDraft(
+            projectId: 'proj_mountain',
+            projectTitle: '山中来信',
+            composer: '',
+            lines: [CreateAssistantDraftLine(role: 'user', text: '山中的对话')],
+          ),
+        },
+      ),
+    );
+    final assistant = CreateAssistantController();
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        textClient: _ScriptedTextClient(const []),
+        home: Scaffold(
+          body: SizedBox(
+            width: 380,
+            height: 640,
+            child: CreateAssistantPanel(
+              draftStore: store,
+              controller: assistant,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('雨夜的对话'), findsOneWidget);
+    expect(find.text('山中的对话'), findsNothing);
+
+    // Switching stories swaps the whole transcript, composer included.
+    assistant.enterStory(Object(), 'proj_mountain');
+    await tester.pumpAndSettle();
+
+    expect(find.text('山中的对话'), findsOneWidget);
+    expect(find.text('雨夜的对话'), findsNothing);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      isEmpty,
+    );
+
+    // Deleting the story card takes its conversation with it.
+    await repo.delete('proj_mountain');
+    assistant.forgetStory('proj_mountain');
+    await tester.pumpAndSettle();
+
+    expect(find.text('山中的对话'), findsNothing);
+    final saved = await store.load();
+    expect(saved.byStory.containsKey('proj_mountain'), isFalse);
+    expect(saved.byStory.containsKey('proj_rain_night'), isTrue);
+  });
+}
+
+/// Seeds one story's transcript the way the panel saves it.
+Future<void> _seedDraft(
+  CreateAssistantDraftStore store,
+  CreateAssistantDraft draft,
+) {
+  final projectId = draft.projectId;
+  return store.save(
+    CreateAssistantDrafts(
+      lastProjectId: projectId,
+      byStory: {?projectId: draft},
+    ),
+  );
 }

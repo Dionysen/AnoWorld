@@ -554,7 +554,7 @@ class AppStringsZh extends AppStrings {
   String get deleteStoryTitle => '删除这个故事？';
 
   @override
-  String get deleteStoryDetail => '故事和对应存档都会删掉';
+  String get deleteStoryDetail => '故事、存档和创作助手的对话都会删掉';
 
   @override
   String updatedOn(String date) => '更新 $date';

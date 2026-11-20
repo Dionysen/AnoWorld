@@ -20,6 +20,7 @@ import 'package:anoworld/foundation/widgets/app_search_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
+import 'package:anoworld/home/create_assistant_draft_store.dart';
 import 'package:anoworld/home/library_browse_views.dart';
 import 'package:anoworld/home/library_display_labels.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
@@ -498,6 +499,7 @@ class WorksTabState extends State<WorksTab> {
         await saves.clearForProject(id);
         await folders.removeProjectMembership(id);
         await projects.delete(id);
+        await _dropAssistantConversation(id);
       }
     }
     widget.selection.exit();
@@ -606,7 +608,15 @@ class WorksTabState extends State<WorksTab> {
     await saves.clearForProject(projectId);
     await folders.removeProjectMembership(projectId);
     await projects.delete(projectId);
+    await _dropAssistantConversation(projectId);
     await reload();
+  }
+
+  /// The assistant's conversation belongs to the story card, so it goes away
+  /// with it.
+  Future<void> _dropAssistantConversation(String projectId) async {
+    AppScope.createAssistantOf(context).forgetStory(projectId);
+    await CreateAssistantDraftStore().removeStory(projectId);
   }
 
   String _formatUpdated(BuildContext context, DateTime updatedAt) {

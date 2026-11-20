@@ -33,7 +33,7 @@
 - 大图分批：一次写工具装不下 60 站（推理模型的思考也算在输出上限里）。先 `main.replace` 交开头一批，后续 `main.patch` 会跑在**已暂存的图上**，最后仍合成一条整图确认行——不会出现「整图替换 + 局部补丁」两份互相覆盖的提议。
 - 工具参数容错：模型常在中文里写未转义的 `"`（`"synopsis":"同门唤他"扫地的""`），严格 JSON 解析会失败。`decodeTolerantJson`（[`tolerant_json.dart`](../lib/foundation/ai/tolerant_json.dart)）只修字符串内多余的引号与裸换行；真的被截断仍判失败，并把「参数不是合法 JSON」回给模型让它减少一批重提，不再拿空参数去调工具报「缺字段」。
 - 输出上限：`finish_reason=length` 时，工具循环按真实原因报错（不再是一句「没有内容」），并**自动改小批重试**（`maxTruncationRetries` = 2，提示「这次只交 10～15 站」）。思考型模型每次先花 2～4k token 推理，8k 上限几乎必然截断 60 站大图——设置里 **单次最长输出** 已放开到 32768（[`AiGenerationSettingsPanel`](../lib/settings/ai_generation_settings_panel.dart)）。
-- 对话记忆：面板把当前故事最近 10 条对话（用户能看到的那种气泡，不含「正在写」占位）随回合送进模型，`CreateAgentLoop` 再按剩余预算从旧到新丢，所以「再冷一点」有指代。换故事时旧对话仍留在屏幕上，但不再喂给模型。工具调用与工具结果不跨回合重放。
+- 对话记忆：每个故事各有一份对话记录（[`CreateAssistantDraftStore`](../lib/home/create_assistant_draft_store.dart) 按故事 id 存），换故事就换成那个故事的记录，互不混用；删故事卡时它的记录一起删掉。面板把当前故事最近 10 条对话（用户能看到的那种气泡，不含「正在写」占位）随回合送进模型，`CreateAgentLoop` 再按剩余预算从旧到新丢，所以「再冷一点」有指代。工具调用与工具结果不跨回合重放。
 - 确认：半屏抽屉按层分组（世界书 / 角色 / 情节图 / 剧情元素），逐项勾选，确认后**一次 `repo.save`** 写回所有层；剧情元素库的新行先落设置再存故事。整图替换占一行，并明说会清掉旧站；增量只应用勾选的 ops。
 - 模型不支持工具时：先把它回的文本当 JSON 改动解析（`stations` → 整图，`ops` → 按 op 名判断层：`upsert_entry` / `upsert_member` / `select`…），能解析就照常进确认抽屉，否则作为普通回答显示。
 - 全量骨架规则：≥20 站、上不封顶；分叉 synopsis 互斥；开放叶可无出边；剧情元素按分类注入。见 [`CreatePromptProfiles`](../lib/domain/ai/create/create_prompt_profiles.dart)。

@@ -28,6 +28,30 @@ class CreateAssistantController extends ChangeNotifier {
   /// about navigation can skip the other notifications (visibility, popups).
   int get storyVersion => _storyVersion;
 
+  /// Stories deleted since the panel last asked. Their transcripts die with
+  /// them, so the panel drops the entries instead of saving them back.
+  final Set<String> _forgottenStories = <String>{};
+
+  /// Hands the deleted story ids to the caller and forgets them.
+  Set<String> takeForgottenStories() {
+    if (_forgottenStories.isEmpty) return const <String>{};
+    final gone = Set<String>.of(_forgottenStories);
+    _forgottenStories.clear();
+    return gone;
+  }
+
+  /// A story card was deleted: its conversation must not survive it.
+  void forgetStory(String projectId) {
+    if (projectId.isEmpty) return;
+    _forgottenStories.add(projectId);
+    AppLog.instance.info(
+      '创作助手对话随故事删除（$projectId）',
+      tag: 'create.assistant',
+    );
+    _storyVersion++;
+    _notify();
+  }
+
   bool _generating = false;
 
   /// A model turn is in flight. The anchor / capsule paint a rotating ring

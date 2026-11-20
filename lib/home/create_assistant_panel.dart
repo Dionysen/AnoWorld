@@ -65,9 +65,13 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   bool _generating = false;
   int? _pendingLine;
 
-  /// Index in [_lines] where the current story's conversation starts, so the
-  /// model never receives lines that belong to another story.
-  int _historyStart = 0;
+  /// Conversations by story id. [_lines] / [_composer] are the buffers of the
+  /// story the panel is on right now; switching swaps them out.
+  final Map<String, CreateAssistantDraft> _drafts =
+      <String, CreateAssistantDraft>{};
+
+  /// Input typed before a story was picked; it belongs to no transcript.
+  String _unsavedComposer = '';
   bool _ready = false;
   Timer? _composerDebounce;
 
@@ -107,40 +111,66 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   }
 
   Future<void> _restore() async {
-    final draft = await _store.load();
+    final saved = await _store.load();
     if (!mounted) return;
+    final last = saved.lastProjectId;
+    final draft = last == null ? null : saved.byStory[last];
     setState(() {
-      _projectId = draft.projectId;
-      _projectTitle = draft.projectTitle;
+      _drafts
+        ..clear()
+        ..addAll(saved.byStory);
+      _unsavedComposer = saved.composer;
+      _projectId = last;
+      _projectTitle = draft?.projectTitle ?? '';
       _lines
         ..clear()
-        ..addAll(
-          draft.lines.map(
-            (line) => _AssistantLine(
-              role: line.role == 'user' ? _LineRole.user : _LineRole.assistant,
-              text: line.text,
-            ),
-          ),
-        );
-      _composer.text = draft.composer;
+        ..addAll(_linesOf(draft));
+      _composer.text = draft?.composer ?? saved.composer;
       _ready = true;
     });
-    if (!draft.isEmpty) {
+    if (saved.byStory.isNotEmpty) {
       AppLog.instance.info(
-        '创作助手草稿已恢复（${draft.lines.length} 条）',
+        '创作助手对话已恢复（${saved.byStory.length} 个故事）',
         tag: 'create.assistant',
       );
     }
     _syncStory();
   }
 
-  /// Reacts to edit pages opening / closing, not to every controller change
-  /// (visibility toggles and popups must not revert a manual pick).
+  /// Reacts to edit pages opening / closing and to deleted stories, not to
+  /// every controller change (visibility toggles must not revert a manual
+  /// pick).
   void _onStoryContextChanged() {
     final assistant = _assistant;
-    if (assistant == null || assistant.storyVersion == _seenStoryVersion) return;
+    if (assistant == null) return;
+    _pruneDeletedStories(assistant);
+    if (assistant.storyVersion == _seenStoryVersion) return;
     _seenStoryVersion = assistant.storyVersion;
     _syncStory();
+  }
+
+  /// Drops conversations of stories that were just deleted, so the next save
+  /// cannot bring them back.
+  void _pruneDeletedStories(CreateAssistantController assistant) {
+    final gone = assistant.takeForgottenStories();
+    if (gone.isEmpty) return;
+    _stashCurrent();
+    setState(() {
+      for (final projectId in gone) {
+        _drafts.remove(projectId);
+        if (_projectId != projectId) continue;
+        _projectId = null;
+        _projectTitle = '';
+        _lines.clear();
+        _composer.text = '';
+        _unsavedComposer = '';
+      }
+    });
+    AppLog.instance.info(
+      '创作助手对话随故事删除（${gone.length} 个）',
+      tag: 'create.assistant',
+    );
+    unawaited(_persist());
   }
 
   /// Follows the story of the edit page that just opened.
@@ -168,13 +198,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       if (!mounted || request != _storyRequest || _projectId == projectId) {
         return;
       }
-      setState(() {
-        _projectId = projectId;
-        _projectTitle = project.meta.title;
-        // The previous story's conversation stays readable, but it must not
-        // steer this one.
-        _historyStart = _lines.length;
-      });
+      _switchStory(projectId, project.meta.title);
       await _persist();
       AppLog.instance.info(
         '创作助手跟随当前故事：${project.meta.title}',
@@ -197,25 +221,76 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     });
   }
 
-  CreateAssistantDraft _snapshot() {
-    return CreateAssistantDraft(
-      projectId: _projectId,
-      projectTitle: _projectTitle,
-      composer: _composer.text,
-      lines: [
-        for (final line in _lines)
-          if (!line.pending)
-            CreateAssistantDraftLine(
-              role: line.role == _LineRole.user ? 'user' : 'assistant',
+  static List<_AssistantLine> _linesOf(CreateAssistantDraft? draft) => [
+        if (draft != null)
+          for (final line in draft.lines)
+            _AssistantLine(
+              role: line.role == 'user' ? _LineRole.user : _LineRole.assistant,
               text: line.text,
             ),
-      ],
+      ];
+
+  /// Writes the live buffers back into [_drafts], dropping the story's entry
+  /// when there is nothing left to keep.
+  void _stashCurrent() {
+    final projectId = _projectId;
+    final lines = [
+      for (final line in _lines)
+        if (!line.pending)
+          CreateAssistantDraftLine(
+            role: line.role == _LineRole.user ? 'user' : 'assistant',
+            text: line.text,
+          ),
+    ];
+    if (projectId == null) {
+      _unsavedComposer = _composer.text;
+      return;
+    }
+    final draft = CreateAssistantDraft(
+      projectId: projectId,
+      projectTitle: _projectTitle,
+      composer: _composer.text,
+      lines: lines,
     );
+    // Keep the pick even when nothing was said yet, so a restart still shows
+    // which story the panel was on.
+    if (draft.isEmpty && draft.projectTitle.trim().isEmpty) {
+      _drafts.remove(projectId);
+    } else {
+      _drafts[projectId] = draft;
+    }
+  }
+
+  /// Points the panel at [projectId] and loads that story's transcript.
+  void _switchStory(String? projectId, String title) {
+    _stashCurrent();
+    final draft = projectId == null ? null : _drafts[projectId];
+    setState(() {
+      _projectId = projectId;
+      _projectTitle = title;
+      _lines
+        ..clear()
+        ..addAll(_linesOf(draft));
+      _composer.text = projectId == null
+          ? _unsavedComposer
+          : (draft?.composer ?? '');
+    });
   }
 
   Future<void> _persist() async {
     if (!_ready) return;
-    await _store.save(_snapshot());
+    await _save();
+  }
+
+  Future<void> _save() {
+    _stashCurrent();
+    return _store.save(
+      CreateAssistantDrafts(
+        lastProjectId: _projectId,
+        composer: _unsavedComposer,
+        byStory: Map<String, CreateAssistantDraft>.of(_drafts),
+      ),
+    );
   }
 
   Future<void> _pickStory() async {
@@ -253,14 +328,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       );
       if (picked == null || !mounted) return;
       final summary = list.firstWhere((p) => p.id == picked);
-      final previousId = _projectId;
-      setState(() {
-        _projectId = summary.id;
-        _projectTitle = summary.title;
-        // Keep the transcript on screen, but do not let the previous story's
-        // conversation steer this one.
-        if (summary.id != previousId) _historyStart = _lines.length;
-      });
+      _switchStory(summary.id, summary.title);
       await _persist();
       AppLog.instance.info(
         '创作助手选中故事：${summary.title}',
@@ -452,11 +520,10 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     return '${strings.proposalLead} ${parts.join(' · ')}';
   }
 
-  /// Lines of this story's conversation, as the model should see them.
+  /// This story's conversation, as the model should see it.
   List<CreateChatTurn> _historyForModel() {
     final out = <CreateChatTurn>[];
-    for (var i = _historyStart; i < _lines.length; i++) {
-      final line = _lines[i];
+    for (final line in _lines) {
       if (line.pending) continue;
       final text = line.text.trim();
       if (text.isEmpty) continue;
@@ -809,8 +876,8 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     _assistant?.removeListener(_onStoryContextChanged);
     _composerDebounce?.cancel();
     _composer.removeListener(_onComposerChanged);
-    // Best-effort flush; store handles errors.
-    unawaited(_store.save(_snapshot()));
+    // Best-effort flush of this story's transcript; store handles errors.
+    unawaited(_save());
     _composer.dispose();
     super.dispose();
   }

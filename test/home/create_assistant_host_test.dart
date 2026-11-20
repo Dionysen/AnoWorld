@@ -304,7 +304,7 @@ void main() {
       seed: {'p1': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'p1',
         projectTitle: '雨夜投宿',
@@ -399,7 +399,7 @@ void main() {
       seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'proj_rain_night',
         projectTitle: '雨夜投宿',
@@ -474,7 +474,7 @@ void main() {
 
   testWidgets('panel restores draft from store', (tester) async {
     final store = CreateAssistantDraftStore();
-    await store.save(
+    await _seedDraft(store,
       const CreateAssistantDraft(
         projectId: 'p1',
         projectTitle: '雨夜投宿',
@@ -566,4 +566,18 @@ class _BlockingTextClient implements AiTextClient, AiToolTurnClient {
     await _gate.future;
     return OpenAiChatCompletion(content: reply);
   }
+}
+
+/// Seeds one story's transcript the way the panel saves it.
+Future<void> _seedDraft(
+  CreateAssistantDraftStore store,
+  CreateAssistantDraft draft,
+) {
+  final projectId = draft.projectId;
+  return store.save(
+    CreateAssistantDrafts(
+      lastProjectId: projectId,
+      byStory: {?projectId: draft},
+    ),
+  );
 }
