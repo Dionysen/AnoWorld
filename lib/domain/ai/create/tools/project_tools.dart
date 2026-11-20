@@ -644,22 +644,6 @@ List<CreateTool> buildProjectTools() {
         }
       },
     ),
-    CreateTool(
-      name: 'refine.field',
-      description: 'P0.5 单字段润色扩写',
-      mutatesProject: false,
-      invoke: (_, _) async {
-        return CreateToolResult.error('润色尚未开放');
-      },
-    ),
-    CreateTool(
-      name: 'ingest.segment',
-      description: 'P1 长文分段导入',
-      mutatesProject: false,
-      invoke: (_, _) async {
-        return CreateToolResult.error('分段导入尚未开放');
-      },
-    ),
   ];
 }
 

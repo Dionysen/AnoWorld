@@ -20,8 +20,6 @@
 | `main.list_nodes` / `main.get_node` | 只列站 / 细看一站（概括、出入连线，支持 `node:<id>.<field>`） |
 | `main.replace` | 提交整图骨架（至少约 20 站；`userConfirmRequired`） |
 | `main.patch` | 提交情节图局部 ops（`userConfirmRequired`） |
-| `refine.field` | 占位 |
-| `ingest.segment` | 占位 |
 
 代码：`lib/domain/ai/create/`、`lib/domain/card_import/card_*`、补丁 apply 在 `lib/domain/main/apply_*_patch.dart`。
 
@@ -42,8 +40,10 @@
 
 ## 未做
 
-- `refine.field` 精修（当前只有占位）；跨域一次改多处（写仍只限当前目标层）。
+- 一个回合只能改一层：写工具按目标挂载（情节图 / 世界书 / 角色），跨层多次改动要分几轮。
 - 剧情元素库里**已有条目**的正文改写：助手只能勾选或新增，改写走设置页。
 - 拍与对白不归助手管：它们是运行时由 AI 现场生成的，创作层只到站与连线的概括。见 [AgentTools.md](./AgentTools.md) §8。
+
+单字段润色不需要单独工具：读 `ref:` 拿到原文、模型改写、`*.patch` 只提交那一个字段即可，写工具本身不再嵌套调模型。
 
 已做但曾列在此处的：聊天侧命中注入（[AgentTools.md](./AgentTools.md) §6.2）、上下文预算裁剪（§6.3）、五块的渐进披露与统一寻址（§5）。
