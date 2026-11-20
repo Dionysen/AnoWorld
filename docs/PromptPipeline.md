@@ -193,6 +193,8 @@ flowchart LR
 
 编排经 [`CreateToolRegistry`](../lib/domain/ai/create/create_tool_registry.dart) / [`CreateAgentRunner`](../lib/domain/ai/create/create_agent_runner.dart)；P1 创作助手浮窗见 [CreateAgent.md](./CreateAgent.md)。
 
+创作回合的 `worldInfo`（before）槽放的是**目录**而不是正文：五层 id 清单 + 预设段名与启用状态（[`CreateContextIndex`](../lib/domain/ai/create/create_context_index.dart)），正文由模型用读工具按需取；目录超出 `contextLength − maxTokens` 时先省略较早的工具结果（[`CreateHistoryFit`](../lib/domain/ai/create/create_history_fit.dart)），不丢规则段。
+
 ## 9. 与创作 / 双模式的衔接
 
 - **全局一套预设** 服务：游玩聊天、VN 区间生成、创作器 AI 动作（用户字段可合成进 `user` 或单独 system，但 **预设段顺序一致**）。
