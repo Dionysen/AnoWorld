@@ -11,13 +11,19 @@ class OpenAiChatCompletion {
   const OpenAiChatCompletion({
     required this.content,
     this.reasoning,
+    this.toolCalls = const <OpenAiToolCall>[],
   });
 
   final String content;
   final String? reasoning;
 
+  /// Tool calls the model asked for; [content] is usually empty when set.
+  final List<OpenAiToolCall> toolCalls;
+
   bool get hasReasoning =>
       reasoning != null && reasoning!.trim().isNotEmpty;
+
+  bool get hasToolCalls => toolCalls.isNotEmpty;
 }
 
 /// Portable non-streaming OpenAI-compatible chat completions client.
@@ -45,6 +51,10 @@ class OpenAiChatClient {
     String? reasoningEffort,
     /// OpenRouter-style nested `{ "effort": "low|medium|high" }`.
     Map<String, dynamic>? reasoning,
+    /// Tools the model may call; omitted from the request when empty.
+    List<OpenAiTool> tools = const <OpenAiTool>[],
+    /// `auto` (default) / `none` / `required`; only sent with [tools].
+    String? toolChoice,
   }) async {
     final base = normalizeOpenAiBaseUrl(
       baseUrl.trim().isEmpty ? (fallbackBaseUrl ?? '') : baseUrl,
@@ -84,6 +94,13 @@ class OpenAiChatClient {
       body['reasoning'] = reasoning;
     } else if (reasoningEffort != null && reasoningEffort.trim().isNotEmpty) {
       body['reasoning_effort'] = reasoningEffort.trim();
+    }
+    if (tools.isNotEmpty) {
+      body['tools'] =
+          tools.map((t) => t.toJson()).toList(growable: false);
+      body['tool_choice'] = (toolChoice ?? '').trim().isEmpty
+          ? 'auto'
+          : toolChoice!.trim();
     }
 
     final headers = <String, String>{
@@ -127,25 +144,53 @@ class OpenAiChatClient {
     if (message is! Map) {
       throw OpenAiChatException('模型没有返回可用内容');
     }
-    var content = message['content'];
-    if (content is! String || content.trim().isEmpty) {
+    final rawContent = message['content'];
+    var content = rawContent is String ? rawContent : '';
+    final toolCalls = _readToolCalls(message);
+    // Tool-call replies legitimately carry no text; only treat "neither text
+    // nor tools" as an empty response.
+    if (content.trim().isEmpty && toolCalls.isEmpty) {
       throw OpenAiChatException('模型没有返回可用内容');
     }
     var reasoningText = _readReasoningField(message);
-    if (reasoningText == null || reasoningText.isEmpty) {
+    if (content.trim().isNotEmpty &&
+        (reasoningText == null || reasoningText.isEmpty)) {
       final extracted = ThinkTagParser.extract(content);
       content = extracted.$1;
       reasoningText = extracted.$2;
     }
-    if (content.trim().isEmpty) {
+    if (content.trim().isEmpty && toolCalls.isEmpty) {
       throw OpenAiChatException('模型没有返回可用内容');
     }
     return OpenAiChatCompletion(
       content: content,
+      toolCalls: toolCalls,
       reasoning: reasoningText?.trim().isEmpty ?? true
           ? null
           : reasoningText!.trim(),
     );
+  }
+
+  /// Reads OpenAI-style `message.tool_calls`; empty when absent or unusable.
+  static List<OpenAiToolCall> _readToolCalls(Map message) {
+    final raw = message['tool_calls'];
+    if (raw is! List) return const <OpenAiToolCall>[];
+    final calls = <OpenAiToolCall>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final call = OpenAiToolCall.fromJson(Map<String, dynamic>.from(item));
+      if (call.name.isEmpty) continue;
+      calls.add(
+        call.id.isEmpty
+            ? OpenAiToolCall(
+                id: 'call_${calls.length}',
+                name: call.name,
+                arguments: call.arguments,
+              )
+            : call,
+      );
+    }
+    return calls;
   }
 
   /// DeepSeek / o-series style fields on `message`.

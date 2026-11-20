@@ -63,7 +63,7 @@
       'messages': messages.map((m) => m.toJson()).toList(growable: false),
 ```
 
-请求体没有 `tools`；消息模型只有 `role` + `content`；响应只读 `message.content`，不读 `tool_calls`。**不补这一层，下面的设计全部无处落地。**
+请求体没有 `tools`；消息模型只有 `role` + `content`；响应只读 `message.content`，不读 `tool_calls`。**不补这一层，下面的设计全部无处落地。**（阶段 0 已补，见 §7.1。）
 
 **B. 没有上下文预算裁剪。**
 
@@ -220,18 +220,31 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 ## 7. 落地阶段（已定顺序）
 
-| 阶段 | 内容 | 前置 |
-| --- | --- | --- |
-| **0** | 协议层：消息支持 `tool_calls`，请求带 `tools`，响应解析 `tool_calls`；统一工具返回信封 | — |
-| **1** | `EntityRef` 引用解析；补 `edge.detail` 与 `exampleLines` 两个字段缺口 | 0 |
-| **2** | 确认 UI：逐条 op 勾选 + 字段级 diff | 1 |
-| **3** | 创作侧改成真循环：模型选工具 → 读 → 改 → 预览；退役 `wantsFullGraphRewrite` | 2 |
-| **4** | 聊天侧命中注入：世界书 `keys` 与剧情元素关键词；三档取舍 | 1（不依赖 2、3） |
-| **5** | 上下文预算裁剪，接入 `contextLength` | 4 |
+| 阶段 | 内容 | 前置 | 状态 |
+| --- | --- | --- | --- |
+| **0** | 协议层：消息支持 `tool_calls`，请求带 `tools`，响应解析 `tool_calls`；统一工具返回信封 | — | **协议层已完成** |
+| **1** | `EntityRef` 引用解析；补 `edge.detail` 与 `exampleLines` 两个字段缺口 | 0 | 未开始 |
+| **2** | 确认 UI：逐条 op 勾选 + 字段级 diff | 1 | 未开始 |
+| **3** | 创作侧改成真循环：模型选工具 → 读 → 改 → 预览；退役 `wantsFullGraphRewrite` | 2 | 未开始 |
+| **4** | 聊天侧命中注入：世界书 `keys` 与剧情元素关键词；三档取舍 | 1（不依赖 2、3） | 未开始 |
+| **5** | 上下文预算裁剪，接入 `contextLength` | 4 | 未开始 |
 
 **阶段 0 是唯一的硬前置**：没有它，后面全部是纸上设计。阶段 4 可与 2、3 并行，因为聊天侧不依赖工具循环。
 
 **阶段 2 必须在 3 之前**：模型能精确出 op 之后，若确认抽屉仍只有「应用 / 跳过」，精确编辑就没有落点——用户只能整包接受或整包放弃。
+
+### 7.1 阶段 0 实际落地
+
+已完成，落在 foundation 两处：
+
+- [`openai_chat_message.dart`](../lib/foundation/ai/openai_chat_message.dart)：新增 `OpenAiTool`（工具声明）与 `OpenAiToolCall`（模型请求的调用），`OpenAiChatMessage` 支持 `toolCalls` / `toolCallId` / `name`，`role: 'tool'` 可作为工具结果回传。
+- [`openai_chat_client.dart`](../lib/foundation/ai/openai_chat_client.dart)：`complete(...)` 新增 `tools` / `toolChoice`（为空时不进请求体）；响应解析 `message.tool_calls`；修正「工具调用时 `content` 为空被判成『模型没有返回可用内容』」。
+
+测试：`test/foundation/openai_chat_client_test.dart` 覆盖请求体开关、空 content 解析 tool_calls、tool 结果回传往返。
+
+**与初版计划的偏差**：未在 `AiTextClient` 上加 `completeWithTools`。该抽象类有 12 处测试假实现用 `implements`，且阶段 0 没有任何调用方，加进去等于零收益的接口扰动。改为阶段 3 真实工具循环时随调用点一起加。
+
+**「统一工具返回信封」顺延到阶段 1**：`CreateToolResult` 的 `truncated` / `tokenEstimate` 只有在读工具真正返回截断时才有意义，提前加字段属于无调用点的预留。
 
 ---
 
