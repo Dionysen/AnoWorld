@@ -4,6 +4,7 @@ import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
+import 'package:anoworld/domain/ai/create/create_chat_turn.dart';
 import 'package:anoworld/domain/ai/create/create_context_index.dart';
 import 'package:anoworld/domain/ai/create/create_history_fit.dart';
 import 'package:anoworld/domain/ai/create/create_prompt_profiles.dart';
@@ -32,10 +33,15 @@ class CreateAgentLoop {
   /// Upper bound on model turns; a normal turn needs 1–3.
   final int maxSteps;
 
+  /// Most recent conversation lines replayed into a turn. Ten lines covers
+  /// "改一下 → 不行 → 再改" without dragging the whole transcript back in.
+  static const int maxHistoryTurns = 10;
+
   Future<CreateAgentTurnResult> run({
     required CreateAssistantTarget target,
     required String prompt,
     required CreateToolContext ctx,
+    List<CreateChatTurn> history = const <CreateChatTurn>[],
   }) async {
     final project = ctx.project;
     if (project == null) {
@@ -56,8 +62,15 @@ class CreateAgentLoop {
 
     final allow = target.toolAllowlist;
     final budget = ContextBudget.of(ai.generation);
+    final system = _systemPrompt(target, ctx);
+    final earlier = _fitHistory(history, budget, system, trimmed);
     final messages = <OpenAiChatMessage>[
-      OpenAiChatMessage(role: 'system', content: _systemPrompt(target, ctx)),
+      OpenAiChatMessage(role: 'system', content: system),
+      for (final turn in earlier)
+        OpenAiChatMessage(
+          role: turn.fromUser ? 'user' : 'assistant',
+          content: turn.text,
+        ),
       OpenAiChatMessage(role: 'user', content: trimmed),
     ];
     final called = <String>[];
@@ -129,6 +142,38 @@ class CreateAgentLoop {
         CreateAssistantTarget.cast => CreatePromptProfiles.castTaskRules,
       },
     );
+  }
+
+  /// Earlier conversation lines that fit beside the rules and this prompt.
+  ///
+  /// Two limits, newest first: at most [maxHistoryTurns] lines, then whatever
+  /// the input budget still has room for. Older lines are dropped, never the
+  /// newest, so "再冷一点" always has the line it refers to.
+  List<CreateChatTurn> _fitHistory(
+    List<CreateChatTurn> history,
+    ContextBudget budget,
+    String system,
+    String prompt,
+  ) {
+    final nonEmpty = <CreateChatTurn>[
+      for (final turn in history)
+        if (turn.text.trim().isNotEmpty) turn,
+    ];
+    if (nonEmpty.isEmpty) return nonEmpty;
+    final recent = nonEmpty.length <= maxHistoryTurns
+        ? nonEmpty
+        : nonEmpty.sublist(nonEmpty.length - maxHistoryTurns);
+    final room = budget.remaining(
+      budget.estimate(system) + budget.estimate(prompt),
+    );
+    final kept = budget.keepNewest(recent, (turn) => turn.text, tokens: room);
+    if (kept.length < history.length) {
+      AppLog.instance.info(
+        '创作回合带上最近 ${kept.length} 条对话（共 ${history.length} 条）',
+        tag: 'create.tool',
+      );
+    }
+    return kept;
   }
 
   Future<_ModelTurn> _nextTurn(

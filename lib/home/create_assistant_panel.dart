@@ -6,6 +6,7 @@ import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
 import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
+import 'package:anoworld/domain/ai/create/create_chat_turn.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_services.dart';
 import 'package:anoworld/domain/main/apply_cast_patch.dart';
@@ -64,6 +65,10 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   bool _loadingStories = false;
   bool _generating = false;
   int? _pendingLine;
+
+  /// Index in [_lines] where the current story's conversation starts, so the
+  /// model never receives lines that belong to another story.
+  int _historyStart = 0;
   bool _ready = false;
   Timer? _composerDebounce;
 
@@ -166,9 +171,13 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       );
       if (picked == null || !mounted) return;
       final summary = list.firstWhere((p) => p.id == picked);
+      final previousId = _projectId;
       setState(() {
         _projectId = summary.id;
         _projectTitle = summary.title;
+        // Keep the transcript on screen, but do not let the previous story's
+        // conversation steer this one.
+        if (summary.id != previousId) _historyStart = _lines.length;
       });
       await _persist();
       AppLog.instance.info('创作助手选中故事：${summary.title}', tag: 'create.assistant');
@@ -205,6 +214,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     final textClient = AppScope.textClientOf(context);
     final promptCtx = settings.textPromptContext();
     final plotCatalog = settings.plotElements;
+    final history = _historyForModel();
     _composer.clear();
     setState(() {
       _lines.add(_AssistantLine(role: _LineRole.user, text: text));
@@ -230,6 +240,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       plotCatalog: plotCatalog,
       projectId: projectId,
       prompt: text,
+      history: history,
     ));
   }
 
@@ -250,6 +261,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     required PlotElementCatalog plotCatalog,
     required String projectId,
     required String prompt,
+    required List<CreateChatTurn> history,
   }) async {
     final strings = context.strings;
     final toolClient =
@@ -259,6 +271,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       final turn = await CreateAgentRunner().runTurn(
         target: _target,
         prompt: prompt,
+        history: history,
         ctx: CreateToolContext(
           project: project,
           ai: promptCtx,
@@ -341,6 +354,23 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
     if (branches > 0) bits.add(strings.branchCount(branches));
     return '${strings.proposalLead} ${bits.join(' · ')}';
+  }
+
+  /// Lines of this story's conversation, as the model should see them.
+  List<CreateChatTurn> _historyForModel() {
+    final out = <CreateChatTurn>[];
+    for (var i = _historyStart; i < _lines.length; i++) {
+      final line = _lines[i];
+      if (line.pending) continue;
+      final text = line.text.trim();
+      if (text.isEmpty) continue;
+      out.add(
+        line.role == _LineRole.user
+            ? CreateChatTurn.user(text)
+            : CreateChatTurn.assistant(text),
+      );
+    }
+    return out;
   }
 
   /// Replaces the placeholder bubble with the outcome of this turn.

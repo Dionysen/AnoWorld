@@ -38,6 +38,9 @@ class _ScriptedTextClient implements AiTextClient, AiToolTurnClient {
   final List<_Reply> replies;
   int calls = 0;
 
+  /// Messages of the last model turn, so tests can assert what it was told.
+  List<OpenAiChatMessage> lastMessages = const <OpenAiChatMessage>[];
+
   @override
   Future<AiTextCompletion> complete({
     required AiTextEndpoint endpoint,
@@ -56,6 +59,7 @@ class _ScriptedTextClient implements AiTextClient, AiToolTurnClient {
     GenerationPreset? generation,
   }) async {
     final reply = _next();
+    lastMessages = messages;
     final tool = reply.tool;
     if (tool == null) return OpenAiChatCompletion(content: reply.text);
     return OpenAiChatCompletion(
@@ -333,5 +337,60 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('先在上面选一个故事，我才能读它的设定'), findsOneWidget);
+  });
+
+  testWidgets('sends the earlier conversation back with each turn', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repo = MemoryProjectRepository(
+      seed: {
+        'proj_rain_night': const ProjectFactory().createRainNightSample(),
+      },
+    );
+    final store = CreateAssistantDraftStore();
+    await store.save(
+      const CreateAssistantDraft(
+        projectId: 'proj_rain_night',
+        projectTitle: '雨夜投宿',
+        composer: '',
+        lines: [
+          CreateAssistantDraftLine(role: 'user', text: '林晚现在什么语气'),
+          CreateAssistantDraftLine(role: 'assistant', text: '偏温和，像在哄人'),
+        ],
+      ),
+    );
+    final settings = testSettingsController();
+    await settings.updateAi(settings.ai.copyWith(text: _endpoint));
+    final client = _ScriptedTextClient([_Reply.text('好，改成更冷')]);
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        settings: settings,
+        textClient: client,
+        home: Scaffold(
+          body: SizedBox(
+            width: 380,
+            height: 640,
+            child: CreateAssistantPanel(draftStore: store),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '再冷一点');
+    await tester.tap(find.byTooltip('发送'));
+    await tester.pumpAndSettle();
+
+    final sent = client.lastMessages.map((m) => m.content).toList();
+    expect(sent, contains('林晚现在什么语气'));
+    expect(sent, contains('偏温和，像在哄人'));
+    expect(sent.last, '再冷一点');
   });
 }

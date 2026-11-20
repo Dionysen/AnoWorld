@@ -153,7 +153,7 @@
 | `world` | `world.list_entries`（`limit` 默认 50，可 `keyword` 过滤）/ `world.read_entry` | `world.patch` |
 | `cast` | `cast.list_members`（同上）/ `cast.read_member` | `cast.patch` |
 | `main` | `main.read_graph`（紧凑骨架）/ `main.list_nodes` / `main.get_node` | `main.replace`（整图）/ `main.patch`（局部） |
-| `plot` | `plot.list_elements`（`limit` + `keyword`；id / 分类 / 关键词 / 是否已选） | `plot.select`（`select` / `deselect` / `add_element`；新增会写进全局库，已有条目正文不改） |
+| `plot` | `plot.list_elements`（`limit` + `keyword`；id / 分类 / 关键词 / 一句说明（截到 120 字）/ 是否已选） | `plot.select`（`select` / `deselect` / `add_element`；新增会写进全局库，已有条目正文不改） |
 | `preset` | 进 L1 段目录（段名 + 启用状态），预设只读 | `preset.patch`（不做，见 §8） |
 
 阶段 3 已把写工具统一成 `*.patch` / `main.replace`，旧名 `world.patch_propose`、`cast.patch_propose`、`main.patch_graph`、`main.generate_graph` 全部删除，没有别名并存。情节图另有 `main.list_nodes`（只列 id / 站名 / 出边数 / 终局，可 `keyword` + `limit`）与 `main.get_node`（单站的概括、标签、出入连线，支持 `node:<id>.<field>`）：整图仍以 `main.read_graph` 为准，站多或只想看一站时才细读，一个回合不必为局部改动拉整张骨架。
@@ -405,6 +405,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 ### 7.8 情节图分段读与列表分页
 
+- **对话记忆**：`CreateAgentLoop.run(history:)` 收 `CreateChatTurn`（只有 user / assistant 文本，不含工具消息）。先按条数取最近 10 条，再按 `contextLength − maxTokens` 扣掉 system 与本轮提问后的余量从旧到新丢；省略时写 `create.tool` 日志。面板按故事分段：换故事后旧气泡仍在屏幕上，但 `historyStart` 之后才算数，避免上一本书的对话误导这一本。
 - **`main.list_nodes`**：只回 id / 站名 / 出边数 / 是否终局，`start` 给起点站；支持 `keyword`（站名或概括）与 `limit`（默认 50）。站多时不拉整张骨架。
 - **`main.get_node`**：单站的概括、标签、是否起点、拍数，以及出边与入边（含目标站名、`kind`、`label`、`detail`）；`node:<id>.<title|synopsis|tags>` 只取一个字段，走与设定 / 角色一致的字段信封。
 - **列表分页统一**：`world.list_entries` / `cast.list_members` / `plot.list_elements` / `main.list_nodes` 共用 `limit` 默认 50、上限 200，超出返回 `total` / `truncated` / `hint`，并都支持 `keyword` 收窄。分页参数写在 [`project_tools.dart`](../lib/domain/ai/create/tools/project_tools.dart)。
@@ -419,7 +420,8 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 2. **AI 只做提议，不直接落盘**。先输出改动意图与 ops，用户确认后才写回。
 3. **确认 UI 先补**：逐条 op 勾选 + 字段级 diff，作为阶段 2 独立完成，先于创作侧真循环。
 4. **预设只读**：不进写工具白名单。段正文本来就在系统提示里，所以只在 L1 列段名与启用状态，不另开预设读工具。
-5. **起点是阶段 0 协议层**。
+5. **助手只管创作层，不碰运行时**。拍（beat）、对白、选项、当前会话状态都是游玩时由 AI 现场生成的，创作工具没有也不会有任何 beat 写入路径；助手能到的最细粒度是站的概括、连线与剧情元素勾选。想让运行时内容更好，改的是设定 / 角色 / 情节骨架，不是替 AI 预写对白。
+6. **起点是阶段 0 协议层**。
 
 ## 8b. 仍待定
 

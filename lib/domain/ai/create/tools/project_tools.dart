@@ -553,7 +553,7 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'plot.list_elements',
-      description: '列出全局剧情元素库（id、分类、关键词、是否已选），'
+      description: '列出全局剧情元素库（id、分类、关键词、一句说明、是否已选），'
           '可用 keyword 过滤；勾选或新增前先看这里。默认最多 $kListDefaultLimit 条',
       mutatesProject: false,
       parameters: objectSchema(
@@ -591,6 +591,7 @@ List<CreateTool> buildProjectTools() {
                 'id': element.id,
                 'keyword': element.keyword,
                 'category': catalog.categoryNameOf(element.categoryId),
+                'description': _clip(element.description, 120),
                 'selected': selected.contains(element.id),
               },
           ],
@@ -803,6 +804,13 @@ String _needleOf(Map<String, dynamic> args) =>
 
 String _listHint(int rest) =>
     '还有 $rest 条没列出，用 keyword 收窄，或把 limit 调大';
+
+/// One-line preview of a long field, for list rows.
+String _clip(String text, int max) {
+  final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (flat.length <= max) return flat;
+  return '${flat.substring(0, max)}…';
+}
 
 bool _worldEntryMatches(WorldBookEntry entry, String needle) {
   return entry.title.toLowerCase().contains(needle) ||

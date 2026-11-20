@@ -9,6 +9,7 @@ import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
 import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
+import 'package:anoworld/domain/ai/create/create_chat_turn.dart';
 import 'package:anoworld/domain/ai/create/create_history_fit.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_services.dart';
@@ -523,6 +524,88 @@ void main() {
     // The oldest reply is replaced by a stub; the newest stays readable.
     expect(toolReplies.first.content, CreateHistoryFit.elidedBody);
     expect(toolReplies.last.content, contains('乙'));
+  });
+
+  test('replays recent conversation and trims it to the window', () async {
+    final base = const ProjectFactory().createRainNightSample();
+    final client = _ScriptedTurnClient(<OpenAiChatCompletion>[
+      const OpenAiChatCompletion(content: '好，改成更冷'),
+      const OpenAiChatCompletion(content: '这次只改语气'),
+    ]);
+    final ctx = (GenerationPreset generation) => CreateToolContext(
+          project: base,
+          ai: AiPromptContext(
+            endpoint: _endpoint,
+            generation: generation,
+            promptManager: PromptManagerConfig.defaultConfig(),
+          ),
+          services: CreateToolServices(toolClient: client),
+        );
+
+    await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.cast,
+      prompt: '把林晚写得更冷一点',
+      ctx: ctx(const GenerationPreset()),
+      history: const <CreateChatTurn>[
+        CreateChatTurn.user('先看看现在什么样'),
+        CreateChatTurn.assistant('她的语气偏温和'),
+      ],
+    );
+
+    final roles = [for (final m in client.lastMessages) m.role];
+    expect(roles, <String>['system', 'user', 'assistant', 'user']);
+    expect(client.lastMessages[1].content, '先看看现在什么样');
+    expect(client.lastMessages[2].content, '她的语气偏温和');
+    expect(client.lastMessages[3].content, '把林晚写得更冷一点');
+
+    // When the rules plus this prompt leave too little room, older lines go
+    // first and the newest line stays.
+    await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.cast,
+      prompt: '这次只改语气',
+      ctx: ctx(const GenerationPreset(contextLength: 2048, maxTokens: 1900)),
+      history: <CreateChatTurn>[
+        CreateChatTurn.user('甲' * 900),
+        CreateChatTurn.assistant('乙' * 900),
+        CreateChatTurn.assistant('刚才那条已经改过了'),
+      ],
+    );
+
+    final second = client.lastMessages;
+    expect(second.first.role, 'system');
+    expect(second.last.content, '这次只改语气');
+    expect(second.map((m) => m.content), contains('刚才那条已经改过了'));
+    expect(
+      second.where((m) => m.content.contains('甲' * 900)),
+      isEmpty,
+      reason: '超预算的旧对话应被丢掉',
+    );
+  });
+
+  test('plot.list_elements shows a one-line description', () async {
+    final catalog = PlotElementCatalog(
+      custom: <PlotElement>[
+        PlotElement(
+          id: 'pe_rain',
+          keyword: '暴雨封路',
+          description: '出城的桥被冲断，主角只能困在城里等雨停再找别的路',
+        ),
+      ],
+    );
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      services: CreateToolServices(plotCatalog: catalog),
+    );
+
+    final listed = await CreateAgentRunner().runSingle(
+      toolName: 'plot.list_elements',
+      ctx: ctx,
+      args: {'keyword': '暴雨'},
+    );
+
+    final row = (listed.payload?['elements'] as List).single as Map;
+    expect(row['keyword'], '暴雨封路');
+    expect(row['description'], contains('桥被冲断'));
   });
 
   test('plot.select proposes selection ops against the library', () async {
