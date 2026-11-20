@@ -165,19 +165,22 @@ Transition {
 适用于 **视觉小说** 游玩：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥。落点：[`BridgeSession`](../lib/domain/runtime/bridge_session.dart)、[`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)、[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)（`PlayPhase.needsBridge`）、[`PlaySessionPage`](../lib/play/play_session_page.dart)（仅 VN 模式）。
 
 1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + 出边列表（可空）+ 区间摘要。进站若已是 `needsBridge`，游玩页自动生成。游玩入口 [`ensurePlayableMain`](../lib/domain/project/project_factory.dart) 会去掉无出边站上「仅结束」的旧占位拍（不写回包），避免空白故事只能点结束。
-2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。每拍 `choices` **最多 3**（prompt + 解析截断，优先 stay / 合法出站）。每拍 `lines` 的**最少句数**由设置 → AI → **视觉小说演出 → 每段最少句数**（[`AiSettings.minBridgeLines`](../lib/domain/settings/ai_settings.dart)，默认 3，范围 1–10）决定。`type: beat` + `beatId: __stay__` 表示继续本区间（再选 → `needsBridge`）。
-3. **剧情树预写**（[`PlaySessionPage`](../lib/play/play_session_page.dart)）：情节图是骨架；游玩时 AI 生长的拍 + [`branchEdges`](../lib/domain/runtime/bridge_session.dart) 构成**本局剧情树**，完整进存档。  
-   - **最新拍无 choices**：线性队列目标 **2**；每推进一步检测补齐（不再用 `defaultMaxBeats` 截断预取深度）。  
-   - **最新拍有 choices**：不再追加线性拍；[`BridgeBranchPrefetchAction`](../lib/domain/ai/bridge_branch_prefetch_action.dart) **一次调用**为至多 3 条可续写选项（stay / 合法 `node`；`end` 不预写）各写 **1** 拍，写入 `generatedBeats` + `branchEdges`。  
-   - **点选**：若已有 `fromBeatId+choiceId→toBeatId` 则直接采用；否则现场生成并挂边。**不清空**其它分支。回退改选同样查边复用。  
-   - **重新生成**：[`pruneSubtree`](../lib/domain/runtime/bridge_session.dart) 删当前拍及其后代；**兄弟分支保留**；清空线性缓冲后重写当前路径。  
-   - 生成中只在标题栏转圈，不对白框写「正在写」。
-4. **有出边**：  
-   - `maxBridgeBeats` 默认 4；触顶后禁止 stay，必须合法 `node`/`end`（约束生成内容，不挡预取策略）。  
-   - UI 可提供「前往：{下一站}」保底；失败时用 `fallbackChoices`（合法出边，亦 ≤3）。
-5. **无出边（开放区间）**：不触顶强制收敛；prompt 要求 stay「继续」为主，可 `end`；空 choices 时自动补「继续」；`fallbackChoices` = 「继续」+「告一段落」。
-6. **入下一站**：合法 `node` Transition 后更新当前 `nodeId` / `turnCount` / `summary`；**保留**本局全部 `generatedBeats` 与 `branchEdges`，会话写入存档附件，**不写回**故事包。
-7. **范围**：本节状态机只服务 VN。聊天见 §3.3。
+2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。每拍 `choices` **最多 3**（prompt + 解析截断）。每拍 `lines` 的**最少句数**由设置 → AI → **视觉小说演出 → 每段最少句数**（[`AiSettings.minBridgeLines`](../lib/domain/settings/ai_settings.dart)，默认 **10**，范围 1–10）决定。`type: beat` + `beatId: __stay__` 表示继续本区间（再选 → `needsBridge`）。
+3. **何时带选项**：  
+   - **出站 / 触顶收敛拍**：必须有 choices（合法 `node` / `end`）。  
+   - **站内过程拍**（含开放站续写）：默认可空 choices，玩家**点屏幕**播完后接下一段；出现站内选项的频率由设置 **站内选项**（[`InStationChoiceFrequency`](../lib/domain/settings/ai_settings.dart)，默认「很少」）调节。空 choices **不再**自动补「继续」。
+4. **剧情树预写**（[`PlaySessionPage`](../lib/play/play_session_page.dart)）：情节图是骨架；游玩时 AI 生长的拍 + [`branchEdges`](../lib/domain/runtime/bridge_session.dart) 构成**本局剧情树**，完整进存档。  
+   - **最新拍无 choices**：线性队列目标 **2**。  
+   - **最新拍有 choices**：[`BridgeBranchPrefetchAction`](../lib/domain/ai/bridge_branch_prefetch_action.dart) 一次批写至多 3 路各 1 拍（每路亦至少 `minBridgeLines` 句）；`end` 不预写。  
+   - **点选**：查边复用；其它分支保留。  
+   - **重新生成**：[`pruneSubtree`](../lib/domain/runtime/bridge_session.dart) 剪子树，兄弟保留。  
+   - 生成中只在标题栏转圈。
+5. **有出边**：  
+   - `maxBridgeBeats` 默认 **10**；触顶禁止 stay，必须合法 `node`/`end`；接近触顶时 prompt 引导自然铺垫换站。  
+   - UI 保底「前往：{下一站}」；`fallbackChoices` 亦 ≤3。
+6. **无出边（开放区间）**：不触顶强制收敛；过程拍默认空 choices（点屏续写）；频率允许时才可给「继续 / 告一段落」；`fallbackChoices` = 「继续」+「告一段落」。
+7. **入下一站**：合法 `node` Transition 后更新当前 `nodeId` / `turnCount` / `summary`；**保留**本局全部 `generatedBeats` 与 `branchEdges`，会话写入存档附件，**不写回**故事包。
+8. **范围**：本节状态机只服务 VN。聊天见 §3.3。
 
 ### 3.3 双模式
 

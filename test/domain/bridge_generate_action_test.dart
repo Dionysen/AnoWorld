@@ -92,7 +92,7 @@ void main() {
     expect(choices[1].target.type, TransitionType.end);
   });
 
-  test('open mode fills continue when choices empty', () async {
+  test('open mode keeps empty choices for tap-to-continue', () async {
     final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
     final client = _ScriptedTextClient([
       '{"location":"室内","lines":[{"speaker":"旁白","text":"风停了。"}],"choices":[]}',
@@ -103,12 +103,27 @@ void main() {
       project: blank,
       nodeId: blank.main.startNodeId,
       session: BridgeSession(nodeId: blank.main.startNodeId),
+      inStationChoiceFrequency: InStationChoiceFrequency.off,
     );
     expect(beat.lines.first.text, '风停了。');
     expect(beat.lines.first.kind, DialogueKind.narration);
-    expect(beat.choices, hasLength(1));
-    expect(beat.choices.single.text, '继续');
-    expect(beat.choices.single.target.beatId, kBridgeStayBeatId);
+    expect(beat.choices, isEmpty);
+  });
+
+  test('strips in-station choices when frequency disallows them', () {
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final beat = BridgeGenerateAction.parseBeatJson(
+      '{"lines":[{"speaker":"旁白","text":"一段"}],"choices":['
+      '{"text":"继续","target":{"type":"beat","beatId":"$kBridgeStayBeatId"}}]}',
+      project: blank,
+      nodeId: blank.main.startNodeId,
+      beatId: 'b1',
+      legalNodeIds: const {},
+      forceConverge: false,
+      openMode: true,
+      allowInStationChoices: false,
+    );
+    expect(beat.choices, isEmpty);
   });
 
   test('minLines retries a short reply once', () async {
@@ -251,6 +266,7 @@ void main() {
       project: project,
       nodeId: 'n1',
       session: const BridgeSession(nodeId: 'n1'),
+      inStationChoiceFrequency: InStationChoiceFrequency.often,
     );
     expect(beat.lines.first.text, '雨还在下。');
     expect(beat.choices, hasLength(1));

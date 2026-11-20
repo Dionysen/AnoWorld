@@ -852,13 +852,31 @@ class AppStringsZh extends AppStrings {
   String get vnDirectionSection => '视觉小说演出';
 
   @override
-  String get vnDirectionHint => '模型每次写多少对白，会按这里的要求补齐';
+  String get vnDirectionHint => '每段对白多长、站内要不要出选项，都在这里调';
 
   @override
   String get vnMinLinesLabel => '每段最少句数';
 
   @override
   String vnMinLinesValue(int lines) => '$lines 句';
+
+  @override
+  String get vnInStationChoicesLabel => '站内选项';
+
+  @override
+  String get vnInStationChoicesHint => '出站分叉始终有选项；这里只影响站内续写要不要弹选项';
+
+  @override
+  String vnInStationChoiceFrequencyName(Object frequency) {
+    final name = frequency is Enum ? frequency.name : '$frequency';
+    return switch (name) {
+      'off' => '关闭',
+      'rare' => '很少',
+      'sometimes' => '有时',
+      'often' => '较多',
+      _ => '很少',
+    };
+  }
 
   @override
   String get scenePlaceholder => '场景';

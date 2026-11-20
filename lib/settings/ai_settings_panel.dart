@@ -9,6 +9,7 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -152,6 +153,36 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
               showDivider: false,
               onChanged: (value) =>
                   _persist(ai.copyWith(minBridgeLines: value.round())),
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+            AppPageGutter(
+              child: AppText(
+                context.strings.vnInStationChoicesLabel,
+                role: AppTextRole.label,
+              ),
+            ),
+            AppPageGutter(
+              child: AppText(
+                context.strings.vnInStationChoicesHint,
+                role: AppTextRole.caption,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceSm),
+            AppPageGutter(
+              child: AppSegmented<InStationChoiceFrequency>(
+                value: ai.inStationChoiceFrequency,
+                options: [
+                  for (final freq in InStationChoiceFrequency.values)
+                    AppSegmentOption(
+                      value: freq,
+                      label: context.strings
+                          .vnInStationChoiceFrequencyName(freq),
+                    ),
+                ],
+                onChanged: (freq) => _persist(
+                  ai.copyWith(inStationChoiceFrequency: freq),
+                ),
+              ),
             ),
           ],
         );

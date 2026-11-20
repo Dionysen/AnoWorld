@@ -79,7 +79,8 @@ void main() {
     expect(results, hasLength(2));
     expect(results[0].choiceId, 'c_stay');
     expect(results[0].beat?.lines.first.text, '留下。');
-    expect(results[0].beat?.choices, isNotEmpty); // open mode fills continue
+    // Branch post-choice beats default to empty choices (tap to continue).
+    expect(results[0].beat?.choices, isEmpty);
     expect(results[1].choiceId, 'c_other');
     expect(results[1].beat, isNull);
     expect(client.calls, 1);

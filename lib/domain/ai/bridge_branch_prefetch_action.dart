@@ -6,6 +6,7 @@ import 'package:anoworld/domain/ai/bridge_generate_action.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
@@ -53,6 +54,8 @@ class BridgeBranchPrefetchAction {
     PlotElementCatalog? plotCatalog,
     List<String> userAliases = const <String>[],
     int minLines = 1,
+    InStationChoiceFrequency inStationChoiceFrequency =
+        InStationChoiceFrequency.rare,
   }) async {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
@@ -88,15 +91,19 @@ class BridgeBranchPrefetchAction {
       );
     }
 
+    final minLineRule = minLines > 1
+        ? '- 每拍 lines 至少 $minLines 句，每句单独一条。'
+        : '';
     final task = '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
 为下面每一条选项各写「选中后立刻播放」的一小段对白（一拍）。
-输出格式：{"branches":[{"choiceId":"与输入一致","beat":{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[{"text":"...","target":{...}}]}}]}
+输出格式：{"branches":[{"choiceId":"与输入一致","beat":{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[]}}]}
 规则：
 - 每个 choiceId 恰好一条；不要发明未列出的 choiceId。
 - text 只写正文，禁止「名字：」前缀。
 - 角色开口用角色列表里的名字；玩家用玩家称呼；叙述用「旁白」。
-- 每拍 choices 最多 ${BridgeSession.maxChoicesPerBeat} 个。
-- 继续本站用 {"type":"beat","beatId":"$kBridgeStayBeatId"}；换站只能用该路「合法下一站」里的 nodeId，或 {"type":"end"}。
+$minLineRule
+- 这些「选中后」的拍默认是站内过程：choices 用空数组 []，不要给选项（玩家点屏续写）。
+- 每拍 choices 若非空则最多 ${BridgeSession.maxChoicesPerBeat} 个。
 - 禁止发明情节站 id。''';
 
     final system = ctx.assembleSystem(
@@ -182,6 +189,9 @@ ${branchLines.join('\n')}''';
           .map((e) => e.to)
           .toSet();
       final openMode = exits.isEmpty;
+      final destTurns = session.turnsForNode(destNode);
+      final allowChoices =
+          inStationChoiceFrequency.allowsChoicesAtTurn(destTurns);
       try {
         final beat = BridgeGenerateAction.parseBeatJson(
           jsonEncode(beatMap),
@@ -193,6 +203,7 @@ ${branchLines.join('\n')}''';
           forceConverge: false,
           openMode: openMode,
           userAliases: userAliases,
+          allowInStationChoices: allowChoices,
         );
         if (minLines > 1 && beat.lines.length < minLines) {
           AppLog.instance.warning(

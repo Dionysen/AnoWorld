@@ -348,6 +348,44 @@ Map<String, dynamic>? _activeFromProviders(Map<String, dynamic> json) {
   return chosen;
 }
 
+/// How often in-station (non-exit) beats may include player choices.
+enum InStationChoiceFrequency {
+  /// Process beats never offer choices; tap screen to continue.
+  off,
+
+  /// Occasional in-station choices (default).
+  rare,
+
+  sometimes,
+  often,
+}
+
+extension InStationChoiceFrequencyCodec on InStationChoiceFrequency {
+  String get wireName => name;
+
+  static InStationChoiceFrequency parse(String? raw) {
+    return switch (raw) {
+      'off' => InStationChoiceFrequency.off,
+      'sometimes' => InStationChoiceFrequency.sometimes,
+      'often' => InStationChoiceFrequency.often,
+      _ => InStationChoiceFrequency.rare,
+    };
+  }
+
+  /// Whether the upcoming beat after [turnCount] generated beats may carry
+  /// in-station choices (exit / converge beats ignore this).
+  bool allowsChoicesAtTurn(int turnCount) {
+    final next = turnCount + 1;
+    return switch (this) {
+      InStationChoiceFrequency.off => false,
+      InStationChoiceFrequency.rare => next % 5 == 0,
+      InStationChoiceFrequency.sometimes => next % 3 == 0,
+      // Includes the first beat; roughly every other process beat.
+      InStationChoiceFrequency.often => next % 2 == 1,
+    };
+  }
+}
+
 class AiSettings {
   const AiSettings({
     this.text = const AiTextEndpoint(),
@@ -356,10 +394,11 @@ class AiSettings {
     this.imageSlots = const <String, AiImageEndpoint>{},
     this.generation = const GenerationPreset(),
     this.minBridgeLines = defaultMinBridgeLines,
+    this.inStationChoiceFrequency = InStationChoiceFrequency.rare,
   });
 
   /// VN interval generation: minimum lines (dialogue + narration) per beat.
-  static const int defaultMinBridgeLines = 3;
+  static const int defaultMinBridgeLines = 10;
   static const int minBridgeLinesLowerBound = 1;
   static const int minBridgeLinesUpperBound = 10;
 
@@ -377,6 +416,9 @@ class AiSettings {
   /// Asked of the model every VN beat; short outputs are retried once.
   final int minBridgeLines;
 
+  /// In-station process beats: how often to include choices (exit beats always).
+  final InStationChoiceFrequency inStationChoiceFrequency;
+
   AiSettings copyWith({
     AiTextEndpoint? text,
     AiImageEndpoint? image,
@@ -384,6 +426,7 @@ class AiSettings {
     Map<String, AiImageEndpoint>? imageSlots,
     GenerationPreset? generation,
     int? minBridgeLines,
+    InStationChoiceFrequency? inStationChoiceFrequency,
   }) {
     return AiSettings(
       text: text ?? this.text,
@@ -394,6 +437,8 @@ class AiSettings {
       minBridgeLines: clampMinBridgeLines(
         minBridgeLines ?? this.minBridgeLines,
       ),
+      inStationChoiceFrequency:
+          inStationChoiceFrequency ?? this.inStationChoiceFrequency,
     );
   }
 
@@ -436,6 +481,7 @@ class AiSettings {
         },
         'generation': generation.toJson(),
         'minBridgeLines': minBridgeLines,
+        'inStationChoiceFrequency': inStationChoiceFrequency.wireName,
       };
 
   factory AiSettings.fromJson(Map<String, dynamic> json) {
@@ -450,6 +496,9 @@ class AiSettings {
           : GenerationPreset.fromJson(genMap),
       minBridgeLines: clampMinBridgeLines(
         (json.optionalNum('minBridgeLines') ?? defaultMinBridgeLines).toInt(),
+      ),
+      inStationChoiceFrequency: InStationChoiceFrequencyCodec.parse(
+        json.optionalString('inStationChoiceFrequency'),
       ),
     );
   }

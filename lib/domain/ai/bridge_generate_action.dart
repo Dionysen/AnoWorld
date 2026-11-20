@@ -4,6 +4,7 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/play_speakers.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
@@ -30,6 +31,8 @@ class BridgeGenerateAction {
     int maxBeats = BridgeSession.defaultMaxBeats,
     List<String> userAliases = const <String>[],
     int minLines = 1,
+    InStationChoiceFrequency inStationChoiceFrequency =
+        InStationChoiceFrequency.rare,
   }) async {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
@@ -58,11 +61,19 @@ class BridgeGenerateAction {
     }).join('\n');
 
     // Open interval never force-converges to a next node.
-    final forceConverge = !openMode && session.turnCount + 1 >= maxBeats;
+    final nextTurn = session.turnCount + 1;
+    final forceConverge = !openMode && nextTurn >= maxBeats;
+    final nearConverge = !openMode &&
+        !forceConverge &&
+        nextTurn >= ((maxBeats * 7) / 10).ceil();
+    final allowInStationChoices = !forceConverge &&
+        inStationChoiceFrequency.allowsChoicesAtTurn(session.turnCount);
     final task = _taskBlock(
       forceConverge: forceConverge,
       openMode: openMode,
       minLines: minLines,
+      allowInStationChoices: allowInStationChoices,
+      nearConverge: nearConverge,
     );
     final system = ctx.assembleSystem(
       project: project,
@@ -72,6 +83,13 @@ class BridgeGenerateAction {
     final nextStationBlock = openMode
         ? '本站没有固定下一站：按设定与角色自由续写，不要发明情节站 id。'
         : '合法下一站（只能跳到这些 id，或 end）：\n$exitLines';
+    final paceHint = openMode
+        ? ''
+        : (forceConverge
+            ? '本拍必须收束到下一站或结束，对白要自然收束，不要突然跳切。\n'
+            : (nearConverge
+                ? '已接近本站尾声：对白可自然埋下前往下一站的动机。\n'
+                : ''));
     final user = '''
 当前站：${node.title}
 本站目标：${node.synopsis ?? ''}
@@ -81,7 +99,7 @@ class BridgeGenerateAction {
 $nextStationBlock
 区间摘要：${session.summary}
 已生成拍数：${session.turnCount}/${openMode ? '∞' : maxBeats}
-请生成本站下一小段对白。''';
+$paceHint请生成本站下一小段对白。''';
     String? lastError;
     var attemptUser = user;
     for (var attempt = 0; attempt <= maxFormatRetries; attempt++) {
@@ -102,6 +120,7 @@ $nextStationBlock
           forceConverge: forceConverge,
           openMode: openMode,
           userAliases: userAliases,
+          allowInStationChoices: allowInStationChoices,
         );
         if (beat.lines.length >= minLines) return beat;
         lastError = '这次只写了 ${beat.lines.length} 句，至少要 $minLines 句';
@@ -197,38 +216,44 @@ $nextStationBlock
     required bool forceConverge,
     required bool openMode,
     required int minLines,
+    required bool allowInStationChoices,
+    required bool nearConverge,
   }) {
     final minLineRule = minLines > 1
         ? '- lines 至少 $minLines 句（对白与叙述合计），每句单独一条。'
         : '';
     const choiceCap =
         'choices 最多 ${BridgeSession.maxChoicesPerBeat} 个。';
-    if (openMode) {
-      return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
-输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[{"text":"...","target":{...}}]}
-规则：
-- text 只写对白/叙述正文，禁止「瑞希：」「User：」这类前缀。
-- 角色开口：speaker 必须是角色列表里的名字，不能写成旁白。
-- 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）；不要把玩家写成角色列表外的路人。
-- 第三人称叙述：speaker 用「旁白」。
-$minLineRule
-- $choiceCap
-本站开放续写：优先给继续选项 {"type":"beat","beatId":"$kBridgeStayBeatId"}；也可给 {"type":"end"} 告一段落。
-禁止发明情节站 nodeId。''';
-    }
-    final converge = forceConverge
-        ? '必须给 1～${BridgeSession.maxChoicesPerBeat} 个 choices，且每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。'
-        : '可给过程选项（$choiceCap）；若继续本站用 {"type":"beat","beatId":"$kBridgeStayBeatId"}；导向下一站必须用合法 nodeId。';
-    return '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
-输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[{"text":"...","target":{...}}]}
+    final sharedHead = '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
+输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[...]}
 规则：
 - text 只写对白/叙述正文，禁止「瑞希：」「User：」这类前缀。
 - 角色开口：speaker 必须是角色列表里的名字，不能写成旁白。
 - 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）。
 - 第三人称叙述：speaker 用「旁白」。
 $minLineRule
-- $choiceCap
-$converge
+- $choiceCap''';
+    if (openMode) {
+      final choiceRule = allowInStationChoices
+          ? '本站开放续写：本拍可给至多 ${BridgeSession.maxChoicesPerBeat} 个选项（继续用 {"type":"beat","beatId":"$kBridgeStayBeatId"}，或 {"type":"end"}）；也可 choices 为空数组，由玩家点屏续写。'
+          : '本站开放续写：本拍 choices 必须是空数组 []，不要给选项；玩家点屏幕续写下一段。禁止发明情节站 nodeId。';
+      return '''$sharedHead
+$choiceRule
+禁止发明情节站 nodeId。''';
+    }
+    if (forceConverge) {
+      return '''$sharedHead
+本拍必须收束离站：给 1～${BridgeSession.maxChoicesPerBeat} 个 choices，每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。对白要自然收束。
+禁止发明不在合法下一站列表里的 nodeId。''';
+    }
+    final nearHint = nearConverge
+        ? '已接近本站尾声：对白可自然埋下前往下一站的动机。'
+        : '';
+    final choiceRule = allowInStationChoices
+        ? '本拍是站内过程：可给空 choices，或至多 ${BridgeSession.maxChoicesPerBeat} 个选项（继续用 stay；提前离站须用合法 nodeId）。$nearHint'
+        : '本拍是站内过程：choices 必须是空数组 []，不要给选项；玩家点屏幕续写。$nearHint';
+    return '''$sharedHead
+$choiceRule
 禁止发明不在合法下一站列表里的 nodeId。''';
   }
 
@@ -282,6 +307,7 @@ $converge
     required bool forceConverge,
     required bool openMode,
     List<String> userAliases = const <String>[],
+    bool allowInStationChoices = true,
   }) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) {
@@ -367,14 +393,9 @@ $converge
     if (choices.isEmpty && forceConverge) {
       throw const BridgeMapException('收敛拍没有选项');
     }
-    if (choices.isEmpty && openMode) {
-      choices.add(
-        Choice(
-          id: '${beatId}_c_continue',
-          text: '继续',
-          target: Transition.toBeat(kBridgeStayBeatId),
-        ),
-      );
+    // In-station / open process beats may be choice-free (tap to continue).
+    if (!forceConverge && !allowInStationChoices) {
+      choices.clear();
     }
 
     final capped = capChoices(choices);

@@ -435,6 +435,7 @@ void main() {
           model: 'demo',
         ),
         minBridgeLines: 1,
+        inStationChoiceFrequency: InStationChoiceFrequency.often,
       ),
     );
     final saves = MemorySaveRepository();
@@ -517,6 +518,7 @@ void main() {
           model: 'demo',
         ),
         minBridgeLines: 1,
+        inStationChoiceFrequency: InStationChoiceFrequency.often,
       ),
     );
     final saves = MemorySaveRepository();

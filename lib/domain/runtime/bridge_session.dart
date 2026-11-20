@@ -72,7 +72,7 @@ class BridgeSession {
   final int turnCount;
   final String summary;
 
-  static const int defaultMaxBeats = 4;
+  static const int defaultMaxBeats = 10;
 
   /// Hard cap on choices per AI-generated beat / branch fan-out.
   static const int maxChoicesPerBeat = 3;

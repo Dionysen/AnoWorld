@@ -865,6 +865,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         plotCatalog: settings.plotElements,
         userAliases: _userAliases(),
         minLines: settings.ai.minBridgeLines,
+        inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
       );
       if (!mounted || epoch != _generateEpoch) return;
 
@@ -1011,6 +1012,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         plotCatalog: settings.plotElements,
         userAliases: _userAliases(),
         minLines: settings.ai.minBridgeLines,
+        inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
       );
       if (!mounted || epoch != _generateEpoch) return;
       if (adopt) {
