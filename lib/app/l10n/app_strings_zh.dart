@@ -1436,9 +1436,6 @@ class AppStringsZh extends AppStrings {
   String get assistantTargetAll => '全部';
 
   @override
-  String get assistantEditTargetLabel => '改哪里';
-
-  @override
   String opCount(int count) => '$count 处改动';
 
   @override

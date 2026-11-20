@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
@@ -36,7 +37,8 @@ class PlotElementsPickPage extends StatefulWidget {
 
 enum _PickTab { all, categorized, packs }
 
-class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
+class _PlotElementsPickPageState extends State<PlotElementsPickPage>
+    with ProjectChangeWatcher<PlotElementsPickPage> {
   Project? _project;
   Object? _error;
   bool _loading = true;
@@ -49,6 +51,15 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
     if (_project == null && _loading) {
       _load();
     }
+  }
+
+  @override
+  String get watchedProjectId => widget.projectId;
+
+  /// Selection written elsewhere (create assistant): show the saved ticks.
+  @override
+  void reloadAfterExternalWrite() {
+    unawaited(_load());
   }
 
   @override

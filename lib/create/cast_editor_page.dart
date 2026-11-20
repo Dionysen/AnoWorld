@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/cast.dart';
@@ -32,7 +33,8 @@ class CastEditorPage extends StatefulWidget {
   State<CastEditorPage> createState() => _CastEditorPageState();
 }
 
-class _CastEditorPageState extends State<CastEditorPage> {
+class _CastEditorPageState extends State<CastEditorPage>
+    with ProjectChangeWatcher<CastEditorPage> {
   Project? _project;
   Object? _error;
   bool _loading = true;
@@ -44,6 +46,15 @@ class _CastEditorPageState extends State<CastEditorPage> {
     if (_project == null && _loading) {
       _load();
     }
+  }
+
+  @override
+  String get watchedProjectId => widget.projectId;
+
+  /// Cast written elsewhere (create assistant): show the saved members.
+  @override
+  void reloadAfterExternalWrite() {
+    unawaited(_load());
   }
 
   @override

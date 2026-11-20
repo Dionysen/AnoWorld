@@ -9,7 +9,8 @@ import '../theme/app_theme.dart';
 
 /// Floating pill composer (NativeTavern ChatComposer chrome).
 ///
-/// Left: optional leading actions. Right: send / stop. Field is borderless.
+/// Left: optional leading actions. Right: optional [trailing] tool, then send /
+/// stop. Field is borderless.
 class AppChatComposer extends StatelessWidget {
   const AppChatComposer({
     super.key,
@@ -21,6 +22,7 @@ class AppChatComposer extends StatelessWidget {
     this.onSend,
     this.onStop,
     this.leading,
+    this.trailing,
   });
 
   final TextEditingController controller;
@@ -36,13 +38,16 @@ class AppChatComposer extends StatelessWidget {
   /// Compact tools on the left of the action row (NT tune / model cluster).
   final List<Widget>? leading;
 
+  /// Compact tool just left of send, sized to its content (e.g. icon-only
+  /// mode switch).
+  final Widget? trailing;
+
   static bool get _isDesktop {
     if (kIsWeb) return false;
     return switch (defaultTargetPlatform) {
       TargetPlatform.macOS ||
       TargetPlatform.windows ||
-      TargetPlatform.linux =>
-        true,
+      TargetPlatform.linux => true,
       _ => false,
     };
   }
@@ -93,12 +98,15 @@ class AppChatComposer extends StatelessWidget {
                 children: [
                   if (leading != null && leading!.isNotEmpty) ...[
                     ..._withGaps(leading!),
-                    const Spacer(),
-                  ] else
-                    const Spacer(),
+                    const SizedBox(width: AppTheme.spaceSm),
+                  ],
+                  const Spacer(),
+                  if (trailing != null) ...[
+                    trailing!,
+                    const SizedBox(width: AppTheme.spaceSm),
+                  ],
                   Tooltip(
-                    message:
-                        isGenerating ? context.ui.stop : context.ui.send,
+                    message: isGenerating ? context.ui.stop : context.ui.send,
                     child: Material(
                       color: scheme.primary,
                       shape: const CircleBorder(),

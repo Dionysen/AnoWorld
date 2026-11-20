@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -35,7 +36,8 @@ class WorldBookEditorPage extends StatefulWidget {
   State<WorldBookEditorPage> createState() => _WorldBookEditorPageState();
 }
 
-class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
+class _WorldBookEditorPageState extends State<WorldBookEditorPage>
+    with ProjectChangeWatcher<WorldBookEditorPage> {
   Project? _project;
   Object? _error;
   bool _loading = true;
@@ -56,6 +58,15 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
     if (_project == null && _loading) {
       _load();
     }
+  }
+
+  @override
+  String get watchedProjectId => widget.projectId;
+
+  /// World book written elsewhere (create assistant): show the saved entries.
+  @override
+  void reloadAfterExternalWrite() {
+    unawaited(_load());
   }
 
   @override

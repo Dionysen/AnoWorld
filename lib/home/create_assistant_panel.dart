@@ -38,10 +38,7 @@ import 'package:flutter/material.dart';
 
 /// Create-assistant conversation body (inside [CreateAssistantBloomShell]).
 class CreateAssistantPanel extends StatefulWidget {
-  const CreateAssistantPanel({
-    super.key,
-    this.draftStore,
-  });
+  const CreateAssistantPanel({super.key, this.draftStore});
 
   /// Injectable for tests; defaults to SharedPreferences-backed store.
   final CreateAssistantDraftStore? draftStore;
@@ -180,7 +177,10 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
         if (summary.id != previousId) _historyStart = _lines.length;
       });
       await _persist();
-      AppLog.instance.info('创作助手选中故事：${summary.title}', tag: 'create.assistant');
+      AppLog.instance.info(
+        '创作助手选中故事：${summary.title}',
+        tag: 'create.assistant',
+      );
     } catch (error, stack) {
       if (!mounted) return;
       setState(() => _loadingStories = false);
@@ -233,15 +233,17 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       '创作助手 ${_target.wireName}（$projectId）',
       tag: 'create.assistant',
     );
-    unawaited(_runAgentTurn(
-      repo: repo,
-      textClient: textClient,
-      promptCtx: promptCtx,
-      plotCatalog: plotCatalog,
-      projectId: projectId,
-      prompt: text,
-      history: history,
-    ));
+    unawaited(
+      _runAgentTurn(
+        repo: repo,
+        textClient: textClient,
+        promptCtx: promptCtx,
+        plotCatalog: plotCatalog,
+        projectId: projectId,
+        prompt: text,
+        history: history,
+      ),
+    );
   }
 
   /// Straight answer without calling the model (no story / no service).
@@ -264,8 +266,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     required List<CreateChatTurn> history,
   }) async {
     final strings = context.strings;
-    final toolClient =
-        textClient is AiToolTurnClient ? textClient as AiToolTurnClient : null;
+    final toolClient = textClient is AiToolTurnClient
+        ? textClient as AiToolTurnClient
+        : null;
     try {
       final project = await repo.open(projectId);
       final turn = await CreateAgentRunner().runTurn(
@@ -386,10 +389,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     setState(() {
       final index = _pendingLine;
       if (index != null && index < _lines.length) {
-        _lines[index] = _AssistantLine(
-          role: _LineRole.assistant,
-          text: text,
-        );
+        _lines[index] = _AssistantLine(role: _LineRole.assistant, text: text);
       } else {
         _lines.add(_AssistantLine(role: _LineRole.assistant, text: text));
       }
@@ -484,10 +484,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
                 id: 'replace',
                 title: strings.generatedPlotTitle,
                 note: note.join('\n'),
-                details: [
-                  for (final node in next.nodes)
-                    _nodeLine(node),
-                ],
+                details: [for (final node in next.nodes) _nodeLine(node)],
               ),
             ],
           ),
@@ -755,51 +752,11 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
             AppTheme.pagePadding,
             AppTheme.spaceXs,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppText(strings.assistantTitle, role: AppTextRole.subtitle),
-              const SizedBox(height: AppTheme.spaceSm),
-              AppSelectField(
-                label: strings.currentStory,
-                value: storyLabel,
-                hint: strings.pickStoryHint,
-                onTap: _loadingStories ? null : _pickStory,
-              ),
-              const SizedBox(height: AppTheme.spaceSm),
-              AppText(
-                strings.assistantEditTargetLabel,
-                role: AppTextRole.caption,
-              ),
-              const SizedBox(height: AppTheme.spaceXs),
-              AppSegmented<CreateAssistantTarget>(
-                value: _target,
-                options: [
-                  AppSegmentOption(
-                    value: CreateAssistantTarget.graph,
-                    label: strings.assistantTargetGraph,
-                  ),
-                  AppSegmentOption(
-                    value: CreateAssistantTarget.world,
-                    label: strings.assistantTargetWorld,
-                  ),
-                  AppSegmentOption(
-                    value: CreateAssistantTarget.cast,
-                    label: strings.assistantTargetCast,
-                  ),
-                  AppSegmentOption(
-                    value: CreateAssistantTarget.all,
-                    label: strings.assistantTargetAll,
-                  ),
-                ],
-                onChanged: _generating
-                    ? (_) {}
-                    : (value) {
-                        setState(() => _target = value);
-                        unawaited(_persist());
-                      },
-              ),
-            ],
+          child: AppSelectField(
+            label: strings.currentStory,
+            value: storyLabel,
+            hint: strings.pickStoryHint,
+            onTap: _loadingStories ? null : _pickStory,
           ),
         ),
         Expanded(
@@ -844,22 +801,17 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: isUser
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer
+                                ? Theme.of(context).colorScheme.primaryContainer
                                 : Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHigh,
+                                      .colorScheme
+                                      .surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(
                               AppTheme.radiusMd,
                             ),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(AppTheme.spaceSm),
-                            child: AppText(
-                              line.text,
-                              role: AppTextRole.body,
-                            ),
+                            child: AppText(line.text, role: AppTextRole.body),
                           ),
                         ),
                       ),
@@ -879,9 +831,45 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
             hintText: strings.assistantComposerHint,
             isGenerating: _generating,
             onSend: _send,
+            trailing: _buildTargetSwitch(strings),
           ),
         ),
       ],
+    );
+  }
+
+  /// Edit scope: icon-only, left of send so it reads as part of the prompt.
+  Widget _buildTargetSwitch(AppStrings strings) {
+    return AppIconSegmented<CreateAssistantTarget>(
+      value: _target,
+      options: [
+        AppSegmentOption(
+          value: CreateAssistantTarget.graph,
+          label: strings.assistantTargetGraph,
+          icon: Icons.account_tree_outlined,
+        ),
+        AppSegmentOption(
+          value: CreateAssistantTarget.world,
+          label: strings.assistantTargetWorld,
+          icon: Icons.public_outlined,
+        ),
+        AppSegmentOption(
+          value: CreateAssistantTarget.cast,
+          label: strings.assistantTargetCast,
+          icon: Icons.groups_outlined,
+        ),
+        AppSegmentOption(
+          value: CreateAssistantTarget.all,
+          label: strings.assistantTargetAll,
+          icon: Icons.layers_outlined,
+        ),
+      ],
+      onChanged: _generating
+          ? (_) {}
+          : (value) {
+              setState(() => _target = value);
+              unawaited(_persist());
+            },
     );
   }
 }

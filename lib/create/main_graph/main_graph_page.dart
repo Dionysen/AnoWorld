@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
-import 'package:anoworld/app/project_change_notifier.dart';
+import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/data/project/graph_node_thumbnail_files.dart';
 import 'package:anoworld/create/main_graph/main_graph_view_nav.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_labels.dart';
@@ -51,7 +51,8 @@ class MainGraphPage extends StatefulWidget {
   State<MainGraphPage> createState() => _MainGraphPageState();
 }
 
-class _MainGraphPageState extends State<MainGraphPage> {
+class _MainGraphPageState extends State<MainGraphPage>
+    with ProjectChangeWatcher<MainGraphPage> {
   static const _ops = MainGraphOps();
 
   Project? _project;
@@ -68,7 +69,6 @@ class _MainGraphPageState extends State<MainGraphPage> {
   final _history = UndoStack();
   Timer? _saveDebounce;
   MainStory? _dragOriginMain;
-  ProjectChangeNotifier? _projectChanges;
 
   @override
   void initState() {
@@ -80,7 +80,6 @@ class _MainGraphPageState extends State<MainGraphPage> {
   void dispose() {
     _saveDebounce?.cancel();
     _history.removeListener(_onHistoryChanged);
-    _projectChanges?.removeListener(_onProjectChanged);
     _history.dispose();
     _viewportCamera.dispose();
     super.dispose();
@@ -93,47 +92,54 @@ class _MainGraphPageState extends State<MainGraphPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final changes = AppScope.projectChangesOf(context);
-    if (!identical(_projectChanges, changes)) {
-      _projectChanges?.removeListener(_onProjectChanged);
-      _projectChanges = changes..addListener(_onProjectChanged);
-    }
     if (_project == null && _loading) {
       _load();
     }
   }
 
-  /// Story written elsewhere (create assistant): pull the new graph.
-  void _onProjectChanged() {
-    final changes = _projectChanges;
-    if (changes == null || !changes.isChanged(widget.projectId)) return;
-    changes.clear(widget.projectId);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
+  @override
+  String get watchedProjectId => widget.projectId;
+
+  /// Story written elsewhere (create assistant): pull the new graph without
+  /// flashing the loading state or dropping the station in view.
+  @override
+  void reloadAfterExternalWrite() {
+    unawaited(_load(quiet: true));
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool quiet = false}) async {
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final project =
           await AppScope.projectsOf(context).open(widget.projectId);
       if (!mounted) return;
       _history.clear();
       _dragOriginMain = null;
+      final keepId = _selectedId;
+      final keepEdgeId = _selectedEdgeId;
+      final keepSelection =
+          quiet && keepId != null && project.main.nodeById(keepId) != null;
       setState(() {
         _project = project;
-        _selectedId = project.main.startNodeId;
+        _selectedId = keepSelection ? keepId : project.main.startNodeId;
+        _selectedEdgeId = quiet &&
+                keepEdgeId != null &&
+                project.main.edges.any((edge) => edge.id == keepEdgeId)
+            ? keepEdgeId
+            : null;
         _loading = false;
+        _error = null;
       });
       await _loadThumbnailsFromDisk();
-      if (mounted) {
-        // ignore: unawaited_futures
-        _refreshNodeThumbnails(project.main);
-      }
+      if (!mounted) return;
+      // ignore: unawaited_futures
+      _refreshNodeThumbnails(project.main);
+      if (quiet && !keepSelection) _focusStation(project.main.startNodeId);
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -141,6 +147,16 @@ class _MainGraphPageState extends State<MainGraphPage> {
         _loading = false;
       });
     }
+  }
+
+  /// Pans to [nodeId] so a rewritten graph is not shown off-camera.
+  void _focusStation(String? nodeId) {
+    if (nodeId == null || _cardMode) return;
+    final node = _project?.main.nodeById(nodeId);
+    if (node == null) return;
+    _viewportCamera.centerOnScenePoint(
+      Offset(node.layout?.x ?? 0, node.layout?.y ?? 0),
+    );
   }
 
   Future<void> _applyMain(

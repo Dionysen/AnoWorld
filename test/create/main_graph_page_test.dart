@@ -1,3 +1,4 @@
+import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
@@ -311,6 +312,48 @@ void main() {
     final after = (await repo.open(sample.meta.id)).main;
     expect(after.nodes.map((n) => n.id), before.nodes.map((n) => n.id));
     expect(after.edges.map((e) => e.id), before.edges.map((e) => e.id));
+  });
+
+  testWidgets('a write from another editor refreshes the canvas', (
+    tester,
+  ) async {
+    final repo = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    final changes = ProjectChangeNotifier();
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        projectChanges: changes,
+        home: MainGraphPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('新站'), findsNothing);
+
+    // Stand-in for the create assistant applying a staged graph.
+    final stored = await repo.open(sample.meta.id);
+    await repo.save(
+      stored.copyWith(
+        main: stored.main.copyWith(
+          nodes: [
+            ...stored.main.nodes,
+            StoryNode(
+              id: 'n_new',
+              title: '新站',
+              synopsis: '外部写入',
+              beatIds: const [],
+              layout: const NodeLayout(x: 520, y: 320),
+            ),
+          ],
+        ),
+      ),
+    );
+    changes.markChanged(sample.meta.id);
+    await tester.pumpAndSettle();
+
+    final viewport = tester.widget<GraphViewport>(find.byType(GraphViewport));
+    expect(viewport.nodes.any((node) => node.id == 'n_new'), isTrue);
   });
 
   testWidgets('edit selected opens station sheet', (tester) async {

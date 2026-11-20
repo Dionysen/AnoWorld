@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
@@ -27,7 +30,8 @@ class CreateHubPage extends StatefulWidget {
   State<CreateHubPage> createState() => _CreateHubPageState();
 }
 
-class _CreateHubPageState extends State<CreateHubPage> {
+class _CreateHubPageState extends State<CreateHubPage>
+    with ProjectChangeWatcher<CreateHubPage> {
   Project? _project;
   Object? _error;
   bool _loading = true;
@@ -39,6 +43,15 @@ class _CreateHubPageState extends State<CreateHubPage> {
     if (_loadScheduled) return;
     _loadScheduled = true;
     _load();
+  }
+
+  @override
+  String get watchedProjectId => widget.projectId;
+
+  /// Layers written elsewhere (create assistant): refresh the size counts.
+  @override
+  void reloadAfterExternalWrite() {
+    unawaited(_load());
   }
 
   Future<void> _load() async {

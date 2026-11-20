@@ -1,9 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
-import 'package:anoworld/app/project_change_notifier.dart';
+import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
@@ -47,42 +48,29 @@ class ProjectHubPage extends StatefulWidget {
   State<ProjectHubPage> createState() => _ProjectHubPageState();
 }
 
-class _ProjectHubPageState extends State<ProjectHubPage> {
+class _ProjectHubPageState extends State<ProjectHubPage>
+    with ProjectChangeWatcher<ProjectHubPage> {
   Project? _project;
   Object? _error;
   bool _loading = true;
   bool _loadScheduled = false;
   String? _projectDir;
   String? _coverAbsolutePath;
-  ProjectChangeNotifier? _projectChanges;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final changes = AppScope.projectChangesOf(context);
-    if (!identical(_projectChanges, changes)) {
-      _projectChanges?.removeListener(_onProjectChanged);
-      _projectChanges = changes..addListener(_onProjectChanged);
-    }
     if (_loadScheduled) return;
     _loadScheduled = true;
     _load();
   }
 
   @override
-  void dispose() {
-    _projectChanges?.removeListener(_onProjectChanged);
-    super.dispose();
-  }
+  String get watchedProjectId => widget.projectId;
 
-  /// Story written elsewhere (create assistant): refresh counts and entries.
-  void _onProjectChanged() {
-    final changes = _projectChanges;
-    if (changes == null || !changes.isChanged(widget.projectId)) return;
-    changes.clear(widget.projectId);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
+  @override
+  void reloadAfterExternalWrite() {
+    unawaited(_load());
   }
 
   Future<void> _load() async {

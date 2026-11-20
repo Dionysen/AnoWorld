@@ -107,9 +107,7 @@ void main() {
                     onPressed: () {
                       Navigator.of(context).push(
                         AppStorySlidePageRoute<void>(
-                          builder: (_) => const Scaffold(
-                            body: Text('故事详情'),
-                          ),
+                          builder: (_) => const Scaffold(body: Text('故事详情')),
                         ),
                       );
                     },
@@ -165,9 +163,7 @@ void main() {
                   child: TextButton(
                     onPressed: () => showDialog<void>(
                       context: context,
-                      builder: (_) => const AlertDialog(
-                        content: Text('选择故事'),
-                      ),
+                      builder: (_) => const AlertDialog(content: Text('选择故事')),
                     ),
                     child: const Text('打开对话框'),
                   ),
@@ -194,13 +190,11 @@ void main() {
     await tester.tapAt(fabCenter);
     await tester.pumpAndSettle();
     expect(find.text('选择故事'), findsNothing);
-    expect(find.text('创作助手'), findsNothing);
+    expect(find.text('当前故事'), findsNothing);
     expect(find.byTooltip('创作助手'), findsOneWidget);
   });
 
-  testWidgets('panel keeps its state while a popup covers it', (
-    tester,
-  ) async {
+  testWidgets('panel keeps its state while a popup covers it', (tester) async {
     tester.view.physicalSize = const Size(390, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -222,16 +216,16 @@ void main() {
 
     await tester.tap(find.byTooltip('创作助手'));
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsOneWidget);
+    expect(find.text('当前故事'), findsOneWidget);
 
     popup = _FakePopupRoute();
     controller.onRoutePushed(popup);
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsNothing);
+    expect(find.text('当前故事'), findsNothing);
 
     controller.onRoutePopped(popup);
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsOneWidget);
+    expect(find.text('当前故事'), findsOneWidget);
   });
 
   testWidgets('tapping outside the bloom dismisses the assistant', (
@@ -257,11 +251,11 @@ void main() {
 
     await tester.tap(find.byTooltip('创作助手'));
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsOneWidget);
+    expect(find.text('当前故事'), findsOneWidget);
 
     await tester.tapAt(const Offset(24, 24));
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsNothing);
+    expect(find.text('当前故事'), findsNothing);
     expect(find.byTooltip('创作助手'), findsOneWidget);
   });
 
@@ -288,12 +282,12 @@ void main() {
 
     await tester.tap(find.byTooltip('创作助手'));
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsOneWidget);
+    expect(find.text('当前故事'), findsOneWidget);
 
     final size = tester.getSize(find.byType(CreateAssistantHost));
     await tester.tapAt(Offset(size.width * 0.35, size.height - 28));
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsNothing);
+    expect(find.text('当前故事'), findsNothing);
     expect(find.byTooltip('创作助手'), findsOneWidget);
   });
 
@@ -360,7 +354,7 @@ void main() {
     // in the transcript once the model answers.
     await tester.tapAt(const Offset(24, 24));
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsNothing);
+    expect(find.text('当前故事'), findsNothing);
     expect(
       tester.state<CreateAssistantPanelState>(
         find.byType(CreateAssistantPanel, skipOffstage: false),
@@ -439,7 +433,7 @@ void main() {
 
     await tester.tap(find.byTooltip('创作助手'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('世界书'));
+    await tester.tap(find.byTooltip('世界书'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '世界观改冷一点');
     await tester.tap(find.byTooltip('发送'));
@@ -447,13 +441,13 @@ void main() {
 
     await tester.tapAt(const Offset(24, 24));
     await tester.pumpAndSettle();
-    expect(find.text('创作助手'), findsNothing);
+    expect(find.text('当前故事'), findsNothing);
 
     client.release();
     await tester.pumpAndSettle();
 
     // The review sheet is the only thing the hidden turn needs to surface.
-    expect(find.text('创作助手'), findsNothing);
+    expect(find.text('当前故事'), findsNothing);
     expect(find.text('这次要改这些'), findsOneWidget);
     await tester.tap(find.textContaining('写入选中的'));
     await tester.pumpAndSettle();
@@ -472,9 +466,7 @@ void main() {
         projectId: 'p1',
         projectTitle: '雨夜投宿',
         composer: '草稿输入',
-        lines: [
-          CreateAssistantDraftLine(role: 'user', text: '上一句'),
-        ],
+        lines: [CreateAssistantDraftLine(role: 'user', text: '上一句')],
       ),
     );
 

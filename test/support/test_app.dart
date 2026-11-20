@@ -85,6 +85,7 @@ Widget testScoped({
   SettingsController? settings,
   LibraryDisplayController? libraryDisplay,
   AiTextClient? textClient,
+  ProjectChangeNotifier? projectChanges,
   List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
 }) {
   final controller = settings ?? testSettingsController();
@@ -95,7 +96,7 @@ Widget testScoped({
     settings: controller,
     libraryDisplay: libraryDisplay ?? LibraryDisplayController(),
     createAssistant: CreateAssistantController(),
-    projectChanges: ProjectChangeNotifier(),
+    projectChanges: projectChanges ?? ProjectChangeNotifier(),
     textClient: textClient,
     child: ListenableBuilder(
       listenable: controller,

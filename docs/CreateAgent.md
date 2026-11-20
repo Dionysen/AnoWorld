@@ -25,7 +25,7 @@
 
 ## 创作助手（通用 Agent）
 
-- UI：[`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) 选当前故事 + **改哪里**（情节图 / 世界书 / 角色 / 全部），见 [`CreateAssistantTarget`](../lib/domain/ai/create/create_assistant_target.dart)。
+- UI：[`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) 顶部只放「当前故事」选择（取代原来的「创作助手」标题）；编辑范围（情节图 / 世界书 / 角色 / 全部）是输入框右侧、发送键左边的四个图标按钮（`AppIconSegmented`，文字只作 tooltip），见 [`CreateAssistantTarget`](../lib/domain/ai/create/create_assistant_target.dart)。
 - 回合：`runTurn(target, prompt)` 走 [`CreateAgentLoop`](../lib/domain/ai/create/create_agent_loop.dart)——注入五层 L1 目录（含预设段名与启用状态，预设只读）与该目标的工具，模型自己读（`*.read_*` / `main.read_graph`）、自己写（`main.replace` / `main.patch` / `*.patch`），最多 10 步。选工具不再靠关键词，读工具真正会被调用。
 - 白名单：所有读工具 + 当前目标的写工具；选「全部」时五个写工具全开。读可跨层；单层目标仍只写自己那层。剧情元素是例外的一半：`plot.list_elements` 所有目标可读，`plot.select`（勾选 / 新增）挂在情节图与「全部」上。
 - 工具名：内部与日志用带点的规范名（`world.patch`），发给模型时换成下划线（`world_patch`）——OpenAI 兼容网关要求 `tools[].function.name` 匹配 `^[a-zA-Z0-9_-]+$`，带点会直接 400。注册表两种叫法都认，回放 `tool_calls` 时也写成下划线。

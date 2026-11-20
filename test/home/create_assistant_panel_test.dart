@@ -6,7 +6,10 @@ import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/openai_chat_client.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
+import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
+import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/home/create_assistant_draft.dart';
@@ -21,12 +24,10 @@ import '../support/test_app.dart';
 
 /// One scripted model turn: plain text, or a single tool call.
 class _Reply {
-  const _Reply.text(this.text)
-      : tool = null,
-        args = const <String, dynamic>{};
+  const _Reply.text(this.text) : tool = null, args = const <String, dynamic>{};
 
   const _Reply.tool(this.tool, [this.args = const <String, dynamic>{}])
-      : text = '';
+    : text = '';
 
   final String text;
   final String? tool;
@@ -106,6 +107,108 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
+  testWidgets(
+    'story picker heads the panel and scope sits by the send button',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo = MemoryProjectRepository(
+        seed: {
+          'proj_rain_night': const ProjectFactory().createRainNightSample(),
+        },
+      );
+      final store = CreateAssistantDraftStore();
+      await store.save(
+        const CreateAssistantDraft(
+          projectId: 'proj_rain_night',
+          projectTitle: '雨夜投宿',
+          composer: '',
+          lines: [],
+        ),
+      );
+
+      await tester.pumpWidget(
+        testScoped(
+          projects: repo,
+          textClient: _ScriptedTextClient(const []),
+          home: Scaffold(
+            body: SizedBox(
+              width: 380,
+              height: 640,
+              child: CreateAssistantPanel(draftStore: store),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No static title: the story picker is the header.
+      expect(find.text('创作助手'), findsNothing);
+      expect(find.text('当前故事'), findsOneWidget);
+
+      // The four scopes ride in the composer row as icon-only segments, left of
+      // send; the label survives as its tooltip.
+      for (final label in ['情节图', '世界书', '角色', '全部']) {
+        expect(
+          find.descendant(
+            of: find.byType(AppIconSegmented<CreateAssistantTarget>),
+            matching: find.byTooltip(label),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text(label), findsNothing);
+      }
+      final scope = tester.getRect(find.byTooltip('情节图', skipOffstage: false));
+      final send = tester.getRect(find.byTooltip('发送'));
+      expect(scope.center.dy, closeTo(send.center.dy, 2));
+      expect(scope.right, lessThan(send.left));
+      expect(scope.height, AppIconSegmented.segmentSize);
+    },
+  );
+
+  testWidgets('scope switch still fits a narrow panel', (tester) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final store = CreateAssistantDraftStore();
+    await store.save(
+      const CreateAssistantDraft(
+        projectId: 'proj_rain_night',
+        projectTitle: '雨夜投宿',
+        composer: '',
+        lines: [],
+      ),
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        textClient: _ScriptedTextClient(const []),
+        home: Scaffold(
+          body: SizedBox(
+            width: 296,
+            height: 620,
+            child: CreateAssistantPanel(draftStore: store),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.descendant(
+        of: find.byType(AppChatComposer),
+        matching: find.byType(AppIconSegmented<CreateAssistantTarget>),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('writes a generated plot graph into the selected story', (
     tester,
   ) async {
@@ -115,9 +218,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final repo = MemoryProjectRepository(
-      seed: {
-        'proj_rain_night': const ProjectFactory().createRainNightSample(),
-      },
+      seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
     await store.save(
@@ -163,10 +264,7 @@ void main() {
     expect(saved.main.nodes.length, greaterThanOrEqualTo(20));
     expect(saved.main.edges, isNotEmpty);
     expect(saved.main.beats, isEmpty);
-    expect(
-      find.text('情节图写好了，可以在情节图里继续调整'),
-      findsOneWidget,
-    );
+    expect(find.text('情节图写好了，可以在情节图里继续调整'), findsOneWidget);
   });
 
   testWidgets('writes only the ticked ops from the review sheet', (
@@ -178,9 +276,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final repo = MemoryProjectRepository(
-      seed: {
-        'proj_rain_night': const ProjectFactory().createRainNightSample(),
-      },
+      seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
     await store.save(
@@ -210,21 +306,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('世界书'));
+    await tester.tap(find.byTooltip('世界书'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byType(TextField),
-      '世界观改冷一点，再加一个渡口',
-    );
+    await tester.enterText(find.byType(TextField), '世界观改冷一点，再加一个渡口');
     await tester.tap(find.byTooltip('发送'));
     await tester.pumpAndSettle();
 
     expect(find.text('这次要改这些'), findsOneWidget);
-    expect(
-      find.textContaining('原：边陲小城外常有过路旅人'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('原：边陲小城外常有过路旅人'), findsOneWidget);
     expect(find.textContaining('新增设定：渡口'), findsOneWidget);
 
     // Untick the new entry, keep the rewritten one.
@@ -248,9 +338,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final repo = MemoryProjectRepository(
-      seed: {
-        'proj_rain_night': const ProjectFactory().createRainNightSample(),
-      },
+      seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
     await store.save(
@@ -313,9 +401,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final repo = MemoryProjectRepository(
-      seed: {
-        'proj_rain_night': const ProjectFactory().createRainNightSample(),
-      },
+      seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
     await store.save(
@@ -357,7 +443,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('全部'));
+    await tester.tap(find.byTooltip('全部'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), '补一个渡口，再加个船夫');
@@ -437,9 +523,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final repo = MemoryProjectRepository(
-      seed: {
-        'proj_rain_night': const ProjectFactory().createRainNightSample(),
-      },
+      seed: {'proj_rain_night': const ProjectFactory().createRainNightSample()},
     );
     final store = CreateAssistantDraftStore();
     await store.save(
