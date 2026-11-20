@@ -337,7 +337,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 | 落点 | 内容 |
 | --- | --- |
-| [`create_agent_loop.dart`](../lib/domain/ai/create/create_agent_loop.dart)（新建） | 循环体：送 system + 用户话 + 工具声明 → 收 `tool_calls` → 逐个执行 → 把结果以 `role: tool` 回填 → 直到产出提议或模型直接回答；上限 6 步 |
+| [`create_agent_loop.dart`](../lib/domain/ai/create/create_agent_loop.dart)（新建） | 循环体：送 system + 用户话 + 工具声明 → 收 `tool_calls` → 逐个执行 → 提议按层暂存、其余结果以 `role: tool` 回填 → 直到模型写完所有层或直接回答；上限 10 步。同一层重复提交会合并 ops 重新校验，回合结束时把整批提议交给面板合成一张确认单 |
 | [`create_context_index.dart`](../lib/domain/ai/create/create_context_index.dart)（新建） | L1 目录：设定 `wb:<id> · 标题 · 常驻`、角色 `cast:<id> · 名字 · 一句话`、情节 `node:<id> · 站名 · 出边数`、已选剧情元素、预设段名与启用状态（只列名，正文本来就在系统提示里）；每层有行数上限 |
 | [`create_proposals.dart`](../lib/domain/ai/create/create_proposals.dart)（新建） | 把模型给的骨架 / ops 校验成确认载荷（含 `ProjectValidator` 干跑），工具与文本兜底共用 |
 | [`create_tool.dart`](../lib/domain/ai/create/create_tool.dart) | `CreateTool` 增加 JSON Schema `parameters`，`declaration()` 产出 `OpenAiTool` |
@@ -352,7 +352,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 - `GenerateMainGraphAction` / `ProposeMainGraphPatchAction` / `ProposeWorldBookPatchAction` / `ProposeCastPatchAction` 连同测试一起删除：它们的作用已被「模型自己写 + `CreateProposals` 校验」取代。
 - `CreateAgentRunner._pickTool` 与 `wantsFullGraphRewrite` 删除：选工具不再靠中文关键词。
 - 确认载荷的 `kind` 改成与工具同名：`main.replace` / `main.patch` / `world.patch` / `cast.patch`。
-- 白名单拆成「所有读工具 + 当前目标的写工具」，读可以跨层，写只能改当前层。
+- 白名单拆成「所有读工具 + 当前目标的写工具」，读可以跨层；写默认只改当前层，选「全部」时五个写工具全开并合成一批确认。
 
 **降级路径**：模型不支持工具、只回一段文本时，先尝试把它当 JSON 改动解析（`CreateProposals.fromText`）。是骨架 / ops 就照常进确认抽屉，否则当作普通回答显示在气泡里。这样老模型与只吃纯 JSON 的本地模型仍能用。
 

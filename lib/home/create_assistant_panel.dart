@@ -23,7 +23,6 @@ import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
-import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
@@ -282,60 +281,53 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
         ),
       );
       if (!mounted) return;
-      if (turn.hasAnswer) {
-        _finishTurn(turn.answer);
-        return;
-      }
-      final preview = turn.proposal;
-      if (preview == null) {
+      final proposals = turn.proposals;
+      if (proposals.isEmpty) {
+        if (turn.hasAnswer) {
+          _finishTurn(turn.answer);
+          return;
+        }
         _finishTurn(
-          turn.errorMessage ??
-              turn.toolError ??
-              strings.assistantFailedRetry,
+          turn.errorMessage ?? turn.toolError ?? strings.assistantFailedRetry,
         );
         return;
       }
-      final kind = preview['kind']?.toString() ?? turn.toolName;
-      switch (kind) {
-        case 'main.replace':
-          final graph = MainGraphDocument.decodeSkeleton(
-            Map<String, dynamic>.from(preview['graph'] as Map),
-          );
-          _finishTurn(_describeGraphProposal(context, graph));
-          final useIt = await _confirmGraph(project: project, graph: graph);
-          if (!mounted || !useIt) {
-            AppLog.instance.info('创作助手放弃情节改动', tag: 'create.assistant');
-            return;
-          }
-          await _applyGraph(repo: repo, project: project, graph: graph);
-        case 'main.patch':
-          await _reviewGraphPatch(
-            repo: repo,
-            project: project,
-            preview: preview,
-          );
-        case 'world.patch':
-          await _reviewWorldPatch(
-            repo: repo,
-            project: project,
-            preview: preview,
-          );
-        case 'cast.patch':
-          await _reviewCastPatch(
-            repo: repo,
-            project: project,
-            preview: preview,
-          );
-        case 'plot.select':
-          await _reviewPlotPatch(
-            repo: repo,
-            project: project,
-            catalog: plotCatalog,
-            preview: preview,
-          );
-        default:
-          _finishTurn(strings.assistantFailedRetry);
+      final plan = _buildReviewPlan(
+        project: project,
+        catalog: plotCatalog,
+        proposals: proposals,
+      );
+      if (plan == null) {
+        _finishTurn(strings.patchNoChange);
+        return;
       }
+      // Keep the model's closing line when it wrote one; otherwise summarize
+      // what was staged across layers.
+      _finishTurn(
+        turn.answer.trim().isNotEmpty
+            ? turn.answer.trim()
+            : _describeProposals(plan),
+      );
+      final picked = await showPatchReviewSheet(
+        context: context,
+        groups: plan.groups,
+        initialSelection: plan.defaultSelection,
+      );
+      if (!mounted || picked == null) {
+        AppLog.instance.info('创作助手放弃这次改动', tag: 'create.assistant');
+        return;
+      }
+      if (picked.isEmpty) {
+        AppLog.instance.info('创作助手没勾选任何改动', tag: 'create.assistant');
+        return;
+      }
+      await _applyReviewPlan(
+        repo: repo,
+        project: project,
+        catalog: plotCatalog,
+        plan: plan,
+        picked: picked,
+      );
     } catch (error, stack) {
       if (!mounted) return;
       _finishTurn(strings.assistantFailedLater);
@@ -348,12 +340,27 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     }
   }
 
-  String _describeGraphProposal(BuildContext context, MainStory graph) {
+  /// One-line summary of a staged batch, per layer.
+  String _describeProposals(_ReviewPlan plan) {
     final strings = context.strings;
-    final bits = <String>[strings.stopCount(graph.nodes.length)];
-    final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
-    if (branches > 0) bits.add(strings.branchCount(branches));
-    return '${strings.proposalLead} ${bits.join(' · ')}';
+    final parts = <String>[
+      if (plan.wholeGraph != null)
+        '${strings.assistantTargetGraph} '
+            '${strings.stopCount(plan.wholeGraph!.nodes.length)}',
+      if (plan.world != null)
+        '${strings.assistantTargetWorld} '
+            '${strings.opCount(plan.world!.ops.length)}',
+      if (plan.cast != null)
+        '${strings.assistantTargetCast} '
+            '${strings.opCount(plan.cast!.ops.length)}',
+      if (plan.graph != null)
+        '${strings.assistantTargetGraph} '
+            '${strings.opCount(plan.graph!.ops.length)}',
+      if (plan.plot != null)
+        '${strings.patchKindPlotElement} '
+            '${strings.opCount(plan.plot!.ops.length)}',
+    ];
+    return '${strings.proposalLead} ${parts.join(' · ')}';
   }
 
   /// Lines of this story's conversation, as the model should see them.
@@ -401,382 +408,244 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     ];
   }
 
-  Future<Set<int>?> _askPatchSelection<T>(PatchPreview<T> patch) {
-    return showPatchReviewSheet(
-      context: context,
-      items: patch.items,
-      initialSelection: patch.defaultSelection,
-    );
-  }
-
-  Future<void> _reviewGraphPatch({
-    required ProjectRepository repo,
+  /// Builds the tickable review rows from every staged proposal.
+  ///
+  /// Returns null when nothing usable is left (all ops broken, or the only
+  /// payload had no ops).
+  _ReviewPlan? _buildReviewPlan({
     required Project project,
-    required Map<String, dynamic> preview,
-  }) async {
+    required PlotElementCatalog catalog,
+    required List<CreateTurnProposal> proposals,
+  }) {
     final strings = context.strings;
-    final ops = _previewOps(preview);
-    if (ops.isEmpty) {
-      _finishTurn(strings.patchNoChange);
-      return;
+    final plan = _ReviewPlan();
+    final byKind = <String, CreateTurnProposal>{
+      for (final proposal in proposals) proposal.kind: proposal,
+    };
+
+    final world = byKind['world.patch'];
+    if (world != null) {
+      final ops = _previewOps(world.preview);
+      if (ops.isNotEmpty) {
+        final patch = buildWorldBookPreview(project.worldBook, ops);
+        plan.world = patch;
+        _addOpsGroup(plan, strings.assistantTargetWorld, 'world', patch);
+      }
     }
-    final patch = buildMainGraphPreview(project.main, ops);
-    _finishTurn('${strings.proposalLead} ${strings.opCount(ops.length)}');
-    final picked = await _askPatchSelection(patch);
-    if (!mounted || picked == null) {
-      AppLog.instance.info('创作助手放弃情节改动', tag: 'create.assistant');
-      return;
+
+    final cast = byKind['cast.patch'];
+    if (cast != null) {
+      final ops = _previewOps(cast.preview);
+      if (ops.isNotEmpty) {
+        final patch = buildCastPreview(project.cast, ops);
+        plan.cast = patch;
+        _addOpsGroup(plan, strings.assistantTargetCast, 'cast', patch);
+      }
     }
-    final MainStory graph;
-    try {
-      graph = patch.applySelected(picked);
-    } on ApplyMainGraphPatchException catch (error) {
-      _finishTurn(error.message);
-      return;
+
+    // A whole-graph rewrite supersedes incremental graph ops in the same turn.
+    final replace = byKind['main.replace'];
+    final graph = replace == null ? byKind['main.patch'] : null;
+    if (replace != null) {
+      final raw = replace.preview['graph'];
+      if (raw is! Map) {
+        AppLog.instance.warning(
+          'main.replace 提议缺少 graph，已忽略',
+          tag: 'create.assistant',
+        );
+      } else {
+        final next = MainGraphDocument.decodeSkeleton(
+          Map<String, dynamic>.from(raw),
+        );
+        plan.wholeGraph = next;
+        final branches = next.edges
+            .where((e) => e.kind == EdgeKind.branch)
+            .length;
+        final bits = <String>[strings.stopCount(next.nodes.length)];
+        if (branches > 0) bits.add(strings.branchCount(branches));
+        final note = <String>[bits.join(' · ')];
+        if (project.main.hasAuthoredNodes) {
+          note.add(
+            project.main.beats.isNotEmpty
+                ? strings.replaceStopsWithBeats(
+                    project.main.nodes.length,
+                    project.main.beats.length,
+                  )
+                : strings.replaceStops(project.main.nodes.length),
+          );
+        }
+        if (next.summary.trim().isNotEmpty) note.add(next.summary.trim());
+        plan.groups.add(
+          PatchReviewGroup(
+            title: strings.assistantTargetGraph,
+            rows: [
+              PatchReviewRow(
+                id: 'replace',
+                title: strings.generatedPlotTitle,
+                note: note.join('\n'),
+                details: [
+                  for (final node in next.nodes)
+                    _nodeLine(node),
+                ],
+              ),
+            ],
+          ),
+        );
+        plan.defaultSelection.add('replace');
+      }
+    } else if (graph != null) {
+      final ops = _previewOps(graph.preview);
+      if (ops.isNotEmpty) {
+        final patch = buildMainGraphPreview(project.main, ops);
+        plan.graph = patch;
+        _addOpsGroup(plan, strings.assistantTargetGraph, 'main', patch);
+      }
     }
-    AppLog.instance.info(
-      '创作助手写入情节改动 ${picked.length}/${ops.length} 条',
-      tag: 'create.assistant',
-    );
-    await _applyGraph(repo: repo, project: project, graph: graph);
+
+    final plot = byKind['plot.select'];
+    if (plot != null) {
+      final ops = _previewOps(plot.preview);
+      if (ops.isNotEmpty) {
+        final patch = buildPlotPreview(
+          PlotPatchState(catalog: catalog, selection: project.plotElements),
+          ops,
+        );
+        plan.plot = patch;
+        _addOpsGroup(plan, strings.patchKindPlotElement, 'plot', patch);
+      }
+    }
+
+    return plan.isEmpty ? null : plan;
   }
 
-  Future<void> _reviewWorldPatch({
-    required ProjectRepository repo,
-    required Project project,
-    required Map<String, dynamic> preview,
-  }) async {
-    final strings = context.strings;
-    final ops = _previewOps(preview);
-    if (ops.isEmpty) {
-      _finishTurn(strings.patchNoChange);
-      return;
-    }
-    final patch = buildWorldBookPreview(project.worldBook, ops);
-    _finishTurn('${strings.proposalLead} ${strings.opCount(ops.length)}');
-    final picked = await _askPatchSelection(patch);
-    if (!mounted || picked == null) {
-      AppLog.instance.info('创作助手放弃设定改动', tag: 'create.assistant');
-      return;
-    }
-    final WorldBook worldBook;
-    try {
-      worldBook = patch.applySelected(picked);
-    } on ApplyWorldBookPatchException catch (error) {
-      _finishTurn(error.message);
-      return;
-    }
-    AppLog.instance.info(
-      '创作助手写入设定改动 ${picked.length}/${ops.length} 条',
-      tag: 'create.assistant',
-    );
-    await _applyWorld(repo: repo, project: project, worldBook: worldBook);
+  /// One station line in the whole-graph review row.
+  static String _nodeLine(StoryNode node) {
+    final synopsis = node.synopsis?.trim() ?? '';
+    final ending = node.tags.contains('ending') ? ' · 终局' : '';
+    return synopsis.isEmpty
+        ? '· ${node.title}$ending'
+        : '· ${node.title}$ending — $synopsis';
   }
 
-  Future<void> _reviewCastPatch({
-    required ProjectRepository repo,
-    required Project project,
-    required Map<String, dynamic> preview,
-  }) async {
-    final strings = context.strings;
-    final ops = _previewOps(preview);
-    if (ops.isEmpty) {
-      _finishTurn(strings.patchNoChange);
-      return;
-    }
-    final patch = buildCastPreview(project.cast, ops);
-    _finishTurn('${strings.proposalLead} ${strings.opCount(ops.length)}');
-    final picked = await _askPatchSelection(patch);
-    if (!mounted || picked == null) {
-      AppLog.instance.info('创作助手放弃角色改动', tag: 'create.assistant');
-      return;
-    }
-    final List<CastMember> cast;
-    try {
-      cast = patch.applySelected(picked);
-    } on ApplyCastPatchException catch (error) {
-      _finishTurn(error.message);
-      return;
-    }
-    AppLog.instance.info(
-      '创作助手写入角色改动 ${picked.length}/${ops.length} 条',
-      tag: 'create.assistant',
+  void _addOpsGroup<T>(
+    _ReviewPlan plan,
+    String title,
+    String prefix,
+    PatchPreview<T> patch,
+  ) {
+    final rows = <PatchReviewRow>[
+      for (final item in patch.items)
+        PatchReviewRow(
+          id: '$prefix:${item.index}',
+          item: item,
+          selected: patch.defaultSelection.contains(item.index),
+          enabled: item.usable,
+        ),
+    ];
+    plan.groups.add(PatchReviewGroup(title: title, rows: rows));
+    plan.defaultSelection.addAll(
+      rows.where((row) => row.selected).map((row) => row.id),
     );
-    await _applyCast(repo: repo, project: project, cast: cast);
   }
 
-  Future<void> _reviewPlotPatch({
+  /// Op indexes ticked for one layer (`world:3` → 3).
+  static Set<int> _pickedIndices(Set<String> picked, String prefix) {
+    final head = '$prefix:';
+    final out = <int>{};
+    for (final key in picked) {
+      if (!key.startsWith(head)) continue;
+      final index = int.tryParse(key.substring(head.length));
+      if (index != null) out.add(index);
+    }
+    return out;
+  }
+
+  Future<void> _applyReviewPlan({
     required ProjectRepository repo,
     required Project project,
     required PlotElementCatalog catalog,
-    required Map<String, dynamic> preview,
+    required _ReviewPlan plan,
+    required Set<String> picked,
   }) async {
     final strings = context.strings;
-    final ops = _previewOps(preview);
-    if (ops.isEmpty) {
+    WorldBook? worldBook;
+    List<CastMember>? cast;
+    MainStory? graph;
+    PlotPatchState? plot;
+
+    if (plan.world != null) {
+      final indices = _pickedIndices(picked, 'world');
+      if (indices.isNotEmpty) {
+        try {
+          worldBook = plan.world!.applySelected(indices);
+        } on ApplyWorldBookPatchException catch (error) {
+          _finishTurn(error.message);
+          return;
+        }
+      }
+    }
+
+    if (plan.cast != null) {
+      final indices = _pickedIndices(picked, 'cast');
+      if (indices.isNotEmpty) {
+        try {
+          cast = plan.cast!.applySelected(indices);
+        } on ApplyCastPatchException catch (error) {
+          _finishTurn(error.message);
+          return;
+        }
+      }
+    }
+
+    if (plan.wholeGraph != null) {
+      if (picked.contains('replace')) graph = plan.wholeGraph;
+    } else if (plan.graph != null) {
+      final indices = _pickedIndices(picked, 'main');
+      if (indices.isNotEmpty) {
+        try {
+          graph = plan.graph!.applySelected(indices);
+        } on ApplyMainGraphPatchException catch (error) {
+          _finishTurn(error.message);
+          return;
+        }
+      }
+    }
+
+    if (plan.plot != null) {
+      final indices = _pickedIndices(picked, 'plot');
+      if (indices.isNotEmpty) {
+        try {
+          plot = plan.plot!.applySelected(indices);
+        } on ApplyPlotPatchException catch (error) {
+          _finishTurn(error.message);
+          return;
+        }
+      }
+    }
+
+    if (worldBook == null && cast == null && graph == null && plot == null) {
       _finishTurn(strings.patchNoChange);
       return;
     }
-    final patch = buildPlotPreview(
-      PlotPatchState(catalog: catalog, selection: project.plotElements),
-      ops,
-    );
-    _finishTurn('${strings.proposalLead} ${strings.opCount(ops.length)}');
-    final picked = await _askPatchSelection(patch);
-    if (!mounted || picked == null) {
-      AppLog.instance.info('创作助手放弃剧情元素改动', tag: 'create.assistant');
-      return;
+
+    // Library rows land first so the saved selection always resolves.
+    if (plot != null && !identical(plot.catalog, catalog)) {
+      await AppScope.settingsOf(context).updatePlotElements(plot.catalog);
     }
-    final PlotPatchState next;
-    try {
-      next = patch.applySelected(picked);
-    } on ApplyPlotPatchException catch (error) {
-      _finishTurn(error.message);
-      return;
-    }
-    AppLog.instance.info(
-      '创作助手写入剧情元素 ${picked.length}/${ops.length} 条',
-      tag: 'create.assistant',
-    );
-    await _applyPlot(
-      repo: repo,
-      project: project,
-      catalog: catalog,
-      next: next,
-    );
-  }
 
-  Future<bool> _confirmGraph({
-    required Project project,
-    required MainStory graph,
-  }) async {
-    if (!mounted) return false;
-    final strings = context.strings;
-    final bits = <String>[strings.stopCount(graph.nodes.length)];
-    final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
-    if (branches > 0) bits.add(strings.branchCount(branches));
-    final replacing = project.main.hasAuthoredNodes;
-    final droppedBeats = project.main.beats.length;
-
-    final confirmed = await showAppSheet<bool>(
-      context: context,
-      size: AppSheetSize.half,
-      builder: (sheetContext) => AppSheetScrollBody(
-        footer: [
-          AppButton(
-            label: replacing ? strings.replaceGraph : strings.writeGraph,
-            expanded: true,
-            onPressed: () => Navigator.of(sheetContext).pop(true),
-          ),
-          const SizedBox(height: AppTheme.spaceSm),
-          AppButton(
-            label: strings.skipWrite,
-            variant: AppButtonVariant.ghost,
-            expanded: true,
-            onPressed: () => Navigator.of(sheetContext).pop(false),
-          ),
-        ],
-        children: [
-          AppText(strings.generatedPlotTitle, role: AppTextRole.subtitle),
-          const SizedBox(height: AppTheme.spaceXs),
-          AppText(bits.join(' · '), role: AppTextRole.caption),
-          if (replacing) ...[
-            const SizedBox(height: AppTheme.spaceXs),
-            AppText(
-              droppedBeats > 0
-                  ? strings.replaceStopsWithBeats(
-                      project.main.nodes.length,
-                      droppedBeats,
-                    )
-                  : strings.replaceStops(project.main.nodes.length),
-              role: AppTextRole.caption,
-            ),
-          ],
-          if (graph.summary.trim().isNotEmpty) ...[
-            const SizedBox(height: AppTheme.spaceMd),
-            AppText(graph.summary.trim(), role: AppTextRole.body),
-          ],
-          const SizedBox(height: AppTheme.spaceMd),
-          for (final node in graph.nodes)
-            AppListTile(
-              title: node.title,
-              subtitle: _synopsisOf(node),
-              icon: node.tags.contains('ending')
-                  ? Icons.flag_outlined
-                  : Icons.circle_outlined,
-            ),
-        ],
-      ),
-    );
-    return confirmed ?? false;
-  }
-
-  static String? _synopsisOf(StoryNode node) {
-    final synopsis = node.synopsis?.trim();
-    return synopsis == null || synopsis.isEmpty ? null : synopsis;
-  }
-
-  Future<void> _applyGraph({
-    required ProjectRepository repo,
-    required Project project,
-    required MainStory graph,
-  }) async {
-    final next = project.copyWith(
-      main: graph,
-      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
-    );
-    try {
-      await repo.save(next);
-    } catch (error, stack) {
-      AppLog.instance.error(
-        '创作助手写入情节图失败',
-        tag: 'create.assistant',
-        error: error,
-        stackTrace: stack,
-      );
-      if (!mounted) return;
-      setState(() {
-        _lines.add(
-          _AssistantLine(
-            role: _LineRole.assistant,
-            text: context.strings.assistantNoSave,
-          ),
-        );
-      });
-      unawaited(_persist());
-      return;
-    }
-    if (!mounted) return;
-    AppScope.projectChangesOf(context).markChanged(project.meta.id);
-    setState(() {
-      _lines.add(
-        _AssistantLine(
-          role: _LineRole.assistant,
-          text: context.strings.assistantGraphSaved,
-        ),
-      );
-    });
-    unawaited(_persist());
-    AppLog.instance.info(
-      '创作助手写入情节图：${graph.nodes.length} 站',
-      tag: 'create.assistant',
-    );
-  }
-
-  Future<void> _applyWorld({
-    required ProjectRepository repo,
-    required Project project,
-    required WorldBook worldBook,
-  }) async {
     final next = project.copyWith(
       worldBook: worldBook,
-      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
-    );
-    try {
-      await repo.save(next);
-    } catch (error, stack) {
-      AppLog.instance.error(
-        '创作助手写入世界书失败',
-        tag: 'create.assistant',
-        error: error,
-        stackTrace: stack,
-      );
-      if (!mounted) return;
-      setState(() {
-        _lines.add(
-          _AssistantLine(
-            role: _LineRole.assistant,
-            text: context.strings.assistantNoSave,
-          ),
-        );
-      });
-      unawaited(_persist());
-      return;
-    }
-    if (!mounted) return;
-    AppScope.projectChangesOf(context).markChanged(project.meta.id);
-    setState(() {
-      _lines.add(
-        _AssistantLine(
-          role: _LineRole.assistant,
-          text: context.strings.assistantWorldSaved,
-        ),
-      );
-    });
-    unawaited(_persist());
-    AppLog.instance.info(
-      '创作助手写入世界书：${worldBook.entries.length} 条',
-      tag: 'create.assistant',
-    );
-  }
-
-  Future<void> _applyPlot({
-    required ProjectRepository repo,
-    required Project project,
-    required PlotElementCatalog catalog,
-    required PlotPatchState next,
-  }) async {
-    final settings = AppScope.settingsOf(context);
-    // New library rows land first so the saved selection always resolves.
-    if (!identical(next.catalog, catalog)) {
-      await settings.updatePlotElements(next.catalog);
-    }
-    final updated = project.copyWith(
-      plotElements: next.selection,
-      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
-    );
-    try {
-      await repo.save(updated);
-    } catch (error, stack) {
-      AppLog.instance.error(
-        '创作助手写入剧情元素失败',
-        tag: 'create.assistant',
-        error: error,
-        stackTrace: stack,
-      );
-      if (!mounted) return;
-      setState(() {
-        _lines.add(
-          _AssistantLine(
-            role: _LineRole.assistant,
-            text: context.strings.assistantNoSave,
-          ),
-        );
-      });
-      unawaited(_persist());
-      return;
-    }
-    if (!mounted) return;
-    AppScope.projectChangesOf(context).markChanged(project.meta.id);
-    setState(() {
-      _lines.add(
-        _AssistantLine(
-          role: _LineRole.assistant,
-          text: context.strings.assistantPlotSaved,
-        ),
-      );
-    });
-    unawaited(_persist());
-    AppLog.instance.info(
-      '创作助手写入剧情元素：已选 ${next.selection.count} 项',
-      tag: 'create.assistant',
-    );
-  }
-
-  Future<void> _applyCast({
-    required ProjectRepository repo,
-    required Project project,
-    required List<CastMember> cast,
-  }) async {
-    final next = project.copyWith(
       cast: cast,
+      main: graph,
+      plotElements: plot?.selection,
       meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
     );
     try {
+      // One save for every layer: a failed write never leaves half a batch.
       await repo.save(next);
     } catch (error, stack) {
       AppLog.instance.error(
-        '创作助手写入角色失败',
+        '创作助手写入失败',
         tag: 'create.assistant',
         error: error,
         stackTrace: stack,
@@ -786,7 +655,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
         _lines.add(
           _AssistantLine(
             role: _LineRole.assistant,
-            text: context.strings.assistantNoSave,
+            text: strings.assistantNoSave,
           ),
         );
       });
@@ -799,15 +668,49 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       _lines.add(
         _AssistantLine(
           role: _LineRole.assistant,
-          text: context.strings.assistantCastSaved,
+          text: _savedMessage(
+            world: worldBook != null,
+            cast: cast != null,
+            graph: graph != null,
+            plot: plot != null,
+          ),
         ),
       );
     });
     unawaited(_persist());
+    final written = <String>[
+      if (worldBook != null) '世界书 ${worldBook.entries.length} 条',
+      if (cast != null) '角色 ${cast.length} 人',
+      if (graph != null) '情节图 ${graph.nodes.length} 站',
+      if (plot != null) '剧情元素 ${plot.selection.count} 项',
+    ];
     AppLog.instance.info(
-      '创作助手写入角色：${cast.length} 人',
+      '创作助手写入 ${written.join(' / ')}',
       tag: 'create.assistant',
     );
+  }
+
+  /// One layer keeps its old wording; several layers share one summary line.
+  String _savedMessage({
+    required bool world,
+    required bool cast,
+    required bool graph,
+    required bool plot,
+  }) {
+    final strings = context.strings;
+    final layers = <String>[
+      if (world) strings.assistantTargetWorld,
+      if (cast) strings.assistantTargetCast,
+      if (graph) strings.assistantTargetGraph,
+      if (plot) strings.patchKindPlotElement,
+    ];
+    if (layers.length == 1) {
+      if (world) return strings.assistantWorldSaved;
+      if (cast) return strings.assistantCastSaved;
+      if (graph) return strings.assistantGraphSaved;
+      return strings.assistantPlotSaved;
+    }
+    return strings.assistantLayersSaved(layers.join('、'));
   }
 
   @override
@@ -879,6 +782,10 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
                   AppSegmentOption(
                     value: CreateAssistantTarget.cast,
                     label: strings.assistantTargetCast,
+                  ),
+                  AppSegmentOption(
+                    value: CreateAssistantTarget.all,
+                    label: strings.assistantTargetAll,
                   ),
                 ],
                 onChanged: _generating
@@ -990,4 +897,23 @@ class _AssistantLine {
   /// Episode-in-progress bubble; not persisted so a stale "正在写…" cannot
   /// come back on the next launch.
   final bool pending;
+}
+
+/// Review state for one turn's staged proposals.
+///
+/// Typed patches are kept here so the sheet only deals with rows, and the
+/// apply step can replay the ticked ops per layer onto the original project.
+class _ReviewPlan {
+  final List<PatchReviewGroup> groups = <PatchReviewGroup>[];
+  final Set<String> defaultSelection = <String>{};
+
+  PatchPreview<WorldBook>? world;
+  PatchPreview<List<CastMember>>? cast;
+  PatchPreview<MainStory>? graph;
+  PatchPreview<PlotPatchState>? plot;
+
+  /// Set when the model rewrote the whole graph instead of patching it.
+  MainStory? wholeGraph;
+
+  bool get isEmpty => groups.isEmpty;
 }

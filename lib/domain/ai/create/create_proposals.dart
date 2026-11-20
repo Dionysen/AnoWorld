@@ -179,6 +179,7 @@ class CreateProposals {
     required CreateAssistantTarget target,
     required Project project,
     required String raw,
+    PlotElementCatalog? catalog,
   }) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) return null;
@@ -192,7 +193,42 @@ class CreateProposals {
         if (map.containsKey('stations')) return replaceGraph(project, map);
         if (map.containsKey('ops')) return patchGraph(project, map);
         return null;
+      case CreateAssistantTarget.all:
+        if (map.containsKey('stations')) return replaceGraph(project, map);
+        if (!map.containsKey('ops')) return null;
+        return _allKindFromOps(project, catalog, map);
     }
+  }
+
+  /// Cross-layer text replies have no target to tell the layer apart, so the
+  /// op names decide which builder validates them.
+  Map<String, dynamic> _allKindFromOps(
+    Project project,
+    PlotElementCatalog? catalog,
+    Map<String, dynamic> map,
+  ) {
+    final names = <String>{};
+    final ops = map['ops'];
+    if (ops is List) {
+      for (final op in ops) {
+        if (op is Map) names.add(op['op']?.toString() ?? '');
+      }
+    }
+    if (names.any((n) => n == 'upsert_entry' || n == 'remove_entry')) {
+      return patchWorldBook(project, map);
+    }
+    if (names.any((n) => n == 'upsert_member' || n == 'remove_member')) {
+      return patchCast(project, map);
+    }
+    if (names.any(
+      (n) => n == 'select' || n == 'deselect' || n == 'add_element',
+    )) {
+      if (catalog == null) {
+        throw const CreateProposalException('剧情元素库还没准备好');
+      }
+      return patchPlot(project, catalog, map);
+    }
+    return patchGraph(project, map);
   }
 
   /// Ops carried by `args`; throws when the list is empty or malformed.

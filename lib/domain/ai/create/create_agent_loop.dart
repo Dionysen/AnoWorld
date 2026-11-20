@@ -19,18 +19,23 @@ import 'package:anoworld/foundation/logging/app_log.dart';
 /// One create-assistant turn as a real tool loop:
 /// model picks a tool → tools run → model continues until it proposes a change
 /// or answers in text.
+///
+/// Proposals no longer end the turn: they are staged (one per layer, repeated
+/// patches on the same layer are merged) and the model is told it may keep
+/// going, so a cross-layer turn can stage world + cast + graph in one go.
 class CreateAgentLoop {
   CreateAgentLoop({
     CreateToolRegistry? registry,
     CreateProposals proposals = const CreateProposals(),
-    this.maxSteps = 6,
-  })  : _registry = registry ?? CreateToolRegistry(),
-        _proposals = proposals;
+    this.maxSteps = 10,
+  }) : _registry = registry ?? CreateToolRegistry(),
+       _proposals = proposals;
 
   final CreateToolRegistry _registry;
   final CreateProposals _proposals;
 
-  /// Upper bound on model turns; a normal turn needs 1–3.
+  /// Upper bound on model turns. A single-layer edit needs 1–3; a cross-layer
+  /// turn reads several layers and then writes each of them, so it needs more.
   final int maxSteps;
 
   /// Most recent conversation lines replayed into a turn. Ten lines covers
@@ -73,11 +78,15 @@ class CreateAgentLoop {
         ),
       OpenAiChatMessage(role: 'user', content: trimmed),
     ];
+    final staged = <String, CreateTurnProposal>{};
     final called = <String>[];
 
     for (var step = 0; step < maxSteps; step++) {
       final turn = await _nextTurn(client, ai, messages, allow, budget);
       if (turn.toolCalls.isEmpty) {
+        if (staged.isNotEmpty) {
+          return _proposalBatch(staged, called, turn.content);
+        }
         return _answerOrProposal(target, ctx, turn.content, called);
       }
       messages.add(
@@ -89,7 +98,7 @@ class CreateAgentLoop {
       );
       for (final call in turn.toolCalls) {
         called.add(call.name);
-        final result = await _registry.invoke(
+        var result = await _registry.invoke(
           call.name,
           ctx,
           args: _decodeArgs(call.arguments),
@@ -98,13 +107,25 @@ class CreateAgentLoop {
           '创作工具 ${call.name}${result.ok ? '' : ' 失败'}',
           tag: 'create.tool',
         );
+        if (result.userConfirmPayload != null) {
+          result = await _stage(staged, call.name, result, ctx);
+        }
         final preview = result.userConfirmPayload;
         if (preview != null) {
-          return CreateAgentTurnResult(
-            toolName: call.name,
-            result: result,
-            calledTools: called,
+          // Staged, not applied: tell the model so it can keep going on other
+          // layers, then wait for the user's single confirmation.
+          messages.add(
+            OpenAiChatMessage(
+              role: 'tool',
+              toolCallId: call.id,
+              content: jsonEncode(<String, dynamic>{
+                'ok': true,
+                'staged': preview['kind'] ?? call.name,
+                'note': '已暂存，等用户一起确认；可以继续提交其他层的改动',
+              }),
+            ),
           );
+          continue;
         }
         messages.add(
           OpenAiChatMessage(
@@ -116,10 +137,13 @@ class CreateAgentLoop {
       }
     }
 
-    AppLog.instance.warning(
-      '创作回合用完 $maxSteps 步仍未给出改动',
-      tag: 'create.tool',
-    );
+    if (staged.isNotEmpty) {
+      // Out of steps but changes are staged: hand them over instead of
+      // throwing the work away.
+      return _proposalBatch(staged, called, '');
+    }
+
+    AppLog.instance.warning('创作回合用完 $maxSteps 步仍未给出改动', tag: 'create.tool');
     return CreateAgentTurnResult.error('这一步没走完，换个说法再试');
   }
 
@@ -140,6 +164,7 @@ class CreateAgentLoop {
         CreateAssistantTarget.graph => CreatePromptProfiles.graphTaskRules,
         CreateAssistantTarget.world => CreatePromptProfiles.worldTaskRules,
         CreateAssistantTarget.cast => CreatePromptProfiles.castTaskRules,
+        CreateAssistantTarget.all => CreatePromptProfiles.allTaskRules,
       },
     );
   }
@@ -202,6 +227,88 @@ class CreateAgentLoop {
     );
   }
 
+  /// Records a proposal and returns the result the model should see.
+  ///
+  /// A second write on the same layer is merged with the first and re-validated
+  /// as one patch, so the confirmation sheet shows the final ops instead of
+  /// silently dropping the earlier batch. Ops the model repeats verbatim are
+  /// ignored, so re-submitting the same patch cannot duplicate entries.
+  Future<CreateToolResult> _stage(
+    Map<String, CreateTurnProposal> staged,
+    String toolName,
+    CreateToolResult result,
+    CreateToolContext ctx,
+  ) async {
+    final preview = result.userConfirmPayload!;
+    final kind = preview['kind']?.toString() ?? toolName;
+    final previous = staged[kind];
+    if (previous == null) {
+      staged[kind] = CreateTurnProposal(toolName: toolName, preview: preview);
+      return result;
+    }
+    if (kind == 'main.replace') {
+      // Whole-graph rewrites are all-or-nothing: the newest one wins.
+      staged[kind] = CreateTurnProposal(toolName: toolName, preview: preview);
+      return result;
+    }
+    final previousOps = _opsOf(previous.preview);
+    final seen = previousOps.map(jsonEncode).toSet();
+    final added = <Map<String, dynamic>>[
+      for (final op in _opsOf(preview))
+        if (seen.add(jsonEncode(op))) op,
+    ];
+    if (added.isEmpty) {
+      // Nothing new: acknowledge the already staged patch and keep it.
+      return CreateToolResult.userConfirmRequired(previous.preview);
+    }
+    final merged = await _registry.invoke(
+      toolName,
+      ctx,
+      args: <String, dynamic>{
+        'ops': <Map<String, dynamic>>[...previousOps, ...added],
+      },
+    );
+    if (merged.userConfirmPayload == null) {
+      AppLog.instance.warning(
+        '创作工具 $kind 合并失败：${merged.errorMessage ?? '未知原因'}',
+        tag: 'create.tool',
+      );
+      return merged;
+    }
+    staged[kind] = CreateTurnProposal(
+      toolName: toolName,
+      preview: merged.userConfirmPayload!,
+    );
+    return merged;
+  }
+
+  static List<Map<String, dynamic>> _opsOf(Map<String, dynamic> preview) {
+    final raw = preview['ops'];
+    if (raw is! List) return const <Map<String, dynamic>>[];
+    return [
+      for (final item in raw)
+        if (item is Map) Map<String, dynamic>.from(item),
+    ];
+  }
+
+  CreateAgentTurnResult _proposalBatch(
+    Map<String, CreateTurnProposal> staged,
+    List<String> called,
+    String content,
+  ) {
+    final proposals = staged.values.toList(growable: false);
+    AppLog.instance.info(
+      '创作回合暂存 ${proposals.map((p) => p.kind).join(' → ')}',
+      tag: 'create.tool',
+    );
+    return CreateAgentTurnResult(
+      toolName: proposals.last.toolName,
+      proposals: proposals,
+      answer: content.trim(),
+      calledTools: called,
+    );
+  }
+
   CreateAgentTurnResult _answerOrProposal(
     CreateAssistantTarget target,
     CreateToolContext ctx,
@@ -218,6 +325,7 @@ class CreateAgentLoop {
         target: target,
         project: ctx.project!,
         raw: text,
+        catalog: ctx.services.plotCatalog,
       );
     } on CreateProposalException catch (error) {
       return CreateAgentTurnResult.error(error.message);
@@ -230,6 +338,12 @@ class CreateAgentLoop {
       return CreateAgentTurnResult(
         toolName: '${proposal['kind']}',
         result: CreateToolResult.userConfirmRequired(proposal),
+        proposals: [
+          CreateTurnProposal(
+            toolName: '${proposal['kind']}',
+            preview: proposal,
+          ),
+        ],
         calledTools: called,
       );
     }

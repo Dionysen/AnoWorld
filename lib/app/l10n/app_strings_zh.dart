@@ -1412,6 +1412,9 @@ class AppStringsZh extends AppStrings {
   String get assistantPlotSaved => '剧情元素变了，之后的生成会按新的来';
 
   @override
+  String assistantLayersSaved(String layers) => '写好了，$layers一起更新了';
+
+  @override
   String get proposalLead => '读了设定，理出';
 
   @override
@@ -1428,6 +1431,9 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get assistantTargetCast => '角色';
+
+  @override
+  String get assistantTargetAll => '全部';
 
   @override
   String get assistantEditTargetLabel => '改哪里';

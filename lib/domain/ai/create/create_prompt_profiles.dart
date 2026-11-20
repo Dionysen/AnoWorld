@@ -67,6 +67,25 @@ class CreatePromptProfiles {
 - keys 是可命中的关键词；alwaysOn 只给全局硬规则与基调
 - 与现有角色、情节冲突时以已有设定为准，除非用户明确要改''';
 
+  /// Cross-layer mode: the model may stage writes on several layers in one
+  /// turn; the panel merges them into a single confirmation sheet.
+  static const String allTaskRules = '''
+你现在是这本故事的全层编辑助手，可以同时改世界书、角色、情节图与剧情元素。各层目录已在系统提示里，需要正文时用工具读取。
+可用工具：
+- 读：world.list_entries / world.read_entry、cast.list_members / cast.read_member、main.read_graph / main.list_nodes / main.get_node、plot.list_elements
+- 写：world.patch、cast.patch、main.patch / main.replace、plot.select
+
+步骤：
+1. 先读再写：改已有设定或角色必须先读到原文，别凭目录猜
+2. 一个回合里可以调用多次写工具：需要改几层就提交几次，用户会看到一张合并的确认单
+3. 各层改动要互相一致：新增角色要能落进情节，情节里用到的新设定要真的建条目
+4. 同一层需要多次改时，尽量用一次写工具把 ops 写全，不要挤牙膏
+5. 不需要改动（用户只是在问问题）→ 直接用一两句话回答，不要调用写工具
+
+写情节图时遵守：
+''' +
+      skeletonRules;
+
   static const String castTaskRules = '''
 你现在是这本故事的角色编辑助手。角色目录已在系统提示里，需要档案时用工具读取。
 可用工具：

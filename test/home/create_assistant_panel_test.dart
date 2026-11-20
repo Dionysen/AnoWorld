@@ -7,6 +7,7 @@ import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/openai_chat_client.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/home/create_assistant_draft.dart';
 import 'package:anoworld/home/create_assistant_draft_store.dart';
@@ -155,7 +156,7 @@ void main() {
     expect(find.text('生成的情节'), findsOneWidget);
     expect(find.textContaining('站'), findsWidgets);
 
-    await tester.tap(find.text('替换情节图'));
+    await tester.tap(find.text('写入选中的 1 条'));
     await tester.pumpAndSettle();
 
     final saved = await repo.open('proj_rain_night');
@@ -274,6 +275,7 @@ void main() {
               {'op': 'set_summary', 'summary': '雨夜出城，天亮前必须走脱'},
             ],
           }),
+          const _Reply.text(''),
         ]),
         home: Scaffold(
           body: SizedBox(
@@ -300,6 +302,93 @@ void main() {
     final saved = await repo.open('proj_rain_night');
     expect(saved.main.summary, '雨夜出城，天亮前必须走脱');
     expect(saved.main.nodes, isNotEmpty);
+  });
+
+  testWidgets('writes every layer from one merged review sheet', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repo = MemoryProjectRepository(
+      seed: {
+        'proj_rain_night': const ProjectFactory().createRainNightSample(),
+      },
+    );
+    final store = CreateAssistantDraftStore();
+    await store.save(
+      const CreateAssistantDraft(
+        projectId: 'proj_rain_night',
+        projectTitle: '雨夜投宿',
+        composer: '',
+        lines: [],
+      ),
+    );
+    final settings = testSettingsController();
+    await settings.updateAi(settings.ai.copyWith(text: _endpoint));
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        settings: settings,
+        textClient: _ScriptedTextClient([
+          const _Reply.tool('world.patch', {
+            'ops': [
+              {'op': 'upsert_entry', 'title': '渡口', 'body': '夜里停摆。'},
+            ],
+          }),
+          const _Reply.tool('cast.patch', {
+            'ops': [
+              {'op': 'upsert_member', 'name': '船夫', 'summary': '摆渡人'},
+            ],
+          }),
+          const _Reply.text(''),
+        ]),
+        home: Scaffold(
+          body: SizedBox(
+            width: 380,
+            height: 640,
+            child: CreateAssistantPanel(draftStore: store),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('全部'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '补一个渡口，再加个船夫');
+    await tester.tap(find.byTooltip('发送'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('这次要改这些'), findsOneWidget);
+    // Both layers sit in the same sheet, under their own headers. The second
+    // row can start below the fold, so scroll it into view first.
+    expect(find.text('世界书'), findsWidgets);
+    expect(find.textContaining('新增设定：渡口'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('新增角色：船夫'),
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byType(AppSheetScrollBody),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('新增角色：船夫'), findsOneWidget);
+
+    await tester.tap(find.text('写入选中的 2 条'));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.open('proj_rain_night');
+    expect(saved.worldBook.entries.any((e) => e.title == '渡口'), isTrue);
+    expect(saved.cast.any((c) => c.name == '船夫'), isTrue);
+    expect(find.text('写好了，世界书、角色一起更新了'), findsOneWidget);
   });
 
   testWidgets('asks for a story before calling the model', (tester) async {

@@ -215,6 +215,7 @@ void main() {
             ],
           },
           index: 1),
+      const OpenAiChatCompletion(content: ''),
     ]);
     final ctx = CreateToolContext(
       project: const ProjectFactory().createRainNightSample(),
@@ -731,6 +732,96 @@ void main() {
     expect(graph.toolAllowlist, contains('plot.list_elements'));
     expect(world.toolAllowlist, isNot(contains('plot.select')));
     expect(world.toolAllowlist, contains('plot.list_elements'));
+  });
+
+  test('the all target may write every layer', () {
+    const all = CreateAssistantTarget.all;
+
+    expect(
+      all.toolAllowlist,
+      containsAll(<String>[
+        'world.patch',
+        'cast.patch',
+        'main.patch',
+        'main.replace',
+        'plot.select',
+      ]),
+    );
+    expect(all.toolAllowlist, contains('world.read_entry'));
+    expect(all.toolAllowlist, contains('cast.read_member'));
+  });
+
+  test('runTurn stages changes from several layers in one turn', () async {
+    final client = _ScriptedTurnClient(<OpenAiChatCompletion>[
+      _call('world.patch', {
+        'ops': [
+          {'op': 'upsert_entry', 'title': '渡口', 'body': '夜里停摆。'},
+        ],
+      }),
+      _call(
+        'cast.patch',
+        {
+          'ops': [
+            {'op': 'upsert_member', 'name': '船夫', 'summary': '摆渡人'},
+          ],
+        },
+        index: 1,
+      ),
+      const OpenAiChatCompletion(content: ''),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.all,
+      prompt: '补一个渡口，再加个船夫',
+      ctx: ctx,
+    );
+
+    expect(turn.proposals.map((p) => p.kind), ['world.patch', 'cast.patch']);
+    expect(turn.calledTools, ['world.patch', 'cast.patch']);
+    // The staged tool reply did not end the turn: the second layer ran.
+    final toolMessages = client.lastMessages.where((m) => m.role == 'tool');
+    expect(toolMessages, hasLength(2));
+    expect(toolMessages.first.content, contains('"staged":"world.patch"'));
+  });
+
+  test('runTurn merges two patches on the same layer', () async {
+    final client = _ScriptedTurnClient(<OpenAiChatCompletion>[
+      _call('world.patch', {
+        'ops': [
+          {'op': 'upsert_entry', 'title': '渡口', 'body': '夜里停摆。'},
+        ],
+      }),
+      _call(
+        'world.patch',
+        {
+          'ops': [
+            {'op': 'upsert_entry', 'title': '船灯', 'body': '只在雨夜点亮。'},
+          ],
+        },
+        index: 1,
+      ),
+      const OpenAiChatCompletion(content: ''),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.world,
+      prompt: '加渡口和船灯',
+      ctx: ctx,
+    );
+
+    expect(turn.proposals, hasLength(1));
+    expect(turn.proposals.single.preview['kind'], 'world.patch');
+    expect(turn.proposals.single.preview['opCount'], 2);
   });
 
   test('main.list_nodes lists stations without their exits detail', () async {

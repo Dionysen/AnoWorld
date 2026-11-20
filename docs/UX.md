@@ -155,12 +155,12 @@
 
 ### 创作助手（通用 Agent，已接通）
 
-在故事分区或故事子页点右下角创作助手：选「当前故事」，再点 **改哪里**（情节图 / 世界书 / 角色），输入想怎么改即可。实现见 [`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) + [`CreateAgentRunner.runTurn`](../lib/domain/ai/create/create_agent_runner.dart) + [`CreateAgentLoop`](../lib/domain/ai/create/create_agent_loop.dart)。
+在故事分区或故事子页点右下角创作助手：选「当前故事」，再点 **改哪里**（情节图 / 世界书 / 角色 / 全部），输入想怎么改即可。实现见 [`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) + [`CreateAgentRunner.runTurn`](../lib/domain/ai/create/create_agent_runner.dart) + [`CreateAgentLoop`](../lib/domain/ai/create/create_agent_loop.dart)。
 
 - **先看后改**：系统提示里只放五层的目录（设定/角色标题、站点与出边数、已选剧情元素），模型觉得不够才调工具去读某一条的正文或某个字段；不需要改动时直接回一句话，不弹确认。
 - **情节图**：无图或要整图重写 → `main.replace`（至少约 **20** 站、上不封顶，按丰富度加站；分叉目标要拉开；叶可为终局或开放续写）；有图则 `main.patch` 增量改站/边。
-- **世界书 / 角色**：`world.patch` / `cast.patch` 提议改条目或角色字段，确认后写回。读可跨层，写只改当前层。
-- 确认：半屏抽屉逐条列出改动，可**单独勾选**要写回的条目，并显示字段级「原 / 改」差异；只写选中项。整图重写仍是整包替换，并明说会换掉现有站（有预写对白则一起清掉）。预览与回放见 [`patch_preview.dart`](../lib/domain/main/patch_preview.dart) / [`patch_review_sheet.dart`](../lib/home/patch_review_sheet.dart)。
+- **世界书 / 角色**：`world.patch` / `cast.patch` 提议改条目或角色字段，确认后写回。读可跨层；写默认只改当前层，选「全部」时可在一轮里连写几层。
+- 确认：半屏抽屉按层分组列出改动，可**单独勾选**要写回的条目，并显示字段级「原 / 改」差异；只写选中项，多层改动一次保存。整图重写占一行，并明说会换掉现有站（有预写对白则一起清掉）。预览与回放见 [`patch_preview.dart`](../lib/domain/main/patch_preview.dart) / [`patch_review_sheet.dart`](../lib/home/patch_review_sheet.dart)。
 - 刷新：写入后经 [`ProjectChangeNotifier`](../lib/app/project_change_notifier.dart) 通知详情与情节图重读。
 - 未选故事、未配写故事服务、模型不支持工具调用、模型输出不可解析时，只回一句可读提示，不改动故事。
 

@@ -482,12 +482,14 @@ abstract class AppStrings extends AppLocalizations {
   String get assistantWorldSaved;
   String get assistantCastSaved;
   String get assistantPlotSaved;
+  String assistantLayersSaved(String layers);
   String get proposalLead;
   String stopCount(int count);
   String branchCount(int count);
   String get assistantTargetGraph;
   String get assistantTargetWorld;
   String get assistantTargetCast;
+  String get assistantTargetAll;
   String get assistantEditTargetLabel;
   String opCount(int count);
 

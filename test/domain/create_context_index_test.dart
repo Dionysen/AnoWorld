@@ -115,6 +115,17 @@ void main() {
     expect(text, contains('【角色】还没有角色'));
   });
 
+  test('the all target names every editable layer', () {
+    final text = index.build(
+      project: project,
+      target: CreateAssistantTarget.all,
+    );
+
+    expect(text, contains('【当前要改】全部'));
+    expect(text, contains('世界书'));
+    expect(text, contains('情节图'));
+  });
+
   test('names the preset sections as read-only rules', () {
     const config = PromptManagerConfig(
       sections: <PromptSection>[

@@ -129,6 +129,7 @@ class CreateContextIndex {
         CreateAssistantTarget.graph => '情节图',
         CreateAssistantTarget.world => '世界书',
         CreateAssistantTarget.cast => '角色',
+        CreateAssistantTarget.all => '全部（世界书 / 角色 / 情节图 / 剧情元素）',
       };
 
   _Capped<T> _cap<T>(List<T> rows) {
