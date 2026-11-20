@@ -183,4 +183,89 @@ void main() {
     expect(result.ok, isFalse);
     expect(result.errorMessage, '未配置文本服务');
   });
+
+  test('world.read_entry accepts a ref and returns one field', () async {
+    final project = const ProjectFactory().createRainNightSample();
+    final entry = project.worldBook.entries.first;
+    final ctx = CreateToolContext(
+      project: project,
+      services: CreateToolServices(textClient: _FakeTextClient()),
+    );
+
+    final whole = await CreateAgentRunner().runSingle(
+      toolName: 'world.read_entry',
+      ctx: ctx,
+      args: {'ref': 'wb:${entry.id}'},
+    );
+    expect(whole.ok, isTrue);
+    expect(whole.payload?['ref'], 'wb:${entry.id}');
+    expect(whole.payload?['truncated'], isFalse);
+    expect(whole.payload?['tokenEstimate'], greaterThan(0));
+
+    final single = await CreateAgentRunner().runSingle(
+      toolName: 'world.read_entry',
+      ctx: ctx,
+      args: {'ref': 'wb:${entry.id}.title'},
+    );
+    expect(single.ok, isTrue);
+    expect(single.payload?['field'], 'title');
+    expect(single.payload?['value'], entry.title);
+
+    final wrongLayer = await CreateAgentRunner().runSingle(
+      toolName: 'world.read_entry',
+      ctx: ctx,
+      args: {'ref': 'cast:${entry.id}'},
+    );
+    expect(wrongLayer.ok, isFalse);
+
+    final badField = await CreateAgentRunner().runSingle(
+      toolName: 'world.read_entry',
+      ctx: ctx,
+      args: {'ref': 'wb:${entry.id}.nope'},
+    );
+    expect(badField.ok, isFalse);
+  });
+
+  test('world.read_entry flags truncation', () async {
+    final project = const ProjectFactory().createRainNightSample();
+    final entry = project.worldBook.entries.first;
+    final ctx = CreateToolContext(
+      project: project,
+      services: CreateToolServices(textClient: _FakeTextClient()),
+    );
+
+    final result = await CreateAgentRunner().runSingle(
+      toolName: 'world.read_entry',
+      ctx: ctx,
+      args: {'ref': 'wb:${entry.id}', 'maxChars': 4},
+    );
+    expect(result.ok, isTrue);
+    expect(result.payload?['truncated'], isTrue);
+    expect('${result.payload?['body']}', endsWith('…'));
+  });
+
+  test('cast.read_member accepts a ref and returns one field', () async {
+    final project = const ProjectFactory().createRainNightSample();
+    final member = project.cast.first;
+    final ctx = CreateToolContext(
+      project: project,
+      services: CreateToolServices(textClient: _FakeTextClient()),
+    );
+
+    final single = await CreateAgentRunner().runSingle(
+      toolName: 'cast.read_member',
+      ctx: ctx,
+      args: {'ref': 'cast:${member.id}.speechStyle'},
+    );
+    expect(single.ok, isTrue);
+    expect(single.payload?['value'], member.speechStyle);
+
+    final whole = await CreateAgentRunner().runSingle(
+      toolName: 'cast.read_member',
+      ctx: ctx,
+      args: {'id': member.id},
+    );
+    expect(whole.ok, isTrue);
+    expect(whole.payload?['ref'], 'cast:${member.id}');
+  });
 }

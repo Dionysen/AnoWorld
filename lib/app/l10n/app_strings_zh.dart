@@ -1430,16 +1430,81 @@ class AppStringsZh extends AppStrings {
   String get assistantEditTargetLabel => '改哪里';
 
   @override
-  String get applyPatch => '写入改动';
-
-  @override
-  String get generatedWorldTitle => '拟定的设定改动';
-
-  @override
-  String get generatedCastTitle => '拟定的角色改动';
-
-  @override
   String opCount(int count) => '$count 处改动';
+
+  @override
+  String get patchReviewTitle => '这次要改这些';
+
+  @override
+  String applySelectedCount(int count) => '写入选中的 $count 条';
+
+  @override
+  String get patchNoChange => '没有实际改动';
+
+  @override
+  String get patchOpFailed => '这一步没法写入';
+
+  @override
+  String get patchEmptyValue => '（空）';
+
+  @override
+  String get patchTrueValue => '是';
+
+  @override
+  String get patchFalseValue => '否';
+
+  @override
+  String get patchOpAdded => '新增';
+
+  @override
+  String get patchOpEdited => '修改';
+
+  @override
+  String get patchOpRemoved => '删除';
+
+  @override
+  String get patchKindWorldBook => '设定';
+
+  @override
+  String get patchKindCast => '角色';
+
+  @override
+  String get patchKindNode => '情节站';
+
+  @override
+  String get patchKindEdge => '连线';
+
+  @override
+  String get patchKindStorySummary => '主线概括';
+
+  @override
+  String get patchBeforeLabel => '原';
+
+  @override
+  String get patchAfterLabel => '改';
+
+  @override
+  String patchFieldLabel(String field) => switch (field) {
+        'title' => '标题',
+        'body' => '正文',
+        'keys' => '关键词',
+        'alwaysOn' => '常驻',
+        'name' => '名字',
+        'summary' => '简介',
+        'personality' => '性格',
+        'speechStyle' => '口吻',
+        'exampleLines' => '例句',
+        'isProtagonist' => '主角',
+        'synopsis' => '目标',
+        'tags' => '标签',
+        'from' => '起点',
+        'to' => '终点',
+        'kind' => '类型',
+        'label' => '标注',
+        'detail' => '说明',
+        'storySummary' => '主线概括',
+        _ => field,
+      };
 
   @override
   String get generatedPlotTitle => '生成的情节';

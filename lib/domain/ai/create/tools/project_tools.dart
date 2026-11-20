@@ -5,9 +5,13 @@ import 'package:anoworld/domain/ai/generate_main_graph_action.dart';
 import 'package:anoworld/domain/ai/propose_cast_patch_action.dart';
 import 'package:anoworld/domain/ai/propose_main_graph_patch_action.dart';
 import 'package:anoworld/domain/ai/propose_world_book_patch_action.dart';
+import 'package:anoworld/domain/main/entity_ref.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/validation/project_issue.dart';
+import 'package:anoworld/foundation/text/token_estimator.dart';
 
 List<CreateTool> buildProjectTools() {
   return [
@@ -79,28 +83,44 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'world.read_entry',
-      description: '按 id 读取世界书正文（可截断）',
+      description: '按引用或 id 读取世界书条目（可截断、可只取一个字段）',
       mutatesProject: false,
       invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
           return CreateToolResult.error('没有打开的故事');
         }
-        final id = args['id']?.toString() ?? '';
+        final ref = _resolveRef(args, EntityKind.worldBook);
+        if (ref.error != null) return CreateToolResult.error(ref.error!);
         final maxChars = (args['maxChars'] as num?)?.toInt() ?? 4000;
         for (final e in project.worldBook.entries) {
-          if (e.id != id) continue;
+          if (e.id != ref.value!.id) continue;
+          final field = ref.value!.field;
+          if (field != null) {
+            return CreateToolResult.success(
+              _fieldEnvelope(
+                ref: ref.value!,
+                field: field,
+                value: _worldField(e, field),
+                maxChars: maxChars,
+              ),
+            );
+          }
           var body = e.body;
-          if (body.length > maxChars) {
+          final truncated = body.length > maxChars;
+          if (truncated) {
             body = '${body.substring(0, maxChars)}…';
           }
           return CreateToolResult.success(<String, dynamic>{
             'schemaVersion': 1,
+            'ref': ref.value!.format(),
             'id': e.id,
             'title': e.title,
             'body': body,
             'alwaysOn': e.alwaysOn,
             'keys': e.keys,
+            'truncated': truncated,
+            'tokenEstimate': TokenEstimator.estimate('${e.title}\n$body'),
           });
         }
         return CreateToolResult.error('找不到该设定');
@@ -131,18 +151,30 @@ List<CreateTool> buildProjectTools() {
     ),
     CreateTool(
       name: 'cast.read_member',
-      description: '按 id 读取角色字段',
+      description: '按引用或 id 读取角色字段（可只取一个字段）',
       mutatesProject: false,
       invoke: (ctx, args) async {
         final project = ctx.project;
         if (project == null) {
           return CreateToolResult.error('没有打开的故事');
         }
-        final id = args['id']?.toString() ?? '';
+        final ref = _resolveRef(args, EntityKind.cast);
+        if (ref.error != null) return CreateToolResult.error(ref.error!);
         for (final c in project.cast) {
-          if (c.id != id) continue;
+          if (c.id != ref.value!.id) continue;
+          final field = ref.value!.field;
+          if (field != null) {
+            return CreateToolResult.success(
+              _fieldEnvelope(
+                ref: ref.value!,
+                field: field,
+                value: _castField(c, field),
+              ),
+            );
+          }
           return CreateToolResult.success(<String, dynamic>{
             'schemaVersion': 1,
+            'ref': ref.value!.format(),
             'id': c.id,
             'name': c.name,
             'summary': c.summary,
@@ -150,6 +182,11 @@ List<CreateTool> buildProjectTools() {
             'speechStyle': c.speechStyle,
             'exampleLines': c.exampleLines,
             'isProtagonist': c.isProtagonist,
+            'tokenEstimate': TokenEstimator.estimate(
+              [c.name, c.summary, c.personality, c.speechStyle]
+                  .where((s) => s.trim().isNotEmpty)
+                  .join('\n'),
+            ),
           });
         }
         return CreateToolResult.error('找不到该角色');
@@ -374,3 +411,87 @@ List<CreateTool> buildProjectTools() {
     ),
   ];
 }
+
+/// Outcome of reading the `ref` / `id` arguments of a read tool.
+class _RefArgs {
+  const _RefArgs.value(EntityRef ref) : value = ref, error = null;
+
+  const _RefArgs.error(String message) : value = null, error = message;
+
+  final EntityRef? value;
+  final String? error;
+}
+
+/// Reads `ref` when present (validating its layer), else falls back to `id`.
+_RefArgs _resolveRef(Map<String, dynamic> args, EntityKind expected) {
+  final raw = args['ref']?.toString().trim() ?? '';
+  if (raw.isEmpty) {
+    final id = args['id']?.toString().trim() ?? '';
+    if (id.isEmpty) return const _RefArgs.error('缺少 ref 或 id');
+    return _RefArgs.value(EntityRef(kind: expected, id: id));
+  }
+  final EntityRef parsed;
+  try {
+    parsed = EntityRef.parse(raw);
+  } on EntityRefException catch (error) {
+    return _RefArgs.error(error.message);
+  }
+  if (parsed.kind != expected) {
+    return _RefArgs.error('这条引用不是${_kindLabel(expected)}：$raw');
+  }
+  return _RefArgs.value(parsed);
+}
+
+String _kindLabel(EntityKind kind) => switch (kind) {
+      EntityKind.preset => '预设',
+      EntityKind.worldBook => '设定',
+      EntityKind.cast => '角色',
+      EntityKind.node => '情节站',
+      EntityKind.edge => '连线',
+      EntityKind.plotElement => '剧情元素',
+    };
+
+/// Single-field reply shared by the read tools.
+Map<String, dynamic> _fieldEnvelope({
+  required EntityRef ref,
+  required String field,
+  required Object? value,
+  int? maxChars,
+}) {
+  var out = value;
+  var truncated = false;
+  if (maxChars != null && out is String && out.length > maxChars) {
+    out = '${out.substring(0, maxChars)}…';
+    truncated = true;
+  }
+  final text = out is String
+      ? out
+      : (out is List ? out.join('\n') : '$out');
+  return <String, dynamic>{
+    'schemaVersion': 1,
+    'ref': ref.format(),
+    'id': ref.id,
+    'field': field,
+    'value': out,
+    'truncated': truncated,
+    'tokenEstimate': TokenEstimator.estimate(text),
+  };
+}
+
+Object? _worldField(WorldBookEntry entry, String field) => switch (field) {
+      'title' => entry.title,
+      'body' => entry.body,
+      'keys' => entry.keys,
+      'alwaysOn' => entry.alwaysOn,
+      _ => null,
+    };
+
+Object? _castField(CastMember member, String field) => switch (field) {
+      'name' => member.name,
+      'summary' => member.summary,
+      'personality' => member.personality,
+      'speechStyle' => member.speechStyle,
+      'exampleLines' => member.exampleLines,
+      'isProtagonist' => member.isProtagonist,
+      _ => null,
+    };

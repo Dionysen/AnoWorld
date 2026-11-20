@@ -99,6 +99,7 @@ class ApplyMainGraphPatch {
               ? EdgeKind.branch
               : EdgeKind.defaultEdge;
           final label = raw['label']?.toString().trim();
+          final detail = raw['detail']?.toString().trim();
           final givenId = raw['id']?.toString().trim();
           final id = (givenId != null && givenId.isNotEmpty)
               ? givenId
@@ -113,7 +114,9 @@ class ApplyMainGraphPatch {
             to: toId,
             kind: kind,
             label: (label == null || label.isEmpty) ? existing?.label : label,
-            detail: existing?.detail,
+            detail: (detail == null || detail.isEmpty)
+                ? existing?.detail
+                : detail,
             priority: existing?.priority ?? 0,
           );
         case 'remove_edge':

@@ -488,10 +488,28 @@ abstract class AppStrings extends AppLocalizations {
   String get assistantTargetWorld;
   String get assistantTargetCast;
   String get assistantEditTargetLabel;
-  String get applyPatch;
-  String get generatedWorldTitle;
-  String get generatedCastTitle;
   String opCount(int count);
+
+  // Patch review (per-op tick + field diff).
+
+  String get patchReviewTitle;
+  String applySelectedCount(int count);
+  String get patchNoChange;
+  String get patchOpFailed;
+  String get patchEmptyValue;
+  String get patchTrueValue;
+  String get patchFalseValue;
+  String get patchOpAdded;
+  String get patchOpEdited;
+  String get patchOpRemoved;
+  String get patchKindWorldBook;
+  String get patchKindCast;
+  String get patchKindNode;
+  String get patchKindEdge;
+  String get patchKindStorySummary;
+  String get patchBeforeLabel;
+  String get patchAfterLabel;
+  String patchFieldLabel(String field);
 
   // Generated plot confirmation.
 

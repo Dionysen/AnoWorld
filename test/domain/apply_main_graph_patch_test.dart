@@ -65,4 +65,46 @@ void main() {
     expect(next.edges, isEmpty);
     expect(next.startNodeId, 'n2');
   });
+
+  test('upsert_edge writes detail', () {
+    final next = applier.apply(base(), [
+      {
+        'op': 'upsert_edge',
+        'id': 'e1',
+        'from': 'n1',
+        'to': 'n2',
+        'detail': '雨里追到码头，代价是错过末班车',
+      },
+    ]);
+    expect(next.edges.single.detail, '雨里追到码头，代价是错过末班车');
+  });
+
+  test('upsert_edge keeps detail when the op omits it', () {
+    final seeded = MainStory(
+      summary: '旧概括',
+      startNodeId: 'n1',
+      nodes: base().nodes,
+      edges: const [
+        StoryEdge(
+          id: 'e1',
+          from: 'n1',
+          to: 'n2',
+          kind: EdgeKind.defaultEdge,
+          detail: '原有说明',
+        ),
+      ],
+      beats: const [],
+    );
+    final next = applier.apply(seeded, [
+      {
+        'op': 'upsert_edge',
+        'id': 'e1',
+        'from': 'n1',
+        'to': 'n2',
+        'label': '换标注',
+      },
+    ]);
+    expect(next.edges.single.label, '换标注');
+    expect(next.edges.single.detail, '原有说明');
+  });
 }

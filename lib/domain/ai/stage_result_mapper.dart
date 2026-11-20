@@ -157,6 +157,7 @@ class StageResultMapper {
       required String toId,
       required EdgeKind kind,
       String? label,
+      String? detail,
     }) {
       if (fromId == toId) return;
       if (!nodes.any((n) => n.id == fromId) ||
@@ -171,6 +172,7 @@ class StageResultMapper {
           to: toId,
           kind: kind,
           label: label,
+          detail: detail,
         ),
       );
     }
@@ -198,6 +200,7 @@ class StageResultMapper {
             toId: endId,
             kind: _edgeKind(row['kind']),
             label: _stringOf(row['label'])?.trim(),
+            detail: _stringOf(row['detail'])?.trim(),
           );
           continue;
         }
@@ -209,6 +212,7 @@ class StageResultMapper {
           toId: toId,
           kind: _edgeKind(row['kind']),
           label: _stringOf(row['label'])?.trim(),
+          detail: _stringOf(row['detail'])?.trim(),
         );
       }
     }
@@ -235,6 +239,7 @@ class StageResultMapper {
             toId: endId,
             kind: _edgeKind(exit['kind']),
             label: _stringOf(exit['label'])?.trim(),
+            detail: _stringOf(exit['detail'])?.trim(),
           );
           continue;
         }
@@ -245,6 +250,7 @@ class StageResultMapper {
           toId: toId,
           kind: _edgeKind(exit['kind']),
           label: _stringOf(exit['label'])?.trim(),
+          detail: _stringOf(exit['detail'])?.trim(),
         );
       }
     }

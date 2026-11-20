@@ -49,4 +49,37 @@ void main() {
     expect(next, hasLength(2));
     expect(next.firstWhere((c) => c.id == 'c1').summary, '新简介');
   });
+
+  test('cast patch writes exampleLines', () {
+    final base = [
+      const CastMember(
+        id: 'c1',
+        name: '甲',
+        exampleLines: const ['甲：旧例句'],
+      ),
+    ];
+    final next = const ApplyCastPatch().apply(base, [
+      {
+        'op': 'upsert_member',
+        'id': 'c1',
+        'exampleLines': ['「新例句。」', '  ', '再说一句'],
+      },
+    ]);
+    expect(next.single.exampleLines, ['「新例句。」', '再说一句']);
+  });
+
+  test('cast patch keeps exampleLines when the op omits them', () {
+    final base = [
+      const CastMember(
+        id: 'c1',
+        name: '甲',
+        exampleLines: const ['甲：旧例句'],
+      ),
+    ];
+    final next = const ApplyCastPatch().apply(base, [
+      {'op': 'upsert_member', 'id': 'c1', 'summary': '只改简介'},
+    ]);
+    expect(next.single.exampleLines, ['甲：旧例句']);
+    expect(next.single.summary, '只改简介');
+  });
 }

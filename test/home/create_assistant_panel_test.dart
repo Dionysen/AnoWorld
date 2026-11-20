@@ -3,6 +3,7 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/home/create_assistant_draft.dart';
 import 'package:anoworld/home/create_assistant_draft_store.dart';
 import 'package:anoworld/home/create_assistant_panel.dart';
@@ -34,6 +35,13 @@ class _ScriptedTextClient implements AiTextClient {
 }
 
 final _graphJson = buildFullGraphJson();
+
+const _worldPatchJson = '''
+{"ops":[
+  {"op":"upsert_entry","id":"bg_world","body":"边陲小城常年下雨。"},
+  {"op":"upsert_entry","title":"渡口","body":"夜里停摆。"}
+]}
+''';
 
 const _endpoint = AiTextEndpoint(
   kind: AiTextProviderKind.openAiCompatible,
@@ -109,6 +117,78 @@ void main() {
     expect(
       find.text('情节图写好了，可以在情节图里继续调整'),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('writes only the ticked ops from the review sheet', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repo = MemoryProjectRepository(
+      seed: {
+        'proj_rain_night': const ProjectFactory().createRainNightSample(),
+      },
+    );
+    final store = CreateAssistantDraftStore();
+    await store.save(
+      const CreateAssistantDraft(
+        projectId: 'proj_rain_night',
+        projectTitle: '雨夜投宿',
+        composer: '',
+        lines: [],
+      ),
+    );
+    final settings = testSettingsController();
+    await settings.updateAi(settings.ai.copyWith(text: _endpoint));
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        settings: settings,
+        textClient: _ScriptedTextClient([_worldPatchJson]),
+        home: Scaffold(
+          body: SizedBox(
+            width: 380,
+            height: 640,
+            child: CreateAssistantPanel(draftStore: store),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('世界书'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextField),
+      '世界观改冷一点，再加一个渡口',
+    );
+    await tester.tap(find.byTooltip('发送'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('这次要改这些'), findsOneWidget);
+    expect(
+      find.textContaining('原：边陲小城外常有过路旅人'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('新增设定：渡口'), findsOneWidget);
+
+    // Untick the new entry, keep the rewritten one.
+    await tester.tap(find.byType(AppSwitch).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('写入选中的 1 条'));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.open('proj_rain_night');
+    expect(saved.worldBook.entries.any((e) => e.title == '渡口'), isFalse);
+    expect(
+      saved.worldBook.entries.firstWhere((e) => e.id == 'bg_world').body,
+      '边陲小城常年下雨。',
     );
   });
 

@@ -99,4 +99,28 @@ void main() {
       throwsA(isA<StageMapException>()),
     );
   });
+
+  test('maps edge detail from stations and top-level edges', () {
+    final main = mapper.mainFromRaw(
+      '''
+{"summary":"雨夜",
+ "stations":[
+  {"title":"城门","synopsis":"决心离开","exits":[
+    {"to":"客栈","kind":"default","detail":"冒着雨走过去"},
+    {"to":"荒野","kind":"branch","label":"不投宿","detail":"一路淋到天亮"}]},
+  {"title":"客栈","synopsis":"与掌柜周旋","exits":[
+    {"to":"荒野","kind":"default","detail":"被赶出来"}]},
+  {"title":"荒野","synopsis":"雨中独行","exits":[]}
+ ],
+ "edges":[{"from":"荒野","to":"end","kind":"default","label":"倒下","detail":"故事在此收束"}]}
+''',
+      cast: const [],
+    );
+
+    final details = main.edges.map((e) => e.detail).toList(growable: false);
+    expect(details, contains('冒着雨走过去'));
+    expect(details, contains('一路淋到天亮'));
+    expect(details, contains('被赶出来'));
+    expect(details, contains('故事在此收束'));
+  });
 }

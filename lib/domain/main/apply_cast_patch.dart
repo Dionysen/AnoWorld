@@ -34,6 +34,13 @@ class ApplyCastPatch {
           if (nextName.isEmpty) {
             throw const ApplyCastPatchException('角色名不能为空');
           }
+          final exampleLinesRaw = raw['exampleLines'];
+          final exampleLines = exampleLinesRaw is List
+              ? exampleLinesRaw
+                  .map((s) => s.toString().trim())
+                  .where((s) => s.isNotEmpty)
+                  .toList(growable: false)
+              : (existing?.exampleLines ?? const <String>[]);
           members[id] = CastMember(
             id: id,
             name: nextName,
@@ -42,7 +49,7 @@ class ApplyCastPatch {
                 raw['personality']?.toString() ?? existing?.personality ?? '',
             speechStyle:
                 raw['speechStyle']?.toString() ?? existing?.speechStyle ?? '',
-            exampleLines: existing?.exampleLines ?? const <String>[],
+            exampleLines: exampleLines,
             avatarAssetId: existing?.avatarAssetId,
             isProtagonist: raw.containsKey('isProtagonist')
                 ? raw['isProtagonist'] == true

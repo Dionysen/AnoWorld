@@ -108,11 +108,10 @@
 
 ## 4. 统一寻址
 
-现在 id 各自为政（`wb_p_3`、`c_p_2`、`n_p_5`、`e_p_1`），没有统一的引用语法。建议补一层**引用字符串**，只作为 AI 与工具之间的地址，不改落盘结构：
+现在 id 各自为政（`wb_p_3`、`c_p_2`、`n_p_5`、`e_p_1`），没有统一的引用语法。已补一层**引用字符串**，只作为 AI 与工具之间的地址，不改落盘结构：
 
 ```text
 预设          preset:<presetId>
-预设段        preset:<presetId>.section:<sectionId>
 世界书条目    wb:<entryId>
 角色          cast:<memberId>
 情节站        node:<nodeId>
@@ -124,7 +123,20 @@
 
 **为什么不改落盘 id**：现有 id 已经进存档、进补丁 ops、进日志。换 id 体系是一次无谓的数据迁移；加一层引用解析成本几乎为零。
 
-解析放在一个新的 domain 文件（如 `lib/domain/main/entity_ref.dart`），只做「引用 ⇄ 实体」映射，不碰 IO。
+落点：[`lib/domain/main/entity_ref.dart`](../lib/domain/main/entity_ref.dart)，纯解析、零 IO。`EntityRef.parse` 校验「层前缀」与「该层允许的字段」，认错就抛可读错误（例如 `wb 没有这个字段：detail`）。
+
+可寻址字段（与模型字段一一对应）：
+
+| 层 | 字段 |
+| --- | --- |
+| `preset` | `name`、`description` |
+| `wb` | `title`、`body`、`keys`、`alwaysOn` |
+| `cast` | `name`、`summary`、`personality`、`speechStyle`、`exampleLines`、`isProtagonist` |
+| `node` | `title`、`synopsis`、`tags` |
+| `edge` | `from`、`to`、`kind`、`label`、`detail` |
+| `pe` | `keyword`、`description`、`categoryId` |
+
+**预设段（`preset:<id>.section:<sectionId>`）未实现**：预设只读，段级寻址等真的有调用场景再加。
 
 ---
 
@@ -159,16 +171,29 @@ world.list  { filter?: "alwaysOn" | "keyed", limit?: 50 }
 { "ok": true, "data": { ... }, "truncated": false, "tokenEstimate": 128 }
 ```
 
-失败时 `{ "ok": false, "error": "找不到该设定" }`。现有 `CreateToolResult` 已接近这个形状，主要补 `truncated` 与 `tokenEstimate`。
+**阶段 1 采用的形式**：信封放在 `CreateToolResult.payload` 里，而不是给结果类加字段。原因是 `CreateToolResult` 已被十几个工具共用，加字段会在没有截断的工具上变成永远为假的死字段；放进 payload 则由真正需要截断的工具自己填。
+
+已实装于 `world.read_entry` / `cast.read_member`：
+
+```text
+入参  { ref?: "wb:wb_03.body", id?: "wb_03", maxChars?: 4000 }
+返回  { schemaVersion, ref, id, field?, value?, body?, truncated, tokenEstimate }
+```
+
+- 带字段的 ref 只回该字段（L3），不带字段回整条（L2）。
+- `ref` 缺省时仍接受旧的 `id`，所以老调用点不会断。
+- `maxChars` 截断时 `truncated: true`，模型据此知道可以再取下一段。
 
 ### 5.3 写操作统一用 ops
 
-三个 `apply_*_patch.dart` 已经是按 id 的增量补丁，这套就是目标形态，**不需要重做**。要补两处真实缺口：
+三个 `apply_*_patch.dart` 已经是按 id 的增量补丁，这套就是目标形态，**不需要重做**。阶段 1 已补两处真实缺口：
 
-| 缺口 | 现状 | 影响 |
+| 缺口 | 原状 | 现状 |
 | --- | --- | --- |
-| 连线 `detail` | 骨架 JSON 里有，任务提示没要求，applier 固定沿用旧值 | AI 看得到却写不进 |
-| 角色 `exampleLines` | applier 固定沿用旧值，新建为空 | 例句永远改不了 |
+| 连线 `detail` | 骨架 JSON 里有，任务提示没要求，applier 固定沿用旧值 | 提示词要求输出、`StageResultMapper` 解析、`ApplyMainGraphPatch` 写回；op 省略时沿用旧值 |
+| 角色 `exampleLines` | applier 固定沿用旧值，新建为空 | `ApplyCastPatch` 接受 `exampleLines` 数组；op 省略时沿用旧值 |
+
+补这两处时顺手统一了「省略即保留」的语义：凡是 op 里没给的字段，一律沿用原有值，不会因为模型只想改一个字段就把别的字段清空。
 
 ### 5.4 关于「用 MCP 协议」
 
@@ -223,8 +248,8 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | 阶段 | 内容 | 前置 | 状态 |
 | --- | --- | --- | --- |
 | **0** | 协议层：消息支持 `tool_calls`，请求带 `tools`，响应解析 `tool_calls`；统一工具返回信封 | — | **协议层已完成** |
-| **1** | `EntityRef` 引用解析；补 `edge.detail` 与 `exampleLines` 两个字段缺口 | 0 | 未开始 |
-| **2** | 确认 UI：逐条 op 勾选 + 字段级 diff | 1 | 未开始 |
+| **1** | `EntityRef` 引用解析；补 `edge.detail` 与 `exampleLines` 两个字段缺口 | 0 | **已完成** |
+| **2** | 确认 UI：逐条 op 勾选 + 字段级 diff | 1 | **已完成** |
 | **3** | 创作侧改成真循环：模型选工具 → 读 → 改 → 预览；退役 `wantsFullGraphRewrite` | 2 | 未开始 |
 | **4** | 聊天侧命中注入：世界书 `keys` 与剧情元素关键词；三档取舍 | 1（不依赖 2、3） | 未开始 |
 | **5** | 上下文预算裁剪，接入 `contextLength` | 4 | 未开始 |
@@ -245,6 +270,42 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 **与初版计划的偏差**：未在 `AiTextClient` 上加 `completeWithTools`。该抽象类有 12 处测试假实现用 `implements`，且阶段 0 没有任何调用方，加进去等于零收益的接口扰动。改为阶段 3 真实工具循环时随调用点一起加。
 
 **「统一工具返回信封」顺延到阶段 1**：`CreateToolResult` 的 `truncated` / `tokenEstimate` 只有在读工具真正返回截断时才有意义，提前加字段属于无调用点的预留。
+
+### 7.2 阶段 1 实际落地
+
+| 落点 | 内容 |
+| --- | --- |
+| [`entity_ref.dart`](../lib/domain/main/entity_ref.dart)（新建） | 六层引用解析 + 每层允许字段校验 |
+| [`project_tools.dart`](../lib/domain/ai/create/tools/project_tools.dart) | `world.read_entry` / `cast.read_member` 支持 `ref`（含字段级），返回 `truncated` / `tokenEstimate` |
+| [`stage_result_mapper.dart`](../lib/domain/ai/stage_result_mapper.dart) | 解析 `detail`（顶层 edges 与站点 exits 两处） |
+| [`apply_main_graph_patch.dart`](../lib/domain/main/apply_main_graph_patch.dart) | `upsert_edge` 写回 `detail`，省略时沿用 |
+| [`apply_cast_patch.dart`](../lib/domain/main/apply_cast_patch.dart) | `upsert_member` 写回 `exampleLines`，省略时沿用 |
+| [`create_prompt_profiles.dart`](../lib/domain/ai/create/create_prompt_profiles.dart) | 四个任务提示补上 `detail` / `exampleLines` 字段说明 |
+
+测试：新增 `test/domain/entity_ref_test.dart`，并在补丁、骨架解析、工具注册表各自补用例。
+
+**两处收窄**：
+
+- 信封做成 payload 约定，没往 `CreateToolResult` 加字段（理由见 §5.2）。
+- 预设段级寻址（`preset:<id>.section:<x>`）未做：预设只读，等真有调用场景再加。
+
+### 7.3 阶段 2 实际落地
+
+| 落点 | 内容 |
+| --- | --- |
+| [`patch_preview.dart`](../lib/domain/main/patch_preview.dart)（新建） | 逐条 op 单独应用并对比前后快照，产出 `PatchPreviewItem`（每条 op 的增/删/改实体与字段 before/after）；`applySelected` 只回放勾选的 op |
+| [`patch_review_sheet.dart`](../lib/home/patch_review_sheet.dart)（新建） | 半屏确认抽屉：每行一个开关 + 字段级 diff（`原：…` / `改：…`），底部按钮实时显示选中条数 |
+| [`create_assistant_panel.dart`](../lib/home/create_assistant_panel.dart) | `main.patch_graph` / `world.patch_propose` / `cast.patch_propose` 三条路径都走新抽屉；整图生成仍是整包替换 |
+
+**做法**：不新增 applier 接口，而是让预览层对每条 op 调用一次现有 `apply`，再用「id → 字段快照」做 diff。这样：
+
+- 归因精确（每个差异来自具体哪条 op），不用事后整体 diff。
+- 只应用勾选项时按原顺序过滤 `ops` 再跑一次同一 applier，结果与预览一致。
+- 删站顺带删掉的连线会作为「删除连线」出现在同一条 op 的差异里，用户能看见连带影响。
+
+**默认勾选**：有实际改动且能单独应用的 op。空改动、引用坏掉的 op 默认不勾，并在行内标红说明。
+
+**仍有限制**：若用户取消某条 op 而后续 op 依赖它（例如取消「新建站」却保留「连到该站」），回放时 applier 会抛错，面板把错误文本回填到对话里，不会写坏数据。
 
 ---
 
