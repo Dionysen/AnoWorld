@@ -112,6 +112,7 @@ class CreateAgentLoop {
     final index = const CreateContextIndex().build(
       project: project,
       plotCatalog: ctx.services.plotCatalog,
+      presetManager: ctx.ai!.promptManager,
       target: target,
     );
     return ctx.ai!.assembleSystem(

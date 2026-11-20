@@ -2,6 +2,7 @@ import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 
 /// Builds the always-injected L1 directory of the story layers.
 ///
@@ -17,6 +18,7 @@ class CreateContextIndex {
   String build({
     required Project project,
     PlotElementCatalog? plotCatalog,
+    PromptManagerConfig? presetManager,
     required CreateAssistantTarget target,
   }) {
     final blocks = <String>[
@@ -25,6 +27,7 @@ class CreateContextIndex {
       _castBlock(project),
       _graphBlock(project),
       _plotBlock(project, plotCatalog),
+      _presetBlock(presetManager),
       '【当前要改】${_targetLabel(target)}',
     ];
     return blocks.where((b) => b.trim().isNotEmpty).join('\n');
@@ -96,6 +99,27 @@ class CreateContextIndex {
       final category = catalog.categoryNameOf(element.categoryId);
       final head = category.isEmpty ? '' : '$category · ';
       lines.add('- $head${element.keyword}');
+    }
+    lines.addAll(shown.tail);
+    return lines.join('\n');
+  }
+
+  /// Preset sections define tone and boundaries. Their text is already part of
+  /// this very system prompt, so the directory only names them: the model needs
+  /// to know these rules come from the preset and cannot be rewritten here.
+  String _presetBlock(PromptManagerConfig? config) {
+    if (config == null) return '';
+    final sections = config.sortedSections;
+    if (sections.isEmpty) return '【预设】还没有提示词段';
+    final shown = _cap(sections);
+    final lines = <String>[
+      '【预设】${sections.length} 段（只读：文风与边界，改请到设置 → AI）',
+    ];
+    for (final section in shown.rows) {
+      final label = section.name.trim().isEmpty
+          ? section.type.name
+          : section.name.trim();
+      lines.add('- $label${section.enabled ? '' : ' · 关'}');
     }
     lines.addAll(shown.tail);
     return lines.join('\n');

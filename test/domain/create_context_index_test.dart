@@ -5,6 +5,7 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -112,5 +113,67 @@ void main() {
     );
 
     expect(text, contains('【角色】还没有角色'));
+  });
+
+  test('names the preset sections as read-only rules', () {
+    const config = PromptManagerConfig(
+      sections: <PromptSection>[
+        PromptSection(
+          type: PromptSectionType.systemPrompt,
+          name: 'System Prompt',
+          content: '只存在于系统提示里的正文',
+          order: 0,
+        ),
+      ],
+    );
+
+    final text = index.build(
+      project: project,
+      presetManager: config,
+      target: CreateAssistantTarget.world,
+    );
+
+    expect(text, contains('【预设】1 段'));
+    expect(text, contains('只读'));
+    expect(text, contains('- System Prompt'));
+    // Section bodies stay in the system prompt itself, not in the index.
+    expect(text, isNot(contains('只存在于系统提示里的正文')));
+  });
+
+  test('flags disabled preset sections', () {
+    const config = PromptManagerConfig(
+      sections: <PromptSection>[
+        PromptSection(
+          type: PromptSectionType.systemPrompt,
+          name: 'System Prompt',
+          order: 0,
+        ),
+        PromptSection(
+          type: PromptSectionType.nsfw,
+          name: 'NSFW Prompt',
+          enabled: false,
+          order: 1,
+        ),
+      ],
+    );
+
+    final text = index.build(
+      project: project,
+      presetManager: config,
+      target: CreateAssistantTarget.world,
+    );
+
+    expect(text, contains('【预设】2 段'));
+    expect(text, contains('- System Prompt'));
+    expect(text, contains('- NSFW Prompt · 关'));
+  });
+
+  test('omits the preset block when no manager is given', () {
+    final text = index.build(
+      project: project,
+      target: CreateAssistantTarget.world,
+    );
+
+    expect(text, isNot(contains('【预设】')));
   });
 }

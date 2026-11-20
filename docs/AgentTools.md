@@ -215,7 +215,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 ```text
 用户一句话
-  → 注入：五块 L1 目录 + 目标流程规则 + 该目标的工具声明
+  → 注入：五块 L1 目录 + 预设段目录（段名 + 启用状态，只读）+ 目标流程规则 + 该目标的工具声明
   → 模型自行决定：调 world.read_entry / cast.read_member / main.read_graph …
   → 模型产出骨架或 ops（一次 main.replace / 一组 main.patch / *.patch）
   → 结构校验（ProjectValidator 干跑）
@@ -338,7 +338,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | 落点 | 内容 |
 | --- | --- |
 | [`create_agent_loop.dart`](../lib/domain/ai/create/create_agent_loop.dart)（新建） | 循环体：送 system + 用户话 + 工具声明 → 收 `tool_calls` → 逐个执行 → 把结果以 `role: tool` 回填 → 直到产出提议或模型直接回答；上限 6 步 |
-| [`create_context_index.dart`](../lib/domain/ai/create/create_context_index.dart)（新建） | L1 目录：设定 `wb:<id> · 标题 · 常驻`、角色 `cast:<id> · 名字 · 一句话`、情节 `node:<id> · 站名 · 出边数`、已选剧情元素；每层有行数上限 |
+| [`create_context_index.dart`](../lib/domain/ai/create/create_context_index.dart)（新建） | L1 目录：设定 `wb:<id> · 标题 · 常驻`、角色 `cast:<id> · 名字 · 一句话`、情节 `node:<id> · 站名 · 出边数`、已选剧情元素、预设段名与启用状态（只列名，正文本来就在系统提示里）；每层有行数上限 |
 | [`create_proposals.dart`](../lib/domain/ai/create/create_proposals.dart)（新建） | 把模型给的骨架 / ops 校验成确认载荷（含 `ProjectValidator` 干跑），工具与文本兜底共用 |
 | [`create_tool.dart`](../lib/domain/ai/create/create_tool.dart) | `CreateTool` 增加 JSON Schema `parameters`，`declaration()` 产出 `OpenAiTool` |
 | [`create_tool_registry.dart`](../lib/domain/ai/create/create_tool_registry.dart) | 按白名单取工具与声明：`allowed(names)` / `declarations(names)` |
@@ -410,7 +410,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 1. **聊天侧不做真工具调用**，走 §6.2 的命中注入三档。
 2. **AI 只做提议，不直接落盘**。先输出改动意图与 ops，用户确认后才写回。
 3. **确认 UI 先补**：逐条 op 勾选 + 字段级 diff，作为阶段 2 独立完成，先于创作侧真循环。
-4. **预设只读**：不进写工具白名单，AI 只能读分段内容与顺序。
+4. **预设只读**：不进写工具白名单。段正文本来就在系统提示里，所以只在 L1 列段名与启用状态，不另开预设读工具。
 5. **起点是阶段 0 协议层**。
 
 ## 8b. 仍待定
