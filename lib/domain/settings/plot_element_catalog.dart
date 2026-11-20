@@ -270,8 +270,11 @@ class PlotElementCatalog {
   }
 
   /// Short prompt block for bridge / continue writing (empty if none).
-  String promptBlockForSelected(Iterable<String> ids) {
-    final rows = resolveSelected(ids);
+  String promptBlockForSelected(Iterable<String> ids) =>
+      promptBlockFor(resolveSelected(ids));
+
+  /// Same block for an already-resolved [rows] list.
+  String promptBlockFor(List<PlotElement> rows) {
     if (rows.isEmpty) return '';
     final lines = rows.map((e) {
       final category = categoryNameOf(e.categoryId);

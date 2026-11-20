@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
+import 'package:anoworld/domain/ai/play_context_selector.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
@@ -106,15 +107,26 @@ $minLineRule
 - 每拍 choices 若非空则最多 ${BridgeSession.maxChoicesPerBeat} 个。
 - 禁止发明情节站 id。''';
 
-    final system = ctx.assembleSystem(
+    final selection = const PlayContextSelector().select(
       project: project,
       plotCatalog: plotCatalog,
+      recentText: <String>[
+        source.title,
+        source.synopsis ?? '',
+        session.summary,
+        for (final beat in session.generatedBeats.reversed.take(2))
+          for (final line in beat.lines) line.text,
+        for (final branch in limited) branch.choice.text,
+      ],
+    );
+    final system = ctx.assemblePlaySystem(
+      project: project,
+      selection: selection,
       taskSuffix: task,
     );
     final user = '''
 当前站：${source.title}
 本站目标：${source.synopsis ?? ''}
-设定摘要：${project.worldBook.combinedText}
 角色：${project.cast.map((c) => c.name).join('、')}
 玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
 区间摘要：${session.summary}

@@ -1,5 +1,6 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/play_context_selector.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
@@ -75,9 +76,20 @@ class BridgeGenerateAction {
       allowInStationChoices: allowInStationChoices,
       nearConverge: nearConverge,
     );
-    final system = ctx.assembleSystem(
+    final selection = const PlayContextSelector().select(
       project: project,
       plotCatalog: plotCatalog,
+      recentText: <String>[
+        node.title,
+        node.synopsis ?? '',
+        session.summary,
+        for (final beat in session.generatedBeats.reversed.take(2))
+          for (final line in beat.lines) line.text,
+      ],
+    );
+    final system = ctx.assemblePlaySystem(
+      project: project,
+      selection: selection,
       taskSuffix: task,
     );
     final nextStationBlock = openMode
@@ -93,7 +105,6 @@ class BridgeGenerateAction {
     final user = '''
 当前站：${node.title}
 本站目标：${node.synopsis ?? ''}
-设定摘要：${project.worldBook.combinedText}
 角色：${project.cast.map((c) => c.name).join('、')}
 玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
 $nextStationBlock

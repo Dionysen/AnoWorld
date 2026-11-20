@@ -3,6 +3,7 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/play_speakers.dart';
@@ -37,6 +38,7 @@ class _RecordingTextClient implements AiTextClient {
 
   final String reply;
   final List<String> prompts;
+  final users = <String>[];
 
   @override
   Future<AiTextCompletion> complete({
@@ -46,6 +48,7 @@ class _RecordingTextClient implements AiTextClient {
     GenerationPreset? generation,
   }) async {
     prompts.add(system);
+    users.add(user);
     return AiTextCompletion(content: reply);
   }
 }
@@ -218,6 +221,53 @@ void main() {
     expect(beat.lines[3].text, '别急着躲。');
     expect(beat.lines[3].speakerId, 'c1');
     expect(beat.lines[3].kind, DialogueKind.speech);
+  });
+
+  test('bridge injects hit lore and keeps the whole book out', () async {
+    final project = const ProjectFactory().createRainNightSample().copyWith(
+      worldBook: const WorldBook(
+        entries: <WorldBookEntry>[
+          WorldBookEntry(
+            id: 'w_rule',
+            title: '基调',
+            body: '常年阴雨。',
+            alwaysOn: true,
+          ),
+          WorldBookEntry(
+            id: 'w_inn',
+            title: '客栈',
+            body: '客栈只在夜里开门。',
+            keys: <String>['客栈'],
+          ),
+          WorldBookEntry(
+            id: 'w_palace',
+            title: '王城',
+            body: '王城在千里之外。',
+            keys: <String>['王城'],
+          ),
+        ],
+      ),
+    );
+    final prompts = <String>[];
+    final client = _RecordingTextClient(
+      '{"lines":[{"speaker":"旁白","text":"一。"}],"choices":[]}',
+      prompts,
+    );
+    final start = project.main.startNodeId;
+    await BridgeGenerateAction(textClient: client).generate(
+      ctx: ctx(),
+      project: project,
+      nodeId: start,
+      session: BridgeSession(nodeId: start, summary: '主角推开客栈的门'),
+    );
+
+    final system = prompts.single;
+    expect(system, contains('常年阴雨'));
+    expect(system, contains('客栈只在夜里开门'));
+    expect(system, isNot(contains('王城在千里之外')));
+    // 整本世界书不再重复塞进正文。
+    expect(client.users.single, isNot(contains('设定摘要')));
+    expect(client.users.single, isNot(contains('王城在千里之外')));
   });
 
   test('generate drops illegal node targets and keeps legal ones', () async {

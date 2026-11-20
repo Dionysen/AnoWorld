@@ -1004,7 +1004,7 @@ class AppStringsZh extends AppStrings {
   String get worldBookAlwaysOnHint => '基调、硬规则适合打开';
 
   @override
-  String get worldBookKeywordsHint => '用顿号或逗号分开';
+  String get worldBookKeywordsHint => '用顿号或逗号分开，聊到这些词时才会带上这条';
 
   @override
   String get worldBookDeleteOneTitle => '删除这条设定？';

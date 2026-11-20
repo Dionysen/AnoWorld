@@ -28,7 +28,7 @@
 
 **结构上只有情节图做了压缩，其余四块都是无条件全给。**
 
-### 1.2 已被写进注释、但没实现的机制
+### 1.2 曾经只写在注释里的机制（阶段 4 已落地）
 
 世界书条目本来带关键词字段，注释描述的用途很明确：
 
@@ -37,7 +37,7 @@
   final List<String> keys;
 ```
 
-但仓库内除读取工具与导入映射外，**没有任何代码拿 `keys` 做匹配注入**。这是现成可用的钩子，不是要新造的东西。
+阶段 3 前仓库内除读取工具与导入映射外**没有任何代码拿 `keys` 做匹配注入**。阶段 4 补上了：`PlayContextSelector` 用近文命中 `keys` 决定哪些条目进播放上下文，见 §6.2。
 
 ### 1.3 已有的工具骨架
 
@@ -225,15 +225,33 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 收益最直接：**不再把整份世界书与骨架 JSON 塞进 user 消息**，长故事也不会因提示词过长而失焦。循环落在 [`create_agent_loop.dart`](../lib/domain/ai/create/create_agent_loop.dart)，见 §7.4。
 
-### 6.2 聊天侧（不做真工具调用，已定）
+### 6.2 聊天侧（命中注入，已实现）
 
-聊天要实时响应，中途插工具调用会有明显卡顿。**已定不做**，走「命中注入」，三档：
+聊天要实时响应，中途插工具调用会有明显卡顿。**已定不做真工具调用**，走「命中注入」，三档：
 
 1. **必进**：`alwaysOn` 条目 + 主角完整字段 + 主线摘要 + 当前站目标。
-2. **命中进**：拿最近若干轮对话去匹配世界书 `keys`（**该机制已有字段但未实现**）与剧情元素关键词，命中才注入，并设条数上限。
+2. **命中进**：拿最近若干轮对话去匹配世界书 `keys` 与剧情元素关键词，命中才注入，并设条数上限。
 3. **不进**：其余全量内容，只在创作侧按需取。
 
 这样聊天侧的上下文从「与设定集总量成正比」变成「与当场对话相关度成正比」。
+
+**实现**（阶段 4）：[`PlayContextSelector`](../lib/domain/ai/play_context_selector.dart) 产出 `PlayContextSelection`（lore 文本、剧情元素文本、命中清单、跳过条数），四个播放入口统一走 [`AiPromptContext.assemblePlaySystem`](../lib/domain/ai/ai_prompt_context.dart)：
+
+| 入口 | 命中窗口 |
+| --- | --- |
+| `TavernChatGenerateAction` | 最近 6 条消息 |
+| `TavernReplyChoiceAction` | 最近 8 条消息 |
+| `BridgeGenerateAction` | 站名 + 站目标 + 区间摘要 + 最近 2 拍正文 |
+| `BridgeBranchPrefetchAction` | 同上再加每条待写选项的文案 |
+
+细节：
+
+- **必进的三项不进 selector**：主角字段走宏（`MacroContextBuilder`），主线概括与当前站目标仍在 user 消息里，所以 selector 只管「设定正文与剧情元素」。
+- **没填 `keys` 的条目按标题匹配**：否则老故事里那些只有标题没有关键词的条目会永久失联。标题也空则跳过。
+- **排序与上限**：命中条数按匹配到的关键词个数降序、同分保持书内顺序；上限 6 条设定 / 4 项剧情元素，均在 `PlayContextSelector` 构造参数里，调用点用默认值。
+- **扫描窗口**：取最近文本末尾约 2000 字（`scanTailChars`），匹配为大小写不敏感的子串。
+- **不再重复注入**：`BridgeGenerateAction` / `BridgeBranchPrefetchAction` 的 user 消息里删掉了「设定摘要：整本世界书」这一行，否则命中注入白做。
+- **可诊断**：每回合写一条 `play.context` 日志（注入几条 / 常驻几条 / 命中几条 / 跳过几条），用户报「AI 忘了设定」时能一眼看出是不是没命中。
 
 ### 6.3 预算
 
@@ -253,7 +271,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | **1** | `EntityRef` 引用解析；补 `edge.detail` 与 `exampleLines` 两个字段缺口 | 0 | **已完成** |
 | **2** | 确认 UI：逐条 op 勾选 + 字段级 diff | 1 | **已完成** |
 | **3** | 创作侧改成真循环：模型选工具 → 读 → 改 → 预览；退役 `wantsFullGraphRewrite` | 2 | **已完成** |
-| **4** | 聊天侧命中注入：世界书 `keys` 与剧情元素关键词；三档取舍 | 1（不依赖 2、3） | 未开始 |
+| **4** | 聊天侧命中注入：世界书 `keys` 与剧情元素关键词；三档取舍 | 1（不依赖 2、3） | **已完成** |
 | **5** | 上下文预算裁剪，接入 `contextLength` | 4 | 未开始 |
 
 **阶段 0 是唯一的硬前置**：没有它，后面全部是纸上设计。阶段 4 可与 2、3 并行，因为聊天侧不依赖工具循环。
@@ -334,6 +352,20 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 **降级路径**：模型不支持工具、只回一段文本时，先尝试把它当 JSON 改动解析（`CreateProposals.fromText`）。是骨架 / ops 就照常进确认抽屉，否则当作普通回答显示在气泡里。这样老模型与只吃纯 JSON 的本地模型仍能用。
 
+### 7.5 阶段 4 实际落地
+
+播放侧（聊天 + VN）不再整本注入，改成三档，细节见 §6.2。
+
+| 落点 | 内容 |
+| --- | --- |
+| [`play_context_selector.dart`](../lib/domain/ai/play_context_selector.dart)（新建） | 纯函数：常驻条目必进，其余按 `keys`（无 keys 降级到标题）命中近文，剧情元素按关键词命中；产出文本与命中清单，并写 `play.context` 日志 |
+| [`ai_prompt_context.dart`](../lib/domain/ai/ai_prompt_context.dart) | 新增 `assemblePlaySystem`：lore 与剧情元素都由 `PlayContextSelection` 提供，不再读整本世界书 |
+| [`world_book.dart`](../lib/domain/models/world_book.dart) | `formatEntry` / `textOf` 转公开，选择器按「常驻在前、命中在后」拼同一套格式 |
+| [`plot_element_catalog.dart`](../lib/domain/settings/plot_element_catalog.dart) | 拆出 `promptBlockFor(rows)`，原 `promptBlockForSelected` 变成薄包装，措辞只有一处 |
+| 四个播放入口 | `TavernChatGenerateAction`、`TavernReplyChoiceAction`、`BridgeGenerateAction`、`BridgeBranchPrefetchAction` 全部改走 `assemblePlaySystem`；聊天侧新增可选 `plotCatalog`，由播放页传 `settings.plotElements` |
+
+顺带清掉的重复注入：VN 两处 user 消息里的「设定摘要：整本世界书」直接删除——它与命中注入互相抵消。
+
 ---
 
 ## 8. 已定决策
@@ -353,8 +385,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 2. **旧工具名是否收敛？**（已定，阶段 3）写工具一次改净，没有别名并存；读工具保留 `*.list_*` / `*.read_*` 具名形式，因为它们本来就不重名。
 
-3. **命中注入的匹配窗口有多长？**
-   取最近几轮对话、是否计入上一拍的旁白，需要实测后再定。
+3. **命中注入的匹配窗口有多长？**（已定，阶段 4）聊天取最近 6 轮（回复选项 8 轮），VN 取站名 + 站目标 + 区间摘要 + 最近 2 拍正文；统一再按末尾约 2000 字截断。是否要调，看 `play.context` 日志里的命中率再定。
 
 ---
 

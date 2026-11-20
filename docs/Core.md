@@ -58,7 +58,7 @@ App 全局（设置，与酒馆同类）
 - **是什么**：最宏大也最基础的设定——时代、势力、规则、人物关系、不可轻易打破的事实。
 - **形态**：故事内 **设定条目**列表（[`WorldBookEntry`](../lib/domain/models/world_book.dart)），语义对齐酒馆世界书，按故事打包而非全库 lore。故事包 JSON 字段 `worldBook`（读入兼容旧键 `background`）。
   - `alwaysOn`：常驻注入（基调 / 硬规则）。
-  - `keys`：明文关键词；区间 AI 时可按当前站与近文唤起（实现可渐进）。
+  - `keys`：明文关键词；播放时按近文命中注入，未填则退化为标题匹配（[`PlayContextSelector`](../lib/domain/ai/play_context_selector.dart)，见 [AgentTools.md](./AgentTools.md) §6.2）。
   - 正文须自洽；标题 / 关键词不进模型。
 - **借鉴 ST、明确不做**：条目化 + 常驻/按需 + 预算思路可借鉴；**不做**正则 Key、多层递归、插入深度/Outlet、概率互斥组、Sticky/Cooldown、全局/人格/聊天多层 lore 叠加、扩展脚本。
 - **兼容**：旧包 `sections[]` 读入时升为 `alwaysOn` 条目；写出用 `entries[]`。

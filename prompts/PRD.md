@@ -96,7 +96,7 @@ AnoWorld 是用 Flutter 做的**视觉小说创作器 + 运行时**：在酒馆�
 
 设置项：文本与生图使用**不同供应商列表**（对齐 NativeTavern：`LLMProvider` vs `ImageGenProvider`）。文本侧：OpenAI / DeepSeek / OpenRouter / 通义 / 硅基流动 / Moonshot / 智谱 / MiniMax / Ollama / 自定义；生图侧：OpenAI Images / OAI Chat 生图 / 硅基流动 / Pollinations / NovelAI / A1111 / ComfyUI / 自定义。各自一份 Base URL、Key、Model；支持探测的渠道在输入密钥后可拉 `/models`。参考实现见同级仓库 `NativeTavern`，规则见 `.cursor/rules/nativetavern-reference.mdc`。
 
-**当前实现**：文本侧已接通 OpenAI 兼容 `chat/completions`（含 `tools` / `tool_calls`）；路径 1 角色卡映射到 WorldBook / Cast；**全局 AiPreset UI 与拼装对照 NT 落地中**；创作截面为设定 / 角色 / 情节（[`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart)）；创作助手走渐进披露的工具循环（先读目录与条目，再提交 `main.replace` / `main.patch` / `world.patch` / `cast.patch` 等确认）；游玩侧 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart) + 保底「前往：下一站」，存档可附带本局 `BridgeSession`。路径 2、生图调用、路径 1 自动生成脉络尚未落地。
+**当前实现**：文本侧已接通 OpenAI 兼容 `chat/completions`（含 `tools` / `tool_calls`）；路径 1 角色卡映射到 WorldBook / Cast；**全局 AiPreset UI 与拼装对照 NT 落地中**；创作截面为设定 / 角色 / 情节（[`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart)）；创作助手走渐进披露的工具循环（先读目录与条目，再提交 `main.replace` / `main.patch` / `world.patch` / `cast.patch` 等确认）；播放侧（聊天与 VN）按常驻 + 关键词命中注入设定与剧情元素（[`PlayContextSelector`](../lib/domain/ai/play_context_selector.dart)），游玩用 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart) + 保底「前往：下一站」，存档可附带本局 `BridgeSession`。路径 2、生图调用、路径 1 自动生成脉络尚未落地。
 
 ## 图片资源
 

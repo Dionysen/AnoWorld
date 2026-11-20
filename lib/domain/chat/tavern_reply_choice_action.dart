@@ -1,7 +1,9 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/play_context_selector.dart';
 import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 
 /// Suggests clickable user reply lines after an assistant turn (NT ChatChoice).
@@ -20,6 +22,7 @@ class TavernReplyChoiceAction {
     required AiPromptContext ctx,
     required Project project,
     required List<TavernChatMessage> history,
+    PlotElementCatalog? plotCatalog,
   }) async {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
@@ -31,8 +34,18 @@ class TavernReplyChoiceAction {
 只输出 JSON：{"choices":["选项1","选项2"]}
 必须恰好 $n 条不重复、非空的短句（像玩家会说的话）。
 不要 markdown，不要编号。''';
-    final system = ctx.assembleSystem(project: project, taskSuffix: task);
-    final recent = history.length <= 8 ? history : history.sublist(history.length - 8);
+    final recent =
+        history.length <= 8 ? history : history.sublist(history.length - 8);
+    final selection = const PlayContextSelector().select(
+      project: project,
+      plotCatalog: plotCatalog,
+      recentText: <String>[for (final message in recent) message.content],
+    );
+    final system = ctx.assemblePlaySystem(
+      project: project,
+      selection: selection,
+      taskSuffix: task,
+    );
     final transcript = recent.map((m) {
       final who = m.role == TavernChatRole.user ? '玩家' : '助手';
       return '$who：${m.content}';

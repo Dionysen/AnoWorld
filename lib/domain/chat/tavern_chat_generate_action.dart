@@ -1,7 +1,9 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/play_context_selector.dart';
 import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 
 /// Assistant turn prose + optional reasoning from the model.
 class TavernChatGenerateResult {
@@ -25,6 +27,7 @@ class TavernChatGenerateAction {
     required AiPromptContext ctx,
     required Project project,
     required List<TavernChatMessage> history,
+    PlotElementCatalog? plotCatalog,
   }) async {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
@@ -39,7 +42,16 @@ class TavernChatGenerateAction {
 不要替玩家说话，不要写玩家的台词或「User：」「{{user}}：」。
 有多名角色时可写不同角色开口，但整段作为助手的一轮回复。''';
 
-    final system = ctx.assembleSystem(project: project, taskSuffix: task);
+    final selection = const PlayContextSelector().select(
+      project: project,
+      plotCatalog: plotCatalog,
+      recentText: _recentText(history),
+    );
+    final system = ctx.assemblePlaySystem(
+      project: project,
+      selection: selection,
+      taskSuffix: task,
+    );
     final buffer = StringBuffer()
       ..writeln('角色：${castNames.isEmpty ? '（无）' : castNames}')
       ..writeln('玩家：${ctx.persona?.name ?? 'User'}');
@@ -74,6 +86,14 @@ class TavernChatGenerateAction {
       content: out,
       reasoning: reasoning == null || reasoning.isEmpty ? null : reasoning,
     );
+  }
+
+  /// Last few turns are what a new reply is actually about; the whole chat
+  /// would only add noise to keyword matching.
+  static List<String> _recentText(List<TavernChatMessage> history) {
+    final recent =
+        history.length <= 6 ? history : history.sublist(history.length - 6);
+    return <String>[for (final message in recent) message.content];
   }
 
   static String _plotHint(Project project) {

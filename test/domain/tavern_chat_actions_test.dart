@@ -3,6 +3,10 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/chat/tavern_chat_generate_action.dart';
 import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/chat/tavern_reply_choice_action.dart';
+import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
@@ -16,6 +20,7 @@ class _ScriptedTextClient implements AiTextClient {
   final String? reasoning;
   int calls = 0;
   final users = <String>[];
+  final systems = <String>[];
 
   @override
   Future<AiTextCompletion> complete({
@@ -25,6 +30,7 @@ class _ScriptedTextClient implements AiTextClient {
     GenerationPreset? generation,
   }) async {
     users.add(user);
+    systems.add(system);
     if (calls >= replies.length) {
       throw AiTextException('no more replies');
     }
@@ -103,6 +109,66 @@ void main() {
     );
     expect(client.users.single, contains('你好'));
     expect(client.users.single, contains('在吗'));
+  });
+
+  test('chat injects only the lore the scene brings up', () async {
+    final project = Project(
+      meta: ProjectMeta(
+        id: 'p',
+        title: '测试故事',
+        createdAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      ),
+      worldBook: const WorldBook(
+        entries: <WorldBookEntry>[
+          WorldBookEntry(
+            id: 'w_rule',
+            title: '基调',
+            body: '常年阴雨。',
+            alwaysOn: true,
+          ),
+          WorldBookEntry(
+            id: 'w_ferry',
+            title: '渡口',
+            body: '渡口入夜停摆。',
+            keys: <String>['渡口'],
+          ),
+          WorldBookEntry(
+            id: 'w_palace',
+            title: '王城',
+            body: '王城在千里之外。',
+            keys: <String>['王城'],
+          ),
+        ],
+      ),
+      cast: const <CastMember>[],
+      main: const MainStory(
+        summary: '',
+        startNodeId: '',
+        nodes: <StoryNode>[],
+        edges: <StoryEdge>[],
+        beats: <Beat>[],
+      ),
+    );
+    final client = _ScriptedTextClient(['船夫摇头。']);
+    await TavernChatGenerateAction(textClient: client).generate(
+      ctx: ctx(),
+      project: project,
+      history: const [
+        TavernChatMessage(
+          id: 'u1',
+          role: TavernChatRole.user,
+          content: '渡口还有船吗',
+        ),
+      ],
+    );
+
+    final system = client.systems.single;
+    expect(system, contains('常年阴雨'));
+    expect(system, contains('渡口入夜停摆'));
+    expect(system, isNot(contains('王城在千里之外')));
+    // 正文里不再重复整本世界书。
+    expect(client.users.single, isNot(contains('王城在千里之外')));
   });
 
   test('reply choices parse JSON choices array', () async {

@@ -15,17 +15,18 @@ class WorldBook {
     if (entries.isEmpty) return '';
     final always = entries.where((e) => e.alwaysOn);
     final keyed = entries.where((e) => !e.alwaysOn);
-    return <WorldBookEntry>[...always, ...keyed]
-        .map(_formatEntry)
-        .join('\n\n');
+    return textOf(<WorldBookEntry>[...always, ...keyed]);
   }
 
-  String get alwaysOnText {
-    final blocks = entries.where((e) => e.alwaysOn).map(_formatEntry);
+  String get alwaysOnText => textOf(entries.where((e) => e.alwaysOn));
+
+  /// Prompt text for [entries] in the given order, one block each.
+  String textOf(Iterable<WorldBookEntry> entries) {
+    final blocks = entries.map(formatEntry).where((b) => b.trim().isNotEmpty);
     return blocks.join('\n\n');
   }
 
-  static String _formatEntry(WorldBookEntry entry) {
+  static String formatEntry(WorldBookEntry entry) {
     if (entry.title.isEmpty) return entry.body;
     return '## ${entry.title}\n${entry.body}';
   }

@@ -494,6 +494,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         ctx: ctx,
         project: _project,
         history: List<TavernChatMessage>.unmodifiable(_chat),
+        plotCatalog: settings.plotElements,
       );
       if (!mounted) return;
       setState(() {
@@ -627,13 +628,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     }
     setState(() => _choicesBusy = true);
     try {
+      final settings = AppScope.settingsOf(context);
       final action = TavernReplyChoiceAction(
         textClient: AppScope.textClientOf(context),
       );
       final choices = await action.generate(
-        ctx: AppScope.settingsOf(context).textPromptContext(),
+        ctx: settings.textPromptContext(),
         project: _project,
         history: List<TavernChatMessage>.unmodifiable(_chat),
+        plotCatalog: settings.plotElements,
       );
       if (!mounted) return;
       setState(() {
