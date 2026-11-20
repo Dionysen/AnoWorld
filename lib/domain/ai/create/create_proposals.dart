@@ -40,6 +40,12 @@ class CreateProposals {
     } on StageMapException catch (error) {
       throw CreateProposalException(error.message);
     }
+    return replaceGraphFromMain(project, main);
+  }
+
+  /// Same preview for a graph that arrived over several tool calls in one turn
+  /// (a 60-station story does not fit in one reply).
+  Map<String, dynamic> replaceGraphFromMain(Project project, MainStory main) {
     _requireValid(project, main);
     return <String, dynamic>{
       'schemaVersion': 1,

@@ -283,4 +283,88 @@ void main() {
       throwsA(isA<OpenAiChatException>()),
     );
   });
+
+  test('names a cut-off reply as a length problem', () async {
+    final client = MockClient((request) async {
+      return http.Response(
+        '{"choices":[{"finish_reason":"length","message":{"content":""}}]}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final chat = OpenAiChatClient(client: client);
+    await expectLater(
+      chat.complete(
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'sk-test',
+        model: 'demo',
+        messages: const [
+          OpenAiChatMessage(role: 'user', content: 'hi'),
+        ],
+      ),
+      throwsA(
+        isA<OpenAiChatException>().having(
+          (e) => e.message,
+          'message',
+          contains('长度上限'),
+        ),
+      ),
+    );
+  });
+
+  test('names a thinking-only reply instead of saying nothing came back',
+      () async {
+    final client = MockClient((request) async {
+      return http.Response(
+        '{"choices":[{"finish_reason":"stop","message":{'
+        '"content":"","reasoning_content":"想了很久"}}]}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final chat = OpenAiChatClient(client: client);
+    await expectLater(
+      chat.complete(
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'sk-test',
+        model: 'demo',
+        messages: const [
+          OpenAiChatMessage(role: 'user', content: 'hi'),
+        ],
+      ),
+      throwsA(
+        isA<OpenAiChatException>().having(
+          (e) => e.message,
+          'message',
+          contains('只写了思考'),
+        ),
+      ),
+    );
+  });
+
+  test('keeps finish_reason on a normal reply', () async {
+    final client = MockClient((request) async {
+      return http.Response(
+        '{"choices":[{"finish_reason":"tool_calls","message":{'
+        '"content":"","tool_calls":[{"id":"c1","function":{'
+        '"name":"main_patch","arguments":"{}"}}]}}]}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final chat = OpenAiChatClient(client: client);
+    final result = await chat.complete(
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'demo',
+      messages: const [
+        OpenAiChatMessage(role: 'user', content: 'hi'),
+      ],
+    );
+    expect(result.finishReason, 'tool_calls');
+    expect(result.toolCalls.single.name, 'main_patch');
+  });
 }

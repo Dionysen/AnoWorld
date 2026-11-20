@@ -287,9 +287,10 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 已完成，落在 foundation 两处：
 
 - [`openai_chat_message.dart`](../lib/foundation/ai/openai_chat_message.dart)：新增 `OpenAiTool`（工具声明）与 `OpenAiToolCall`（模型请求的调用），`OpenAiChatMessage` 支持 `toolCalls` / `toolCallId` / `name`，`role: 'tool'` 可作为工具结果回传。
-- [`openai_chat_client.dart`](../lib/foundation/ai/openai_chat_client.dart)：`complete(...)` 新增 `tools` / `toolChoice`（为空时不进请求体）；响应解析 `message.tool_calls`；修正「工具调用时 `content` 为空被判成『模型没有返回可用内容』」。
+- [`openai_chat_client.dart`](../lib/foundation/ai/openai_chat_client.dart)：`complete(...)` 新增 `tools` / `toolChoice`（为空时不进请求体）；响应解析 `message.tool_calls`；修正「工具调用时 `content` 为空被判成『模型没有返回可用内容』」。返回值带 `finishReason`，空回复按真实原因报错（输出被长度上限截断 / 模型只写了思考 / 确实没有内容），不再是一句笼统的「没有内容」。
+- [`tolerant_json.dart`](../lib/foundation/ai/tolerant_json.dart)：`decodeTolerantJson` 修模型在中文串里未转义的 `"` 与裸换行（DeepSeek 这类推理模型常犯），严格 JSON 原样返回，真被截断仍判失败。
 
-测试：`test/foundation/openai_chat_client_test.dart` 覆盖请求体开关、空 content 解析 tool_calls、tool 结果回传往返。
+测试：`test/foundation/openai_chat_client_test.dart` 覆盖请求体开关、空 content 解析 tool_calls、tool 结果回传往返、截断 / 只思考两种空回复的措辞与 `finish_reason` 透传；`test/foundation/tolerant_json_test.dart` 覆盖引号与裸换行修复、截断仍失败。
 
 **与初版计划的偏差**：未在 `AiTextClient` 上加 `completeWithTools`。该抽象类有 12 处测试假实现用 `implements`，且阶段 0 没有任何调用方，加进去等于零收益的接口扰动。改为阶段 3 真实工具循环时随调用点一起加。
 

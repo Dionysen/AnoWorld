@@ -967,6 +967,118 @@ void main() {
     expect(missing.ok, isFalse);
     expect(missing.errorMessage, '找不到这一站');
   });
+
+  test('runTurn hands broken tool JSON back to the model instead of calling',
+      () async {
+    // Real shape from DeepSeek: quotes inside a Chinese value are unescaped.
+    const broken = '{"ops":[{"op":"upsert_node","title":"入宗受辱",'
+        '"synopsis":"同门唤他"扫地的""}]}';
+    final client = _ScriptedTurnClient([
+      OpenAiChatCompletion(
+        content: '',
+        toolCalls: const [
+          OpenAiToolCall(id: 'call_broken', name: 'main.patch', arguments: broken),
+        ],
+      ),
+      _call('main.patch', {
+        'ops': [
+          {'op': 'set_summary', 'summary': '修好后的概括'},
+        ],
+      }, index: 1),
+      const OpenAiChatCompletion(content: ''),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.graph,
+      prompt: '加一站',
+      ctx: ctx,
+    );
+
+    // Unescaped quotes are repaired, so the op really lands.
+    final ops = (turn.proposal!['ops'] as List).cast<Map>();
+    final upsert = ops.firstWhere((op) => op['op'] == 'upsert_node');
+    expect(upsert['synopsis'], '同门唤他"扫地的"');
+    expect(turn.proposal?['summary'], '修好后的概括');
+  });
+
+  test('runTurn reports unparsable arguments and keeps going', () async {
+    final client = _ScriptedTurnClient([
+      const OpenAiChatCompletion(
+        content: '',
+        toolCalls: [
+          OpenAiToolCall(
+            id: 'call_cut',
+            name: 'main.patch',
+            arguments: '{"ops":[{"op":"upsert_node","title":"写到一半',
+          ),
+        ],
+      ),
+      _call('main.patch', {
+        'ops': [
+          {'op': 'set_summary', 'summary': '缩短后重新提交'},
+        ],
+      }, index: 1),
+      const OpenAiChatCompletion(content: ''),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.graph,
+      prompt: '加一站',
+      ctx: ctx,
+    );
+
+    final toolMessages = client.lastMessages
+        .where((m) => m.role == 'tool')
+        .map((m) => m.content)
+        .toList();
+    expect(toolMessages.first, contains('不是合法 JSON'));
+    expect(turn.proposal?['summary'], '缩短后重新提交');
+  });
+
+  test('runTurn grows a staged whole graph with a later main.patch', () async {
+    final client = _ScriptedTurnClient([
+      _call('main.replace', _decodeGraph(buildFullGraphJson()), index: 0),
+      _call('main.patch', {
+        'ops': [
+          {'op': 'upsert_node', 'title': '追加站', 'synopsis': '下一批补上'},
+          {'op': 'upsert_edge', 'from': '站5', 'to': '追加站', 'kind': 'branch'},
+        ],
+      }, index: 1),
+      const OpenAiChatCompletion(content: ''),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.graph,
+      prompt: '生成不少于 40 站的情节图',
+      ctx: ctx,
+    );
+
+    // One merged proposal, not a replace plus a patch that would be dropped.
+    expect(turn.proposals, hasLength(1));
+    final preview = turn.proposals.single.preview;
+    expect(preview['kind'], 'main.replace');
+    expect(preview['nodeCount'], 22);
+    final titles = (preview['stations'] as List)
+        .cast<Map>()
+        .map((s) => s['title'])
+        .toList();
+    expect(titles, contains('追加站'));
+  });
 }
 
 Map<String, dynamic> _decodeGraph(String raw) {

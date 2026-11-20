@@ -13,7 +13,10 @@ import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_registry.dart';
 import 'package:anoworld/domain/ai/create/create_tool_result.dart';
 import 'package:anoworld/domain/ai/create/create_turn_result.dart';
+import 'package:anoworld/domain/main/main_graph_document.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
+import 'package:anoworld/foundation/ai/tolerant_json.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 
 /// One create-assistant turn as a real tool loop:
@@ -110,10 +113,33 @@ class CreateAgentLoop {
         // `world_patch` (the declared name); both resolve to the same tool.
         final name = _registry.canonical(call.name);
         called.add(name);
+        final args = _decodeArgs(call.arguments);
+        final broken = args.error;
+        if (broken != null) {
+          // Calling the tool with `{}` would report a missing field and send
+          // the model chasing the wrong problem; say the JSON itself is bad.
+          AppLog.instance.warning(
+            '创作工具 $name 参数不是合法 JSON：$broken',
+            tag: 'create.tool',
+          );
+          messages.add(
+            OpenAiChatMessage(
+              role: 'tool',
+              toolCallId: call.id,
+              content: jsonEncode(<String, dynamic>{
+                'ok': false,
+                'error': '参数不是合法 JSON（$broken）。'
+                    '把一次提交的内容减半（站多就分几次提交），'
+                    '字符串里引用词句用「」代替双引号，再试一次',
+              }),
+            ),
+          );
+          continue;
+        }
         var result = await _registry.invoke(
           name,
-          ctx,
-          args: _decodeArgs(call.arguments),
+          _callContext(name, ctx, staged),
+          args: args.value!,
         );
         AppLog.instance.info(
           '创作工具 $name${result.ok ? '' : ' 失败'}',
@@ -233,6 +259,12 @@ class CreateAgentLoop {
       tools: _registry.declarations(allow),
       generation: ai.generation,
     );
+    if (completion.finishReason == 'length') {
+      AppLog.instance.warning(
+        '创作回合输出触到长度上限，内容会被截断',
+        tag: 'create.tool',
+      );
+    }
     return _ModelTurn(
       content: completion.content,
       toolCalls: completion.toolCalls,
@@ -253,6 +285,10 @@ class CreateAgentLoop {
   ) async {
     final preview = result.userConfirmPayload!;
     final kind = preview['kind']?.toString() ?? toolName;
+    final stagedGraph = staged['main.replace'];
+    if (kind == 'main.patch' && stagedGraph != null) {
+      return _extendStagedGraph(staged, preview, ctx);
+    }
     final previous = staged[kind];
     if (previous == null) {
       staged[kind] = CreateTurnProposal(toolName: toolName, preview: preview);
@@ -275,7 +311,7 @@ class CreateAgentLoop {
     }
     final merged = await _registry.invoke(
       toolName,
-      ctx,
+      _callContext(toolName, ctx, staged),
       args: <String, dynamic>{
         'ops': <Map<String, dynamic>>[...previousOps, ...added],
       },
@@ -292,6 +328,58 @@ class CreateAgentLoop {
       preview: merged.userConfirmPayload!,
     );
     return merged;
+  }
+
+  /// Later `main.patch` calls run on top of the staged whole graph, so a
+  /// 60-station story can arrive in several tool calls instead of one
+  /// oversized reply. The grown graph replaces the staged rewrite: one row,
+  /// one confirmation.
+  CreateToolResult _extendStagedGraph(
+    Map<String, CreateTurnProposal> staged,
+    Map<String, dynamic> patchPreview,
+    CreateToolContext ctx,
+  ) {
+    final grown = _graphOf(patchPreview);
+    if (grown == null) {
+      return CreateToolResult.error('这一批站没读完，重新提交');
+    }
+    final Map<String, dynamic> preview;
+    try {
+      preview = _proposals.replaceGraphFromMain(ctx.project!, grown);
+    } on CreateProposalException catch (error) {
+      return CreateToolResult.error(error.message);
+    }
+    staged['main.replace'] = CreateTurnProposal(
+      toolName: 'main.replace',
+      preview: preview,
+    );
+    return CreateToolResult.userConfirmRequired(preview);
+  }
+
+  /// Write tools that build on a staged graph are given that graph as their
+  /// base, not the stale story on disk.
+  CreateToolContext _callContext(
+    String toolName,
+    CreateToolContext ctx,
+    Map<String, CreateTurnProposal> staged,
+  ) {
+    if (toolName != 'main.patch') return ctx;
+    final replace = staged['main.replace'];
+    if (replace == null) return ctx;
+    final base = _graphOf(replace.preview);
+    if (base == null) return ctx;
+    return ctx.copyWith(project: ctx.project!.copyWith(main: base));
+  }
+
+  /// Graph carried by a graph proposal (`main.replace` / `main.patch`).
+  static MainStory? _graphOf(Map<String, dynamic> preview) {
+    final raw = preview['graph'];
+    if (raw is! Map) return null;
+    try {
+      return MainGraphDocument.decode(Map<String, dynamic>.from(raw));
+    } on FormatException {
+      return null;
+    }
   }
 
   static List<Map<String, dynamic>> _opsOf(Map<String, dynamic> preview) {
@@ -367,16 +455,19 @@ class CreateAgentLoop {
     return CreateAgentTurnResult(answer: text, calledTools: called);
   }
 
-  static Map<String, dynamic> _decodeArgs(String raw) {
+  static _ToolArgs _decodeArgs(String raw) {
     final text = raw.trim();
-    if (text.isEmpty) return const <String, dynamic>{};
-    try {
-      final decoded = jsonDecode(text);
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } on FormatException {
-      // Fall through: the model sent something that is not JSON.
+    if (text.isEmpty) return const _ToolArgs.ok(<String, dynamic>{});
+    final decoded = decodeTolerantJson(text);
+    if (decoded is Map) {
+      return _ToolArgs.ok(Map<String, dynamic>.from(decoded));
     }
-    return const <String, dynamic>{};
+    try {
+      jsonDecode(text);
+    } on FormatException catch (error) {
+      return _ToolArgs.bad(error.message);
+    }
+    return const _ToolArgs.bad('顶层不是 JSON 对象');
   }
 
   /// Compact tool reply: what the model needs to decide the next step.
@@ -400,4 +491,13 @@ class _ModelTurn {
 
   final String content;
   final List<OpenAiToolCall> toolCalls;
+}
+
+/// Decoded tool arguments, or why the model's JSON could not be read.
+class _ToolArgs {
+  const _ToolArgs.ok(this.value) : error = null;
+  const _ToolArgs.bad(this.error) : value = null;
+
+  final Map<String, dynamic>? value;
+  final String? error;
 }

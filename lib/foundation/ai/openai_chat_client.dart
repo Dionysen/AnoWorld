@@ -12,10 +12,15 @@ class OpenAiChatCompletion {
     required this.content,
     this.reasoning,
     this.toolCalls = const <OpenAiToolCall>[],
+    this.finishReason,
   });
 
   final String content;
   final String? reasoning;
+
+  /// Provider `finish_reason` (`stop` / `tool_calls` / `length` / …).
+  /// `length` means the reply was cut off by the output-token limit.
+  final String? finishReason;
 
   /// Tool calls the model asked for; [content] is usually empty when set.
   final List<OpenAiToolCall> toolCalls;
@@ -144,15 +149,19 @@ class OpenAiChatClient {
     if (message is! Map) {
       throw OpenAiChatException('模型没有返回可用内容');
     }
+    final finishRaw = first['finish_reason'];
+    final finishReason = finishRaw is String ? finishRaw : null;
     final rawContent = message['content'];
     var content = rawContent is String ? rawContent : '';
     final toolCalls = _readToolCalls(message);
+    var reasoningText = _readReasoningField(message);
     // Tool-call replies legitimately carry no text; only treat "neither text
     // nor tools" as an empty response.
     if (content.trim().isEmpty && toolCalls.isEmpty) {
-      throw OpenAiChatException('模型没有返回可用内容');
+      throw OpenAiChatException(
+        _emptyReplyMessage(finishReason, hasReasoning: reasoningText != null),
+      );
     }
-    var reasoningText = _readReasoningField(message);
     if (content.trim().isNotEmpty &&
         (reasoningText == null || reasoningText.isEmpty)) {
       final extracted = ThinkTagParser.extract(content);
@@ -160,15 +169,35 @@ class OpenAiChatClient {
       reasoningText = extracted.$2;
     }
     if (content.trim().isEmpty && toolCalls.isEmpty) {
-      throw OpenAiChatException('模型没有返回可用内容');
+      throw OpenAiChatException(
+        _emptyReplyMessage(
+          finishReason,
+          hasReasoning: reasoningText != null && reasoningText.isNotEmpty,
+        ),
+      );
     }
     return OpenAiChatCompletion(
       content: content,
       toolCalls: toolCalls,
+      finishReason: finishReason,
       reasoning: reasoningText?.trim().isEmpty ?? true
           ? null
           : reasoningText!.trim(),
     );
+  }
+
+  /// Names what actually went wrong instead of one opaque「没有内容」.
+  static String _emptyReplyMessage(
+    String? finishReason, {
+    required bool hasReasoning,
+  }) {
+    if (finishReason == 'length') {
+      return '这次的输出触到长度上限被截断了，少生成一点再试';
+    }
+    if (hasReasoning) {
+      return '模型只写了思考，没给出正文，稍后再试';
+    }
+    return '模型没有返回可用内容';
   }
 
   /// Reads OpenAI-style `message.tool_calls`; empty when absent or unusable.
