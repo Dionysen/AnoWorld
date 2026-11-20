@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/world_book.dart';
@@ -88,12 +89,14 @@ class _WorldBookEditorPageState extends State<WorldBookEditorPage> {
   }
 
   Future<void> _persist(Project project) async {
-    final stamped = project.copyWith(
-      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    final worldBook = project.worldBook;
+    final saved = await saveProjectMerged(
+      AppScope.projectsOf(context),
+      widget.projectId,
+      (latest) => latest.copyWith(worldBook: worldBook),
     );
-    await AppScope.projectsOf(context).save(stamped);
     if (!mounted) return;
-    setState(() => _project = stamped);
+    setState(() => _project = saved);
   }
 
   void _scheduleSave(WorldBook worldBook) {

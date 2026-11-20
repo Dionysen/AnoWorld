@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/data/project/graph_node_thumbnail_files.dart';
@@ -148,16 +149,19 @@ class _MainGraphPageState extends State<MainGraphPage> {
   }) async {
     final project = _project;
     if (project == null) return;
-    final next = project.copyWith(
-      main: main,
-      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    setState(() => _project = project.copyWith(main: main));
+    // Only the graph belongs to this page: re-read so a story written by the
+    // create assistant keeps its world book / cast / plot elements.
+    final saved = await saveProjectMerged(
+      AppScope.projectsOf(context),
+      widget.projectId,
+      (latest) => latest.copyWith(main: main),
     );
-    setState(() => _project = next);
-    await AppScope.projectsOf(context).save(next);
     if (!mounted) return;
+    setState(() => _project = saved);
     if (refreshThumbnails) {
       // ignore: unawaited_futures
-      _refreshNodeThumbnails(next.main);
+      _refreshNodeThumbnails(saved.main);
     }
   }
 
@@ -198,7 +202,14 @@ class _MainGraphPageState extends State<MainGraphPage> {
     _saveDebounce = Timer(const Duration(milliseconds: 280), () async {
       final latest = _project;
       if (latest == null || !mounted) return;
-      await AppScope.projectsOf(context).save(latest);
+      final main = latest.main;
+      final saved = await saveProjectMerged(
+        AppScope.projectsOf(context),
+        widget.projectId,
+        (stored) => stored.copyWith(main: main),
+      );
+      if (!mounted) return;
+      setState(() => _project = saved);
     });
   }
 

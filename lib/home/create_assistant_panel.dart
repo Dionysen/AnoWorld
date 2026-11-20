@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
@@ -633,16 +634,19 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       await AppScope.settingsOf(context).updatePlotElements(plot.catalog);
     }
 
-    final next = project.copyWith(
-      worldBook: worldBook,
-      cast: cast,
-      main: graph,
-      plotElements: plot?.selection,
-      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
-    );
     try {
       // One save for every layer: a failed write never leaves half a batch.
-      await repo.save(next);
+      // Re-read first so an editor page saving meanwhile is not clobbered.
+      await saveProjectMerged(
+        repo,
+        project.meta.id,
+        (latest) => latest.copyWith(
+          worldBook: worldBook,
+          cast: cast,
+          main: graph,
+          plotElements: plot?.selection,
+        ),
+      );
     } catch (error, stack) {
       AppLog.instance.error(
         '创作助手写入失败',

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/create/world_book_editor_page.dart';
@@ -125,17 +126,23 @@ class _ProjectHubPageState extends State<ProjectHubPage> {
   }
 
   Future<void> _persist(Project project) async {
-    final stamped = project.copyWith(
-      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    final coverPath = project.meta.coverPath;
+    final saved = await saveProjectMerged(
+      AppScope.projectsOf(context),
+      widget.projectId,
+      (latest) => latest.copyWith(
+        meta: latest.meta.copyWith(
+          coverPath: coverPath,
+          clearCoverPath: coverPath == null,
+        ),
+      ),
     );
-    await AppScope.projectsOf(context).save(stamped);
     if (!mounted) return;
-    final coverPath =
-        await _resolveCoverPath(_projectDir, stamped.meta.coverPath);
+    final resolved = await _resolveCoverPath(_projectDir, saved.meta.coverPath);
     if (!mounted) return;
     setState(() {
-      _project = stamped;
-      _coverAbsolutePath = coverPath;
+      _project = saved;
+      _coverAbsolutePath = resolved;
     });
   }
 

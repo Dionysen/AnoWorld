@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/plot_element_pack.dart';
@@ -78,12 +79,14 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage> {
   }
 
   Future<void> _persist(Project project) async {
-    final stamped = project.copyWith(
-      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    final selection = project.plotElements;
+    final saved = await saveProjectMerged(
+      AppScope.projectsOf(context),
+      widget.projectId,
+      (latest) => latest.copyWith(plotElements: selection),
     );
-    await AppScope.projectsOf(context).save(stamped);
     if (!mounted) return;
-    setState(() => _project = stamped);
+    setState(() => _project = saved);
   }
 
   void _scheduleSave(PlotElementSelection selection) {
