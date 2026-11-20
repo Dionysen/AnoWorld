@@ -85,6 +85,7 @@ Widget testScoped({
   SettingsController? settings,
   LibraryDisplayController? libraryDisplay,
   AiTextClient? textClient,
+  List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
 }) {
   final controller = settings ?? testSettingsController();
   return AppScope(
@@ -107,6 +108,7 @@ Widget testScoped({
           localizationsDelegates: AppStringsSetup.delegates,
           supportedLocales: AppStringsSetup.supportedLocales,
           localeResolutionCallback: AppStringsSetup.resolveLocale,
+          navigatorObservers: navigatorObservers,
           builder: (context, child) =>
               ImmersiveFrame(child: child ?? const SizedBox.shrink()),
           home: home,

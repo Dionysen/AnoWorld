@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../focus/app_keyboard.dart';
 import '../l10n/app_localizations.dart';
+import '../logging/app_log.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_button.dart';
@@ -85,25 +86,48 @@ class _AppSheetFrame extends StatefulWidget {
 }
 
 class _AppSheetFrameState extends State<_AppSheetFrame> {
+  /// Card widths under this get the tight layout (narrow window / split).
+  static const double _narrowCardWidth = 220;
+
   final GlobalKey<_AppSheetDismissHostState> _dismissHostKey = GlobalKey();
+  bool _loggedNarrow = false;
 
   @override
   Widget build(BuildContext context) {
+    // Measure the box the route actually gives us: sizing from the window
+    // alone would clip the card when a parent hands down less room.
+    return LayoutBuilder(
+      builder: (context, constraints) => _buildFrame(context, constraints),
+    );
+  }
+
+  Widget _buildFrame(BuildContext context, BoxConstraints constraints) {
     // Aspect-specific reads (NativeTavern-style viewInsets lift). Stable
     // [_dismissHostKey] keeps field State across IME inset rebuilds.
     final padding = MediaQuery.paddingOf(context);
     final viewInsets = MediaQuery.viewInsetsOf(context);
-    final size = MediaQuery.sizeOf(context);
+    final media = MediaQuery.sizeOf(context);
     final theme = Theme.of(context);
     final tokens = AppUiTokens.of(context);
     final bottomPad =
         padding.bottom + AppTheme.sheetInset + viewInsets.bottom;
-    final screenH = size.height;
-    final screenW = size.width;
+    final screenH = constraints.hasBoundedHeight
+        ? constraints.maxHeight
+        : media.height;
+    final screenW = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : media.width;
     final cardWidth = math.min(
       AppTheme.sheetMaxWidth,
       screenW - AppTheme.sheetInset * 2,
     );
+    if (!_loggedNarrow && cardWidth < _narrowCardWidth) {
+      _loggedNarrow = true;
+      AppLog.instance.warning(
+        '抽屉可用宽度偏窄，改用紧凑排布（${cardWidth.toStringAsFixed(0)}）',
+        tag: 'ui.sheet',
+      );
+    }
     final horizontalInset = math.max(0.0, (screenW - cardWidth) / 2);
 
     Widget handle = const AppSheetDragHandle();
@@ -719,6 +743,9 @@ class AppSheetEditForm extends StatefulWidget {
 }
 
 class _AppSheetEditFormState extends State<AppSheetEditForm> {
+  /// Under this row width the title and **保存** no longer share one line.
+  static const double _inlineHeaderMinWidth = 160;
+
   _AppSheetDismissHostState? _dismissHost;
 
   @override
@@ -770,21 +797,46 @@ class _AppSheetEditFormState extends State<AppSheetEditForm> {
             AppTheme.spaceSm,
             AppTheme.spaceSm,
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: AppText(widget.title, role: AppTextRole.subtitle),
-              ),
-              AppButton(
-                label: context.ui.save,
-                variant: AppButtonVariant.ghost,
-                onPressed: widget.isDirty ? widget.onSave : null,
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Narrow sheet: stack **保存** under the title instead of
+              // overflowing the row (tiny window / split view).
+              if (constraints.maxWidth < _inlineHeaderMinWidth) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppText(
+                      widget.title,
+                      role: AppTextRole.subtitle,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: AppTheme.spaceSm),
+                    _saveButton(context, expanded: true),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: AppText(widget.title, role: AppTextRole.subtitle),
+                  ),
+                  _saveButton(context, expanded: false),
+                ],
+              );
+            },
           ),
         ),
         Expanded(child: widget.body),
       ],
+    );
+  }
+
+  Widget _saveButton(BuildContext context, {required bool expanded}) {
+    return AppButton(
+      label: context.ui.save,
+      variant: AppButtonVariant.ghost,
+      expanded: expanded,
+      onPressed: widget.isDirty ? widget.onSave : null,
     );
   }
 }

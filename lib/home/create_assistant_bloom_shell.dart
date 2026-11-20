@@ -60,6 +60,7 @@ class CreateAssistantBloomShell extends StatelessWidget {
         final totalH = panelH + neckGap + anchor;
         final cornerR = lerpDouble(anchor / 2, openRadius, u)!;
         final contentOpacity = _contentOpacity(panelH, targetH);
+        final contentVisible = contentOpacity > 0.01;
         final iconT = Curves.easeInOut.transform(
           ((u - 0.32) / 0.28).clamp(0.0, 1.0),
         );
@@ -112,12 +113,17 @@ class CreateAssistantBloomShell extends StatelessWidget {
                       color: glassFill,
                       child: Stack(
                         children: [
-                          if (contentOpacity > 0.01)
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              width: panelW,
-                              height: panelH,
+                          // Keep the panel mounted while the bloom is closed:
+                          // a running turn must survive collapsing. It is laid
+                          // out at its open size but neither painted nor hit
+                          // tested, so closing never disposes the conversation.
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            width: contentVisible ? panelW : targetW,
+                            height: contentVisible ? panelH : targetH,
+                            child: Offstage(
+                              offstage: !contentVisible,
                               child: Opacity(
                                 opacity: contentOpacity,
                                 child: Material(
@@ -126,6 +132,7 @@ class CreateAssistantBloomShell extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          ),
                           Positioned(
                             right: 0,
                             bottom: 0,
