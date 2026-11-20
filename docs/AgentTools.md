@@ -69,7 +69,7 @@
 
 **B. 没有上下文预算裁剪。**
 
-`GenerationPreset.contextLength` 只被存取与展示，既不随请求发送，也无人用它裁剪。按需披露若没有预算约束，收益会被「反正还是全塞」抵消。
+`GenerationPreset.contextLength` 只被存取与展示，既不随请求发送，也无人用它裁剪。按需披露若没有预算约束，收益会被「反正还是全塞」抵消。（阶段 5 已补，见 §6.3 / §7.6。）
 
 **C. 意图靠字符串匹配。**
 
@@ -255,11 +255,15 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 
 ### 6.3 预算
 
-线上定义一次输入预算 = `contextLength − maxTokens`。
+一次输入预算 = `contextLength − maxTokens`（[`ContextBudget`](../lib/domain/ai/context_budget.dart)），下限 2048。落地顺序：
 
-- 组装顺序：任务规则 → L1 目录 → 必进项 → 命中项 → 对话历史 → 其余。
-- 超预算时**从后往前丢**，优先牺牲旧对话与命中项，保住规则与 L1。
-- 每次 `get` 都带 `maxChars`，超长返回 `truncated: true`，让模型知道可以再取下一段。
+- **常驻设定不参与丢弃**：基调 / 硬规则是用户的硬约束，超预算也整体保留。
+- **命中项按分数取舍**：token 余额不够时，命中分数低的设定条目与剧情元素依次跳过；`PlayContextSelector.select(maxTokens:)` 直接按「还能不能再塞一条」决定，不做「先取满再回删」。
+- **旧对话先丢**：聊天保留最近能放下的若干条，正文插一行「更早的 n 条对话已省略」；最新一条永远保留（`keepNewest(minItems: 1)`），否则模型没有可回应的话。
+- **区间摘要只留最新**：VN 的 `session.summary` 随拍增长，超预算时按字符从尾部截断（`keepTail`），中文允许从句中开始，英文 / 日文尽量切在空格处。
+- **默认不裁剪**：出厂预设 `contextLength` 是 1M，`ContextBudget` 算出的余量远大于实际内容；只有用户把 **上下文** 滑块调小才会生效。
+
+仍未做的：创作助手的多步工具链不按预算压缩——读工具已有 `maxChars`（默认 4000）且最多 6 步，窗口很小时可能仍然超；正确做法是把旧工具结果换成模型可读的摘要，留到后续。`get` 工具的 `maxChars` 也还没按剩余预算动态收紧。
 
 ---
 
@@ -272,7 +276,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | **2** | 确认 UI：逐条 op 勾选 + 字段级 diff | 1 | **已完成** |
 | **3** | 创作侧改成真循环：模型选工具 → 读 → 改 → 预览；退役 `wantsFullGraphRewrite` | 2 | **已完成** |
 | **4** | 聊天侧命中注入：世界书 `keys` 与剧情元素关键词；三档取舍 | 1（不依赖 2、3） | **已完成** |
-| **5** | 上下文预算裁剪，接入 `contextLength` | 4 | 未开始 |
+| **5** | 上下文预算裁剪，接入 `contextLength` | 4 | **已完成** |
 
 **阶段 0 是唯一的硬前置**：没有它，后面全部是纸上设计。阶段 4 可与 2、3 并行，因为聊天侧不依赖工具循环。
 
@@ -365,6 +369,22 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | 四个播放入口 | `TavernChatGenerateAction`、`TavernReplyChoiceAction`、`BridgeGenerateAction`、`BridgeBranchPrefetchAction` 全部改走 `assemblePlaySystem`；聊天侧新增可选 `plotCatalog`，由播放页传 `settings.plotElements` |
 
 顺带清掉的重复注入：VN 两处 user 消息里的「设定摘要：整本世界书」直接删除——它与命中注入互相抵消。
+
+### 7.6 阶段 5 实际落地
+
+预算只在两处生效：选谁进 system（命中项），以及历史 / 区间摘要留多长。
+
+| 落点 | 内容 |
+| --- | --- |
+| [`context_budget.dart`](../lib/domain/ai/context_budget.dart)（新建） | `ContextBudget.of(generation)` = `contextLength − maxTokens`（下限 2048）；`remaining`、`keepNewest`（从末尾往前装，`minItems` 保底）、`keepTail`（按字符从尾部取，尽量切在空格） |
+| [`play_context_selector.dart`](../lib/domain/ai/play_context_selector.dart) | `select(maxTokens:)`：常驻设定先占额度且永不被丢；命中条目与剧情元素按分数逐条试装，装不下就跳过 |
+| [`ai_prompt_context.dart`](../lib/domain/ai/ai_prompt_context.dart) | `assemblePlaySystem` 改为「先拼一次无 lore 的 system 当基线，用余量选命中项，再拼最终 system」；调用方只需给 `recentText` / `budget` / `reservedTokens` |
+| 四个播放入口 | `reservedTokens` 报上各自的 user 块体量；聊天用 `keepNewest` 丢旧对话并插「更早的 n 条对话已省略」，VN 用 `keepTail` 截区间摘要 |
+| 日志 | 裁剪发生时写 `info`：`play.chat` 记丢了几条对话，`play.vn` 记区间摘要被截短 |
+
+**为什么不在 `OpenAiChatClient` 里兜底**：那里只有拼好的字符串，丢哪一段都会破坏语义。预算必须在知道「这段是规则 / 这段是旧对话」的地方做，也就是 `AiPromptContext` 与各 action。
+
+**代价**：`assemblePlaySystem` 每回合多拼一次 system（纯字符串 + 宏展开，无 IO）。用一次多余的字符串拼接换掉「模型收到超窗请求直接报错」，值得。
 
 ---
 

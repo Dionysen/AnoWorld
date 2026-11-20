@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
-import 'package:anoworld/domain/ai/play_context_selector.dart';
+import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
@@ -107,7 +107,18 @@ $minLineRule
 - 每拍 choices 若非空则最多 ${BridgeSession.maxChoicesPerBeat} 个。
 - 禁止发明情节站 id。''';
 
-    final selection = const PlayContextSelector().select(
+    final budget = ContextBudget.of(ctx.generation);
+    final branchBlock = branchLines.join('\n');
+    String blockFor(String summaryText) => '''
+当前站：${source.title}
+本站目标：${source.synopsis ?? ''}
+角色：${project.cast.map((c) => c.name).join('、')}
+玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
+区间摘要：$summaryText
+请为下列选项各写选中后的下一拍：
+$branchBlock''';
+
+    final system = ctx.assemblePlaySystem(
       project: project,
       plotCatalog: plotCatalog,
       recentText: <String>[
@@ -118,20 +129,21 @@ $minLineRule
           for (final line in beat.lines) line.text,
         for (final branch in limited) branch.choice.text,
       ],
-    );
-    final system = ctx.assemblePlaySystem(
-      project: project,
-      selection: selection,
       taskSuffix: task,
+      budget: budget,
+      reservedTokens: budget.estimate(blockFor('')),
     );
-    final user = '''
-当前站：${source.title}
-本站目标：${source.synopsis ?? ''}
-角色：${project.cast.map((c) => c.name).join('、')}
-玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
-区间摘要：${session.summary}
-请为下列选项各写选中后的下一拍：
-${branchLines.join('\n')}''';
+    final summaryTokens = budget.remaining(
+      budget.estimate(system) + budget.estimate(blockFor('')),
+    );
+    final summaryText = budget.keepTail(
+      session.summary,
+      tokens: summaryTokens,
+    );
+    if (summaryText.length < session.summary.length) {
+      AppLog.instance.info('区间摘要超出预算，只带最新部分', tag: 'play.vn');
+    }
+    final user = blockFor(summaryText);
 
     String? lastError;
     var attemptUser = user;

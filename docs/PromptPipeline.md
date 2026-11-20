@@ -179,7 +179,7 @@ flowchart LR
 | --- | --- |
 | **Context Contributor** | 按注册顺序注入（长期记忆、Data Bank、状态块等）；placement：`beforeBase` / `beforeConversation` / `afterBase`；各有 token 上限 |
 | **回复长度** | 可选末尾 system 软提示（impersonate 模式可跳过） |
-| **上下文 fit** | `contextLength - maxTokens` 为输入预算；优先丢旧对话，必要时截断长 system |
+| **上下文 fit** | `contextLength - maxTokens` 为输入预算（[`ContextBudget`](../lib/domain/ai/context_budget.dart)，下限 2048）；先按余额选命中设定 / 剧情元素（常驻设定不丢），再丢旧对话（`keepNewest`）、截区间摘要（`keepTail`）；不截任务规则 |
 | **assistant prefill** | 聊天「开头续写」配置 → 请求前追加半条 `assistant` |
 | **工具调用** | 若启用 tool loop，在同一 message 链上追加轮次（后续能力） |
 
@@ -208,9 +208,9 @@ flowchart LR
 | 段类型与 ST 导入 | `lib/foundation/ai/st_prompt_manager.dart`（已有） |
 | 宏展开 | `lib/foundation/ai/macro_service.dart` |
 | **多 message 拼装** | `lib/domain/ai/prompt_context_builder.dart`（新建，替代「整段 system 合并」） |
-| 预设 + Persona 快照 | `lib/domain/ai/ai_prompt_context.dart` |
-| 世界书匹配与位置 | `lib/domain/ai/world_info_matcher.dart`（新建） |
-| 预算裁剪 | `lib/domain/ai/context_window_service.dart`（新建，可 port NT） |
+| 预设 + Persona 快照 | `lib/domain/ai/ai_prompt_context.dart`（已有） |
+| 世界书匹配与位置 | `lib/domain/ai/play_context_selector.dart`（已有，按 `keys` 命中近文） |
+| 预算裁剪 | `lib/domain/ai/context_budget.dart`（已有：`contextLength − maxTokens`、`keepNewest`、`keepTail`） |
 | 各场景任务层 | 各 `*Action`（chat / main / create） |
 | HTTP | `lib/foundation/ai/openai_chat_client.dart` 接收 `List<OpenAiChatMessage>` |
 

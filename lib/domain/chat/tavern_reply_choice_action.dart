@@ -1,6 +1,6 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
-import 'package:anoworld/domain/ai/play_context_selector.dart';
+import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
@@ -36,21 +36,32 @@ class TavernReplyChoiceAction {
 不要 markdown，不要编号。''';
     final recent =
         history.length <= 8 ? history : history.sublist(history.length - 8);
-    final selection = const PlayContextSelector().select(
+    final prefix = '根据当前情景给出 $n 条玩家回复选项。\n';
+    String lineOf(TavernChatMessage m) {
+      final who = m.role == TavernChatRole.user ? '玩家' : '助手';
+      return '$who：${m.content}';
+    }
+
+    final budget = ContextBudget.of(ctx.generation);
+    final system = ctx.assemblePlaySystem(
       project: project,
       plotCatalog: plotCatalog,
       recentText: <String>[for (final message in recent) message.content],
-    );
-    final system = ctx.assemblePlaySystem(
-      project: project,
-      selection: selection,
       taskSuffix: task,
+      budget: budget,
+      reservedTokens: budget.estimate(prefix) +
+          (recent.isEmpty ? 0 : budget.estimate(lineOf(recent.last))),
     );
-    final transcript = recent.map((m) {
-      final who = m.role == TavernChatRole.user ? '玩家' : '助手';
-      return '$who：${m.content}';
-    }).join('\n');
-    final user = '根据当前情景给出 $n 条玩家回复选项。\n$transcript';
+    final kept = budget.keepNewest(
+      recent,
+      lineOf,
+      tokens: budget.remaining(
+        budget.estimate(system) + budget.estimate(prefix),
+      ),
+      minItems: 1,
+    );
+    final transcript = kept.map(lineOf).join('\n');
+    final user = '$prefix$transcript';
 
     String? lastError;
     var attemptUser = user;

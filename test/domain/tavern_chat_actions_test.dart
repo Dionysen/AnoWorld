@@ -55,6 +55,60 @@ void main() {
         promptManager: PromptManagerConfig.defaultConfig(),
       );
 
+  /// A window small enough that old turns must go.
+  AiPromptContext smallCtx() => AiPromptContext(
+        endpoint: endpoint,
+        generation: const GenerationPreset(
+          contextLength: 4096,
+          maxTokens: 256,
+        ),
+        promptManager: PromptManagerConfig.defaultConfig(),
+      );
+
+  test('a small context window drops the oldest turns', () async {
+    final project = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient(['好。']);
+    final history = <TavernChatMessage>[
+      for (var i = 0; i < 12; i++)
+        TavernChatMessage(
+          id: 'm$i',
+          role: i.isEven ? TavernChatRole.assistant : TavernChatRole.user,
+          content: '第$i轮：${'很长的对话内容' * 60}',
+        ),
+    ];
+    await TavernChatGenerateAction(textClient: client).generate(
+      ctx: smallCtx(),
+      project: project,
+      history: history,
+    );
+
+    final user = client.users.single;
+    expect(user, contains('第11轮'));
+    expect(user, isNot(contains('第0轮')));
+    expect(user, contains('已省略'));
+  });
+
+  test('the default 1M window keeps every turn', () async {
+    final project = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final client = _ScriptedTextClient(['好。']);
+    final history = <TavernChatMessage>[
+      for (var i = 0; i < 12; i++)
+        TavernChatMessage(
+          id: 'm$i',
+          role: TavernChatRole.user,
+          content: '第$i轮：${'很长的对话内容' * 60}',
+        ),
+    ];
+    await TavernChatGenerateAction(textClient: client).generate(
+      ctx: ctx(),
+      project: project,
+      history: history,
+    );
+
+    expect(client.users.single, contains('第0轮'));
+    expect(client.users.single, isNot(contains('已省略')));
+  });
+
   test('tavern generate returns assistant prose and asks not to speak as user',
       () async {
     final project = const ProjectFactory().createBlank(id: 'p', title: 't');

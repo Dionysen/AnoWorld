@@ -1,9 +1,10 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
-import 'package:anoworld/domain/ai/play_context_selector.dart';
+import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 
 /// Assistant turn prose + optional reasoning from the model.
 class TavernChatGenerateResult {
@@ -42,34 +43,64 @@ class TavernChatGenerateAction {
 不要替玩家说话，不要写玩家的台词或「User：」「{{user}}：」。
 有多名角色时可写不同角色开口，但整段作为助手的一轮回复。''';
 
-    final selection = const PlayContextSelector().select(
+    final userName = ctx.persona?.name ?? 'User';
+    String lineOf(TavernChatMessage m) {
+      final who = m.role == TavernChatRole.user ? userName : '助手';
+      return '$who：${m.content}';
+    }
+
+    final head = StringBuffer()
+      ..writeln('角色：${castNames.isEmpty ? '（无）' : castNames}')
+      ..writeln('玩家：$userName');
+    if (plotHint.isNotEmpty) {
+      head.writeln('情节提示（可选约束，不要生硬念出来）：$plotHint');
+    }
+    head.writeln('—— 对话记录 ——');
+    const tailLine = '—— 请继续写助手这一轮 ——';
+
+    final budget = ContextBudget.of(ctx.generation);
+    final headText = head.toString();
+    // Reserve room for at least the newest turn before picking lore.
+    final system = ctx.assemblePlaySystem(
       project: project,
       plotCatalog: plotCatalog,
       recentText: _recentText(history),
-    );
-    final system = ctx.assemblePlaySystem(
-      project: project,
-      selection: selection,
       taskSuffix: task,
+      budget: budget,
+      reservedTokens: budget.estimate(headText) +
+          budget.estimate(tailLine) +
+          (history.isEmpty ? 0 : budget.estimate(lineOf(history.last))),
     );
-    final buffer = StringBuffer()
-      ..writeln('角色：${castNames.isEmpty ? '（无）' : castNames}')
-      ..writeln('玩家：${ctx.persona?.name ?? 'User'}');
-    if (plotHint.isNotEmpty) {
-      buffer.writeln('情节提示（可选约束，不要生硬念出来）：$plotHint');
-    }
-    buffer.writeln('—— 对话记录 ——');
+
+    // Old turns fall off once 上下文长度 is small; the newest turn always stays
+    // so the reply has something to answer.
+    final reserved = budget.estimate(system) +
+        budget.estimate(headText) +
+        budget.estimate(tailLine);
+    final kept = budget.keepNewest(
+      history,
+      lineOf,
+      tokens: budget.remaining(reserved),
+      minItems: 1,
+    );
+
+    final buffer = StringBuffer(headText);
     if (history.isEmpty) {
       buffer.writeln('（尚无对话，请写开场第一段）');
     } else {
-      for (final m in history) {
-        final who = m.role == TavernChatRole.user
-            ? (ctx.persona?.name ?? 'User')
-            : '助手';
-        buffer.writeln('$who：${m.content}');
+      final dropped = history.length - kept.length;
+      if (dropped > 0) {
+        buffer.writeln('（更早的 $dropped 条对话已省略）');
+        AppLog.instance.info(
+          '上下文超出预算，省略最早 $dropped 条对话',
+          tag: 'play.chat',
+        );
+      }
+      for (final m in kept) {
+        buffer.writeln(lineOf(m));
       }
     }
-    buffer.writeln('—— 请继续写助手这一轮 ——');
+    buffer.writeln(tailLine);
 
     final result = await _text.complete(
       endpoint: endpoint,

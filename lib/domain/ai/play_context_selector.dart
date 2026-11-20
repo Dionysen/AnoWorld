@@ -3,6 +3,7 @@ import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
+import 'package:anoworld/foundation/text/token_estimator.dart';
 
 /// What a play turn actually gets from the story's reference material.
 ///
@@ -60,20 +61,47 @@ class PlayContextSelector {
     required Project project,
     PlotElementCatalog? plotCatalog,
     Iterable<String> recentText = const <String>[],
+    int? maxTokens,
   }) {
     final window = _window(recentText);
     final always = <WorldBookEntry>[
       for (final entry in project.worldBook.entries)
         if (entry.alwaysOn) entry,
     ];
+    // Always-on entries are never sacrificed: they are the hard rules.
+    var spent = TokenEstimator.estimate(project.worldBook.textOf(always));
     final hits = _matchEntries(project.worldBook.entries, window);
-    final shownHits = [for (final hit in hits.take(maxHitEntries)) hit.entry];
+    final shownHits = <WorldBookEntry>[];
+    for (final hit in hits) {
+      if (shownHits.length >= maxHitEntries) break;
+      if (maxTokens != null) {
+        final cost = TokenEstimator.estimate(
+          WorldBook.formatEntry(hit.entry),
+        );
+        if (spent + cost > maxTokens) continue;
+        spent += cost;
+      }
+      shownHits.add(hit.entry);
+    }
     final lore = project.worldBook.textOf(<WorldBookEntry>[
       ...always,
       ...shownHits,
     ]);
+    spent = TokenEstimator.estimate(lore);
 
-    final plotRows = _matchPlotElements(project, plotCatalog, window);
+    final plotRows = <PlotElement>[];
+    if (plotCatalog != null) {
+      for (final element in _plotCandidates(project, plotCatalog, window)) {
+        if (plotRows.length >= maxHitPlotElements) break;
+        if (maxTokens != null) {
+          final cost = TokenEstimator.estimate(
+            plotCatalog.promptBlockFor(<PlotElement>[...plotRows, element]),
+          );
+          if (spent + cost > maxTokens) continue;
+        }
+        plotRows.add(element);
+      }
+    }
     final plot = plotCatalog == null
         ? ''
         : plotCatalog.promptBlockFor(plotRows);
@@ -127,12 +155,11 @@ class PlayContextSelector {
     return title.isEmpty ? const <String>[] : <String>[title];
   }
 
-  List<PlotElement> _matchPlotElements(
+  List<PlotElement> _plotCandidates(
     Project project,
-    PlotElementCatalog? catalog,
+    PlotElementCatalog catalog,
     String window,
   ) {
-    if (catalog == null) return const <PlotElement>[];
     final out = <PlotElement>[];
     for (final element in catalog.resolveSelected(
       project.plotElements.selectedIds,
@@ -140,7 +167,6 @@ class PlayContextSelector {
       final keyword = element.keyword.trim().toLowerCase();
       if (keyword.isEmpty || !window.contains(keyword)) continue;
       out.add(element);
-      if (out.length >= maxHitPlotElements) break;
     }
     return out;
   }

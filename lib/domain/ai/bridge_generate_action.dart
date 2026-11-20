@@ -1,6 +1,6 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
-import 'package:anoworld/domain/ai/play_context_selector.dart';
+import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
@@ -76,22 +76,6 @@ class BridgeGenerateAction {
       allowInStationChoices: allowInStationChoices,
       nearConverge: nearConverge,
     );
-    final selection = const PlayContextSelector().select(
-      project: project,
-      plotCatalog: plotCatalog,
-      recentText: <String>[
-        node.title,
-        node.synopsis ?? '',
-        session.summary,
-        for (final beat in session.generatedBeats.reversed.take(2))
-          for (final line in beat.lines) line.text,
-      ],
-    );
-    final system = ctx.assemblePlaySystem(
-      project: project,
-      selection: selection,
-      taskSuffix: task,
-    );
     final nextStationBlock = openMode
         ? '本站没有固定下一站：按设定与角色自由续写，不要发明情节站 id。'
         : '合法下一站（只能跳到这些 id，或 end）：\n$exitLines';
@@ -102,15 +86,44 @@ class BridgeGenerateAction {
             : (nearConverge
                 ? '已接近本站尾声：对白可自然埋下前往下一站的动机。\n'
                 : ''));
-    final user = '''
-当前站：${node.title}
-本站目标：${node.synopsis ?? ''}
-角色：${project.cast.map((c) => c.name).join('、')}
-玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
-$nextStationBlock
-区间摘要：${session.summary}
-已生成拍数：${session.turnCount}/${openMode ? '∞' : maxBeats}
-$paceHint请生成本站下一小段对白。''';
+    String blockFor(String summaryText) => _userBlock(
+          node: node,
+          project: project,
+          userAliases: userAliases,
+          nextStationBlock: nextStationBlock,
+          summary: summaryText,
+          turnCount: session.turnCount,
+          maxBeats: maxBeats,
+          openMode: openMode,
+          paceHint: paceHint,
+        );
+
+    final budget = ContextBudget.of(ctx.generation);
+    final system = ctx.assemblePlaySystem(
+      project: project,
+      plotCatalog: plotCatalog,
+      recentText: <String>[
+        node.title,
+        node.synopsis ?? '',
+        session.summary,
+        for (final beat in session.generatedBeats.reversed.take(2))
+          for (final line in beat.lines) line.text,
+      ],
+      taskSuffix: task,
+      budget: budget,
+      reservedTokens: budget.estimate(blockFor('')),
+    );
+    final summaryTokens = budget.remaining(
+      budget.estimate(system) + budget.estimate(blockFor('')),
+    );
+    final summaryText = budget.keepTail(
+      session.summary,
+      tokens: summaryTokens,
+    );
+    if (summaryText.length < session.summary.length) {
+      AppLog.instance.info('区间摘要超出预算，只带最新部分', tag: 'play.vn');
+    }
+    final user = blockFor(summaryText);
     String? lastError;
     var attemptUser = user;
     for (var attempt = 0; attempt <= maxFormatRetries; attempt++) {
@@ -221,6 +234,28 @@ $paceHint请生成本站下一小段对白。''';
     if (label != null && label.isNotEmpty) return label;
     final dest = main.nodeById(edge.to)?.title ?? edge.to;
     return '前往：$dest';
+  }
+
+  static String _userBlock({
+    required StoryNode node,
+    required Project project,
+    required List<String> userAliases,
+    required String nextStationBlock,
+    required String summary,
+    required int turnCount,
+    required int maxBeats,
+    required bool openMode,
+    required String paceHint,
+  }) {
+    return '''
+当前站：${node.title}
+本站目标：${node.synopsis ?? ''}
+角色：${project.cast.map((c) => c.name).join('、')}
+玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
+$nextStationBlock
+区间摘要：$summary
+已生成拍数：$turnCount/${openMode ? '∞' : maxBeats}
+$paceHint请生成本站下一小段对白。''';
   }
 
   static String _taskBlock({

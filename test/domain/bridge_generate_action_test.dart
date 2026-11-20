@@ -67,6 +67,39 @@ void main() {
         promptManager: PromptManagerConfig.defaultConfig(),
       );
 
+  /// A window small enough that the interval summary must be cut.
+  AiPromptContext smallCtx() => AiPromptContext(
+        endpoint: endpoint,
+        generation: const GenerationPreset(
+          contextLength: 4096,
+          maxTokens: 256,
+        ),
+        promptManager: PromptManagerConfig.defaultConfig(),
+      );
+
+  test('a small context window keeps only the newest summary', () async {
+    final project = const ProjectFactory().createRainNightSample();
+    final prompts = <String>[];
+    final client = _RecordingTextClient(
+      '{"lines":[{"speaker":"旁白","text":"一。"}],"choices":[]}',
+      prompts,
+    );
+    final summary = <String>[
+      for (var i = 0; i < 40; i++) '第$i段${'情节内容' * 30}',
+    ].join(' ');
+    final start = project.main.startNodeId;
+    await BridgeGenerateAction(textClient: client).generate(
+      ctx: smallCtx(),
+      project: project,
+      nodeId: start,
+      session: BridgeSession(nodeId: start, summary: summary),
+    );
+
+    final user = client.users.single;
+    expect(user, contains('第39段'));
+    expect(user, isNot(contains('第0段')));
+  });
+
   test('fallbackChoices point at legal outbound nodes', () {
     final main = const ProjectFactory().createRainNightSample().main;
     final choices = BridgeGenerateAction.fallbackChoices(main, 'n1');

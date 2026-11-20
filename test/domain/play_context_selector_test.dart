@@ -5,6 +5,7 @@ import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/text/token_estimator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Project _project({
@@ -212,6 +213,103 @@ void main() {
     expect(selection.plotKeywords, <String>['雨', '雨']);
     expect(selection.plotText, contains('一'));
     expect(selection.plotText, isNot(contains('三')));
+  });
+
+  test('a token cap drops low-score hits but keeps the rules', () {
+    final project = _project(
+      entries: <WorldBookEntry>[
+        const WorldBookEntry(
+          id: 'w_rule',
+          title: '基调',
+          body: '常年阴雨，人口稀少。',
+          alwaysOn: true,
+        ),
+        WorldBookEntry(
+          id: 'w_a',
+          title: 'A',
+          body: '甲' * 40,
+          keys: const <String>['雨', '夜'],
+        ),
+        WorldBookEntry(
+          id: 'w_b',
+          title: 'B',
+          body: '乙' * 40,
+          keys: const <String>['雨'],
+        ),
+      ],
+    );
+
+    final roomy = selector.select(
+      project: project,
+      recentText: const <String>['雨夜'],
+    );
+    expect(roomy.hitEntryTitles, <String>['A', 'B']);
+
+    // Exactly the always-on block plus the first hit, nothing more.
+    final ruleCost = TokenEstimator.estimate(
+      WorldBook.formatEntry(project.worldBook.entries.first),
+    );
+    final hitCost = TokenEstimator.estimate(
+      WorldBook.formatEntry(project.worldBook.entries[1]),
+    );
+    final tight = selector.select(
+      project: project,
+      recentText: const <String>['雨夜'],
+      maxTokens: ruleCost + hitCost,
+    );
+    expect(tight.loreText, contains('常年阴雨'));
+    expect(tight.hitEntryTitles, <String>['A']);
+    expect(tight.skippedEntryCount, 1);
+  });
+
+  test('always-on rules survive even when they alone exceed the cap', () {
+    final project = _project(
+      entries: <WorldBookEntry>[
+        WorldBookEntry(
+          id: 'w_rule',
+          title: '基调',
+          body: '硬规则' * 30,
+          alwaysOn: true,
+        ),
+        const WorldBookEntry(
+          id: 'w_a',
+          title: 'A',
+          body: '甲',
+          keys: <String>['雨'],
+        ),
+      ],
+    );
+
+    final selection = selector.select(
+      project: project,
+      recentText: const <String>['雨'],
+      maxTokens: 5,
+    );
+
+    expect(selection.loreText, contains('硬规则'));
+    expect(selection.hitEntryTitles, isEmpty);
+  });
+
+  test('a token cap also limits plot elements', () {
+    final catalog = PlotElementCatalog(
+      custom: <PlotElement>[
+        PlotElement(id: 'pe1', keyword: '雨', description: '一' * 30),
+        PlotElement(id: 'pe2', keyword: '雨', description: '二' * 30),
+      ],
+    );
+
+    final selection = selector.select(
+      project: _project(plotIds: const <String>['pe1', 'pe2']),
+      plotCatalog: catalog,
+      recentText: const <String>['下雨了'],
+      maxTokens: TokenEstimator.estimate(
+        catalog.promptBlockFor(<PlotElement>[catalog.byId('pe1')!]),
+      ),
+    );
+
+    expect(selection.plotKeywords, <String>['雨']);
+    expect(selection.plotText, contains('一'));
+    expect(selection.plotText, isNot(contains('二')));
   });
 
   test('only the tail of a long transcript is scanned', () {
