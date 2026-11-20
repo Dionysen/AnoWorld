@@ -263,7 +263,7 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 - **区间摘要只留最新**：VN 的 `session.summary` 随拍增长，超预算时按字符从尾部截断（`keepTail`），中文允许从句中开始，英文 / 日文尽量切在空格处。
 - **默认不裁剪**：出厂预设 `contextLength` 是 1M，`ContextBudget` 算出的余量远大于实际内容；只有用户把 **上下文** 滑块调小才会生效。
 
-仍未做的：创作助手的多步工具链不按预算压缩——读工具已有 `maxChars`（默认 4000）且最多 6 步，窗口很小时可能仍然超；正确做法是把旧工具结果换成模型可读的摘要，留到后续。`get` 工具的 `maxChars` 也还没按剩余预算动态收紧。
+- **创作循环不整段丢**：多步工具链超预算时，把**较早的工具结果**换成一行可读说明（`CreateHistoryFit.elidedBody`，「需要时重新调用即可」），最新一条工具结果永远保留。不删消息：assistant 的 `tool_calls` 少了配对的 `tool` 回复，多数服务直接报错。`get` 工具的 `maxChars` 仍按调用方给的固定值，不随剩余余额收紧。
 
 ---
 
@@ -381,6 +381,8 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | [`ai_prompt_context.dart`](../lib/domain/ai/ai_prompt_context.dart) | `assemblePlaySystem` 改为「先拼一次无 lore 的 system 当基线，用余量选命中项，再拼最终 system」；调用方只需给 `recentText` / `budget` / `reservedTokens` |
 | 四个播放入口 | `reservedTokens` 报上各自的 user 块体量；聊天用 `keepNewest` 丢旧对话并插「更早的 n 条对话已省略」，VN 用 `keepTail` 截区间摘要 |
 | 日志 | 裁剪发生时写 `info`：`play.chat` 记丢了几条对话，`play.vn` 记区间摘要被截短 |
+
+创作侧的多步工具链另有一处：`CreateAgentLoop` 每次发请求前调 [`CreateHistoryFit`](../lib/domain/ai/create/create_history_fit.dart)，超预算就把较早的 `role: tool` 回复换成一行说明（最新一条工具结果永远保留），消息条数与角色序列不变；省略发生时写 `create.tool` 日志。
 
 **为什么不在 `OpenAiChatClient` 里兜底**：那里只有拼好的字符串，丢哪一段都会破坏语义。预算必须在知道「这段是规则 / 这段是旧对话」的地方做，也就是 `AiPromptContext` 与各 action。
 

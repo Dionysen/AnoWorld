@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_context_index.dart';
+import 'package:anoworld/domain/ai/create/create_history_fit.dart';
 import 'package:anoworld/domain/ai/create/create_prompt_profiles.dart';
 import 'package:anoworld/domain/ai/create/create_proposals.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
@@ -53,6 +55,7 @@ class CreateAgentLoop {
     }
 
     final allow = target.toolAllowlist;
+    final budget = ContextBudget.of(ai.generation);
     final messages = <OpenAiChatMessage>[
       OpenAiChatMessage(role: 'system', content: _systemPrompt(target, ctx)),
       OpenAiChatMessage(role: 'user', content: trimmed),
@@ -60,7 +63,7 @@ class CreateAgentLoop {
     final called = <String>[];
 
     for (var step = 0; step < maxSteps; step++) {
-      final turn = await _nextTurn(client, ai, messages, allow);
+      final turn = await _nextTurn(client, ai, messages, allow, budget);
       if (turn.toolCalls.isEmpty) {
         return _answerOrProposal(target, ctx, turn.content, called);
       }
@@ -133,10 +136,18 @@ class CreateAgentLoop {
     AiPromptContext ai,
     List<OpenAiChatMessage> messages,
     List<String> allow,
+    ContextBudget budget,
   ) async {
+    final fitted = const CreateHistoryFit().fit(messages, budget: budget);
+    if (fitted.elided > 0) {
+      AppLog.instance.info(
+        '创作回合超预算，省略 ${fitted.elided} 条较早的工具结果',
+        tag: 'create.tool',
+      );
+    }
     final completion = await client.completeTurn(
       endpoint: ai.endpoint,
-      messages: messages,
+      messages: fitted.messages,
       tools: _registry.declarations(allow),
       generation: ai.generation,
     );

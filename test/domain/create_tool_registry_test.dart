@@ -9,6 +9,7 @@ import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
 import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
+import 'package:anoworld/domain/ai/create/create_history_fit.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_services.dart';
 import 'package:anoworld/domain/ai/create/tools/project_tools.dart';
@@ -472,6 +473,56 @@ void main() {
     // 角色1, 角色10..19 → 11 rows.
     expect(filtered.payload?['total'], 11);
     expect(filtered.payload?['truncated'], isFalse);
+  });
+
+  test('elides an old tool reply when the turn exceeds the window', () async {
+    final base = const ProjectFactory().createRainNightSample();
+    final entries = <WorldBookEntry>[
+      WorldBookEntry(id: 'wb_a', title: '长设定甲', body: '甲' * 4000),
+      WorldBookEntry(id: 'wb_b', title: '长设定乙', body: '乙' * 4000),
+    ];
+    final client = _ScriptedTurnClient(<OpenAiChatCompletion>[
+      const OpenAiChatCompletion(
+        content: '',
+        toolCalls: <OpenAiToolCall>[
+          OpenAiToolCall(
+            id: 'call_0',
+            name: 'world.read_entry',
+            arguments: '{"id":"wb_a"}',
+          ),
+          OpenAiToolCall(
+            id: 'call_1',
+            name: 'world.read_entry',
+            arguments: '{"id":"wb_b"}',
+          ),
+        ],
+      ),
+      const OpenAiChatCompletion(content: '看完了，这两条互不冲突'),
+    ]);
+    final ctx = CreateToolContext(
+      project: base.copyWith(worldBook: WorldBook(entries: entries)),
+      ai: AiPromptContext(
+        endpoint: _endpoint,
+        generation: const GenerationPreset(contextLength: 3000, maxTokens: 900),
+        promptManager: PromptManagerConfig.defaultConfig(),
+      ),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    final result = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.world,
+      prompt: '看看这两条设定',
+      ctx: ctx,
+    );
+
+    expect(result.answer, contains('互不冲突'));
+    final toolReplies = client.lastMessages
+        .where((m) => m.role == 'tool')
+        .toList(growable: false);
+    expect(toolReplies, hasLength(2));
+    // The oldest reply is replaced by a stub; the newest stays readable.
+    expect(toolReplies.first.content, CreateHistoryFit.elidedBody);
+    expect(toolReplies.last.content, contains('乙'));
   });
 
   test('plot.select proposes selection ops against the library', () async {
