@@ -5,6 +5,7 @@ import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
+import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/home/create_assistant_bloom_outline.dart';
 import 'package:anoworld/home/create_assistant_panel.dart';
 import 'package:flutter/material.dart';
@@ -17,12 +18,17 @@ class CreateAssistantBloomShell extends StatelessWidget {
     required this.progress,
     required this.child,
     this.onTapAnchor,
+    this.busy = false,
   });
 
   /// Linear 0…1 from the host controller. Curves are applied once here.
   final Animation<double> progress;
   final Widget child;
   final VoidCallback? onTapAnchor;
+
+  /// A turn is in flight: the anchor shows a rotating ring instead of the
+  /// sparkle, so progress is visible without opening the panel.
+  final bool busy;
 
   static const double _heightFactor = 0.54;
   static const double _neckGapOpen = CreateAssistantBloomOutline.designNeckGap;
@@ -144,27 +150,32 @@ class CreateAssistantBloomShell extends StatelessWidget {
                                 onTap: onTapAnchor,
                                 customBorder: const CircleBorder(),
                                 child: Center(
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Opacity(
-                                        opacity: 1 - iconT,
-                                        child: Icon(
-                                          Icons.auto_awesome_outlined,
+                                  child: busy
+                                      ? const AppBusyIndicator(
                                           size: 22,
-                                          color: iconColor,
+                                          padding: EdgeInsets.zero,
+                                        )
+                                      : Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Opacity(
+                                              opacity: 1 - iconT,
+                                              child: Icon(
+                                                Icons.auto_awesome_outlined,
+                                                size: 22,
+                                                color: iconColor,
+                                              ),
+                                            ),
+                                            Opacity(
+                                              opacity: iconT,
+                                              child: Icon(
+                                                Icons.auto_awesome,
+                                                size: 22,
+                                                color: iconColor,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                      Opacity(
-                                        opacity: iconT,
-                                        child: Icon(
-                                          Icons.auto_awesome,
-                                          size: 22,
-                                          color: iconColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
                                 ),
                               ),
                             ),

@@ -147,6 +147,7 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
                     bottom: anchorBottom,
                     child: CreateAssistantBloomShell(
                       progress: _bloom,
+                      busy: widget.controller.generating,
                       onTapAnchor: _toggleAnchor,
                       child: CreateAssistantPanel(
                         controller: widget.controller,
@@ -165,6 +166,7 @@ class CreateAssistantHostState extends State<CreateAssistantHost>
                   icon: Icons.auto_awesome_outlined,
                   selectedIcon: Icons.auto_awesome,
                   tooltip: context.strings.assistantTitle,
+                  busy: widget.controller.generating,
                   onPressed: _openBloom,
                 ),
               ),

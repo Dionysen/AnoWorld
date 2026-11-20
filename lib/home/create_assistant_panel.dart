@@ -313,6 +313,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       );
       _generating = true;
     });
+    _assistant?.setGenerating(true);
     unawaited(_persist());
     AppLog.instance.info(
       '创作助手开始回合（$projectId）',
@@ -480,6 +481,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       _pendingLine = null;
       _generating = false;
     });
+    _assistant?.setGenerating(false);
     unawaited(_persist());
     if (_pendingStory != null) _syncStory();
   }
@@ -801,6 +803,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 
   @override
   void dispose() {
+    // A turn cannot outlive the panel: drop the ring instead of leaving the
+    // capsule spinning forever.
+    _assistant?.setGenerating(false);
     _assistant?.removeListener(_onStoryContextChanged);
     _composerDebounce?.cancel();
     _composer.removeListener(_onComposerChanged);

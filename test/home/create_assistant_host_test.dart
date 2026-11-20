@@ -8,6 +8,7 @@ import 'package:anoworld/foundation/ai/openai_chat_client.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/create_assistant_draft.dart';
@@ -351,9 +352,10 @@ void main() {
     await tester.pump();
 
     // Hide the panel mid-turn: the pending turn must keep running and land
-    // in the transcript once the model answers.
+    // in the transcript once the model answers. The busy ring animates, so the
+    // collapse is pumped for a fixed time instead of settling.
     await tester.tapAt(const Offset(24, 24));
-    await tester.pumpAndSettle();
+    await _pumpWhileBusy(tester);
     expect(find.text('当前故事'), findsNothing);
     expect(
       tester.state<CreateAssistantPanelState>(
@@ -361,9 +363,22 @@ void main() {
       ),
       same(panelBefore),
     );
+    // The collapsed capsule spins while the turn is in flight.
+    expect(controller.generating, isTrue);
+    expect(
+      find.descendant(
+        of: find.byType(AppBottomNavIconCapsule),
+        matching: find.byType(CircularProgressIndicator),
+      ),
+      findsOneWidget,
+    );
 
     client.release();
     await tester.pumpAndSettle();
+
+    expect(controller.generating, isFalse);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byIcon(Icons.auto_awesome_outlined), findsOneWidget);
 
     expect(
       find.text(_BlockingTextClient.answer, skipOffstage: false),
@@ -438,7 +453,7 @@ void main() {
     await tester.pump();
 
     await tester.tapAt(const Offset(24, 24));
-    await tester.pumpAndSettle();
+    await _pumpWhileBusy(tester);
     expect(find.text('当前故事'), findsNothing);
 
     client.release();
@@ -486,6 +501,13 @@ void main() {
     expect(find.text('上一句'), findsOneWidget);
     expect(find.text('草稿输入'), findsOneWidget);
   });
+}
+
+/// Runs the collapse animation without settling: the busy ring never stops
+/// animating, so `pumpAndSettle` would wait forever.
+Future<void> _pumpWhileBusy(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
 }
 
 class _FakePopupRoute extends PopupRoute<void> {

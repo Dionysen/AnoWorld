@@ -28,6 +28,18 @@ class CreateAssistantController extends ChangeNotifier {
   /// about navigation can skip the other notifications (visibility, popups).
   int get storyVersion => _storyVersion;
 
+  bool _generating = false;
+
+  /// A model turn is in flight. The anchor / capsule paint a rotating ring
+  /// instead of the sparkle so progress shows while the panel is collapsed.
+  bool get generating => _generating;
+
+  void setGenerating(bool value) {
+    if (_generating == value) return;
+    _generating = value;
+    _notify();
+  }
+
   /// Registers an open edit page. Re-entering the same page is a no-op, so a
   /// rebuild cannot reorder the stack.
   void enterStory(Object owner, String projectId) {

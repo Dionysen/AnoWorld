@@ -11,11 +11,16 @@ class AppBusyIndicator extends StatelessWidget {
     this.size = 18,
     this.strokeWidth = 2,
     this.semanticLabel,
+    this.padding = const EdgeInsets.symmetric(horizontal: AppTheme.spaceXs),
   });
 
   final double size;
   final double strokeWidth;
   final String? semanticLabel;
+
+  /// Breathing room in inline rows. Chrome that centers the ring itself
+  /// (icon slots, capsules) passes [EdgeInsets.zero].
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -28,10 +33,7 @@ class AppBusyIndicator extends StatelessWidget {
         color: scheme.primary,
       ),
     );
-    final padded = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceXs),
-      child: ring,
-    );
+    final padded = Padding(padding: padding, child: ring);
     if (semanticLabel == null) return padded;
     return Semantics(
       label: semanticLabel,

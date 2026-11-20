@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/foundation/theme/app_shapes.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_press_scale.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ class AppBottomNavIconCapsule extends StatelessWidget {
     this.selected = false,
     this.tooltip,
     this.enabled = true,
+    this.busy = false,
   });
 
   final IconData icon;
@@ -25,6 +27,9 @@ class AppBottomNavIconCapsule extends StatelessWidget {
   final VoidCallback? onPressed;
   final String? tooltip;
   final bool enabled;
+
+  /// Replaces the icon with a rotating progress ring (work in flight).
+  final bool busy;
 
   static const double side = AppLayout.bottomNavHeight;
 
@@ -64,10 +69,17 @@ class AppBottomNavIconCapsule extends StatelessWidget {
           child: SizedBox(
             width: side,
             height: side,
-            child: Icon(
-              active && selected ? (selectedIcon ?? icon) : icon,
-              size: 22,
-              color: color,
+            child: Center(
+              child: busy
+                  ? const AppBusyIndicator(
+                      size: 22,
+                      padding: EdgeInsets.zero,
+                    )
+                  : Icon(
+                      active && selected ? (selectedIcon ?? icon) : icon,
+                      size: 22,
+                      color: color,
+                    ),
             ),
           ),
         ),
