@@ -4,6 +4,7 @@ import 'package:anoworld/domain/ai/create/create_tool_result.dart';
 import 'package:anoworld/domain/main/entity_ref.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
 import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/validation/project_issue.dart';
@@ -259,6 +260,135 @@ List<CreateTool> buildProjectTools() {
           'schemaVersion': 1,
           'graph': graph,
         });
+      },
+    ),
+    CreateTool(
+      name: 'main.list_nodes',
+      description: '只列情节图的站（id、站名、出边数、是否终局），不返回概括与路径细节；'
+          '整张图用 main.read_graph，细看一站用 main.get_node。'
+          '默认最多 $kListDefaultLimit 站',
+      mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'keyword': stringSchema('只看站名或概括里含这个词的站'),
+          'limit': integerSchema(
+            '最多返回多少条，默认 $kListDefaultLimit，最多 $kListMaxLimit',
+          ),
+        },
+      ),
+      invoke: (ctx, args) async {
+        final project = ctx.project;
+        if (project == null) {
+          return CreateToolResult.error('没有打开的故事');
+        }
+        final main = project.main;
+        if (!main.hasAuthoredNodes) {
+          return CreateToolResult.error('还没有情节图');
+        }
+        final needle = _needleOf(args);
+        final outDegree = <String, int>{};
+        for (final edge in main.edges) {
+          outDegree[edge.from] = (outDegree[edge.from] ?? 0) + 1;
+        }
+        final matched = <StoryNode>[
+          for (final node in main.nodes)
+            if (needle.isEmpty ||
+                node.title.toLowerCase().contains(needle) ||
+                (node.synopsis ?? '').toLowerCase().contains(needle))
+              node,
+        ];
+        final page = _page(matched, args);
+        return CreateToolResult.success(<String, dynamic>{
+          'schemaVersion': 1,
+          'start': main.startNodeId,
+          'total': page.total,
+          'count': page.rows.length,
+          'truncated': page.truncated,
+          if (page.truncated) 'hint': _listHint(page.rest),
+          'nodes': [
+            for (final node in page.rows)
+              <String, dynamic>{
+                'id': node.id,
+                'title': node.title,
+                'exits': outDegree[node.id] ?? 0,
+                'ending': node.tags.contains('ending'),
+              },
+          ],
+        });
+      },
+    ),
+    CreateTool(
+      name: 'main.get_node',
+      description: '读一站：概括、标签、出入连线；ref 如 node:n2 或 node:n2.synopsis',
+      mutatesProject: false,
+      parameters: objectSchema(
+        <String, dynamic>{
+          'ref': stringSchema('站引用，如 node:n2 或 node:n2.synopsis'),
+          'id': stringSchema('站 id（没有 ref 时使用）'),
+        },
+      ),
+      invoke: (ctx, args) async {
+        final project = ctx.project;
+        if (project == null) {
+          return CreateToolResult.error('没有打开的故事');
+        }
+        final ref = _resolveRef(args, EntityKind.node);
+        if (ref.error != null) return CreateToolResult.error(ref.error!);
+        final main = project.main;
+        final titles = <String, String>{
+          for (final node in main.nodes) node.id: node.title,
+        };
+        for (final node in main.nodes) {
+          if (node.id != ref.value!.id) continue;
+          final field = ref.value!.field;
+          if (field != null) {
+            return CreateToolResult.success(
+              _fieldEnvelope(
+                ref: ref.value!,
+                field: field,
+                value: _nodeField(node, field),
+              ),
+            );
+          }
+          return CreateToolResult.success(<String, dynamic>{
+            'schemaVersion': 1,
+            'ref': ref.value!.format(),
+            'id': node.id,
+            'title': node.title,
+            'synopsis': node.synopsis ?? '',
+            'tags': node.tags,
+            'ending': node.tags.contains('ending'),
+            'isStart': node.id == main.startNodeId,
+            'beats': node.beatIds.length,
+            'exits': [
+              for (final edge in main.edges)
+                if (edge.from == node.id)
+                  <String, dynamic>{
+                    'id': edge.id,
+                    'to': edge.to,
+                    'toTitle': titles[edge.to],
+                    'kind': edge.kind.wireName,
+                    'label': edge.label,
+                    'detail': edge.detail,
+                  },
+            ],
+            'incoming': [
+              for (final edge in main.edges)
+                if (edge.to == node.id)
+                  <String, dynamic>{
+                    'id': edge.id,
+                    'from': edge.from,
+                    'fromTitle': titles[edge.from],
+                    'kind': edge.kind.wireName,
+                    'label': edge.label,
+                  },
+            ],
+            'tokenEstimate': TokenEstimator.estimate(
+              '${node.title}\n${node.synopsis ?? ''}',
+            ),
+          });
+        }
+        return CreateToolResult.error('找不到这一站');
       },
     ),
     CreateTool(
@@ -684,6 +814,13 @@ bool _castMemberMatches(CastMember member, String needle) {
   return member.name.toLowerCase().contains(needle) ||
       member.summary.toLowerCase().contains(needle);
 }
+
+Object? _nodeField(StoryNode node, String field) => switch (field) {
+      'title' => node.title,
+      'synopsis' => node.synopsis ?? '',
+      'tags' => node.tags,
+      _ => null,
+    };
 
 Object? _worldField(WorldBookEntry entry, String field) => switch (field) {
       'title' => entry.title,

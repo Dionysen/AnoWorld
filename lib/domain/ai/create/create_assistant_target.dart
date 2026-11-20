@@ -19,6 +19,8 @@ enum CreateAssistantTarget {
   static const List<String> readTools = <String>[
     'project.read_summary',
     'main.read_graph',
+    'main.list_nodes',
+    'main.get_node',
     'world.list_entries',
     'world.read_entry',
     'cast.list_members',

@@ -17,6 +17,7 @@
 | `plot.list_elements` | 列全局剧情元素库（id / 分类 / 关键词 / 是否已选） |
 | `plot.select` | 勾选 / 取消勾选，或新增一条并勾上（`userConfirmRequired`） |
 | `main.read_graph` | 主线紧凑骨架 |
+| `main.list_nodes` / `main.get_node` | 只列站 / 细看一站（概括、出入连线，支持 `node:<id>.<field>`） |
 | `main.replace` | 提交整图骨架（至少约 20 站；`userConfirmRequired`） |
 | `main.patch` | 提交情节图局部 ops（`userConfirmRequired`） |
 | `refine.field` | 占位 |

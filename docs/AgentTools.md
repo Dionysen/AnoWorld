@@ -156,7 +156,7 @@
 | `plot` | `plot.list_elements`（`limit` + `keyword`；id / 分类 / 关键词 / 是否已选） | `plot.select`（`select` / `deselect` / `add_element`；新增会写进全局库，已有条目正文不改） |
 | `preset` | 进 L1 段目录（段名 + 启用状态），预设只读 | `preset.patch`（不做，见 §8） |
 
-阶段 3 已把写工具统一成 `*.patch` / `main.replace`，旧名 `world.patch_propose`、`cast.patch_propose`、`main.patch_graph`、`main.generate_graph` 全部删除，没有别名并存。`main.list_nodes` / `main.get_node` 这类分段读暂不实现：紧凑骨架一次返回更省回合，等预算裁剪（阶段 5）真的需要细读再加。
+阶段 3 已把写工具统一成 `*.patch` / `main.replace`，旧名 `world.patch_propose`、`cast.patch_propose`、`main.patch_graph`、`main.generate_graph` 全部删除，没有别名并存。情节图另有 `main.list_nodes`（只列 id / 站名 / 出边数 / 终局，可 `keyword` + `limit`）与 `main.get_node`（单站的概括、标签、出入连线，支持 `node:<id>.<field>`）：整图仍以 `main.read_graph` 为准，站多或只想看一站时才细读，一个回合不必为局部改动拉整张骨架。
 
 ### 5.2 入参与返回
 
@@ -402,6 +402,12 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | [`create_assistant_panel.dart`](../lib/home/create_assistant_panel.dart) | `plot.select` 走同一条确认链路：逐条勾选 → 应用选中 → 命中新元素时先写全局库再保存故事勾选 |
 
 **没做的**：改已有库条目的正文（`upsertCustom` 的改写路径）仍只在剧情元素库页面；AI 只能勾选或新增，避免一次误改污染全库。
+
+### 7.8 情节图分段读与列表分页
+
+- **`main.list_nodes`**：只回 id / 站名 / 出边数 / 是否终局，`start` 给起点站；支持 `keyword`（站名或概括）与 `limit`（默认 50）。站多时不拉整张骨架。
+- **`main.get_node`**：单站的概括、标签、是否起点、拍数，以及出边与入边（含目标站名、`kind`、`label`、`detail`）；`node:<id>.<title|synopsis|tags>` 只取一个字段，走与设定 / 角色一致的字段信封。
+- **列表分页统一**：`world.list_entries` / `cast.list_members` / `plot.list_elements` / `main.list_nodes` 共用 `limit` 默认 50、上限 200，超出返回 `total` / `truncated` / `hint`，并都支持 `keyword` 收窄。分页参数写在 [`project_tools.dart`](../lib/domain/ai/create/tools/project_tools.dart)。
 
 ---
 

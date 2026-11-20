@@ -649,6 +649,71 @@ void main() {
     expect(world.toolAllowlist, isNot(contains('plot.select')));
     expect(world.toolAllowlist, contains('plot.list_elements'));
   });
+
+  test('main.list_nodes lists stations without their exits detail', () async {
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      services: const CreateToolServices(),
+    );
+
+    final listed = await CreateAgentRunner().runSingle(
+      toolName: 'main.list_nodes',
+      ctx: ctx,
+    );
+
+    expect(listed.payload?['start'], 'n1');
+    expect(listed.payload?['total'], 2);
+    expect(listed.payload?['truncated'], isFalse);
+    final nodes = (listed.payload?['nodes'] as List).cast<Map>();
+    expect(nodes.map((n) => n['id']), containsAll(<String>['n1', 'n2']));
+    expect(nodes.firstWhere((n) => n['id'] == 'n1')['exits'], 1);
+    // A station row stays a row: no synopsis or edge detail.
+    expect(nodes.first.keys, isNot(contains('synopsis')));
+
+    final narrowed = await CreateAgentRunner().runSingle(
+      toolName: 'main.list_nodes',
+      ctx: ctx,
+      args: {'keyword': '客栈'},
+    );
+    expect(narrowed.payload?['total'], 1);
+  });
+
+  test('main.get_node reads one station and its edges', () async {
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      services: const CreateToolServices(),
+    );
+
+    final read = await CreateAgentRunner().runSingle(
+      toolName: 'main.get_node',
+      ctx: ctx,
+      args: {'ref': 'node:n2'},
+    );
+
+    expect(read.payload?['title'], '客栈');
+    expect(read.payload?['isStart'], isFalse);
+    expect(read.payload?['ending'], isFalse);
+    final incoming = (read.payload?['incoming'] as List).cast<Map>();
+    expect(incoming, hasLength(1));
+    expect(incoming.single['from'], 'n1');
+    expect(incoming.single['kind'], 'default');
+
+    final field = await CreateAgentRunner().runSingle(
+      toolName: 'main.get_node',
+      ctx: ctx,
+      args: {'ref': 'node:n2.title'},
+    );
+    expect(field.payload?['field'], 'title');
+    expect(field.payload?['value'], '客栈');
+
+    final missing = await CreateAgentRunner().runSingle(
+      toolName: 'main.get_node',
+      ctx: ctx,
+      args: {'id': 'nope'},
+    );
+    expect(missing.ok, isFalse);
+    expect(missing.errorMessage, '找不到这一站');
+  });
 }
 
 Map<String, dynamic> _decodeGraph(String raw) {
