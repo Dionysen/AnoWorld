@@ -28,6 +28,7 @@
 - UI：[`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) 选当前故事 + **改哪里**（情节图 / 世界书 / 角色 / 全部），见 [`CreateAssistantTarget`](../lib/domain/ai/create/create_assistant_target.dart)。
 - 回合：`runTurn(target, prompt)` 走 [`CreateAgentLoop`](../lib/domain/ai/create/create_agent_loop.dart)——注入五层 L1 目录（含预设段名与启用状态，预设只读）与该目标的工具，模型自己读（`*.read_*` / `main.read_graph`）、自己写（`main.replace` / `main.patch` / `*.patch`），最多 10 步。选工具不再靠关键词，读工具真正会被调用。
 - 白名单：所有读工具 + 当前目标的写工具；选「全部」时五个写工具全开。读可跨层；单层目标仍只写自己那层。剧情元素是例外的一半：`plot.list_elements` 所有目标可读，`plot.select`（勾选 / 新增）挂在情节图与「全部」上。
+- 工具名：内部与日志用带点的规范名（`world.patch`），发给模型时换成下划线（`world_patch`）——OpenAI 兼容网关要求 `tools[].function.name` 匹配 `^[a-zA-Z0-9_-]+$`，带点会直接 400。注册表两种叫法都认，回放 `tool_calls` 时也写成下划线。
 - 跨层：提议不再结束回合，而是按层暂存（同一层重复提交会合并 ops 再校验），模型收到「已暂存，可继续」的 tool 结果后可以接着写别的层；回合结束时把这一批一起交给面板。
 - 对话记忆：面板把当前故事最近 10 条对话（用户能看到的那种气泡，不含「正在写」占位）随回合送进模型，`CreateAgentLoop` 再按剩余预算从旧到新丢，所以「再冷一点」有指代。换故事时旧对话仍留在屏幕上，但不再喂给模型。工具调用与工具结果不跨回合重放。
 - 确认：半屏抽屉按层分组（世界书 / 角色 / 情节图 / 剧情元素），逐项勾选，确认后**一次 `repo.save`** 写回所有层；剧情元素库的新行先落设置再存故事。整图替换占一行，并明说会清掉旧站；增量只应用勾选的 ops。

@@ -25,9 +25,19 @@ class CreateTool {
   /// JSON Schema for the arguments, sent to the model as the function params.
   final Map<String, dynamic> parameters;
 
+  /// Name safe to send as `tools[].function.name`.
+  ///
+  /// OpenAI-compatible providers only accept `[a-zA-Z0-9_-]`, so the canonical
+  /// dotted name (`world.patch`) travels as `world_patch`. The registry maps it
+  /// back, so prompts and logs keep the readable form.
+  String get wireName => wireNameOf(name);
+
+  static String wireNameOf(String name) =>
+      name.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_');
+
   /// Declaration handed to the model; always an object schema.
   OpenAiTool declaration() => OpenAiTool(
-        name: name,
+        name: wireName,
         description: description,
         parameters: parameters.isEmpty ? objectSchema() : parameters,
       );

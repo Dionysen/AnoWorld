@@ -12,6 +12,7 @@ import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_chat_turn.dart';
 import 'package:anoworld/domain/ai/create/create_history_fit.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
+import 'package:anoworld/domain/ai/create/create_tool_registry.dart';
 import 'package:anoworld/domain/ai/create/create_tool_services.dart';
 import 'package:anoworld/domain/ai/create/tools/project_tools.dart';
 import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
@@ -732,6 +733,84 @@ void main() {
     expect(graph.toolAllowlist, contains('plot.list_elements'));
     expect(world.toolAllowlist, isNot(contains('plot.select')));
     expect(world.toolAllowlist, contains('plot.list_elements'));
+  });
+
+  test('declarations use provider-safe tool names', () async {
+    final client = _ScriptedTurnClient([
+      const OpenAiChatCompletion(content: '好'),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.all,
+      prompt: '看看',
+      ctx: ctx,
+    );
+
+    final declarations = CreateToolRegistry()
+        .declarations(CreateAssistantTarget.all.toolAllowlist);
+    expect(declarations, isNotEmpty);
+    final safe = RegExp(r'^[a-zA-Z0-9_-]+$');
+    for (final tool in declarations) {
+      // Gateways reject `tools[].function.name` with a dot
+      // (`Invalid 'tools[0].function.name': string does not match pattern`).
+      expect(safe.hasMatch(tool.name), isTrue, reason: tool.name);
+    }
+    expect(declarations.map((t) => t.name), contains('world_patch'));
+    expect(declarations.map((t) => t.name), contains('main_read_graph'));
+  });
+
+  test('a wire name resolves back to the canonical tool', () async {
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      services: const CreateToolServices(),
+    );
+
+    final byWire = await CreateAgentRunner().runSingle(
+      toolName: 'world_list_entries',
+      ctx: ctx,
+    );
+    final byDot = await CreateAgentRunner().runSingle(
+      toolName: 'world.list_entries',
+      ctx: ctx,
+    );
+
+    expect(byWire.ok, isTrue);
+    expect(byWire.payload?['total'], byDot.payload?['total']);
+  });
+
+  test('runTurn accepts a wire name in the model tool call', () async {
+    final client = _ScriptedTurnClient([
+      _call('world_patch', {
+        'ops': [
+          {'op': 'upsert_entry', 'title': '渡口', 'body': '夜里停摆。'},
+        ],
+      }),
+      const OpenAiChatCompletion(content: ''),
+    ]);
+    final ctx = CreateToolContext(
+      project: const ProjectFactory().createRainNightSample(),
+      ai: _promptCtx(),
+      services: CreateToolServices(toolClient: client),
+    );
+
+    final turn = await CreateAgentRunner().runTurn(
+      target: CreateAssistantTarget.world,
+      prompt: '加个渡口',
+      ctx: ctx,
+    );
+
+    expect(turn.calledTools, ['world.patch']);
+    expect(turn.proposals.single.kind, 'world.patch');
+    // The replayed assistant turn carries the provider-safe name.
+    final assistant = client.lastMessages.firstWhere(
+      (m) => m.toolCalls.isNotEmpty,
+    );
+    expect(assistant.toolCalls.single.name, 'world_patch');
   });
 
   test('the all target may write every layer', () {

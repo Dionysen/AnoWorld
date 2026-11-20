@@ -340,8 +340,8 @@ MCP 解决的是「本进程 ↔ 外部独立进程」的工具互操作；本�
 | [`create_agent_loop.dart`](../lib/domain/ai/create/create_agent_loop.dart)（新建） | 循环体：送 system + 用户话 + 工具声明 → 收 `tool_calls` → 逐个执行 → 提议按层暂存、其余结果以 `role: tool` 回填 → 直到模型写完所有层或直接回答；上限 10 步。同一层重复提交会合并 ops 重新校验，回合结束时把整批提议交给面板合成一张确认单 |
 | [`create_context_index.dart`](../lib/domain/ai/create/create_context_index.dart)（新建） | L1 目录：设定 `wb:<id> · 标题 · 常驻`、角色 `cast:<id> · 名字 · 一句话`、情节 `node:<id> · 站名 · 出边数`、已选剧情元素、预设段名与启用状态（只列名，正文本来就在系统提示里）；每层有行数上限 |
 | [`create_proposals.dart`](../lib/domain/ai/create/create_proposals.dart)（新建） | 把模型给的骨架 / ops 校验成确认载荷（含 `ProjectValidator` 干跑），工具与文本兜底共用 |
-| [`create_tool.dart`](../lib/domain/ai/create/create_tool.dart) | `CreateTool` 增加 JSON Schema `parameters`，`declaration()` 产出 `OpenAiTool` |
-| [`create_tool_registry.dart`](../lib/domain/ai/create/create_tool_registry.dart) | 按白名单取工具与声明：`allowed(names)` / `declarations(names)` |
+| [`create_tool.dart`](../lib/domain/ai/create/create_tool.dart) | `CreateTool` 增加 JSON Schema `parameters`，`declaration()` 产出 `OpenAiTool`；名字带点时线上换成下划线（`wireName`） |
+| [`create_tool_registry.dart`](../lib/domain/ai/create/create_tool_registry.dart) | 按白名单取工具与声明：`allowed(names)` / `declarations(names)`；规范名（`world.patch`）与线上名（`world_patch`）互认，网关只接受 `[a-zA-Z0-9_-]` |
 | [`ai_text_client.dart`](../lib/domain/ai/ai_text_client.dart) | 新增窄接口 `AiToolTurnClient.completeTurn`（消息 + 工具 + 生成参数），`EndpointAiTextClient` 实现它 |
 | [`ai_prompt_context.dart`](../lib/domain/ai/ai_prompt_context.dart) | `assembleSystem(inlineWorldBook: false)` 时不再内联整份世界书，改用传入的 L1 目录 |
 | [`create_prompt_profiles.dart`](../lib/domain/ai/create/create_prompt_profiles.dart) | 三个目标各自的工具流程与内容规则；骨架规则抽成 `skeletonRules` 与分阶段创作共用 |

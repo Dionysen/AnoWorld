@@ -93,22 +93,34 @@ class CreateAgentLoop {
         OpenAiChatMessage(
           role: 'assistant',
           content: turn.content,
-          toolCalls: turn.toolCalls,
+          // Echo the provider-safe names back: some gateways validate the
+          // replayed `tool_calls` against `^[a-zA-Z0-9_-]+$` too.
+          toolCalls: [
+            for (final call in turn.toolCalls)
+              OpenAiToolCall(
+                id: call.id,
+                name: _registry.wireName(call.name),
+                arguments: call.arguments,
+              ),
+          ],
         ),
       );
       for (final call in turn.toolCalls) {
-        called.add(call.name);
+        // The model may answer with either `world.patch` (prompt wording) or
+        // `world_patch` (the declared name); both resolve to the same tool.
+        final name = _registry.canonical(call.name);
+        called.add(name);
         var result = await _registry.invoke(
-          call.name,
+          name,
           ctx,
           args: _decodeArgs(call.arguments),
         );
         AppLog.instance.info(
-          '创作工具 ${call.name}${result.ok ? '' : ' 失败'}',
+          '创作工具 $name${result.ok ? '' : ' 失败'}',
           tag: 'create.tool',
         );
         if (result.userConfirmPayload != null) {
-          result = await _stage(staged, call.name, result, ctx);
+          result = await _stage(staged, name, result, ctx);
         }
         final preview = result.userConfirmPayload;
         if (preview != null) {
@@ -120,7 +132,7 @@ class CreateAgentLoop {
               toolCallId: call.id,
               content: jsonEncode(<String, dynamic>{
                 'ok': true,
-                'staged': preview['kind'] ?? call.name,
+                'staged': preview['kind'] ?? name,
                 'note': '已暂存，等用户一起确认；可以继续提交其他层的改动',
               }),
             ),
