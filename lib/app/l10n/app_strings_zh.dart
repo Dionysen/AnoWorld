@@ -1397,13 +1397,13 @@ class AppStringsZh extends AppStrings {
   String get noStoriesYet => '还没有故事，先去故事页新建';
 
   @override
-  String get assistantEmptyHint => '说说这段故事该怎么走';
+  String get assistantEmptyHint => '先选改哪一块，再说想怎么改';
 
   @override
-  String get assistantComposerHint => '想写出怎样的情节…';
+  String get assistantComposerHint => '想怎么改…';
 
   @override
-  String get assistantPending => '正在理顺走向…';
+  String get assistantPending => '正在整理…';
 
   @override
   String get assistantNeedsStory => '先在上面选一个故事，我才能读它的设定';
@@ -1424,6 +1424,12 @@ class AppStringsZh extends AppStrings {
   String get assistantGraphSaved => '情节图写好了，可以在情节图里继续调整';
 
   @override
+  String get assistantWorldSaved => '设定写好了，可以在世界书里继续调整';
+
+  @override
+  String get assistantCastSaved => '角色写好了，可以在角色页继续调整';
+
+  @override
   String get proposalLead => '读了设定，理出';
 
   @override
@@ -1431,6 +1437,30 @@ class AppStringsZh extends AppStrings {
 
   @override
   String branchCount(int count) => '$count 处岔路';
+
+  @override
+  String get assistantTargetGraph => '情节图';
+
+  @override
+  String get assistantTargetWorld => '世界书';
+
+  @override
+  String get assistantTargetCast => '角色';
+
+  @override
+  String get assistantEditTargetLabel => '改哪里';
+
+  @override
+  String get applyPatch => '写入改动';
+
+  @override
+  String get generatedWorldTitle => '拟定的设定改动';
+
+  @override
+  String get generatedCastTitle => '拟定的角色改动';
+
+  @override
+  String opCount(int count) => '$count 处改动';
 
   @override
   String get generatedPlotTitle => '生成的情节';

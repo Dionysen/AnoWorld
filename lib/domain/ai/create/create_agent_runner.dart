@@ -1,3 +1,4 @@
+import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_registry.dart';
 import 'package:anoworld/domain/ai/create/create_tool_result.dart';
@@ -40,6 +41,72 @@ class CreateAgentRunner {
     return result;
   }
 
+  /// One assistant turn: pick a tool inside [target]'s allowlist (rule-based).
+  Future<CreateAgentTurnResult> runTurn({
+    required CreateAssistantTarget target,
+    required String prompt,
+    required CreateToolContext ctx,
+  }) async {
+    final toolName = _pickTool(target, prompt, ctx);
+    final allow = target.toolAllowlist;
+    if (!allow.contains(toolName)) {
+      return CreateAgentTurnResult(
+        toolName: toolName,
+        result: CreateToolResult.error('该目标不能用 $toolName'),
+      );
+    }
+    AppLog.instance.info(
+      '创作回合 ${target.wireName} → $toolName',
+      tag: 'create.tool',
+    );
+    final result = await runSingle(
+      toolName: toolName,
+      ctx: ctx,
+      args: <String, dynamic>{'prompt': prompt},
+    );
+    return CreateAgentTurnResult(toolName: toolName, result: result);
+  }
+
+  static String _pickTool(
+    CreateAssistantTarget target,
+    String prompt,
+    CreateToolContext ctx,
+  ) {
+    switch (target) {
+      case CreateAssistantTarget.world:
+        return 'world.patch_propose';
+      case CreateAssistantTarget.cast:
+        return 'cast.patch_propose';
+      case CreateAssistantTarget.graph:
+        final hasGraph = ctx.project?.main.hasAuthoredNodes ?? false;
+        if (!hasGraph || wantsFullGraphRewrite(prompt)) {
+          return 'main.generate_graph';
+        }
+        return 'main.patch_graph';
+    }
+  }
+
+  /// User asked to replace the whole plot graph.
+  static bool wantsFullGraphRewrite(String prompt) {
+    final t = prompt.trim();
+    if (t.isEmpty) return false;
+    const markers = <String>[
+      '整图重写',
+      '全部重写',
+      '重写全部',
+      '重新生成全部',
+      '替换情节',
+      '替换整图',
+      '重做情节图',
+      '重写情节图',
+      '从头生成',
+    ];
+    for (final m in markers) {
+      if (t.contains(m)) return true;
+    }
+    return false;
+  }
+
   Future<List<CreatePipelineStepResult>> runPipeline({
     required List<String> toolNames,
     required CreateToolContext ctx,
@@ -77,4 +144,14 @@ class CreateAgentRunner {
     }
     return before;
   }
+}
+
+class CreateAgentTurnResult {
+  const CreateAgentTurnResult({
+    required this.toolName,
+    required this.result,
+  });
+
+  final String toolName;
+  final CreateToolResult result;
 }

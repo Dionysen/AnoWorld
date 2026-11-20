@@ -85,6 +85,8 @@ void main() {
     final block = catalog.promptBlockForSelected([seed.id]);
     expect(block, contains('可用剧情元素'));
     expect(block, contains(seed.keyword));
+    expect(block, contains('骨架分叉尽量覆盖不同分类'));
+    expect(block, contains(catalog.categoryNameOf(seed.categoryId)));
     expect(catalog.promptBlockForSelected(const []), isEmpty);
   });
 

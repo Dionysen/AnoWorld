@@ -11,6 +11,8 @@ import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/full_graph_json.dart';
+
 class _ScriptedTextClient implements AiTextClient {
   _ScriptedTextClient(this.replies);
 
@@ -35,13 +37,7 @@ class _ScriptedTextClient implements AiTextClient {
   }
 }
 
-const _graphJson = '''
-{"summary":"少年在雨夜做出选择","stations":[
-{"title":"城门","synopsis":"少年被拦下","exits":[{"to":"客栈","kind":"default"},{"to":"荒野","kind":"branch","label":"硬闯"}]},
-{"title":"客栈","synopsis":"掌柜透露出路","exits":[{"to":"end","kind":"default"}]},
-{"title":"荒野","synopsis":"独行遇雨","exits":[{"to":"end","kind":"default"}]}
-]}
-''';
+final _graphJson = buildFullGraphJson();
 
 void main() {
   const endpoint = AiTextEndpoint(
@@ -67,7 +63,7 @@ void main() {
     );
 
     expect(main.beats, isEmpty);
-    expect(main.nodes.length, greaterThanOrEqualTo(3));
+    expect(main.nodes.length, greaterThanOrEqualTo(20));
     expect(main.edges, isNotEmpty);
     expect(main.startNodeId, main.nodes.first.id);
     expect(
@@ -111,7 +107,9 @@ void main() {
       plotCatalog: PlotElementCatalog(),
     );
 
-    expect(client.systems.single, contains(element.keyword));
+    final system = client.systems.single;
+    expect(system, contains(element.keyword));
+    expect(system, contains('骨架分叉尽量覆盖不同分类'));
   });
 
   test('retries once when the first payload is not usable', () async {

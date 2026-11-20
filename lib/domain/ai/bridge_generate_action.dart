@@ -228,9 +228,11 @@ $paceHint请生成本站下一小段对白。''';
 输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[...]}
 规则：
 - text 只写对白/叙述正文，禁止「瑞希：」「User：」这类前缀。
+- 全程以主角（玩家）视角：写其所见所闻所感；旁白只能写主角能感知的环境与动作，禁止上帝全知（不在场的密谋、他人内心、远处同时发生的事）。
+- 若主角需要得知本不该知道的事，必须安排亲历获知（跟踪、潜入、到场目击等），并写出占用时间/耽误正事等代价；禁止无代价突然知道。
 - 角色开口：speaker 必须是角色列表里的名字，不能写成旁白。
 - 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）。
-- 第三人称叙述：speaker 用「旁白」。
+- 环境/动作叙述：speaker 用「旁白」（仍须主角可感知）。
 $minLineRule
 - $choiceCap''';
     if (openMode) {
@@ -243,14 +245,14 @@ $choiceRule
     }
     if (forceConverge) {
       return '''$sharedHead
-本拍必须收束离站：给 1～${BridgeSession.maxChoicesPerBeat} 个 choices，每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}。禁止 stay。对白要自然收束。
+本拍必须收束离站：给 1～${BridgeSession.maxChoicesPerBeat} 个 choices，每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}（不同选项须导向不同世界线）。禁止 stay。对白要自然收束。
 禁止发明不在合法下一站列表里的 nodeId。''';
     }
     final nearHint = nearConverge
         ? '已接近本站尾声：对白可自然埋下前往下一站的动机。'
         : '';
     final choiceRule = allowInStationChoices
-        ? '本拍是站内过程：可给空 choices，或至多 ${BridgeSession.maxChoicesPerBeat} 个选项（继续用 stay；提前离站须用合法 nodeId）。$nearHint'
+        ? '本拍是站内过程：可给空 choices，或至多 ${BridgeSession.maxChoicesPerBeat} 个选项（继续用 stay；提前离站须用合法 nodeId，且不同离站选项须导向不同世界线）。$nearHint'
         : '本拍是站内过程：choices 必须是空数组 []，不要给选项；玩家点屏幕续写。$nearHint';
     return '''$sharedHead
 $choiceRule

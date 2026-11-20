@@ -273,10 +273,12 @@ class PlotElementCatalog {
   String promptBlockForSelected(Iterable<String> ids) {
     final rows = resolveSelected(ids);
     if (rows.isEmpty) return '';
-    final lines = rows
-        .map((e) => '- ${e.keyword}：${e.clippedDescription}')
-        .join('\n');
-    return '可用剧情元素（按需织入支线，勿生硬堆砌）：\n$lines';
+    final lines = rows.map((e) {
+      final category = categoryNameOf(e.categoryId);
+      final head = category.isEmpty ? e.keyword : '$category · ${e.keyword}';
+      return '- $head：${e.clippedDescription}';
+    }).join('\n');
+    return '可用剧情元素（按分类织入不同分叉，勿生硬堆砌；骨架分叉尽量覆盖不同分类）：\n$lines';
   }
 
   static String clipDescription(String raw) {

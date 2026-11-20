@@ -5,11 +5,14 @@ import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/create/create_agent_runner.dart';
+import 'package:anoworld/domain/ai/create/create_assistant_target.dart';
 import 'package:anoworld/domain/ai/create/create_tool_context.dart';
 import 'package:anoworld/domain/ai/create/create_tool_services.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
+import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
@@ -18,6 +21,7 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_chat_composer.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_select_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -49,6 +53,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 
   String? _projectId;
   String _projectTitle = '';
+  CreateAssistantTarget _target = CreateAssistantTarget.graph;
   final List<_AssistantLine> _lines = [];
   bool _loadingStories = false;
   bool _generating = false;
@@ -69,6 +74,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     setState(() {
       _projectId = draft.projectId;
       _projectTitle = draft.projectTitle;
+      _target = draft.target;
       _lines
         ..clear()
         ..addAll(
@@ -102,6 +108,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       projectId: _projectId,
       projectTitle: _projectTitle,
       composer: _composer.text,
+      target: _target,
       lines: [
         for (final line in _lines)
           if (!line.pending)
@@ -207,10 +214,10 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     });
     unawaited(_persist());
     AppLog.instance.info(
-      '创作助手写情节（$projectId）',
+      '创作助手 ${_target.wireName}（$projectId）',
       tag: 'create.assistant',
     );
-    unawaited(_generateGraph(
+    unawaited(_runAgentTurn(
       repo: repo,
       textClient: textClient,
       promptCtx: promptCtx,
@@ -230,7 +237,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     unawaited(_persist());
   }
 
-  Future<void> _generateGraph({
+  Future<void> _runAgentTurn({
     required ProjectRepository repo,
     required AiTextClient textClient,
     required AiPromptContext promptCtx,
@@ -241,8 +248,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     final strings = context.strings;
     try {
       final project = await repo.open(projectId);
-      final result = await CreateAgentRunner().runSingle(
-        toolName: 'main.generate_graph',
+      final turn = await CreateAgentRunner().runTurn(
+        target: _target,
+        prompt: prompt,
         ctx: CreateToolContext(
           project: project,
           ai: promptCtx,
@@ -251,29 +259,73 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
             plotCatalog: plotCatalog,
           ),
         ),
-        args: <String, dynamic>{'prompt': prompt},
       );
       if (!mounted) return;
-      final preview = result.userConfirmPayload;
-      if (!result.ok || preview == null) {
-        _finishTurn(result.errorMessage ?? strings.assistantFailedRetry);
+      final preview = turn.result.userConfirmPayload;
+      if (!turn.result.ok || preview == null) {
+        _finishTurn(turn.result.errorMessage ?? strings.assistantFailedRetry);
         return;
       }
-      final graph = MainGraphDocument.decodeSkeleton(
-        Map<String, dynamic>.from(preview['graph'] as Map),
-      );
-      _finishTurn(_describeProposal(context, graph));
-      final useIt = await _confirmGraph(project: project, graph: graph);
-      if (!mounted || !useIt) {
-        AppLog.instance.info('创作助手放弃这份情节', tag: 'create.assistant');
-        return;
+      final kind = preview['kind']?.toString() ?? turn.toolName;
+      switch (kind) {
+        case 'main.generate_graph':
+        case 'main.patch_graph':
+          final graph = MainGraphDocument.decodeSkeleton(
+            Map<String, dynamic>.from(preview['graph'] as Map),
+          );
+          final isPatch = kind == 'main.patch_graph';
+          final ops = (preview['opCount'] as num?)?.toInt();
+          _finishTurn(
+            _describeGraphProposal(
+              context,
+              graph,
+              isPatch: isPatch,
+              opCount: ops,
+            ),
+          );
+          final useIt = await _confirmGraph(
+            project: project,
+            graph: graph,
+            isPatch: isPatch,
+            opCount: ops,
+          );
+          if (!mounted || !useIt) {
+            AppLog.instance.info('创作助手放弃情节改动', tag: 'create.assistant');
+            return;
+          }
+          await _applyGraph(repo: repo, project: project, graph: graph);
+        case 'world.patch_propose':
+          final world = WorldBook.fromJson(
+            Map<String, dynamic>.from(preview['worldBook'] as Map),
+          );
+          final ops = (preview['opCount'] as num?)?.toInt() ?? 0;
+          _finishTurn(
+            '${strings.proposalLead} ${strings.opCount(ops)}',
+          );
+          final useIt = await _confirmWorld(world: world, opCount: ops);
+          if (!mounted || !useIt) return;
+          await _applyWorld(repo: repo, project: project, worldBook: world);
+        case 'cast.patch_propose':
+          final members = [
+            for (final item in (preview['members'] as List? ?? const []))
+              if (item is Map)
+                CastMember.fromJson(Map<String, dynamic>.from(item)),
+          ];
+          final ops = (preview['opCount'] as num?)?.toInt() ?? 0;
+          _finishTurn(
+            '${strings.proposalLead} ${strings.opCount(ops)}',
+          );
+          final useIt = await _confirmCast(cast: members, opCount: ops);
+          if (!mounted || !useIt) return;
+          await _applyCast(repo: repo, project: project, cast: members);
+        default:
+          _finishTurn(strings.assistantFailedRetry);
       }
-      await _applyGraph(repo: repo, project: project, graph: graph);
     } catch (error, stack) {
       if (!mounted) return;
       _finishTurn(strings.assistantFailedLater);
       AppLog.instance.error(
-        '创作助手写情节失败',
+        '创作助手回合失败',
         tag: 'create.assistant',
         error: error,
         stackTrace: stack,
@@ -281,9 +333,16 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     }
   }
 
-  String _describeProposal(BuildContext context, MainStory graph) {
+  String _describeGraphProposal(
+    BuildContext context,
+    MainStory graph, {
+    required bool isPatch,
+    int? opCount,
+  }) {
     final strings = context.strings;
-    final bits = <String>[strings.stopCount(graph.nodes.length)];
+    final bits = <String>[];
+    if (isPatch && opCount != null) bits.add(strings.opCount(opCount));
+    bits.add(strings.stopCount(graph.nodes.length));
     final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
     if (branches > 0) bits.add(strings.branchCount(branches));
     return '${strings.proposalLead} ${bits.join(' · ')}';
@@ -310,13 +369,17 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
   Future<bool> _confirmGraph({
     required Project project,
     required MainStory graph,
+    required bool isPatch,
+    int? opCount,
   }) async {
     if (!mounted) return false;
     final strings = context.strings;
-    final bits = <String>[strings.stopCount(graph.nodes.length)];
+    final bits = <String>[];
+    if (isPatch && opCount != null) bits.add(strings.opCount(opCount));
+    bits.add(strings.stopCount(graph.nodes.length));
     final branches = graph.edges.where((e) => e.kind == EdgeKind.branch).length;
     if (branches > 0) bits.add(strings.branchCount(branches));
-    final replacing = project.main.hasAuthoredNodes;
+    final replacing = !isPatch && project.main.hasAuthoredNodes;
     final droppedBeats = project.main.beats.length;
 
     final confirmed = await showAppSheet<bool>(
@@ -325,7 +388,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
       builder: (sheetContext) => AppSheetScrollBody(
         footer: [
           AppButton(
-            label: replacing ? strings.replaceGraph : strings.writeGraph,
+            label: isPatch
+                ? strings.applyPatch
+                : (replacing ? strings.replaceGraph : strings.writeGraph),
             expanded: true,
             onPressed: () => Navigator.of(sheetContext).pop(true),
           ),
@@ -365,6 +430,96 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
               icon: node.tags.contains('ending')
                   ? Icons.flag_outlined
                   : Icons.circle_outlined,
+            ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  Future<bool> _confirmWorld({
+    required WorldBook world,
+    required int opCount,
+  }) async {
+    if (!mounted) return false;
+    final strings = context.strings;
+    final confirmed = await showAppSheet<bool>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (sheetContext) => AppSheetScrollBody(
+        footer: [
+          AppButton(
+            label: strings.applyPatch,
+            expanded: true,
+            onPressed: () => Navigator.of(sheetContext).pop(true),
+          ),
+          const SizedBox(height: AppTheme.spaceSm),
+          AppButton(
+            label: strings.skipWrite,
+            variant: AppButtonVariant.ghost,
+            expanded: true,
+            onPressed: () => Navigator.of(sheetContext).pop(false),
+          ),
+        ],
+        children: [
+          AppText(strings.generatedWorldTitle, role: AppTextRole.subtitle),
+          const SizedBox(height: AppTheme.spaceXs),
+          AppText(strings.opCount(opCount), role: AppTextRole.caption),
+          const SizedBox(height: AppTheme.spaceMd),
+          for (final entry in world.entries)
+            AppListTile(
+              title: entry.title,
+              subtitle: entry.body.trim().isEmpty
+                  ? null
+                  : (entry.body.length > 80
+                      ? '${entry.body.substring(0, 80)}…'
+                      : entry.body),
+              icon: entry.alwaysOn
+                  ? Icons.push_pin_outlined
+                  : Icons.menu_book_outlined,
+            ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  Future<bool> _confirmCast({
+    required List<CastMember> cast,
+    required int opCount,
+  }) async {
+    if (!mounted) return false;
+    final strings = context.strings;
+    final confirmed = await showAppSheet<bool>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (sheetContext) => AppSheetScrollBody(
+        footer: [
+          AppButton(
+            label: strings.applyPatch,
+            expanded: true,
+            onPressed: () => Navigator.of(sheetContext).pop(true),
+          ),
+          const SizedBox(height: AppTheme.spaceSm),
+          AppButton(
+            label: strings.skipWrite,
+            variant: AppButtonVariant.ghost,
+            expanded: true,
+            onPressed: () => Navigator.of(sheetContext).pop(false),
+          ),
+        ],
+        children: [
+          AppText(strings.generatedCastTitle, role: AppTextRole.subtitle),
+          const SizedBox(height: AppTheme.spaceXs),
+          AppText(strings.opCount(opCount), role: AppTextRole.caption),
+          const SizedBox(height: AppTheme.spaceMd),
+          for (final member in cast)
+            AppListTile(
+              title: member.name,
+              subtitle: member.summary.trim().isEmpty ? null : member.summary,
+              icon: member.isProtagonist
+                  ? Icons.star_outline
+                  : Icons.person_outline,
             ),
         ],
       ),
@@ -424,6 +579,100 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     );
   }
 
+  Future<void> _applyWorld({
+    required ProjectRepository repo,
+    required Project project,
+    required WorldBook worldBook,
+  }) async {
+    final next = project.copyWith(
+      worldBook: worldBook,
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+    try {
+      await repo.save(next);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '创作助手写入世界书失败',
+        tag: 'create.assistant',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() {
+        _lines.add(
+          _AssistantLine(
+            role: _LineRole.assistant,
+            text: context.strings.assistantNoSave,
+          ),
+        );
+      });
+      unawaited(_persist());
+      return;
+    }
+    if (!mounted) return;
+    AppScope.projectChangesOf(context).markChanged(project.meta.id);
+    setState(() {
+      _lines.add(
+        _AssistantLine(
+          role: _LineRole.assistant,
+          text: context.strings.assistantWorldSaved,
+        ),
+      );
+    });
+    unawaited(_persist());
+    AppLog.instance.info(
+      '创作助手写入世界书：${worldBook.entries.length} 条',
+      tag: 'create.assistant',
+    );
+  }
+
+  Future<void> _applyCast({
+    required ProjectRepository repo,
+    required Project project,
+    required List<CastMember> cast,
+  }) async {
+    final next = project.copyWith(
+      cast: cast,
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+    try {
+      await repo.save(next);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '创作助手写入角色失败',
+        tag: 'create.assistant',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() {
+        _lines.add(
+          _AssistantLine(
+            role: _LineRole.assistant,
+            text: context.strings.assistantNoSave,
+          ),
+        );
+      });
+      unawaited(_persist());
+      return;
+    }
+    if (!mounted) return;
+    AppScope.projectChangesOf(context).markChanged(project.meta.id);
+    setState(() {
+      _lines.add(
+        _AssistantLine(
+          role: _LineRole.assistant,
+          text: context.strings.assistantCastSaved,
+        ),
+      );
+    });
+    unawaited(_persist());
+    AppLog.instance.info(
+      '创作助手写入角色：${cast.length} 人',
+      tag: 'create.assistant',
+    );
+  }
+
   @override
   void dispose() {
     _composerDebounce?.cancel();
@@ -472,6 +721,35 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
                 value: storyLabel,
                 hint: strings.pickStoryHint,
                 onTap: _loadingStories ? null : _pickStory,
+              ),
+              const SizedBox(height: AppTheme.spaceSm),
+              AppText(
+                strings.assistantEditTargetLabel,
+                role: AppTextRole.caption,
+              ),
+              const SizedBox(height: AppTheme.spaceXs),
+              AppSegmented<CreateAssistantTarget>(
+                value: _target,
+                options: [
+                  AppSegmentOption(
+                    value: CreateAssistantTarget.graph,
+                    label: strings.assistantTargetGraph,
+                  ),
+                  AppSegmentOption(
+                    value: CreateAssistantTarget.world,
+                    label: strings.assistantTargetWorld,
+                  ),
+                  AppSegmentOption(
+                    value: CreateAssistantTarget.cast,
+                    label: strings.assistantTargetCast,
+                  ),
+                ],
+                onChanged: _generating
+                    ? (_) {}
+                    : (value) {
+                        setState(() => _target = value);
+                        unawaited(_persist());
+                      },
               ),
             ],
           ),

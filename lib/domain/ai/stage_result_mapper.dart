@@ -8,6 +8,9 @@ import 'package:anoworld/foundation/ai/json_candidate.dart';
 class StageResultMapper {
   const StageResultMapper();
 
+  /// Minimum stations for a full skeleton generate (not used by patch apply).
+  static const int minFullGraphStations = 20;
+
   WorldBook worldBookFromRaw(String raw) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) {
@@ -76,7 +79,14 @@ class StageResultMapper {
   }
 
   /// Builds a skeleton [MainStory]: stations + edges, empty beats.
-  MainStory mainFromRaw(String raw, {required List<CastMember> cast}) {
+  ///
+  /// When [enforceMinStations] is true (full generate), requires at least
+  /// [minFullGraphStations] nodes.
+  MainStory mainFromRaw(
+    String raw, {
+    required List<CastMember> cast,
+    bool enforceMinStations = false,
+  }) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) {
       throw const StageMapException('情节结果不是有效 JSON');
@@ -101,6 +111,11 @@ class StageResultMapper {
     if (stationMaps.length < 2) {
       throw const StageMapException('至少需要两站情节');
     }
+    if (enforceMinStations && stationMaps.length < minFullGraphStations) {
+      throw StageMapException(
+        '至少需要 $minFullGraphStations 个情节站，当前 ${stationMaps.length}',
+      );
+    }
 
     final titleToId = <String, String>{};
     final nodes = <StoryNode>[];
@@ -121,8 +136,8 @@ class StageResultMapper {
           synopsis: _stringOf(row['synopsis'])?.trim(),
           beatIds: const <String>[],
           layout: NodeLayout(
-            x: (i % 4) * 220.0,
-            y: (i ~/ 4) * 140.0,
+            x: (i % 5) * 220.0,
+            y: (i ~/ 5) * 140.0,
           ),
           tags: StoryNodeKind.apply(
             const <String>[],
@@ -234,7 +249,7 @@ class StageResultMapper {
       }
     }
 
-    // Linear defaults if model omitted edges.
+    // Linear defaults if model omitted edges entirely (open last leaf OK).
     if (edges.isEmpty) {
       for (var i = 0; i < nodes.length - 1; i++) {
         if (nodes[i].tags.contains('ending')) continue;
@@ -244,54 +259,9 @@ class StageResultMapper {
           kind: EdgeKind.defaultEdge,
         );
       }
-      final lastPlayable = nodes.lastWhere(
-        (n) => !n.tags.contains('ending'),
-        orElse: () => nodes.first,
-      );
-      if (!edges.any((e) => e.from == lastPlayable.id)) {
-        final endId = _ensureEndingNode(
-          nodes: nodes,
-          titleToId: titleToId,
-          label: '结局',
-        );
-        addEdge(
-          fromId: lastPlayable.id,
-          toId: endId,
-          kind: EdgeKind.defaultEdge,
-        );
-      }
     }
 
-    // Prefer at least one branch when there are 3+ stations.
-    final hasBranch = edges.any((e) => e.kind == EdgeKind.branch);
-    if (!hasBranch && nodes.length >= 3) {
-      final from = nodes.first;
-      final alt = nodes[2];
-      if (from.id != alt.id && !alt.tags.contains('ending')) {
-        addEdge(
-          fromId: from.id,
-          toId: alt.id,
-          kind: EdgeKind.branch,
-          label: '另一条路',
-        );
-      }
-    }
-
-    // Every non-ending node needs an outbound edge.
-    for (final node in List<StoryNode>.from(nodes)) {
-      if (node.tags.contains('ending')) continue;
-      if (edges.any((e) => e.from == node.id)) continue;
-      final endId = _ensureEndingNode(
-        nodes: nodes,
-        titleToId: titleToId,
-        label: '结局',
-      );
-      addEdge(
-        fromId: node.id,
-        toId: endId,
-        kind: EdgeKind.defaultEdge,
-      );
-    }
+    _assertBranchDivergence(nodes, edges);
 
     return MainStory(
       summary: summary.isEmpty ? nodes.first.title : summary,
@@ -300,6 +270,36 @@ class StageResultMapper {
       edges: List<StoryEdge>.unmodifiable(edges),
       beats: const <Beat>[],
     );
+  }
+
+  static void _assertBranchDivergence(
+    List<StoryNode> nodes,
+    List<StoryEdge> edges,
+  ) {
+    final byId = {for (final n in nodes) n.id: n};
+    final outs = <String, List<String>>{};
+    for (final edge in edges) {
+      (outs[edge.from] ??= <String>[]).add(edge.to);
+    }
+    for (final destinations in outs.values) {
+      if (destinations.length < 2) continue;
+      final synopses = destinations
+          .map((id) => (byId[id]?.synopsis ?? '').trim())
+          .where((s) => s.isNotEmpty)
+          .toList(growable: false);
+      for (var i = 0; i < synopses.length; i++) {
+        for (var j = i + 1; j < synopses.length; j++) {
+          if (_tooSimilar(synopses[i], synopses[j])) {
+            throw const StageMapException('分叉走向过于接近，请拉开差异');
+          }
+        }
+      }
+    }
+  }
+
+  static bool _tooSimilar(String a, String b) {
+    if (a == b) return true;
+    return a.contains(b) || b.contains(a);
   }
 
   static String _ensureEndingNode({

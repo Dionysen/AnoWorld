@@ -486,9 +486,19 @@ abstract class AppStrings extends AppLocalizations {
   String get assistantFailedLater;
   String get assistantNoSave;
   String get assistantGraphSaved;
+  String get assistantWorldSaved;
+  String get assistantCastSaved;
   String get proposalLead;
   String stopCount(int count);
   String branchCount(int count);
+  String get assistantTargetGraph;
+  String get assistantTargetWorld;
+  String get assistantTargetCast;
+  String get assistantEditTargetLabel;
+  String get applyPatch;
+  String get generatedWorldTitle;
+  String get generatedCastTitle;
+  String opCount(int count);
 
   // Generated plot confirmation.
 

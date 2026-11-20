@@ -2,6 +2,9 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/create/create_tool.dart';
 import 'package:anoworld/domain/ai/create/create_tool_result.dart';
 import 'package:anoworld/domain/ai/generate_main_graph_action.dart';
+import 'package:anoworld/domain/ai/propose_cast_patch_action.dart';
+import 'package:anoworld/domain/ai/propose_main_graph_patch_action.dart';
+import 'package:anoworld/domain/ai/propose_world_book_patch_action.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/validation/project_issue.dart';
@@ -199,6 +202,7 @@ List<CreateTool> buildProjectTools() {
           );
           return CreateToolResult.userConfirmRequired(<String, dynamic>{
             'schemaVersion': 1,
+            'kind': 'main.generate_graph',
             'summary': main.summary,
             'nodeCount': main.nodes.length,
             'branchCount':
@@ -212,6 +216,140 @@ List<CreateTool> buildProjectTools() {
                 },
             ],
             'graph': MainGraphDocument.encode(main),
+          });
+        } on AiTextException catch (error) {
+          return CreateToolResult.error(error.message);
+        }
+      },
+    ),
+    CreateTool(
+      name: 'main.patch_graph',
+      description: '按用户意图增量改情节骨架（不落盘，等用户确认）',
+      mutatesProject: false,
+      invoke: (ctx, args) async {
+        final project = ctx.project;
+        if (project == null) {
+          return CreateToolResult.error('没有打开的故事');
+        }
+        final ai = ctx.ai;
+        if (ai == null) {
+          return CreateToolResult.error('未配置文本服务');
+        }
+        final prompt = args['prompt']?.toString().trim() ?? '';
+        if (prompt.isEmpty) {
+          return CreateToolResult.error('先说想改哪里');
+        }
+        try {
+          final proposal = await ProposeMainGraphPatchAction(
+            textClient: ctx.services.textClient,
+          ).propose(
+            ctx: ai,
+            project: project,
+            prompt: prompt,
+            plotCatalog: ctx.services.plotCatalog,
+          );
+          return CreateToolResult.userConfirmRequired(<String, dynamic>{
+            'schemaVersion': 1,
+            'kind': 'main.patch_graph',
+            'opCount': proposal.ops.length,
+            'ops': proposal.ops,
+            'summary': proposal.main.summary,
+            'nodeCount': proposal.main.nodes.length,
+            'stations': [
+              for (final node in proposal.main.nodes)
+                <String, dynamic>{
+                  'title': node.title,
+                  if (node.synopsis != null) 'synopsis': node.synopsis,
+                  'ending': node.tags.contains('ending'),
+                },
+            ],
+            'graph': MainGraphDocument.encode(proposal.main),
+          });
+        } on AiTextException catch (error) {
+          return CreateToolResult.error(error.message);
+        }
+      },
+    ),
+    CreateTool(
+      name: 'world.patch_propose',
+      description: '按用户意图提议改世界书（不落盘，等用户确认）',
+      mutatesProject: false,
+      invoke: (ctx, args) async {
+        final project = ctx.project;
+        if (project == null) {
+          return CreateToolResult.error('没有打开的故事');
+        }
+        final ai = ctx.ai;
+        if (ai == null) {
+          return CreateToolResult.error('未配置文本服务');
+        }
+        final prompt = args['prompt']?.toString().trim() ?? '';
+        if (prompt.isEmpty) {
+          return CreateToolResult.error('先说想改哪条设定');
+        }
+        try {
+          final proposal = await ProposeWorldBookPatchAction(
+            textClient: ctx.services.textClient,
+          ).propose(ctx: ai, project: project, prompt: prompt);
+          return CreateToolResult.userConfirmRequired(<String, dynamic>{
+            'schemaVersion': 1,
+            'kind': 'world.patch_propose',
+            'opCount': proposal.ops.length,
+            'ops': proposal.ops,
+            'entryCount': proposal.worldBook.entries.length,
+            'entries': [
+              for (final e in proposal.worldBook.entries)
+                <String, dynamic>{
+                  'id': e.id,
+                  'title': e.title,
+                  'alwaysOn': e.alwaysOn,
+                },
+            ],
+            'worldBook': proposal.worldBook.toJson(),
+          });
+        } on AiTextException catch (error) {
+          return CreateToolResult.error(error.message);
+        }
+      },
+    ),
+    CreateTool(
+      name: 'cast.patch_propose',
+      description: '按用户意图提议改角色（不落盘，等用户确认）',
+      mutatesProject: false,
+      invoke: (ctx, args) async {
+        final project = ctx.project;
+        if (project == null) {
+          return CreateToolResult.error('没有打开的故事');
+        }
+        final ai = ctx.ai;
+        if (ai == null) {
+          return CreateToolResult.error('未配置文本服务');
+        }
+        final prompt = args['prompt']?.toString().trim() ?? '';
+        if (prompt.isEmpty) {
+          return CreateToolResult.error('先说想改哪个角色');
+        }
+        try {
+          final proposal = await ProposeCastPatchAction(
+            textClient: ctx.services.textClient,
+          ).propose(ctx: ai, project: project, prompt: prompt);
+          return CreateToolResult.userConfirmRequired(<String, dynamic>{
+            'schemaVersion': 1,
+            'kind': 'cast.patch_propose',
+            'opCount': proposal.ops.length,
+            'ops': proposal.ops,
+            'castCount': proposal.cast.length,
+            'cast': [
+              for (final c in proposal.cast)
+                <String, dynamic>{
+                  'id': c.id,
+                  'name': c.name,
+                  'isProtagonist': c.isProtagonist,
+                },
+            ],
+            'members': [
+              for (final c in proposal.cast) c.toJson(),
+            ],
           });
         } on AiTextException catch (error) {
           return CreateToolResult.error(error.message);

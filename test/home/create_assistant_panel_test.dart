@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/full_graph_json.dart';
 import '../support/test_app.dart';
 
 class _ScriptedTextClient implements AiTextClient {
@@ -32,13 +33,7 @@ class _ScriptedTextClient implements AiTextClient {
   }
 }
 
-const _graphJson = '''
-{"summary":"少年在雨夜做出选择","stations":[
-{"title":"城门","synopsis":"少年被拦下","exits":[{"to":"客栈","kind":"default"},{"to":"荒野","kind":"branch","label":"硬闯"}]},
-{"title":"客栈","synopsis":"掌柜透露出路","exits":[{"to":"end","kind":"default"}]},
-{"title":"荒野","synopsis":"独行遇雨","exits":[{"to":"end","kind":"default"}]}
-]}
-''';
+final _graphJson = buildFullGraphJson();
 
 const _endpoint = AiTextEndpoint(
   kind: AiTextProviderKind.openAiCompatible,
@@ -97,18 +92,18 @@ void main() {
 
     expect(find.text('雨夜投宿'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), '今晚必须出城');
+    await tester.enterText(find.byType(TextField), '整图重写：今晚必须出城');
     await tester.tap(find.byTooltip('发送'));
     await tester.pumpAndSettle();
 
     expect(find.text('生成的情节'), findsOneWidget);
-    expect(find.textContaining('处岔路'), findsWidgets);
+    expect(find.textContaining('站'), findsWidgets);
 
     await tester.tap(find.text('替换情节图'));
     await tester.pumpAndSettle();
 
     final saved = await repo.open('proj_rain_night');
-    expect(saved.main.nodes.length, greaterThanOrEqualTo(3));
+    expect(saved.main.nodes.length, greaterThanOrEqualTo(20));
     expect(saved.main.edges, isNotEmpty);
     expect(saved.main.beats, isEmpty);
     expect(

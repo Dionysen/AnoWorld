@@ -57,7 +57,11 @@ class GenerateMainGraphAction {
       ))
           .content;
       try {
-        final main = mapper.mainFromRaw(raw, cast: project.cast);
+        final main = mapper.mainFromRaw(
+          raw,
+          cast: project.cast,
+          enforceMinStations: true,
+        );
         final probe = validator.validate(project.copyWith(main: main));
         if (probe.hasErrors) {
           throw const StageMapException('生成的情节不完整');

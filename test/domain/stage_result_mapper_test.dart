@@ -39,7 +39,7 @@ void main() {
   "stations": [
     {"title": "城门", "synopsis": "决心离开", "exits": [{"to": "客栈", "kind": "default"}, {"to": "荒野", "kind": "branch", "label": "不投宿"}]},
     {"title": "客栈", "synopsis": "与掌柜周旋", "exits": [{"to": "end", "kind": "default", "label": "住下"}]},
-    {"title": "荒野", "synopsis": "雨中独行", "exits": [{"to": "end", "kind": "default", "label": "天亮"}]}
+    {"title": "荒野", "synopsis": "雨中独行", "exits": []}
   ]
 }
 ''',
@@ -50,6 +50,9 @@ void main() {
     expect(main.beats, isEmpty);
     expect(main.edges, isNotEmpty);
     expect(main.edges.any((e) => e.kind == EdgeKind.branch), isTrue);
+    // Open leaf stays without auto-wired ending.
+    final wild = main.nodes.firstWhere((n) => n.title == '荒野');
+    expect(main.edges.any((e) => e.from == wild.id), isFalse);
 
     final project = Project(
       meta: ProjectMeta(
@@ -72,6 +75,22 @@ void main() {
       main: main,
     );
     expect(const ProjectValidator().validate(project).hasErrors, isFalse);
+  });
+
+  test('enforceMinStations rejects short full graphs', () {
+    expect(
+      () => mapper.mainFromRaw(
+        '''
+{"summary":"短","stations":[
+{"title":"a","synopsis":"一","exits":[{"to":"b","kind":"default"}]},
+{"title":"b","synopsis":"二","exits":[]}
+]}
+''',
+        cast: const [],
+        enforceMinStations: true,
+      ),
+      throwsA(isA<StageMapException>()),
+    );
   });
 
   test('throws on missing stations', () {
