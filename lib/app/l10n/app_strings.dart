@@ -314,6 +314,13 @@ abstract class AppStrings extends AppLocalizations {
   String get imageGenQualityHint;
   String get imageGenStepsLabel;
   String imageGenStepsValue(int steps);
+  String get imageGenPortraitSizeLabel;
+  String get imageGenSceneSizeLabel;
+  String get imageGenWidthLabel;
+  String get imageGenHeightLabel;
+  String get imageGenSizePresetLabel;
+  String imageGenSizePresetValue(ImageGenSizePreset preset);
+  String imageGenSizeValue(int width, int height);
   String get imageGenUpscaleLabel;
   String get imageGenUpscaleHint;
 

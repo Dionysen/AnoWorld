@@ -265,6 +265,49 @@ class AiTextEndpoint {
   }
 }
 
+/// Named latent size for the settings preset sheet (multiples of 64).
+class ImageGenSizePreset {
+  const ImageGenSizePreset({
+    required this.width,
+    required this.height,
+    required this.aspectLabel,
+  });
+
+  final int width;
+  final int height;
+
+  /// User-facing ratio tag, e.g. `16:9` / `2:3`.
+  final String aspectLabel;
+
+  String get sizeLabel => '$width×$height';
+}
+
+/// Built-in size catalogs for portrait / scene (Comfy / SDXL friendly).
+///
+/// Width and height are always multiples of [AiImageEndpoint.sizeStep].
+abstract final class ImageGenSizePresets {
+  static const List<ImageGenSizePreset> portrait = <ImageGenSizePreset>[
+    ImageGenSizePreset(width: 512, height: 768, aspectLabel: '2:3'),
+    ImageGenSizePreset(width: 640, height: 960, aspectLabel: '2:3'),
+    ImageGenSizePreset(width: 768, height: 1152, aspectLabel: '2:3'),
+    ImageGenSizePreset(width: 832, height: 1216, aspectLabel: '2:3'),
+    ImageGenSizePreset(width: 896, height: 1344, aspectLabel: '2:3'),
+    ImageGenSizePreset(width: 1024, height: 1024, aspectLabel: '1:1'),
+  ];
+
+  static const List<ImageGenSizePreset> scene = <ImageGenSizePreset>[
+    ImageGenSizePreset(width: 1024, height: 576, aspectLabel: '16:9'),
+    ImageGenSizePreset(width: 1152, height: 640, aspectLabel: '16:9'),
+    ImageGenSizePreset(width: 1280, height: 704, aspectLabel: '16:9'),
+    ImageGenSizePreset(width: 1344, height: 768, aspectLabel: '16:9'),
+    ImageGenSizePreset(width: 1536, height: 896, aspectLabel: '16:9'),
+    ImageGenSizePreset(width: 1920, height: 1088, aspectLabel: '16:9'),
+    ImageGenSizePreset(width: 768, height: 512, aspectLabel: '3:2'),
+    ImageGenSizePreset(width: 1216, height: 832, aspectLabel: '3:2'),
+    ImageGenSizePreset(width: 1024, height: 1024, aspectLabel: '1:1'),
+  ];
+}
+
 /// Active image endpoint (providers differ from text).
 class AiImageEndpoint {
   const AiImageEndpoint({
@@ -274,6 +317,10 @@ class AiImageEndpoint {
     this.model = '',
     this.steps = defaultSteps,
     this.upscale = defaultUpscale,
+    this.portraitWidth = defaultPortraitWidth,
+    this.portraitHeight = defaultPortraitHeight,
+    this.sceneWidth = defaultSceneWidth,
+    this.sceneHeight = defaultSceneHeight,
   });
 
   /// Comfy / diffusion sampling steps (fewer = faster, softer detail).
@@ -282,8 +329,24 @@ class AiImageEndpoint {
   static const int stepsUpperBound = 40;
   static const bool defaultUpscale = false;
 
+  static const int defaultPortraitWidth = 768;
+  static const int defaultPortraitHeight = 1152;
+  static const int defaultSceneWidth = 1216;
+  static const int defaultSceneHeight = 832;
+
+  static const int sizeLowerBound = 256;
+  static const int sizeUpperBound = 2048;
+  static const int sizeStep = 64;
+
   static int clampSteps(int value) =>
       value.clamp(stepsLowerBound, stepsUpperBound);
+
+  /// Snap to [sizeStep] within [sizeLowerBound]…[sizeUpperBound].
+  static int clampSize(int value) {
+    final clamped = value.clamp(sizeLowerBound, sizeUpperBound);
+    final snapped = ((clamped + sizeStep ~/ 2) ~/ sizeStep) * sizeStep;
+    return snapped.clamp(sizeLowerBound, sizeUpperBound);
+  }
 
   final AiImageProviderKind kind;
   final String baseUrl;
@@ -295,6 +358,11 @@ class AiImageEndpoint {
 
   /// Run RealESRGAN after decode (much slower on local AMD).
   final bool upscale;
+
+  final int portraitWidth;
+  final int portraitHeight;
+  final int sceneWidth;
+  final int sceneHeight;
 
   /// ComfyUI only needs a reachable base URL (checkpoint lives in workflow).
   bool get isConfigured {
@@ -313,6 +381,10 @@ class AiImageEndpoint {
     String? model,
     int? steps,
     bool? upscale,
+    int? portraitWidth,
+    int? portraitHeight,
+    int? sceneWidth,
+    int? sceneHeight,
   }) {
     return AiImageEndpoint(
       kind: kind ?? this.kind,
@@ -321,6 +393,10 @@ class AiImageEndpoint {
       model: model ?? this.model,
       steps: clampSteps(steps ?? this.steps),
       upscale: upscale ?? this.upscale,
+      portraitWidth: clampSize(portraitWidth ?? this.portraitWidth),
+      portraitHeight: clampSize(portraitHeight ?? this.portraitHeight),
+      sceneWidth: clampSize(sceneWidth ?? this.sceneWidth),
+      sceneHeight: clampSize(sceneHeight ?? this.sceneHeight),
     );
   }
 
@@ -336,6 +412,10 @@ class AiImageEndpoint {
       model: next.defaultModel,
       steps: steps,
       upscale: upscale,
+      portraitWidth: portraitWidth,
+      portraitHeight: portraitHeight,
+      sceneWidth: sceneWidth,
+      sceneHeight: sceneHeight,
     );
   }
 
@@ -346,6 +426,10 @@ class AiImageEndpoint {
         'model': model,
         'steps': steps,
         'upscale': upscale,
+        'portraitWidth': portraitWidth,
+        'portraitHeight': portraitHeight,
+        'sceneWidth': sceneWidth,
+        'sceneHeight': sceneHeight,
       };
 
   factory AiImageEndpoint.fromJson(Map<String, dynamic>? json) {
@@ -353,6 +437,7 @@ class AiImageEndpoint {
     if (json.containsKey('providers')) {
       return AiImageEndpoint.fromJson(_activeFromProviders(json));
     }
+    final legacy = _legacyResolutionSizes(json.optionalString('resolution'));
     return AiImageEndpoint(
       kind: AiImageProviderKindX.parse(json.optionalString('kind')),
       baseUrl: json.optionalString('baseUrl') ?? '',
@@ -362,7 +447,31 @@ class AiImageEndpoint {
         (json.optionalNum('steps') ?? defaultSteps).toInt(),
       ),
       upscale: json.optionalBool('upscale') ?? defaultUpscale,
+      portraitWidth: clampSize(
+        (json.optionalNum('portraitWidth') ?? legacy.$1.$1).toInt(),
+      ),
+      portraitHeight: clampSize(
+        (json.optionalNum('portraitHeight') ?? legacy.$1.$2).toInt(),
+      ),
+      sceneWidth: clampSize(
+        (json.optionalNum('sceneWidth') ?? legacy.$2.$1).toInt(),
+      ),
+      sceneHeight: clampSize(
+        (json.optionalNum('sceneHeight') ?? legacy.$2.$2).toInt(),
+      ),
     );
+  }
+
+  /// Maps retired small/medium/large wire values onto concrete sizes.
+  static ((int, int), (int, int)) _legacyResolutionSizes(String? raw) {
+    return switch (raw) {
+      'small' => ((512, 768), (768, 512)),
+      'large' => ((832, 1216), (1344, 768)),
+      _ => (
+          (defaultPortraitWidth, defaultPortraitHeight),
+          (defaultSceneWidth, defaultSceneHeight),
+        ),
+    };
   }
 }
 

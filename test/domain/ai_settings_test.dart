@@ -99,25 +99,50 @@ void main() {
     expect(restored.toJson()['minBridgeLines'], 5);
   });
 
-  test('image steps/upscale defaults and round-trip', () {
+  test('image steps/upscale/size defaults and round-trip', () {
     expect(const AiImageEndpoint().steps, AiImageEndpoint.defaultSteps);
     expect(const AiImageEndpoint().upscale, isFalse);
+    expect(
+      const AiImageEndpoint().portraitWidth,
+      AiImageEndpoint.defaultPortraitWidth,
+    );
+    expect(
+      const AiImageEndpoint().sceneHeight,
+      AiImageEndpoint.defaultSceneHeight,
+    );
+    expect(
+      ImageGenSizePresets.scene.any((p) => p.aspectLabel == '16:9'),
+      isTrue,
+    );
 
     final restored = AiImageEndpoint.fromJson(<String, dynamic>{
       'kind': 'comfyui',
       'baseUrl': 'http://127.0.0.1:8188',
       'steps': 8,
       'upscale': true,
+      'portraitWidth': 512,
+      'portraitHeight': 768,
+      'sceneWidth': 1280,
+      'sceneHeight': 704,
     });
     expect(restored.steps, 8);
     expect(restored.upscale, isTrue);
-    expect(restored.toJson()['steps'], 8);
-    expect(restored.toJson()['upscale'], isTrue);
+    expect(restored.portraitWidth, 512);
+    expect(restored.sceneWidth, 1280);
+    expect(restored.sceneHeight, 704);
+    expect(restored.toJson()['sceneWidth'], 1280);
+
+    final legacy = AiImageEndpoint.fromJson(<String, dynamic>{
+      'resolution': 'small',
+    });
+    expect(legacy.portraitWidth, 512);
+    expect(legacy.sceneWidth, 768);
 
     expect(
       const AiImageEndpoint().copyWith(steps: 99).steps,
       AiImageEndpoint.stepsUpperBound,
     );
+    expect(AiImageEndpoint.clampSize(700), 704);
   });
 
   test('minGraphStations defaults, clamps and round-trips', () {

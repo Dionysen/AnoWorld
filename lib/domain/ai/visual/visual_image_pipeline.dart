@@ -43,6 +43,10 @@ class VisualImagePipeline {
   }) async {
     final resolvedUpscale = upscale ?? image.upscale;
     final resolvedSteps = steps ?? image.steps;
+    final portraitW = image.portraitWidth;
+    final portraitH = image.portraitHeight;
+    final sceneW = image.sceneWidth;
+    final sceneH = image.sceneHeight;
     await ensureReady(image);
 
     var next = applyVisualTags(project, plan);
@@ -79,6 +83,8 @@ class VisualImagePipeline {
           workflow: ComfyWorkflowTemplates.portrait(
             prompt: row.portraitPrompt,
             negative: plan.negativePrompt,
+            width: portraitW,
+            height: portraitH,
             steps: resolvedSteps,
             upscale: resolvedUpscale,
             checkpoint: _checkpoint(image),
@@ -133,6 +139,8 @@ class VisualImagePipeline {
           workflow: ComfyWorkflowTemplates.scene(
             prompt: row.scenePrompt,
             negative: plan.negativePrompt,
+            width: sceneW,
+            height: sceneH,
             steps: resolvedSteps,
             upscale: resolvedUpscale,
             checkpoint: _checkpoint(image),

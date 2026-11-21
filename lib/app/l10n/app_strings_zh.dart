@@ -922,13 +922,36 @@ class AppStringsZh extends AppStrings {
   String get imageGenQualitySection => '生图质量';
 
   @override
-  String get imageGenQualityHint => '步数越少越快；超分更清晰但会慢很多';
+  String get imageGenQualityHint =>
+      '可选手动宽高或预设（含 16:9）；越小越快，超分更清晰但更慢';
 
   @override
   String get imageGenStepsLabel => '采样步数';
 
   @override
   String imageGenStepsValue(int steps) => '$steps 步';
+
+  @override
+  String get imageGenPortraitSizeLabel => '立绘尺寸';
+
+  @override
+  String get imageGenSceneSizeLabel => '场景尺寸';
+
+  @override
+  String get imageGenWidthLabel => '宽度';
+
+  @override
+  String get imageGenHeightLabel => '高度';
+
+  @override
+  String get imageGenSizePresetLabel => '尺寸预设';
+
+  @override
+  String imageGenSizePresetValue(ImageGenSizePreset preset) =>
+      '${preset.aspectLabel} · ${preset.sizeLabel}';
+
+  @override
+  String imageGenSizeValue(int width, int height) => '$width×$height';
 
   @override
   String get imageGenUpscaleLabel => '出图后超分';

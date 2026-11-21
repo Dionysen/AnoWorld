@@ -88,6 +88,63 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
     );
   }
 
+  Future<ImageGenSizePreset?> _pickSizePreset({
+    required List<ImageGenSizePreset> presets,
+    required int currentWidth,
+    required int currentHeight,
+  }) {
+    return showAppSheet<ImageGenSizePreset>(
+      context: context,
+      size: AppSheetSize.half,
+      builder: (context) {
+        final strings = context.strings;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                0,
+              ),
+              child: AppSectionHeader(strings.imageGenSizePresetLabel),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(
+                  0,
+                  0,
+                  0,
+                  AppTheme.spaceMd,
+                ),
+                itemCount: presets.length,
+                separatorBuilder: (_, _) => const SizedBox.shrink(),
+                itemBuilder: (context, index) {
+                  final preset = presets[index];
+                  final selected = preset.width == currentWidth &&
+                      preset.height == currentHeight;
+                  return AppListTile(
+                    title: strings.imageGenSizePresetValue(preset),
+                    subtitle: preset.aspectLabel,
+                    icon: Icons.crop_outlined,
+                    onTap: () => Navigator.of(context).pop(preset),
+                    trailing: selected
+                        ? AppText(
+                            strings.currentTag,
+                            role: AppTextRole.caption,
+                          )
+                        : null,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
@@ -155,6 +212,122 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
                 ai.withImage(ai.image.copyWith(steps: value.round())),
               ),
             ),
+            AppPageGutter(
+              child: AppText(
+                context.strings.imageGenPortraitSizeLabel,
+                role: AppTextRole.label,
+              ),
+            ),
+            AppListTile(
+              title: context.strings.imageGenSizePresetLabel,
+              subtitle: context.strings.imageGenSizeValue(
+                ai.image.portraitWidth,
+                ai.image.portraitHeight,
+              ),
+              icon: Icons.aspect_ratio_outlined,
+              trailing: const AppForwardIcon(),
+              onTap: () async {
+                final picked = await _pickSizePreset(
+                  presets: ImageGenSizePresets.portrait,
+                  currentWidth: ai.image.portraitWidth,
+                  currentHeight: ai.image.portraitHeight,
+                );
+                if (picked == null || !mounted) return;
+                await _persist(
+                  ai.withImage(
+                    ai.image.copyWith(
+                      portraitWidth: picked.width,
+                      portraitHeight: picked.height,
+                    ),
+                  ),
+                );
+              },
+            ),
+            AppSlider(
+              label: context.strings.imageGenWidthLabel,
+              icon: Icons.swap_horiz_outlined,
+              value: ai.image.portraitWidth.toDouble(),
+              min: AiImageEndpoint.sizeLowerBound.toDouble(),
+              max: AiImageEndpoint.sizeUpperBound.toDouble(),
+              step: AiImageEndpoint.sizeStep.toDouble(),
+              valueText: (v) => '${v.round()}',
+              onChanged: (value) => _persist(
+                ai.withImage(
+                  ai.image.copyWith(portraitWidth: value.round()),
+                ),
+              ),
+            ),
+            AppSlider(
+              label: context.strings.imageGenHeightLabel,
+              icon: Icons.swap_vert_outlined,
+              value: ai.image.portraitHeight.toDouble(),
+              min: AiImageEndpoint.sizeLowerBound.toDouble(),
+              max: AiImageEndpoint.sizeUpperBound.toDouble(),
+              step: AiImageEndpoint.sizeStep.toDouble(),
+              valueText: (v) => '${v.round()}',
+              onChanged: (value) => _persist(
+                ai.withImage(
+                  ai.image.copyWith(portraitHeight: value.round()),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+            AppPageGutter(
+              child: AppText(
+                context.strings.imageGenSceneSizeLabel,
+                role: AppTextRole.label,
+              ),
+            ),
+            AppListTile(
+              title: context.strings.imageGenSizePresetLabel,
+              subtitle: context.strings.imageGenSizeValue(
+                ai.image.sceneWidth,
+                ai.image.sceneHeight,
+              ),
+              icon: Icons.aspect_ratio_outlined,
+              trailing: const AppForwardIcon(),
+              onTap: () async {
+                final picked = await _pickSizePreset(
+                  presets: ImageGenSizePresets.scene,
+                  currentWidth: ai.image.sceneWidth,
+                  currentHeight: ai.image.sceneHeight,
+                );
+                if (picked == null || !mounted) return;
+                await _persist(
+                  ai.withImage(
+                    ai.image.copyWith(
+                      sceneWidth: picked.width,
+                      sceneHeight: picked.height,
+                    ),
+                  ),
+                );
+              },
+            ),
+            AppSlider(
+              label: context.strings.imageGenWidthLabel,
+              icon: Icons.swap_horiz_outlined,
+              value: ai.image.sceneWidth.toDouble(),
+              min: AiImageEndpoint.sizeLowerBound.toDouble(),
+              max: AiImageEndpoint.sizeUpperBound.toDouble(),
+              step: AiImageEndpoint.sizeStep.toDouble(),
+              valueText: (v) => '${v.round()}',
+              onChanged: (value) => _persist(
+                ai.withImage(ai.image.copyWith(sceneWidth: value.round())),
+              ),
+            ),
+            AppSlider(
+              label: context.strings.imageGenHeightLabel,
+              icon: Icons.swap_vert_outlined,
+              value: ai.image.sceneHeight.toDouble(),
+              min: AiImageEndpoint.sizeLowerBound.toDouble(),
+              max: AiImageEndpoint.sizeUpperBound.toDouble(),
+              step: AiImageEndpoint.sizeStep.toDouble(),
+              valueText: (v) => '${v.round()}',
+              onChanged: (value) => _persist(
+                ai.withImage(ai.image.copyWith(sceneHeight: value.round())),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
             AppListTile(
               title: context.strings.imageGenUpscaleLabel,
               subtitle: context.strings.imageGenUpscaleHint,

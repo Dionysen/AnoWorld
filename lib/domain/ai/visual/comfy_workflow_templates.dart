@@ -191,6 +191,8 @@ abstract final class ComfyWorkflowTemplates {
   static Map<String, dynamic> portrait({
     required String prompt,
     String negative = defaultNegative,
+    int width = 768,
+    int height = 1152,
     int steps = 12,
     bool upscale = false,
     String checkpoint = defaultCheckpoint,
@@ -198,8 +200,8 @@ abstract final class ComfyWorkflowTemplates {
     return noobaiTxt2Img(
       positive: prompt,
       negative: negative,
-      width: 768,
-      height: 1152,
+      width: width,
+      height: height,
       steps: steps,
       cfg: 4.5,
       upscale: upscale,
@@ -211,6 +213,8 @@ abstract final class ComfyWorkflowTemplates {
   static Map<String, dynamic> scene({
     required String prompt,
     String negative = defaultNegative,
+    int width = 1216,
+    int height = 832,
     int steps = 12,
     bool upscale = false,
     String checkpoint = defaultCheckpoint,
@@ -218,8 +222,8 @@ abstract final class ComfyWorkflowTemplates {
     return noobaiTxt2Img(
       positive: prompt,
       negative: negative,
-      width: 1216,
-      height: 832,
+      width: width,
+      height: height,
       steps: steps,
       cfg: 4.5,
       upscale: upscale,
