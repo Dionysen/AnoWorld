@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,5 +63,17 @@ void main() {
       draft.worldBookItems.any((e) => e.title.contains('情景')),
       isTrue,
     );
+  });
+
+  test('keeps first png cover bytes on draft', () {
+    final cover = Uint8List.fromList(const [1, 2, 3]);
+    final draft = mapper.fromCards([
+      StCharacterCard(
+        name: '有图',
+        coverImageBytes: cover,
+      ),
+      const StCharacterCard(name: '无图'),
+    ]);
+    expect(draft.coverImageBytes, same(cover));
   });
 }

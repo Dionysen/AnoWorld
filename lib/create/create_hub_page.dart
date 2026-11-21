@@ -11,13 +11,17 @@ import 'package:anoworld/create/visual_stage_page.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_token_estimate.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_prompt_dialog.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:flutter/material.dart';
@@ -88,6 +92,43 @@ class _CreateHubPageState extends State<CreateHubPage>
     if (mounted) await _load();
   }
 
+  Future<void> _renameStory() async {
+    final project = _project;
+    if (project == null) return;
+    final strings = context.strings;
+    final name = await showAppPromptDialog(
+      context,
+      title: strings.renameStory,
+      label: strings.nameLabel,
+      initial: project.meta.title,
+      hint: strings.storyNameHint,
+    );
+    if (name == null || !mounted) return;
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed == project.meta.title) return;
+    final projects = AppScope.projectsOf(context);
+    final changes = AppScope.projectChangesOf(context);
+    try {
+      final next = project.copyWith(
+        meta: project.meta.copyWith(title: trimmed),
+      );
+      await projects.save(next);
+      if (!mounted) return;
+      changes.markChanged(widget.projectId);
+      AppLog.instance.info('改故事名：$trimmed', tag: 'create.hub');
+      setState(() => _project = next);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '改故事名失败',
+        tag: 'create.hub',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      showAppToast(context, strings.renameStoryFailed(error));
+    }
+  }
+
   String _worldBookSubtitle(
     BuildContext context,
     Project project,
@@ -141,9 +182,19 @@ class _CreateHubPageState extends State<CreateHubPage>
     final size = project == null
         ? null
         : ProjectTokenEstimate.of(project, plotCatalog: catalog);
+    final ready = project != null && !_loading && _error == null;
     return AppPage(
       title: _pageTitle(context, project),
       onBack: () => Navigator.of(context).maybePop(),
+      actions: ready
+          ? [
+              AppCircleButton(
+                icon: Icons.drive_file_rename_outline,
+                tooltip: context.strings.renameStory,
+                onPressed: _renameStory,
+              ),
+            ]
+          : const [],
       body: AppPageBody.list(
         children: [
           if (_loading)

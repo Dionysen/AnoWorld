@@ -72,6 +72,7 @@ void main() {
     final card = parser.parsePngBytes(png);
     expect(card.name, 'PNG角色');
     expect(card.scenario, '城门');
+    expect(card.coverImageBytes, same(png));
   });
 }
 

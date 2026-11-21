@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/create_hub_page.dart';
+import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
@@ -36,7 +37,9 @@ class PickedCharacterCardFile {
   final String name;
   final String? path;
   final Uint8List? bytes;
-}/// Path 1: pick SillyTavern cards → confirm mapped material → write project.
+}
+
+/// Path 1: pick SillyTavern cards → confirm mapped material → write project.
 class CharacterCardImportPage extends StatefulWidget {
   const CharacterCardImportPage({
     super.key,
@@ -241,14 +244,43 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
     try {
       final projects = AppScope.projectsOf(context);
       final created = await projects.create(title: titled.title);
-      final filled = titled.toProject(id: created.meta.id);
+      var filled = titled.toProject(id: created.meta.id);
       await projects.save(filled);
+
+      final coverBytes = titled.coverImageBytes;
+      final projectDir = await projects.directoryFor(filled.meta.id);
+      if (coverBytes != null &&
+          coverBytes.isNotEmpty &&
+          projectDir != null &&
+          !projectDir.startsWith('memory://')) {
+        final relative = await ProjectCoverFiles.importFromBytes(
+          projectDir: projectDir,
+          bytes: coverBytes,
+          extension: 'png',
+        );
+        filled = filled.copyWith(
+          meta: filled.meta.copyWith(coverPath: relative),
+        );
+        await projects.save(filled);
+        AppLog.instance.info('写入角色卡封面', tag: 'card.import');
+      }
+
       if (!mounted) return;
+      AppLog.instance.info(
+        '写入故事：${filled.meta.title}',
+        tag: 'card.import',
+      );
       await pushStoryRouteReplacement<void>(
         context,
         CreateHubPage(projectId: filled.meta.id),
       );
-    } catch (error) {
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '写入故事失败',
+        tag: 'card.import',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) return;
       setState(() {
         _busy = false;

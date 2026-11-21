@@ -65,7 +65,22 @@ class StCharacterCardParser {
       throw StCharacterCardParseException('这张 PNG 里没有角色卡数据');
     }
     final map = _decodeEmbeddedPayload(payload);
-    return parseJsonMap(map, sourceLabel: sourceLabel);
+    final card = parseJsonMap(map, sourceLabel: sourceLabel);
+    return StCharacterCard(
+      name: card.name,
+      description: card.description,
+      personality: card.personality,
+      scenario: card.scenario,
+      firstMes: card.firstMes,
+      mesExample: card.mesExample,
+      systemPrompt: card.systemPrompt,
+      postHistoryInstructions: card.postHistoryInstructions,
+      creatorNotes: card.creatorNotes,
+      alternateGreetings: card.alternateGreetings,
+      bookEntries: card.bookEntries,
+      sourceLabel: card.sourceLabel,
+      coverImageBytes: bytes,
+    );
   }
 
   Map<String, dynamic> _decodeEmbeddedPayload(String payload) {

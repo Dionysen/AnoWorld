@@ -80,7 +80,7 @@
 
 **用户想要的感觉**：选一个卡 → 看软件读懂了什么 → 勾选留下 → 写入故事再改。
 
-**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
+**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。**PNG 卡**会把卡面图写入故事封面（`assets/cover.png`）。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
 
 ### 用户做的事
 
@@ -94,6 +94,7 @@
 
 | 卡里常见内容 | 填到 |
 | --- | --- |
+| PNG 卡面图 | 故事封面（首张带图的卡） |
 | `scenario` | 世界书 · 常驻「情景」 |
 | `character_book` 启用条目 | 世界书条目（`constant`→常驻，否则带关键词） |
 | `first_mes` | 世界书 · 常驻「开场素材」 |
@@ -183,7 +184,7 @@
 
 ## 创作截面（故事内）
 
-故事详情点「继续创作」，或创作流程中直接进入 [`CreateHubPage`](../lib/create/create_hub_page.dart)：软件标题为「创作·{故事名}」（无正文副标题）；其下四条 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart) 通栏入口（`AppPageBody.list` + `AppListTileStack`，与设置同款）：世界书 / 角色 / 情节走向 / **剧情元素**（[`PlotElementsPickPage`](../lib/create/plot_elements_pick_page.dart)，只从全局库勾选，不改库；可跳转玩法库管理）；副标题给数量与估算体量：世界书「n 条设定，m 条常驻，x token」、角色「n 个角色，x token」、情节走向「n 个节点，x token」、剧情元素「已选 n 项，x token」，空列表仍用「还没有…」/「还没选」；token 写原数，不缩写 k、不带「约」。`token` 由 [`TokenEstimator`](../lib/foundation/text/token_estimator.dart) 估算（非 ASCII 约 1 字 1 token、ASCII 约 4 字 1 token，向上取整），文本取自实际注入内容（世界书合并文本、角色档案字段、主线摘要/节点/对白/选项/连线、剧情元素提示块），汇总在 [`ProjectTokenEstimate`](../lib/domain/project/project_token_estimate.dart)；同一套文案（`describeWorldBookSize` 等）在故事详情页四个分区头复用。勾选页标题下同样有 **全部 / 分类 / 包** 下划线页签：全部直接开关；分类页签列出各分类，点进子页只做勾选（建分类、改名都在玩法库里）；包页签列出元素包，打开开关（或点条目）一次性把包内元素全部勾上，关掉则把包内元素全部取消，副标题显示「已选 m / n 条」。包之间不互斥，应用与取消只动本包的元素；若与已单独勾过的元素、或另一个已应用的包有重叠，应用前先弹确认，说明哪几条会并入本包（之后取消本包时会一并取消）、哪几条仍由别的包保留。取消包时，别处仍需要的元素不会被取消（同样先告知）。不再有「勾选进本故事」分区头；选中数量以「已选 n」小字显示在软件标题栏右侧（为 0 时不显示）。设定/角色编辑页、导入角色卡勾选列表同样套用该组合。
+故事详情点「继续创作」，或创作流程中直接进入 [`CreateHubPage`](../lib/create/create_hub_page.dart)：软件标题为「创作·{故事名}」（无正文副标题）；标题栏右侧圆形钮**改故事名**（居中对话框，改完立刻保存并刷新标题）；其下四条 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart) 通栏入口（`AppPageBody.list` + `AppListTileStack`，与设置同款）：世界书 / 角色 / 情节走向 / **剧情元素**（[`PlotElementsPickPage`](../lib/create/plot_elements_pick_page.dart)，只从全局库勾选，不改库；可跳转玩法库管理）；副标题给数量与估算体量：世界书「n 条设定，m 条常驻，x token」、角色「n 个角色，x token」、情节走向「n 个节点，x token」、剧情元素「已选 n 项，x token」，空列表仍用「还没有…」/「还没选」；token 写原数，不缩写 k、不带「约」。`token` 由 [`TokenEstimator`](../lib/foundation/text/token_estimator.dart) 估算（非 ASCII 约 1 字 1 token、ASCII 约 4 字 1 token，向上取整），文本取自实际注入内容（世界书合并文本、角色档案字段、主线摘要/节点/对白/选项/连线、剧情元素提示块），汇总在 [`ProjectTokenEstimate`](../lib/domain/project/project_token_estimate.dart)；同一套文案（`describeWorldBookSize` 等）在故事详情页四个分区头复用。勾选页标题下同样有 **全部 / 分类 / 包** 下划线页签：全部直接开关；分类页签列出各分类，点进子页只做勾选（建分类、改名都在玩法库里）；包页签列出元素包，打开开关（或点条目）一次性把包内元素全部勾上，关掉则把包内元素全部取消，副标题显示「已选 m / n 条」。包之间不互斥，应用与取消只动本包的元素；若与已单独勾过的元素、或另一个已应用的包有重叠，应用前先弹确认，说明哪几条会并入本包（之后取消本包时会一并取消）、哪几条仍由别的包保留。取消包时，别处仍需要的元素不会被取消（同样先告知）。不再有「勾选进本故事」分区头；选中数量以「已选 n」小字显示在软件标题栏右侧（为 0 时不显示）。设定/角色编辑页、导入角色卡勾选列表同样套用该组合。
 
 | 入口 | 用户在改什么 | 编辑页 |
 | --- | --- | --- |

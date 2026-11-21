@@ -5,6 +5,7 @@ import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/create/plot_elements_pick_page.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/test_app.dart';
@@ -27,12 +28,37 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('创作·雨夜投宿'), findsOneWidget);
+    expect(find.byTooltip('改故事名'), findsOneWidget);
     expect(find.text('改设定、角色与情节走向'), findsNothing);
     expect(find.text('世界书'), findsOneWidget);
     expect(find.text('角色'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);
     expect(find.text('剧情元素'), findsOneWidget);
     expect(find.text('画面'), findsOneWidget);
+  });
+
+  testWidgets('create hub renames story', (tester) async {
+    final repo = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: CreateHubPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('改故事名'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '新名字');
+    await tester.tap(find.text('确定'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('创作·新名字'), findsOneWidget);
+    final opened = await repo.open(sample.meta.id);
+    expect(opened.meta.title, '新名字');
   });
 
   testWidgets('create hub subtitles show counts and token size', (tester) async {

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// Parsed SillyTavern / chara_card fields we care about (material only).
 class StCharacterCard {
   const StCharacterCard({
@@ -13,6 +15,7 @@ class StCharacterCard {
     this.alternateGreetings = const <String>[],
     this.bookEntries = const <StCharacterBookEntry>[],
     this.sourceLabel = '',
+    this.coverImageBytes,
   });
 
   final String name;
@@ -29,6 +32,9 @@ class StCharacterCard {
 
   /// File name or other label for the confirm UI.
   final String sourceLabel;
+
+  /// PNG card image bytes used as the story cover (null for JSON-only cards).
+  final Uint8List? coverImageBytes;
 }
 
 class StCharacterBookEntry {

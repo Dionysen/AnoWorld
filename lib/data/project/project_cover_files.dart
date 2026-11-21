@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:anoworld/data/project/project_paths.dart';
 import 'package:path/path.dart' as p;
@@ -47,6 +48,23 @@ abstract final class ProjectCoverFiles {
     if (!allowedExtensions.contains(ext)) {
       throw ArgumentError('不支持的图片格式');
     }
+    return importFromBytes(
+      projectDir: projectDir,
+      bytes: await File(sourcePath).readAsBytes(),
+      extension: ext,
+    );
+  }
+
+  /// Writes [bytes] as `cover.{extension}` under the project assets folder.
+  static Future<String> importFromBytes({
+    required String projectDir,
+    required Uint8List bytes,
+    required String extension,
+  }) async {
+    final ext = extension.toLowerCase().replaceAll('.', '');
+    if (!allowedExtensions.contains(ext)) {
+      throw ArgumentError('不支持的图片格式');
+    }
     final assets = Directory(
       p.join(projectDir, ProjectPaths.assetsFolder),
     );
@@ -54,7 +72,7 @@ abstract final class ProjectCoverFiles {
     await deleteExisting(projectDir);
     final relative = relativePath(ext);
     final dest = File(absolutePath(projectDir, relative));
-    await File(sourcePath).copy(dest.path);
+    await dest.writeAsBytes(bytes, flush: true);
     return relative;
   }
 }

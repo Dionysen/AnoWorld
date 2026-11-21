@@ -679,6 +679,15 @@ class AppStringsZh extends AppStrings {
   String createHubTitle(String name) => '创作·$name';
 
   @override
+  String get renameStory => '改故事名';
+
+  @override
+  String get storyNameHint => '故事名称';
+
+  @override
+  String renameStoryFailed(Object error) => '改名失败：$error';
+
+  @override
   String get worldBookTitle => '世界书';
 
   @override

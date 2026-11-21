@@ -232,6 +232,9 @@ abstract class AppStrings extends AppLocalizations {
   String get startPlaying;
   String get createHubUntitled;
   String createHubTitle(String name);
+  String get renameStory;
+  String get storyNameHint;
+  String renameStoryFailed(Object error);
   String get worldBookTitle;
   String get castTitle;
   String get mainTitle;

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/models/world_book.dart';
@@ -51,6 +53,7 @@ class StCardImportDraft {
     required this.castItems,
     required this.worldBookItems,
     this.cardAiNote,
+    this.coverImageBytes,
   });
 
   final String title;
@@ -60,17 +63,22 @@ class StCardImportDraft {
   /// 卡内 system/post-history 提示（不写进故事包，仅导入页说明）。
   final String? cardAiNote;
 
+  /// First PNG card image, written as story cover on confirm.
+  final Uint8List? coverImageBytes;
+
   StCardImportDraft copyWith({
     String? title,
     List<StCardImportItem<CastMember>>? castItems,
     List<StCardImportItem<WorldBookEntry>>? worldBookItems,
     String? cardAiNote,
+    Uint8List? coverImageBytes,
   }) {
     return StCardImportDraft(
       title: title ?? this.title,
       castItems: castItems ?? this.castItems,
       worldBookItems: worldBookItems ?? this.worldBookItems,
       cardAiNote: cardAiNote ?? this.cardAiNote,
+      coverImageBytes: coverImageBytes ?? this.coverImageBytes,
     );
   }
 
@@ -226,11 +234,21 @@ class StCardProjectMapper {
       }
     }
 
+    Uint8List? coverBytes;
+    for (final card in cards) {
+      final bytes = card.coverImageBytes;
+      if (bytes != null && bytes.isNotEmpty) {
+        coverBytes = bytes;
+        break;
+      }
+    }
+
     var draft = StCardImportDraft(
       title: primary.name,
       castItems: castItems,
       worldBookItems: worldBookItems,
       cardAiNote: _cardAiNote(cards),
+      coverImageBytes: coverBytes,
     );
     if (autoSanitizeOnMap) {
       draft = sanitizeAction.run(draft).draft;
