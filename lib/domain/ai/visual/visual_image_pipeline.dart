@@ -1,4 +1,5 @@
 import 'package:anoworld/data/project/project_asset_files.dart';
+import 'package:anoworld/data/project/sprite_alpha.dart';
 import 'package:anoworld/domain/ai/visual/comfy_workflow_templates.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_models.dart';
 import 'package:anoworld/domain/models/cast.dart';
@@ -70,7 +71,7 @@ class VisualImagePipeline {
           continue;
         }
         onProgress?.call('正在画立绘：${row.name}', _p(done, total));
-        final bytes = await _comfy.generatePng(
+        final raw = await _comfy.generatePng(
           baseUrl: image.baseUrl,
           workflow: ComfyWorkflowTemplates.portrait(
             prompt: row.portraitPrompt,
@@ -80,6 +81,8 @@ class VisualImagePipeline {
           ),
           clientId: 'anoworld-avatar-${row.characterId}',
         );
+        onProgress?.call('去背透明：${row.name}', _p(done, total));
+        final bytes = makeSpriteTransparentPng(raw);
         final assetId = 'avatar_${row.characterId}';
         final asset = await ProjectAssetFiles.writePng(
           projectDir: projectDir,

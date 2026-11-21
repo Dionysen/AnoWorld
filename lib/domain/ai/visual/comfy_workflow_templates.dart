@@ -7,11 +7,19 @@ abstract final class ComfyWorkflowTemplates {
   static const String defaultNegative =
       'worst quality, low quality, lowres, bad hands, mutated hands, '
       'extra digits, bad anatomy, signature, username, watermark, '
-      'censored, mosaic, text, logo';
+      'censored, mosaic, text, logo, complex background, scenery, '
+      'photo background, gradient background, patterned background, '
+      'busy background';
 
   static const String defaultStylePrefix =
       'masterpiece, best quality, very awa, absurdres, anime style, '
-      'detailed face, sharp focus';
+      'detailed face, sharp focus, thick outline, anime outline, cel shading';
+
+  /// Portrait framing: white studio BG so edge flood-fill can cut alpha.
+  static const String portraitComposition =
+      'solo, looking at viewer, standing, upper body, '
+      'simple background, white background, plain background, '
+      'character focus, thick outline, black outline';
 
   static Map<String, dynamic> noobaiTxt2Img({
     required String positive,

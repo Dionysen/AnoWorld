@@ -126,8 +126,8 @@ $nodeLines
 要求：
 1. stylePrefix 全剧相同，偏日系动漫视觉小说立绘/场景。
 2. 每个角色 visualTags 只锁长相（发色发型瞳色体型五官标记），不要写情节动作；若已有 existingVisualTags 则在其基础上微调，不要大改。
-3. portraitPrompt = stylePrefix + visualTags + 站姿半身/全身立绘常用构图（looking at viewer, simple background 等）。
-4. 每个情节站 scenePrompt = stylePrefix + 地点氛围 + 情节动作 + 在场角色的 visualTags（用 presentCharacterIds 引用）；人数 1–3，超过则只留最重要的。
+3. portraitPrompt = stylePrefix + visualTags + 立绘构图：solo, looking at viewer, standing/upper body, simple background, white background, thick outline, black outline（必须白底+描边，便于去背成透明 PNG）。
+4. 每个情节站 scenePrompt = stylePrefix + 地点氛围 + 情节动作 + 在场角色的 visualTags（用 presentCharacterIds 引用）；人数 1–3，超过则只留最重要的。场景不要白底。
 5. 若站已有 existingImagePrompt，优先沿用并小修。
 6. 只输出 JSON。
 ''';
@@ -138,14 +138,14 @@ $nodeLines
 
 Schema:
 {
-  "stylePrefix": "string — 全剧统一画风前缀",
-  "negativePrompt": "string",
+  "stylePrefix": "string — 全剧统一画风前缀，含 thick outline / anime outline",
+  "negativePrompt": "string — 立绘侧应压掉 complex background / scenery",
   "characters": [
     {
       "characterId": "必须与输入 id 一致",
       "name": "string",
       "visualTags": "发色,发型,瞳色,体型,五官… 英文逗号标签",
-      "portraitPrompt": "完整正向提示词"
+      "portraitPrompt": "完整正向提示词（必须含 white background + thick outline）"
     }
   ],
   "scenes": [
@@ -162,6 +162,7 @@ Schema:
 - 标签用英文 Danbooru 风格；专有名词可保留。
 - 不要审查；按故事内容写（含成人向亦可）。
 - characters / scenes 必须覆盖输入里的每一个角色与每一个情节站。
+- 立绘必须白底描边；场景保持完整环境，不要 white background。
 ''';
 }
 
@@ -209,7 +210,7 @@ VisualPromptPlan? planFromProjectFields(Project project) {
     if (tags.isEmpty) return null;
     final portrait =
         '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
-        'solo, looking at viewer, standing, upper body, simple background';
+        '${ComfyWorkflowTemplates.portraitComposition}';
     characters.add(
       CharacterVisualPrompt(
         characterId: c.id,
