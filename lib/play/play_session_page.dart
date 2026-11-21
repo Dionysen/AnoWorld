@@ -1368,6 +1368,13 @@ class _VnStage extends StatelessWidget {
                 projectDir: projectDir,
                 backgroundAssetId: runtime.resolvedBackgroundAssetId,
               ),
+              if (!showChoices)
+                _VnSpeakerSprite(
+                  project: project,
+                  projectDir: projectDir,
+                  line: runtime.pointer.isEnded ? null : line,
+                  appearances: runtime.appearances,
+                ),
               Column(
                 children: [
                   Expanded(
@@ -1514,16 +1521,12 @@ class _VnBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fallback = ColoredBox(color: Theme.of(context).colorScheme.surface);
-    final assetId = backgroundAssetId;
-    final dir = projectDir;
-    if (assetId == null || assetId.isEmpty || dir == null || dir.isEmpty) {
-      return fallback;
-    }
-    final asset = project.assetById(assetId);
-    if (asset == null) return fallback;
-    final path = ProjectAssetFiles.absolutePath(dir, asset.relativePath);
-    final file = File(path);
-    if (!file.existsSync()) return fallback;
+    final file = _vnAssetFile(
+      project: project,
+      projectDir: projectDir,
+      assetId: backgroundAssetId,
+    );
+    if (file == null) return fallback;
     return Image.file(
       file,
       fit: BoxFit.cover,
@@ -1532,6 +1535,82 @@ class _VnBackground extends StatelessWidget {
       errorBuilder: (context, error, stackTrace) => fallback,
     );
   }
+}
+
+/// Standing portrait for the current speaker (avatar / sprite asset).
+class _VnSpeakerSprite extends StatelessWidget {
+  const _VnSpeakerSprite({
+    required this.project,
+    required this.projectDir,
+    required this.line,
+    required this.appearances,
+  });
+
+  final Project project;
+  final String? projectDir;
+  final DialogueLine? line;
+  final List<Appearance> appearances;
+
+  String? _resolvedAssetId() {
+    final speakerId = line?.speakerId?.trim();
+    if (speakerId == null || speakerId.isEmpty) return null;
+    if (line?.kind == DialogueKind.narration) return null;
+
+    for (final appearance in appearances) {
+      if (appearance.characterId != speakerId) continue;
+      final sprite = appearance.spriteAssetId?.trim();
+      if (sprite != null && sprite.isNotEmpty) return sprite;
+    }
+
+    final member = project.castById(speakerId);
+    final avatar = member?.avatarAssetId?.trim();
+    if (avatar != null && avatar.isNotEmpty) return avatar;
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final file = _vnAssetFile(
+      project: project,
+      projectDir: projectDir,
+      assetId: _resolvedAssetId(),
+    );
+    if (file == null) return const SizedBox.shrink();
+
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: FractionallySizedBox(
+          heightFactor: 0.78,
+          child: Image.file(
+            file,
+            fit: BoxFit.contain,
+            alignment: Alignment.bottomCenter,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (context, error, stackTrace) =>
+                const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+File? _vnAssetFile({
+  required Project project,
+  required String? projectDir,
+  required String? assetId,
+}) {
+  final id = assetId?.trim();
+  final dir = projectDir;
+  if (id == null || id.isEmpty || dir == null || dir.isEmpty) return null;
+  final asset = project.assetById(id);
+  if (asset == null) return null;
+  final file = File(
+    ProjectAssetFiles.absolutePath(dir, asset.relativePath),
+  );
+  if (!file.existsSync()) return null;
+  return file;
 }
 
 class _VnChoiceOverlay extends StatelessWidget {
