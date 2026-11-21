@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/create_entry_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
+import 'package:anoworld/data/project/project_package_archive.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/project_folder.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
@@ -38,12 +40,14 @@ class WorksTab extends StatefulWidget {
     super.key,
     required this.selection,
     this.pickImportDirectory,
+    this.pickImportPackage,
     this.onSelectionChromeChanged,
     this.onBrowsePathChanged,
   });
 
   final LibrarySelectionController selection;
   final Future<String?> Function()? pickImportDirectory;
+  final Future<Uint8List?> Function()? pickImportPackage;
   final VoidCallback? onSelectionChromeChanged;
   final ValueChanged<List<String>>? onBrowsePathChanged;
 
@@ -292,12 +296,20 @@ class WorksTabState extends State<WorksTab> {
     final projects = AppScope.projectsOf(context);
     final folders = AppScope.foldersOf(context);
     final folderId = browseFolderId;
-    final picker = widget.pickImportDirectory ?? _defaultPickDirectory;
-    final path = await picker();
-    if (!mounted) return;
-    if (path == null || path.isEmpty) return;
     try {
-      final project = await projects.importFromDirectory(path);
+      final Project project;
+      if (widget.pickImportDirectory != null) {
+        final path = await widget.pickImportDirectory!();
+        if (!mounted) return;
+        if (path == null || path.isEmpty) return;
+        project = await projects.importFromDirectory(path);
+      } else {
+        final picker = widget.pickImportPackage ?? _defaultPickPackage;
+        final bytes = await picker();
+        if (!mounted) return;
+        if (bytes == null || bytes.isEmpty) return;
+        project = await projects.importFromPackageBytes(bytes);
+      }
       if (folderId != null) {
         await folders.moveProjects(
           projectIds: [project.meta.id],
@@ -305,23 +317,93 @@ class WorksTabState extends State<WorksTab> {
         );
       }
       if (!mounted) return;
+      AppLog.instance.info('导入故事包：${project.meta.title}', tag: 'works.pack');
       setState(
         () => _status = context.strings.importedStory(project.meta.title),
       );
       await _openRoute(ProjectHubPage(projectId: project.meta.id));
-    } on ProjectIoException catch (error) {
+    } on ProjectIoException catch (error, stack) {
+      AppLog.instance.error(
+        '导入故事包失败',
+        tag: 'works.pack',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) return;
       setState(() => _status = error.message);
-    } catch (error) {
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '导入故事包失败',
+        tag: 'works.pack',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) return;
       setState(() => _status = context.strings.importFailed(error));
     }
   }
 
-  Future<String?> _defaultPickDirectory() {
-    return FilePicker.getDirectoryPath(
-      dialogTitle: context.strings.pickStoryFolderTitle,
+  Future<Uint8List?> _defaultPickPackage() async {
+    final picked = await FilePicker.pickFiles(
+      dialogTitle: context.strings.pickStoryPackTitle,
+      type: FileType.custom,
+      allowedExtensions: const [
+        ProjectPackageArchive.fileExtension,
+        'zip',
+      ],
     );
+    if (picked.isEmpty) return null;
+    return picked.single.readAsBytes();
+  }
+
+  Future<void> exportPack(ProjectSummary summary) async {
+    widget.selection.exit();
+    final projects = AppScope.projectsOf(context);
+    try {
+      final project = await projects.open(summary.id);
+      final bytes = await projects.exportPackageBytes(project: project);
+      if (!mounted) return;
+      final fileName =
+          '${_safeExportName(project.meta.title)}.${ProjectPackageArchive.fileExtension}';
+      final saved = await FilePicker.saveFile(
+        dialogTitle: context.strings.exportStoryPackDialog,
+        fileName: fileName,
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      if (saved == null) return;
+      AppLog.instance.info('导出故事包：${project.meta.title}', tag: 'works.pack');
+      setState(
+        () => _status = context.strings.exportedStory(project.meta.title),
+      );
+    } on ProjectIoException catch (error, stack) {
+      AppLog.instance.error(
+        '导出故事包失败',
+        tag: 'works.pack',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() => _status = error.message);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '导出故事包失败',
+        tag: 'works.pack',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() => _status = context.strings.exportFailed(error));
+    }
+  }
+
+  String _safeExportName(String title) {
+    final cleaned = title
+        .trim()
+        .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1f]'), '_')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    if (cleaned.isEmpty) return 'story';
+    return cleaned.length > 80 ? cleaned.substring(0, 80).trim() : cleaned;
   }
 
   Future<void> openCreateEntry(CreateEntryKind kind) {
@@ -700,6 +782,11 @@ class WorksTabState extends State<WorksTab> {
             onTap: () => Navigator.of(ctx).pop('edit'),
           ),
           AppListTile(
+            title: strings.exportStoryPack,
+            icon: Icons.ios_share_outlined,
+            onTap: () => Navigator.of(ctx).pop('export'),
+          ),
+          AppListTile(
             title: strings.deleteStory,
             icon: Icons.delete_outline,
             danger: true,
@@ -722,6 +809,8 @@ class WorksTabState extends State<WorksTab> {
         widget.selection.exit();
         AppLog.instance.info('编辑故事：${project.title}', tag: 'works.story');
         await _openRoute(CreateHubPage(projectId: project.id));
+      case 'export':
+        await exportPack(project);
       case 'delete':
         await _deleteOneProject(project.id);
     }

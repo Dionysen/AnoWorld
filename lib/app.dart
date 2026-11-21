@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
@@ -35,6 +36,7 @@ class App extends StatefulWidget {
     this.createAssistant,
     this.textClient,
     this.pickImportDirectory,
+    this.pickImportPackage,
   });
 
   final ProjectRepository? projects;
@@ -46,6 +48,7 @@ class App extends StatefulWidget {
   final CreateAssistantController? createAssistant;
   final AiTextClient? textClient;
   final Future<String?> Function()? pickImportDirectory;
+  final Future<Uint8List?> Function()? pickImportPackage;
 
   @override
   State<App> createState() => _AppState();
@@ -142,6 +145,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
               controller: _createAssistant,
               child: HomePage(
                 pickImportDirectory: widget.pickImportDirectory,
+                pickImportPackage: widget.pickImportPackage,
               ),
             ),
           );

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:anoworld/app.dart';
 import 'package:anoworld/app/app_scope.dart';
@@ -64,6 +65,7 @@ App testApp({
   LibraryDisplayController? libraryDisplay,
   AiTextClient? textClient,
   Future<String?> Function()? pickImportDirectory,
+  Future<Uint8List?> Function()? pickImportPackage,
 }) {
   final controller = settings ?? testSettingsController();
   return App(
@@ -74,6 +76,7 @@ App testApp({
     libraryDisplay: libraryDisplay ?? LibraryDisplayController(),
     textClient: textClient,
     pickImportDirectory: pickImportDirectory,
+    pickImportPackage: pickImportPackage,
   );
 }
 

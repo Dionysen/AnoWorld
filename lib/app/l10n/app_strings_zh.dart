@@ -497,6 +497,21 @@ class AppStringsZh extends AppStrings {
   String get pickStoryFolderTitle => '选择 AnoWorld 故事包文件夹';
 
   @override
+  String get pickStoryPackTitle => '选择故事包';
+
+  @override
+  String get exportStoryPack => '导出故事包';
+
+  @override
+  String get exportStoryPackDialog => '导出故事包';
+
+  @override
+  String exportedStory(String title) => '已导出「$title」';
+
+  @override
+  String exportFailed(Object error) => '导出失败：$error';
+
+  @override
   String get nameLabel => '名称';
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
@@ -77,6 +79,16 @@ class MemoryProjectRepository implements ProjectRepository {
     required String destinationDirectory,
   }) async {
     throw UnsupportedError('MemoryProjectRepository has no directory export');
+  }
+
+  @override
+  Future<Uint8List> exportPackageBytes({required Project project}) async {
+    throw UnsupportedError('MemoryProjectRepository has no package export');
+  }
+
+  @override
+  Future<Project> importFromPackageBytes(Uint8List bytes) async {
+    throw UnsupportedError('MemoryProjectRepository has no package import');
   }
 
   @override

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
+import 'package:anoworld/data/project/project_package_archive.dart';
 import 'package:anoworld/data/project/project_paths.dart';
 import 'package:anoworld/domain/models/json_map.dart';
 import 'package:anoworld/domain/models/project.dart';
@@ -113,17 +115,30 @@ class FolderProjectRepository implements ProjectRepository {
   Future<Project> importFromDirectory(String sourceDirectory) async {
     final source = Directory(sourceDirectory);
     if (!await source.exists()) {
-      throw ProjectIoException('Import source does not exist: $sourceDirectory');
+      throw ProjectIoException('找不到要导入的故事包');
     }
-    final imported = await _readProjectDirectory(source.path);
-    final targetId = imported.meta.id;
-    final targetDir = await _paths.projectDirectory(targetId);
-    if (await Directory(targetDir).exists()) {
-      throw ProjectIoException(
-        'A project with id "$targetId" already exists in the library',
+    var project = await _readProjectDirectory(source.path);
+    var targetId = project.meta.id;
+    var targetDir = await _paths.projectDirectory(targetId);
+    final reminted = await Directory(targetDir).exists();
+    if (reminted) {
+      targetId = _idGenerator();
+      project = project.copyWith(
+        meta: project.meta.copyWith(
+          id: targetId,
+          updatedAt: DateTime.now().toUtc(),
+        ),
       );
+      targetDir = await _paths.projectDirectory(targetId);
     }
     await _copyDirectory(source.path, targetDir);
+    if (reminted) {
+      await _writeProjectDirectory(
+        directory: targetDir,
+        project: project,
+        overwrite: true,
+      );
+    }
     return _readProjectDirectory(targetDir);
   }
 
@@ -148,6 +163,38 @@ class FolderProjectRepository implements ProjectRepository {
       await dest.delete(recursive: true);
     }
     await _copyDirectory(sourceDir, destinationDirectory);
+  }
+
+  @override
+  Future<Uint8List> exportPackageBytes({required Project project}) async {
+    final sourceDir = await _paths.projectDirectory(project.meta.id);
+    if (!await Directory(sourceDir).exists()) {
+      await _writeProjectDirectory(
+        directory: sourceDir,
+        project: project,
+        overwrite: true,
+      );
+    } else {
+      await save(project);
+    }
+    return ProjectPackageArchive.zipDirectory(sourceDir);
+  }
+
+  @override
+  Future<Project> importFromPackageBytes(Uint8List bytes) async {
+    final temp = await Directory.systemTemp.createTemp('anoworld_import_');
+    try {
+      await ProjectPackageArchive.unzipTo(
+        bytes: bytes,
+        destinationDirectory: temp.path,
+      );
+      final root = await ProjectPackageArchive.findPackageRoot(temp.path);
+      return await importFromDirectory(root);
+    } finally {
+      if (await temp.exists()) {
+        await temp.delete(recursive: true);
+      }
+    }
   }
 
   @override

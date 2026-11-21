@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
@@ -14,10 +16,14 @@ class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
     this.pickImportDirectory,
+    this.pickImportPackage,
   });
 
   /// Injectable folder picker for tests / platforms without a dialog.
   final Future<String?> Function()? pickImportDirectory;
+
+  /// Injectable `.anoworld` / zip bytes picker for tests.
+  final Future<Uint8List?> Function()? pickImportPackage;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -120,6 +126,7 @@ class _HomePageState extends State<HomePage> {
                     key: _worksKey,
                     selection: _worksSelection,
                     pickImportDirectory: widget.pickImportDirectory,
+                    pickImportPackage: widget.pickImportPackage,
                     onSelectionChromeChanged: _onSelectionChromeChanged,
                     onBrowsePathChanged: (_) => setState(() {}),
                   ),

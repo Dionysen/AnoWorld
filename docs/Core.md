@@ -128,6 +128,7 @@ App 全局（设置，与酒馆同类）
 对用户叫**故事**（代码类型仍是 `Project`）：一份可玩的故事包 = 设定 + 角色 + 情节脉络等，不是酒馆「角色卡」。
 
 - **故事包**：`{library}/projects/{id}/`（manifest + project.json + assets）。
+- **导入 / 导出**：[`FolderProjectRepository.exportPackageBytes`](../lib/data/project/folder_project_repository.dart) / `importFromPackageBytes` 打成或读入 `.anoworld`（zip），内容即整包目录（含 `assets/` 立绘、场景、封面等）。库内已有同 id 时自动换新 id，导入后可直接开玩。游玩存档、库文件夹树、全局预设不进包。目录级 `exportToDirectory` / `importFromDirectory` 仍可用（测试与高级拷贝）。
 - **游玩存档**：`{library}/saves/{slotId}.json`（每故事可多槽；[`SaveRepository`](../lib/domain/repositories/save_repository.dart)）。字段含 `id`、`projectId`、`mode`，聊天另有 `chat[]`（[`TavernChatMessage`](../lib/domain/chat/tavern_chat_message.dart)：`id` / `role` / `content`，助手可选 `reasoning`）与 `replyChoices[]`；视觉小说另有 `pointer`（含 `lineIndex` / `phase`）、`bridge` 与本局 `history[]` + `historyCursor`（回退时间线）。故事详情「开始游玩」新建槽；开玩与每轮（聊天回合 / 视觉小说推进、回退与桥接段）自动写回该槽，无手动保存入口；删故事时 `clearForProject`。
 - **库内文件夹**：`{library}/folders.json`（文件夹树 + 故事归属；[`ProjectFolder`](../lib/domain/models/project_folder.dart)）。文件夹只组织库浏览，不进故事包内容。
 
