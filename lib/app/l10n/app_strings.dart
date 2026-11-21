@@ -258,6 +258,14 @@ abstract class AppStrings extends AppLocalizations {
   String get visualStageScene;
   String get visualStageBusyPrompts;
   String get visualStageBusyImages;
+  String get visualRegenPortrait;
+  String get visualRegenScene;
+  String get visualRegenBusy;
+  String get visualRegenDone;
+  String get visualNoPortrait;
+  String get visualNoScene;
+  String get visualNeedPortraitTags;
+  String get visualNeedComfyShort;
   String get accept;
   String get regenerate;
 

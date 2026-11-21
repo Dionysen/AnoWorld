@@ -8,6 +8,7 @@ import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/project_asset.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/comfyui_client.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 
 typedef VisualProgress = void Function(String message, double? progress);
 
@@ -193,6 +194,174 @@ class VisualImagePipeline {
     return next.copyWith(
       meta: next.meta.copyWith(updatedAt: DateTime.now().toUtc()),
     );
+  }
+
+  /// Regenerates one cast portrait (overwrites existing avatar asset).
+  Future<Project> regenerateAvatar({
+    required Project project,
+    required String projectDir,
+    required AiImageEndpoint image,
+    required String characterId,
+    String? prompt,
+    String? negative,
+  }) async {
+    await ensureReady(image);
+    final member = project.castById(characterId);
+    if (member == null) {
+      throw const VisualImageException('找不到这个角色');
+    }
+    final resolvedPrompt =
+        (prompt ?? defaultPortraitPrompt(member)).trim();
+    if (resolvedPrompt.isEmpty) {
+      throw const VisualImageException('还没有立绘提示词，先去「画面」写好');
+    }
+    AppLog.instance.info(
+      '重绘立绘 ${member.name}',
+      tag: 'visual.regen',
+    );
+    final raw = await _comfy.generatePng(
+      baseUrl: image.baseUrl,
+      workflow: ComfyWorkflowTemplates.portrait(
+        prompt: resolvedPrompt,
+        negative: negative ?? ComfyWorkflowTemplates.defaultNegative,
+        width: image.portraitWidth,
+        height: image.portraitHeight,
+        steps: image.steps,
+        upscale: image.upscale,
+        checkpoint: _checkpoint(image),
+      ),
+      clientId: 'anoworld-avatar-regen-$characterId',
+    );
+    final bytes = makeSpriteTransparentPng(raw);
+    final assetId = 'avatar_$characterId';
+    final asset = await ProjectAssetFiles.writePng(
+      projectDir: projectDir,
+      assetId: assetId,
+      kind: ProjectAssetKind.avatar,
+      relativePath: ProjectAssetFiles.avatarRelativePath(characterId),
+      bytes: bytes,
+    );
+    final assets = List<ProjectAsset>.from(project.assets);
+    final ai = assets.indexWhere((a) => a.id == assetId);
+    if (ai >= 0) {
+      assets[ai] = asset;
+    } else {
+      assets.add(asset);
+    }
+    final cast = project.cast
+        .map(
+          (m) => m.id == characterId
+              ? m.copyWith(avatarAssetId: assetId)
+              : m,
+        )
+        .toList(growable: false);
+    AppLog.instance.info('立绘已更新 ${member.name}', tag: 'visual.regen');
+    return project.copyWith(
+      cast: cast,
+      assets: assets,
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+  }
+
+  /// Regenerates one node background (overwrites existing scene asset).
+  Future<Project> regenerateScene({
+    required Project project,
+    required String projectDir,
+    required AiImageEndpoint image,
+    required String nodeId,
+    String? prompt,
+    String? negative,
+  }) async {
+    await ensureReady(image);
+    final node = project.main.nodeById(nodeId);
+    if (node == null) {
+      throw const VisualImageException('找不到这一站');
+    }
+    final resolvedPrompt = (prompt ?? defaultScenePrompt(node)).trim();
+    if (resolvedPrompt.isEmpty) {
+      throw const VisualImageException('还没有场景提示词，先去「画面」写好');
+    }
+    AppLog.instance.info(
+      '重绘场景 ${node.title}',
+      tag: 'visual.regen',
+    );
+    final bytes = await _comfy.generatePng(
+      baseUrl: image.baseUrl,
+      workflow: ComfyWorkflowTemplates.scene(
+        prompt: resolvedPrompt,
+        negative: negative ?? ComfyWorkflowTemplates.defaultNegative,
+        width: image.sceneWidth,
+        height: image.sceneHeight,
+        steps: image.steps,
+        upscale: image.upscale,
+        checkpoint: _checkpoint(image),
+      ),
+      clientId: 'anoworld-scene-regen-$nodeId',
+    );
+    final assetId = 'bg_$nodeId';
+    final asset = await ProjectAssetFiles.writePng(
+      projectDir: projectDir,
+      assetId: assetId,
+      kind: ProjectAssetKind.background,
+      relativePath: ProjectAssetFiles.backgroundRelativePath(nodeId),
+      bytes: bytes,
+    );
+    final assets = List<ProjectAsset>.from(project.assets);
+    final ai = assets.indexWhere((a) => a.id == assetId);
+    if (ai >= 0) {
+      assets[ai] = asset;
+    } else {
+      assets.add(asset);
+    }
+    final beatsOut = List<Beat>.from(project.main.beats);
+    if (node.beatIds.isNotEmpty) {
+      final firstId = node.beatIds.first;
+      final bi = beatsOut.indexWhere((b) => b.id == firstId);
+      if (bi >= 0) {
+        final beat = beatsOut[bi];
+        beatsOut[bi] = beat.copyWith(
+          scene: beat.scene.copyWith(backgroundAssetId: assetId),
+        );
+      }
+    }
+    final nodes = project.main.nodes
+        .map(
+          (n) => n.id == nodeId
+              ? n.copyWith(
+                  imagePrompt: resolvedPrompt,
+                  backgroundAssetId: assetId,
+                )
+              : n,
+        )
+        .toList(growable: false);
+    AppLog.instance.info('场景已更新 ${node.title}', tag: 'visual.regen');
+    return project.copyWith(
+      assets: assets,
+      main: project.main.copyWith(nodes: nodes, beats: beatsOut),
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+  }
+
+  /// Default portrait prompt from locked tags / facing.
+  static String defaultPortraitPrompt(CastMember member) {
+    final tags = member.visualTags.trim();
+    if (tags.isEmpty) return '';
+    return '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
+        '${ComfyWorkflowTemplates.portraitCompositionFor(member.facing)}';
+  }
+
+  /// Prefer stored [StoryNode.imagePrompt]; else a short scenery fallback.
+  static String defaultScenePrompt(StoryNode node) {
+    final stored = node.imagePrompt?.trim() ?? '';
+    if (stored.isNotEmpty) return stored;
+    final goal = node.synopsis?.trim() ?? '';
+    final bits = <String>[
+      ComfyWorkflowTemplates.defaultStylePrefix,
+      'anime scenery',
+      node.title.trim(),
+      if (goal.isNotEmpty) goal,
+    ];
+    return bits.where((s) => s.isNotEmpty).join(', ');
   }
 
   static Project applyVisualTags(Project project, VisualPromptPlan plan) {

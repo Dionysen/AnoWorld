@@ -1,20 +1,25 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_watcher.dart';
+import 'package:anoworld/create/visual_asset_preview.dart';
 import 'package:anoworld/data/project/graph_node_thumbnail_files.dart';
+import 'package:anoworld/data/project/project_asset_files.dart';
 import 'package:anoworld/create/main_graph/main_graph_view_nav.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_labels.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/expand_edge_detail_action.dart';
+import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
 import 'package:anoworld/domain/main/main_graph_layout.dart';
 import 'package:anoworld/domain/main/main_graph_ops.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/story_node_kind.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/graph/graph_models.dart';
 import 'package:anoworld/foundation/graph/graph_node_thumbnail.dart';
 import 'package:anoworld/foundation/graph/graph_overview_map.dart';
@@ -62,6 +67,7 @@ class _MainGraphPageState extends State<MainGraphPage>
   static const _ops = MainGraphOps();
 
   Project? _project;
+  String? _projectDir;
   Object? _error;
   bool _loading = true;
   bool _cardMode = false;
@@ -69,6 +75,7 @@ class _MainGraphPageState extends State<MainGraphPage>
   bool _showGrid = false;
   String? _selectedId;
   String? _selectedEdgeId;
+  String? _regenBusyNodeId;
   final Map<String, Uint8List> _nodeThumbnails = {};
   final _viewportCamera = GraphViewportController();
   final _overviewPanelKey = GlobalKey<AppDockedPanelState>();
@@ -121,8 +128,9 @@ class _MainGraphPageState extends State<MainGraphPage>
       });
     }
     try {
-      final project =
-          await AppScope.projectsOf(context).open(widget.projectId);
+      final projects = AppScope.projectsOf(context);
+      final project = await projects.open(widget.projectId);
+      final dir = await projects.directoryFor(widget.projectId);
       if (!mounted) return;
       _history.clear();
       _dragOriginMain = null;
@@ -132,6 +140,7 @@ class _MainGraphPageState extends State<MainGraphPage>
           quiet && keepId != null && project.main.nodeById(keepId) != null;
       setState(() {
         _project = project;
+        _projectDir = dir;
         _selectedId = keepSelection ? keepId : project.main.startNodeId;
         _selectedEdgeId = quiet &&
                 keepEdgeId != null &&
@@ -569,6 +578,58 @@ class _MainGraphPageState extends State<MainGraphPage>
     );
   }
 
+  File? _sceneFileFor(Project project, String? nodeId) {
+    final dir = _projectDir;
+    if (dir == null || nodeId == null) return null;
+    final node = project.main.nodeById(nodeId);
+    final assetId = node?.backgroundAssetId?.trim();
+    if (assetId == null || assetId.isEmpty) return null;
+    return ProjectAssetFiles.tryFile(
+      projectDir: dir,
+      asset: project.assetById(assetId),
+    );
+  }
+
+  Future<void> _regenerateScene(String nodeId) async {
+    final project = _project;
+    final dir = _projectDir;
+    final strings = context.strings;
+    if (project == null || dir == null || dir.isEmpty) return;
+    final image = AppScope.settingsOf(context).ai.image;
+    if (image.kind != AiImageProviderKind.comfyui || !image.isConfigured) {
+      showAppToast(context, strings.visualNeedComfyShort);
+      return;
+    }
+    final projects = AppScope.projectsOf(context);
+    final changes = AppScope.projectChangesOf(context);
+    setState(() => _regenBusyNodeId = nodeId);
+    try {
+      final pipeline = VisualImagePipeline();
+      final next = await pipeline.regenerateScene(
+        project: project,
+        projectDir: dir,
+        image: image,
+        nodeId: nodeId,
+      );
+      await projects.save(next);
+      changes.markChanged(widget.projectId);
+      if (!mounted) return;
+      setState(() {
+        _project = next;
+        _regenBusyNodeId = null;
+      });
+      showAppToast(context, strings.visualRegenDone);
+    } on VisualImageException catch (error) {
+      if (!mounted) return;
+      setState(() => _regenBusyNodeId = null);
+      showAppToast(context, error.message);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _regenBusyNodeId = null);
+      showAppToast(context, error.toString());
+    }
+  }
+
   Future<void> _openNodeEditor(String nodeId) async {
     final project = _project;
     if (project == null) return;
@@ -583,17 +644,35 @@ class _MainGraphPageState extends State<MainGraphPage>
 
     await showAppSheet<void>(
       context: context,
-      size: AppSheetSize.compact,
+      size: AppSheetSize.half,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
+            final live = _project ?? project;
+            final liveNode = live.main.nodeById(nodeId) ?? node;
+            final busy = _regenBusyNodeId == nodeId;
             return Padding(
               padding: const EdgeInsets.all(AppTheme.spaceMd),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   AppSectionHeader(strings.mainGraphNodeSheetTitle),
+                  VisualAssetPreview(
+                    file: _sceneFileFor(live, nodeId),
+                    emptyLabel: strings.visualNoScene,
+                    height: 132,
+                    busy: busy,
+                    actionLabel: strings.visualRegenScene,
+                    onAction: busy
+                        ? null
+                        : () async {
+                            await _regenerateScene(nodeId);
+                            if (ctx.mounted) setSheetState(() {});
+                          },
+                  ),
+                  const SizedBox(height: AppTheme.spaceMd),
                   AppTextField(label: strings.titleLabel, controller: title),
                   const SizedBox(height: AppTheme.spaceSm),
                   AppTextField(
@@ -644,12 +723,12 @@ class _MainGraphPageState extends State<MainGraphPage>
                     )
                   else
                     ...outs.map((e) {
-                      final to = project.main.nodeById(e.to)?.title ?? e.to;
-                      final title = e.label?.trim().isNotEmpty == true
+                      final to = live.main.nodeById(e.to)?.title ?? e.to;
+                      final edgeTitle = e.label?.trim().isNotEmpty == true
                           ? e.label!
                           : _edgeFallbackLabel(strings, e.kind);
                       return AppListTile(
-                        title: title,
+                        title: edgeTitle,
                         subtitle: strings.mainGraphLeadsTo(to),
                         onTap: () async {
                           Navigator.of(ctx).pop();
@@ -662,10 +741,10 @@ class _MainGraphPageState extends State<MainGraphPage>
                     label: ui.save,
                     onPressed: () async {
                       final main = _ops.updateNodeMeta(
-                        project.main,
+                        live.main,
                         nodeId: nodeId,
                         title: title.text.trim().isEmpty
-                            ? node.title
+                            ? liveNode.title
                             : title.text.trim(),
                         synopsis: synopsis.text.trim(),
                         kind: kind,
@@ -679,13 +758,14 @@ class _MainGraphPageState extends State<MainGraphPage>
                   AppButton(
                     label: strings.mainGraphDeleteNodeAction,
                     variant: AppButtonVariant.danger,
-                    onPressed: project.main.nodes.length <= 1
+                    onPressed: live.main.nodes.length <= 1
                         ? null
                         : () async {
-                            final ok = await _confirmDeleteNode(node.title);
+                            final ok =
+                                await _confirmDeleteNode(liveNode.title);
                             if (!ok || !mounted) return;
                             await _persist(
-                              _ops.removeNode(project.main, nodeId),
+                              _ops.removeNode(live.main, nodeId),
                             );
                             if (mounted) {
                               setState(
@@ -697,6 +777,7 @@ class _MainGraphPageState extends State<MainGraphPage>
                           },
                   ),
                 ],
+                ),
               ),
             );
           },
@@ -747,34 +828,64 @@ class _MainGraphPageState extends State<MainGraphPage>
   Widget _buildCanvas(MainStory main) {
     final focusId = _selectedId ??
         (_cardMode ? main.startNodeId : null);
-    return GraphViewport(
-      camera: _viewportCamera,
-      nodes: _graphNodes(main),
-      edges: _graphEdges(main),
-      selectedId: focusId,
-      selectedEdgeId: _cardMode ? null : _selectedEdgeId,
-      focusSelected: _cardMode,
-      onSelect: (id) => setState(() {
-        _selectedId = id ?? (_cardMode ? focusId : null);
-        if (id != null) _selectedEdgeId = null;
-      }),
-      onSelectEdge: _cardMode
-          ? null
-          : (id) => setState(() {
-                _selectedEdgeId = id;
-                if (id != null) _selectedId = null;
-              }),
-      onMove: _moveNodeLocal,
-      onNodeDragEnd: _onNodeDragEnd,
-      onConnect: _connect,
-      onOpenOutput: (_, portId) => _openEdgeEditor(portId),
-      onAddOutput: (_) => _tipAddOutput(),
-      onOpenNode: _openNodeEditor,
-      onCopyNode: _copyNode,
-      onDeleteNode: main.nodes.length <= 1 ? null : _deleteNode,
-      onAddNode: _addNode,
-      onArrange: _autoLayout,
-      showGrid: _showGrid,
+    final project = _project;
+    final selectedNodeId = focusId;
+    final showScenePreview = project != null &&
+        selectedNodeId != null &&
+        !_overviewOpen &&
+        _selectedEdgeId == null;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        GraphViewport(
+          camera: _viewportCamera,
+          nodes: _graphNodes(main),
+          edges: _graphEdges(main),
+          selectedId: focusId,
+          selectedEdgeId: _cardMode ? null : _selectedEdgeId,
+          focusSelected: _cardMode,
+          onSelect: (id) => setState(() {
+            _selectedId = id ?? (_cardMode ? focusId : null);
+            if (id != null) _selectedEdgeId = null;
+          }),
+          onSelectEdge: _cardMode
+              ? null
+              : (id) => setState(() {
+                    _selectedEdgeId = id;
+                    if (id != null) _selectedId = null;
+                  }),
+          onMove: _moveNodeLocal,
+          onNodeDragEnd: _onNodeDragEnd,
+          onConnect: _connect,
+          onOpenOutput: (_, portId) => _openEdgeEditor(portId),
+          onAddOutput: (_) => _tipAddOutput(),
+          onOpenNode: _openNodeEditor,
+          onCopyNode: _copyNode,
+          onDeleteNode: main.nodes.length <= 1 ? null : _deleteNode,
+          onAddNode: _addNode,
+          onArrange: _autoLayout,
+          showGrid: _showGrid,
+        ),
+        if (showScenePreview)
+          Positioned(
+            left: AppTheme.pagePadding,
+            right: AppTheme.pagePadding,
+            bottom: AppTheme.pagePadding,
+            child: Material(
+              type: MaterialType.transparency,
+              child: VisualAssetPreview(
+                file: _sceneFileFor(project, selectedNodeId),
+                emptyLabel: context.strings.visualNoScene,
+                height: 112,
+                busy: _regenBusyNodeId == selectedNodeId,
+                actionLabel: context.strings.visualRegenScene,
+                onAction: _regenBusyNodeId == selectedNodeId
+                    ? null
+                    : () => _regenerateScene(selectedNodeId),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

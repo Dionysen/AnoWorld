@@ -1,12 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/create/visual_asset_preview.dart';
+import 'package:anoworld/data/project/project_asset_files.dart';
+import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -21,6 +26,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:flutter/material.dart';
 
@@ -42,6 +48,7 @@ class _CastEditorPageState extends State<CastEditorPage>
   String get assistantStoryId => widget.projectId;
 
   Project? _project;
+  String? _projectDir;
   Object? _error;
   bool _loading = true;
   Timer? _saveDebounce;
@@ -75,11 +82,13 @@ class _CastEditorPageState extends State<CastEditorPage>
       _error = null;
     });
     try {
-      final project =
-          await AppScope.projectsOf(context).open(widget.projectId);
+      final projects = AppScope.projectsOf(context);
+      final project = await projects.open(widget.projectId);
+      final dir = await projects.directoryFor(widget.projectId);
       if (!mounted) return;
       setState(() {
         _project = project;
+        _projectDir = dir;
         _loading = false;
       });
     } catch (error) {
@@ -93,10 +102,11 @@ class _CastEditorPageState extends State<CastEditorPage>
 
   Future<void> _persist(Project project) async {
     final cast = project.cast;
+    final assets = project.assets;
     final saved = await saveProjectMerged(
       AppScope.projectsOf(context),
       widget.projectId,
-      (latest) => latest.copyWith(cast: cast),
+      (latest) => latest.copyWith(cast: cast, assets: assets),
     );
     if (!mounted) return;
     setState(() => _project = saved);
@@ -120,6 +130,50 @@ class _CastEditorPageState extends State<CastEditorPage>
     return strings.castNoSummary;
   }
 
+  File? _avatarFile(CastMember member) {
+    final dir = _projectDir;
+    final project = _project;
+    final assetId = member.avatarAssetId?.trim();
+    if (dir == null || project == null || assetId == null || assetId.isEmpty) {
+      return null;
+    }
+    return ProjectAssetFiles.tryFile(
+      projectDir: dir,
+      asset: project.assetById(assetId),
+    );
+  }
+
+  Widget _avatarLeading(CastMember member) {
+    final file = _avatarFile(member);
+    final scheme = Theme.of(context).colorScheme;
+    const size = 40.0;
+    if (file == null) {
+      return Icon(
+        member.isProtagonist ? Icons.star_outline : Icons.person_outline,
+        size: AppListTile.iconSize,
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppTheme.spaceXs),
+      child: ColoredBox(
+        color: scheme.surfaceContainerHighest,
+        child: Image.file(
+          file,
+          key: ValueKey(
+            '${file.path}-${file.lastModifiedSync().millisecondsSinceEpoch}',
+          ),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Icon(
+            member.isProtagonist ? Icons.star_outline : Icons.person_outline,
+            size: AppListTile.iconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _editMember({CastMember? existing}) async {
     final project = _project;
     if (project == null) return;
@@ -140,12 +194,19 @@ class _CastEditorPageState extends State<CastEditorPage>
         draft: draft,
         existing: existing,
         defaultProtagonist: defaultProtagonist,
+        projectId: widget.projectId,
+        projectDir: _projectDir,
+        avatarFile: _avatarFile(draft),
+        onProjectUpdated: (next) {
+          if (!mounted) return;
+          setState(() => _project = next);
+        },
       ),
     );
 
     if (result == null || !mounted) return;
 
-    var cast = [...project.cast];
+    var cast = [...(_project ?? project).cast];
     if (result.delete) {
       cast.removeWhere((c) => c.id == draft.id);
     } else {
@@ -226,9 +287,7 @@ class _CastEditorPageState extends State<CastEditorPage>
                       subtitle: member.isProtagonist
                           ? strings.castProtagonist(_subtitle(strings, member))
                           : _subtitle(strings, member),
-                      icon: member.isProtagonist
-                          ? Icons.star_outline
-                          : Icons.person_outline,
+                      leading: _avatarLeading(member),
                       trailing: const AppForwardIcon(),
                       onTap: () => _editMember(existing: member),
                     ),
@@ -256,11 +315,19 @@ class _CastMemberSheet extends StatefulWidget {
     required this.draft,
     required this.existing,
     required this.defaultProtagonist,
+    required this.projectId,
+    required this.projectDir,
+    required this.avatarFile,
+    required this.onProjectUpdated,
   });
 
   final CastMember draft;
   final CastMember? existing;
   final bool defaultProtagonist;
+  final String projectId;
+  final String? projectDir;
+  final File? avatarFile;
+  final ValueChanged<Project> onProjectUpdated;
 
   @override
   State<_CastMemberSheet> createState() => _CastMemberSheetState();
@@ -274,6 +341,9 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
   late final TextEditingController _examples;
   late final CastMember _baseline;
   late bool _isProtagonist;
+  late String? _avatarAssetId;
+  File? _avatarFile;
+  bool _regenBusy = false;
 
   @override
   void initState() {
@@ -285,6 +355,8 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
     _speech = TextEditingController(text: widget.draft.speechStyle);
     _examples = TextEditingController(text: widget.draft.exampleLines.join('\n'));
     _isProtagonist = widget.defaultProtagonist;
+    _avatarAssetId = widget.draft.avatarAssetId;
+    _avatarFile = widget.avatarFile;
     for (final c in [_name, _summary, _personality, _speech, _examples]) {
       c.addListener(_markDirty);
     }
@@ -318,6 +390,7 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
           .where((s) => s.isNotEmpty)
           .toList(growable: false),
       isProtagonist: _isProtagonist,
+      avatarAssetId: _avatarAssetId,
     );
   }
 
@@ -329,6 +402,7 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
         a.personality == b.personality &&
         a.speechStyle == b.speechStyle &&
         a.isProtagonist == b.isProtagonist &&
+        a.avatarAssetId == b.avatarAssetId &&
         _listEqual(a.exampleLines, b.exampleLines);
   }
 
@@ -338,6 +412,64 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
       if (a[i] != b[i]) return false;
     }
     return true;
+  }
+
+  Future<void> _regenPortrait() async {
+    final strings = context.strings;
+    final dir = widget.projectDir;
+    if (dir == null || dir.isEmpty) {
+      showAppToast(context, strings.visualNeedComfyShort);
+      return;
+    }
+    if (VisualImagePipeline.defaultPortraitPrompt(_snapshot()).isEmpty &&
+        widget.draft.visualTags.trim().isEmpty) {
+      showAppToast(context, strings.visualNeedPortraitTags);
+      return;
+    }
+    final image = AppScope.settingsOf(context).ai.image;
+    if (image.kind != AiImageProviderKind.comfyui || !image.isConfigured) {
+      showAppToast(context, strings.visualNeedComfyShort);
+      return;
+    }
+    final projects = AppScope.projectsOf(context);
+    final changes = AppScope.projectChangesOf(context);
+    setState(() => _regenBusy = true);
+    try {
+      final project = await projects.open(widget.projectId);
+      final pipeline = VisualImagePipeline();
+      final next = await pipeline.regenerateAvatar(
+        project: project,
+        projectDir: dir,
+        image: image,
+        characterId: widget.draft.id,
+      );
+      await projects.save(next);
+      changes.markChanged(widget.projectId);
+      if (!mounted) return;
+      final member = next.castById(widget.draft.id);
+      final assetId = member?.avatarAssetId;
+      final file = assetId == null
+          ? null
+          : ProjectAssetFiles.tryFile(
+              projectDir: dir,
+              asset: next.assetById(assetId),
+            );
+      widget.onProjectUpdated(next);
+      setState(() {
+        _avatarAssetId = assetId;
+        _avatarFile = file;
+        _regenBusy = false;
+      });
+      showAppToast(context, strings.visualRegenDone);
+    } on VisualImageException catch (error) {
+      if (!mounted) return;
+      setState(() => _regenBusy = false);
+      showAppToast(context, error.message);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _regenBusy = false);
+      showAppToast(context, error.toString());
+    }
   }
 
   void _save() {
@@ -371,6 +503,18 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
           AppTheme.spaceMd,
         ),
         children: [
+          if (existing != null) ...[
+            VisualAssetPreview(
+              file: _avatarFile,
+              emptyLabel: strings.visualNoPortrait,
+              height: 180,
+              fit: BoxFit.contain,
+              busy: _regenBusy,
+              actionLabel: strings.visualRegenPortrait,
+              onAction: _regenBusy ? null : _regenPortrait,
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+          ],
           AppTextField(
             label: strings.castNameLabel,
             controller: _name,

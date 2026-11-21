@@ -11,6 +11,17 @@ abstract final class ProjectAssetFiles {
     return p.join(projectDir, ProjectPaths.assetsFolder, relative);
   }
 
+  /// Resolves a catalog asset to a local file when present on disk.
+  static File? tryFile({
+    required String projectDir,
+    required ProjectAsset? asset,
+  }) {
+    if (asset == null) return null;
+    final file = File(absolutePath(projectDir, asset.relativePath));
+    if (!file.existsSync()) return null;
+    return file;
+  }
+
   static Future<ProjectAsset> writePng({
     required String projectDir,
     required String assetId,

@@ -770,6 +770,30 @@ class AppStringsZh extends AppStrings {
   String get visualStageBusyImages => '正在出图…';
 
   @override
+  String get visualRegenPortrait => '重新画立绘';
+
+  @override
+  String get visualRegenScene => '重新画场景';
+
+  @override
+  String get visualRegenBusy => '正在重画…';
+
+  @override
+  String get visualRegenDone => '已更新画面';
+
+  @override
+  String get visualNoPortrait => '还没有立绘';
+
+  @override
+  String get visualNoScene => '还没有场景图';
+
+  @override
+  String get visualNeedPortraitTags => '先在「画面」里写好角色长相标签';
+
+  @override
+  String get visualNeedComfyShort => '请先在设置里配好生图';
+
+  @override
   String get accept => '采用';
 
   @override
