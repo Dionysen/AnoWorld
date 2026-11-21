@@ -12,7 +12,7 @@ void main() {
       prompt: '1girl, silver_hair',
       upscale: true,
     );
-    expect(wf['7']?['inputs']?['steps'], 20);
+    expect(wf['7']?['inputs']?['steps'], 12);
     expect(wf['9']?['inputs']?['images'], ['92', 0]);
     expect(wf['4']?['inputs']?['text'], contains('silver_hair'));
   });

@@ -272,12 +272,29 @@ class AiImageEndpoint {
     this.baseUrl = '',
     this.apiKey = '',
     this.model = '',
+    this.steps = defaultSteps,
+    this.upscale = defaultUpscale,
   });
+
+  /// Comfy / diffusion sampling steps (fewer = faster, softer detail).
+  static const int defaultSteps = 12;
+  static const int stepsLowerBound = 4;
+  static const int stepsUpperBound = 40;
+  static const bool defaultUpscale = false;
+
+  static int clampSteps(int value) =>
+      value.clamp(stepsLowerBound, stepsUpperBound);
 
   final AiImageProviderKind kind;
   final String baseUrl;
   final String apiKey;
   final String model;
+
+  /// Sampling steps for ComfyUI workflows.
+  final int steps;
+
+  /// Run RealESRGAN after decode (much slower on local AMD).
+  final bool upscale;
 
   /// ComfyUI only needs a reachable base URL (checkpoint lives in workflow).
   bool get isConfigured {
@@ -294,12 +311,16 @@ class AiImageEndpoint {
     String? baseUrl,
     String? apiKey,
     String? model,
+    int? steps,
+    bool? upscale,
   }) {
     return AiImageEndpoint(
       kind: kind ?? this.kind,
       baseUrl: baseUrl ?? this.baseUrl,
       apiKey: apiKey ?? this.apiKey,
       model: model ?? this.model,
+      steps: clampSteps(steps ?? this.steps),
+      upscale: upscale ?? this.upscale,
     );
   }
 
@@ -313,6 +334,8 @@ class AiImageEndpoint {
       baseUrl: next.defaultBaseUrl,
       apiKey: '',
       model: next.defaultModel,
+      steps: steps,
+      upscale: upscale,
     );
   }
 
@@ -321,6 +344,8 @@ class AiImageEndpoint {
         'baseUrl': baseUrl,
         'apiKey': apiKey,
         'model': model,
+        'steps': steps,
+        'upscale': upscale,
       };
 
   factory AiImageEndpoint.fromJson(Map<String, dynamic>? json) {
@@ -333,6 +358,10 @@ class AiImageEndpoint {
       baseUrl: json.optionalString('baseUrl') ?? '',
       apiKey: json.optionalString('apiKey') ?? '',
       model: json.optionalString('model') ?? '',
+      steps: clampSteps(
+        (json.optionalNum('steps') ?? defaultSteps).toInt(),
+      ),
+      upscale: json.optionalBool('upscale') ?? defaultUpscale,
     );
   }
 }
@@ -399,6 +428,7 @@ class AiSettings {
     this.imageSlots = const <String, AiImageEndpoint>{},
     this.generation = const GenerationPreset(),
     this.minBridgeLines = defaultMinBridgeLines,
+    this.minGraphStations = defaultMinGraphStations,
     this.inStationChoiceFrequency = InStationChoiceFrequency.rare,
   });
 
@@ -407,8 +437,16 @@ class AiSettings {
   static const int minBridgeLinesLowerBound = 1;
   static const int minBridgeLinesUpperBound = 10;
 
+  /// Full plot skeleton: minimum stations the model must produce.
+  static const int defaultMinGraphStations = 20;
+  static const int minGraphStationsLowerBound = 4;
+  static const int minGraphStationsUpperBound = 60;
+
   static int clampMinBridgeLines(int value) =>
       value.clamp(minBridgeLinesLowerBound, minBridgeLinesUpperBound);
+
+  static int clampMinGraphStations(int value) =>
+      value.clamp(minGraphStationsLowerBound, minGraphStationsUpperBound);
 
   final AiTextEndpoint text;
   final AiImageEndpoint image;
@@ -421,6 +459,9 @@ class AiSettings {
   /// Asked of the model every VN beat; short outputs are retried once.
   final int minBridgeLines;
 
+  /// Asked of create / replace-graph: minimum stations in a full skeleton.
+  final int minGraphStations;
+
   /// In-station process beats: how often to include choices (exit beats always).
   final InStationChoiceFrequency inStationChoiceFrequency;
 
@@ -431,6 +472,7 @@ class AiSettings {
     Map<String, AiImageEndpoint>? imageSlots,
     GenerationPreset? generation,
     int? minBridgeLines,
+    int? minGraphStations,
     InStationChoiceFrequency? inStationChoiceFrequency,
   }) {
     return AiSettings(
@@ -441,6 +483,9 @@ class AiSettings {
       generation: generation ?? this.generation,
       minBridgeLines: clampMinBridgeLines(
         minBridgeLines ?? this.minBridgeLines,
+      ),
+      minGraphStations: clampMinGraphStations(
+        minGraphStations ?? this.minGraphStations,
       ),
       inStationChoiceFrequency:
           inStationChoiceFrequency ?? this.inStationChoiceFrequency,
@@ -486,6 +531,7 @@ class AiSettings {
         },
         'generation': generation.toJson(),
         'minBridgeLines': minBridgeLines,
+        'minGraphStations': minGraphStations,
         'inStationChoiceFrequency': inStationChoiceFrequency.wireName,
       };
 
@@ -501,6 +547,10 @@ class AiSettings {
           : GenerationPreset.fromJson(genMap),
       minBridgeLines: clampMinBridgeLines(
         (json.optionalNum('minBridgeLines') ?? defaultMinBridgeLines).toInt(),
+      ),
+      minGraphStations: clampMinGraphStations(
+        (json.optionalNum('minGraphStations') ?? defaultMinGraphStations)
+            .toInt(),
       ),
       inStationChoiceFrequency: InStationChoiceFrequencyCodec.parse(
         json.optionalString('inStationChoiceFrequency'),

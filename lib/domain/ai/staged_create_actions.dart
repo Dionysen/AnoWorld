@@ -6,7 +6,9 @@ import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/validation/project_validator.dart';
+
 /// Structured AI actions for UX path 3 (world → cast → short main).
 class StagedCreateActions {
   StagedCreateActions({
@@ -14,12 +16,14 @@ class StagedCreateActions {
     this.mapper = const StageResultMapper(),
     this.validator = const ProjectValidator(),
     this.maxFormatRetries = 1,
+    this.minGraphStations = AiSettings.defaultMinGraphStations,
   }) : _text = textClient;
 
   final AiTextClient _text;
   final StageResultMapper mapper;
   final ProjectValidator validator;
   final int maxFormatRetries;
+  final int minGraphStations;
 
   Future<WorldBook> generateWorld({
     required AiPromptContext ctx,
@@ -77,16 +81,22 @@ class StagedCreateActions {
         beats: [],
       ),
     );
+    final floor = AiSettings.clampMinGraphStations(minGraphStations);
     final system = ctx.assembleSystem(
       project: stub,
-      taskSuffix: _mainSchema,
+      taskSuffix: _mainSchema(floor),
     );
     final main = await _completeMapped(
       ctx: ctx,
       system: system,
       user: '已有设定：\n${worldBook.combinedText}\n\n'
           '角色：\n$castLines\n\n用户提示：\n${prompt.trim()}',
-      map: (raw) => mapper.mainFromRaw(raw, cast: cast),
+      map: (raw) => mapper.mainFromRaw(
+        raw,
+        cast: cast,
+        enforceMinStations: true,
+        minStations: floor,
+      ),
     );
 
     final probe = stub.copyWith(main: main);
@@ -163,9 +173,9 @@ class StagedCreateActions {
 {"cast":[{"name":"姓名","summary":"一句话","personality":"性格","speechStyle":"说话风格","exampleLines":["例句"]}]}
 根据用户提示生成 2～4 个角色；姓名要短、好记。只输出 JSON，不要 markdown，不要解释。''';
 
-  static const String _mainSchema = '输出格式：\n'
+  static String _mainSchema(int minStations) => '输出格式：\n'
       '${CreatePromptProfiles.skeletonFormat}\n'
       '规则：\n'
-      '${CreatePromptProfiles.skeletonRules}\n'
+      '${CreatePromptProfiles.skeletonRules(minStations)}\n'
       '只输出 JSON，不要 markdown，不要解释。';
 }

@@ -98,4 +98,39 @@ void main() {
     expect(restored.minBridgeLines, 5);
     expect(restored.toJson()['minBridgeLines'], 5);
   });
+
+  test('image steps/upscale defaults and round-trip', () {
+    expect(const AiImageEndpoint().steps, AiImageEndpoint.defaultSteps);
+    expect(const AiImageEndpoint().upscale, isFalse);
+
+    final restored = AiImageEndpoint.fromJson(<String, dynamic>{
+      'kind': 'comfyui',
+      'baseUrl': 'http://127.0.0.1:8188',
+      'steps': 8,
+      'upscale': true,
+    });
+    expect(restored.steps, 8);
+    expect(restored.upscale, isTrue);
+    expect(restored.toJson()['steps'], 8);
+    expect(restored.toJson()['upscale'], isTrue);
+
+    expect(
+      const AiImageEndpoint().copyWith(steps: 99).steps,
+      AiImageEndpoint.stepsUpperBound,
+    );
+  });
+
+  test('minGraphStations defaults, clamps and round-trips', () {
+    expect(
+      const AiSettings().minGraphStations,
+      AiSettings.defaultMinGraphStations,
+    );
+    final clamped = const AiSettings().copyWith(minGraphStations: 1);
+    expect(clamped.minGraphStations, AiSettings.minGraphStationsLowerBound);
+    final restored = AiSettings.fromJson(<String, dynamic>{
+      'minGraphStations': 12,
+    });
+    expect(restored.minGraphStations, 12);
+    expect(restored.toJson()['minGraphStations'], 12);
+  });
 }

@@ -12,6 +12,7 @@ import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
+import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
 import 'package:anoworld/settings/ai_model_picker.dart';
@@ -131,6 +132,45 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
             ),
             const SizedBox(height: AppTheme.spaceLg),
             AppSectionHeader(
+              context.strings.imageGenQualitySection,
+              gutter: true,
+            ),
+            AppPageGutter(
+              child: AppText(
+                context.strings.imageGenQualityHint,
+                role: AppTextRole.caption,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceSm),
+            AppSlider(
+              label: context.strings.imageGenStepsLabel,
+              icon: Icons.tune_outlined,
+              value: ai.image.steps.toDouble(),
+              min: AiImageEndpoint.stepsLowerBound.toDouble(),
+              max: AiImageEndpoint.stepsUpperBound.toDouble(),
+              step: 1,
+              valueText: (v) =>
+                  context.strings.imageGenStepsValue(v.round()),
+              onChanged: (value) => _persist(
+                ai.withImage(ai.image.copyWith(steps: value.round())),
+              ),
+            ),
+            AppListTile(
+              title: context.strings.imageGenUpscaleLabel,
+              subtitle: context.strings.imageGenUpscaleHint,
+              icon: Icons.high_quality_outlined,
+              trailing: AppSwitch(
+                value: ai.image.upscale,
+                onChanged: (on) =>
+                    _persist(ai.withImage(ai.image.copyWith(upscale: on))),
+              ),
+              onTap: () => _persist(
+                ai.withImage(ai.image.copyWith(upscale: !ai.image.upscale)),
+              ),
+              showDivider: false,
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            AppSectionHeader(
               context.strings.vnDirectionSection,
               gutter: true,
             ),
@@ -150,9 +190,21 @@ class _AiSettingsPanelState extends State<AiSettingsPanel> {
               step: 1,
               valueText: (v) =>
                   context.strings.vnMinLinesValue(v.round()),
-              showDivider: false,
               onChanged: (value) =>
                   _persist(ai.copyWith(minBridgeLines: value.round())),
+            ),
+            AppSlider(
+              label: context.strings.minGraphStationsLabel,
+              icon: Icons.account_tree_outlined,
+              value: ai.minGraphStations.toDouble(),
+              min: AiSettings.minGraphStationsLowerBound.toDouble(),
+              max: AiSettings.minGraphStationsUpperBound.toDouble(),
+              step: 1,
+              valueText: (v) =>
+                  context.strings.minGraphStationsValue(v.round()),
+              showDivider: false,
+              onChanged: (value) =>
+                  _persist(ai.copyWith(minGraphStations: value.round())),
             ),
             const SizedBox(height: AppTheme.spaceMd),
             AppPageGutter(
@@ -220,7 +272,11 @@ class _TextChannelEditorState extends State<_TextChannelEditor> {
   void initState() {
     super.initState();
     _boundKind = widget.endpoint.kind;
-    _scheduleAutoProbe(immediate: true);
+    // Probe after first frame so context.strings is safe (not during initState).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scheduleAutoProbe(immediate: true);
+    });
   }
 
   @override
@@ -405,7 +461,11 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
   void initState() {
     super.initState();
     _boundKind = widget.endpoint.kind;
-    _scheduleAutoProbe(immediate: true);
+    // Probe after first frame so context.strings is safe (not during initState).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scheduleAutoProbe(immediate: true);
+    });
   }
 
   @override

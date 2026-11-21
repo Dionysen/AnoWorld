@@ -1,3 +1,5 @@
+import 'package:anoworld/domain/settings/ai_settings.dart';
+
 /// Task rules appended after the global AiPreset for the create-assistant loop.
 ///
 /// The assistant has no per-layer scope: one turn may read any layer and stage
@@ -11,9 +13,13 @@ class CreatePromptProfiles {
   static const String skeletonFormat =
       '{"summary":"主线概括","stations":[{"title":"大站标题","synopsis":"本站必须达成的剧情目标","ending":false,"exits":[{"to":"下一站标题或end","kind":"default|branch","label":"可选标注","detail":"可选：这条路具体发生什么"}]}],"edges":[{"from":"站标题","to":"站标题或end","kind":"default|branch","label":"可选","detail":"可选：这条路具体发生什么"}]}';
 
-  /// Content rules for any plot skeleton, whatever the transport.
-  static const String skeletonRules = '''
-- stations 至少 20 个，上不封顶；按设定与用户走向的丰富度加站（多世界线、多场景、多元素就多铺），禁止灌水同质站
+  /// Content rules for any plot skeleton; [minStations] comes from AI settings.
+  static String skeletonRules([
+    int minStations = AiSettings.defaultMinGraphStations,
+  ]) {
+    final n = AiSettings.clampMinGraphStations(minStations);
+    return '''
+- stations 至少 $n 个，上不封顶；按设定与用户走向的丰富度加站（多世界线、多场景、多元素就多铺），禁止灌水同质站
 - synopsis 必填且短，写清这一站主角要经历什么；分叉后各支 synopsis 必须剧情互斥（禁止换皮）
 - 用 exits 或 edges 表达顺序与分支；主分叉用 kind=branch，label 写清选择后果
 - 分叉的 detail 写清这条路的具体走向（氛围与后果），不要复述 label
@@ -24,8 +30,11 @@ class CreatePromptProfiles {
 - 已给剧情元素按分类尽量铺进不同分叉，勿堆在同一条线
 - 输出 JSON 时字符串里引用词句用「」，不要用双引号；引号与换行都要转义
 - 不要输出 lines / choices / 对白''';
+  }
 
-  static const String taskRules =
+  static String taskRules([
+    int minStations = AiSettings.defaultMinGraphStations,
+  ]) =>
       '''
 你现在是这本故事的编辑助手，可以改世界书、角色、情节图与剧情元素。各层目录已在系统提示里，需要正文时用工具读取。
 哪些层要改由你判断：用户的请求落在哪一层就改哪一层，别顺手改没提到的层。
@@ -44,5 +53,5 @@ class CreatePromptProfiles {
 
 写情节图时遵守：
 ''' +
-      skeletonRules;
+      skeletonRules(minStations);
 }

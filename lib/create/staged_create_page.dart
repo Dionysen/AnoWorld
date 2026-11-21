@@ -78,7 +78,10 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
   }
 
   StagedCreateActions _actions() =>
-      StagedCreateActions(textClient: AppScope.textClientOf(context));
+      StagedCreateActions(
+        textClient: AppScope.textClientOf(context),
+        minGraphStations: AppScope.settingsOf(context).ai.minGraphStations,
+      );
 
   String _stageTitle(AppStrings strings) => switch (_stage) {
         _Stage.world => strings.stagedWorld,

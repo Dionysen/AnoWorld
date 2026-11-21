@@ -404,7 +404,11 @@ List<CreateTool> buildProjectTools() {
         }
         try {
           return CreateToolResult.userConfirmRequired(
-            proposals.replaceGraph(project, args),
+            proposals.replaceGraph(
+              project,
+              args,
+              minStations: ctx.minGraphStations,
+            ),
           );
         } on CreateProposalException catch (error) {
           return CreateToolResult.error(error.message);
@@ -673,7 +677,10 @@ Map<String, dynamic> _graphParams() {
   return objectSchema(
     <String, dynamic>{
       'summary': stringSchema('主线概括'),
-      'stations': arraySchema(station, description: '至少 20 站，上不封顶'),
+      'stations': arraySchema(
+        station,
+        description: '情节站列表；数量不少于系统提示里的最少站数，上不封顶',
+      ),
       'edges': arraySchema(
         objectSchema(
           <String, dynamic>{

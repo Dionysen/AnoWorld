@@ -88,9 +88,25 @@ void main() {
 ''',
         cast: const [],
         enforceMinStations: true,
+        minStations: 8,
       ),
       throwsA(isA<StageMapException>()),
     );
+  });
+
+  test('enforceMinStations accepts when above custom floor', () {
+    final main = mapper.mainFromRaw(
+      '''
+{"summary":"短","stations":[
+{"title":"a","synopsis":"一","exits":[{"to":"b","kind":"default"}]},
+{"title":"b","synopsis":"二","exits":[]}
+]}
+''',
+      cast: const [],
+      enforceMinStations: true,
+      minStations: 2,
+    );
+    expect(main.nodes, hasLength(2));
   });
 
   test('throws on missing stations', () {

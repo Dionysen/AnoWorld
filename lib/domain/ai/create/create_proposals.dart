@@ -8,6 +8,7 @@ import 'package:anoworld/domain/main/apply_world_book_patch.dart';
 import 'package:anoworld/domain/main/main_graph_document.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/domain/validation/project_validator.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
@@ -28,13 +29,17 @@ class CreateProposals {
 
   /// Whole-graph rewrite (`summary` + `stations`), validated by dry-applying.
   Map<String, dynamic> replaceGraph(
-      Project project, Map<String, dynamic> args) {
+    Project project,
+    Map<String, dynamic> args, {
+    int minStations = AiSettings.defaultMinGraphStations,
+  }) {
     final MainStory main;
     try {
       main = mapper.mainFromRaw(
         jsonEncode(args),
         cast: project.cast,
         enforceMinStations: true,
+        minStations: AiSettings.clampMinGraphStations(minStations),
       );
     } on StageMapException catch (error) {
       throw CreateProposalException(error.message);

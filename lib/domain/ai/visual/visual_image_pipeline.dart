@@ -36,10 +36,13 @@ class VisualImagePipeline {
     required VisualPromptPlan plan,
     bool generateAvatars = true,
     bool generateScenes = true,
-    bool upscale = true,
+    bool? upscale,
+    int? steps,
     bool skipExisting = true,
     VisualProgress? onProgress,
   }) async {
+    final resolvedUpscale = upscale ?? image.upscale;
+    final resolvedSteps = steps ?? image.steps;
     await ensureReady(image);
 
     var next = applyVisualTags(project, plan);
@@ -76,7 +79,8 @@ class VisualImagePipeline {
           workflow: ComfyWorkflowTemplates.portrait(
             prompt: row.portraitPrompt,
             negative: plan.negativePrompt,
-            upscale: upscale,
+            steps: resolvedSteps,
+            upscale: resolvedUpscale,
             checkpoint: _checkpoint(image),
           ),
           clientId: 'anoworld-avatar-${row.characterId}',
@@ -129,7 +133,8 @@ class VisualImagePipeline {
           workflow: ComfyWorkflowTemplates.scene(
             prompt: row.scenePrompt,
             negative: plan.negativePrompt,
-            upscale: upscale,
+            steps: resolvedSteps,
+            upscale: resolvedUpscale,
             checkpoint: _checkpoint(image),
           ),
           clientId: 'anoworld-scene-${row.nodeId}',

@@ -310,10 +310,19 @@ abstract class AppStrings extends AppLocalizations {
   String get historyBack;
   String get historyForward;
   String get historyFastForward;
+  String get imageGenQualitySection;
+  String get imageGenQualityHint;
+  String get imageGenStepsLabel;
+  String imageGenStepsValue(int steps);
+  String get imageGenUpscaleLabel;
+  String get imageGenUpscaleHint;
+
   String get vnDirectionSection;
   String get vnDirectionHint;
   String get vnMinLinesLabel;
   String vnMinLinesValue(int lines);
+  String get minGraphStationsLabel;
+  String minGraphStationsValue(int stations);
   String get vnInStationChoicesLabel;
   String get vnInStationChoicesHint;
   String vnInStationChoiceFrequencyName(Object frequency);

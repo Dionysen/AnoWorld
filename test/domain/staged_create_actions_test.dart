@@ -82,12 +82,16 @@ void main() {
       '''
 {"summary":"短主线","stations":[
 {"title":"城门","synopsis":"离开","exits":[{"to":"客栈","kind":"default"},{"to":"荒野","kind":"branch"}]},
-{"title":"客栈","synopsis":"投宿","exits":[{"to":"end","kind":"default"}]},
-{"title":"荒野","synopsis":"独行","exits":[{"to":"end","kind":"default"}]}
+{"title":"客栈","synopsis":"投宿","exits":[{"to":"巷口","kind":"default"}]},
+{"title":"荒野","synopsis":"独行","exits":[{"to":"巷口","kind":"default"}]},
+{"title":"巷口","synopsis":"汇合","exits":[{"to":"end","kind":"default"}]}
 ]}
 ''',
     ]);
-    final actions = StagedCreateActions(textClient: client);
+    final actions = StagedCreateActions(
+      textClient: client,
+      minGraphStations: 4,
+    );
     final cast = const [
       CastMember(id: 'c_0', name: '少年'),
       CastMember(id: 'c_1', name: '掌柜'),
@@ -108,7 +112,7 @@ void main() {
       cast: cast,
     );
     expect(main.beats, isEmpty);
-    expect(main.nodes.length, greaterThanOrEqualTo(3));
+    expect(main.nodes.length, greaterThanOrEqualTo(4));
     expect(main.edges, isNotEmpty);
   });
 

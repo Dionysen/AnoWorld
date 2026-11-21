@@ -423,6 +423,8 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     final toolClient = textClient is AiToolTurnClient
         ? textClient as AiToolTurnClient
         : null;
+    final minGraphStations =
+        AppScope.settingsOf(context).ai.minGraphStations;
     try {
       final project = await repo.open(projectId);
       final turn = await CreateAgentRunner().runTurn(
@@ -431,6 +433,7 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
         ctx: CreateToolContext(
           project: project,
           ai: promptCtx,
+          minGraphStations: minGraphStations,
           services: CreateToolServices(
             toolClient: toolClient,
             plotCatalog: plotCatalog,

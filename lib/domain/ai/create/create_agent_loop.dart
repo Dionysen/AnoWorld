@@ -227,7 +227,7 @@ class CreateAgentLoop {
       plotCatalog: ctx.services.plotCatalog,
       inlineWorldBook: false,
       worldInfoBefore: index,
-      taskSuffix: CreatePromptProfiles.taskRules,
+      taskSuffix: CreatePromptProfiles.taskRules(ctx.minGraphStations),
     );
   }
 

@@ -8,7 +8,7 @@ import 'package:anoworld/foundation/ai/json_candidate.dart';
 class StageResultMapper {
   const StageResultMapper();
 
-  /// Minimum stations for a full skeleton generate (not used by patch apply).
+  /// Default minimum stations for a full skeleton (overridable per call).
   static const int minFullGraphStations = 20;
 
   WorldBook worldBookFromRaw(String raw) {
@@ -81,11 +81,12 @@ class StageResultMapper {
   /// Builds a skeleton [MainStory]: stations + edges, empty beats.
   ///
   /// When [enforceMinStations] is true (full generate), requires at least
-  /// [minFullGraphStations] nodes.
+  /// [minStations] nodes (defaults to [minFullGraphStations]).
   MainStory mainFromRaw(
     String raw, {
     required List<CastMember> cast,
     bool enforceMinStations = false,
+    int minStations = minFullGraphStations,
   }) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) {
@@ -111,9 +112,10 @@ class StageResultMapper {
     if (stationMaps.length < 2) {
       throw const StageMapException('至少需要两站情节');
     }
-    if (enforceMinStations && stationMaps.length < minFullGraphStations) {
+    final floor = minStations < 2 ? 2 : minStations;
+    if (enforceMinStations && stationMaps.length < floor) {
       throw StageMapException(
-        '至少需要 $minFullGraphStations 个情节站，当前 ${stationMaps.length}',
+        '至少需要 $floor 个情节站，当前 ${stationMaps.length}',
       );
     }
 

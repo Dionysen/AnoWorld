@@ -919,16 +919,40 @@ class AppStringsZh extends AppStrings {
   String get historyFastForward => '快进';
 
   @override
+  String get imageGenQualitySection => '生图质量';
+
+  @override
+  String get imageGenQualityHint => '步数越少越快；超分更清晰但会慢很多';
+
+  @override
+  String get imageGenStepsLabel => '采样步数';
+
+  @override
+  String imageGenStepsValue(int steps) => '$steps 步';
+
+  @override
+  String get imageGenUpscaleLabel => '出图后超分';
+
+  @override
+  String get imageGenUpscaleHint => '放大立绘与场景，耗时更长';
+
+  @override
   String get vnDirectionSection => '视觉小说演出';
 
   @override
-  String get vnDirectionHint => '每段对白多长、站内要不要出选项，都在这里调';
+  String get vnDirectionHint => '每段对白多长、站内要不要出选项、情节图至少几站，都在这里调';
 
   @override
   String get vnMinLinesLabel => '每段最少句数';
 
   @override
   String vnMinLinesValue(int lines) => '$lines 句';
+
+  @override
+  String get minGraphStationsLabel => '情节图最少站数';
+
+  @override
+  String minGraphStationsValue(int stations) => '$stations 站';
 
   @override
   String get vnInStationChoicesLabel => '站内选项';
