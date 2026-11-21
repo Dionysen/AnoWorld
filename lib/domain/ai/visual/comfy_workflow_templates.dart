@@ -136,6 +136,7 @@ abstract final class ComfyWorkflowTemplates {
     required String prompt,
     String negative = defaultNegative,
     bool upscale = true,
+    String checkpoint = defaultCheckpoint,
   }) {
     return noobaiTxt2Img(
       positive: prompt,
@@ -145,6 +146,7 @@ abstract final class ComfyWorkflowTemplates {
       steps: 20,
       cfg: 4.5,
       upscale: upscale,
+      checkpoint: checkpoint,
       filenamePrefix: 'anoworld_avatar',
     );
   }
@@ -153,6 +155,7 @@ abstract final class ComfyWorkflowTemplates {
     required String prompt,
     String negative = defaultNegative,
     bool upscale = true,
+    String checkpoint = defaultCheckpoint,
   }) {
     return noobaiTxt2Img(
       positive: prompt,
@@ -162,6 +165,7 @@ abstract final class ComfyWorkflowTemplates {
       steps: 22,
       cfg: 4.5,
       upscale: upscale,
+      checkpoint: checkpoint,
       filenamePrefix: 'anoworld_scene',
     );
   }

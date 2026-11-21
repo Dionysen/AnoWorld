@@ -76,6 +76,7 @@ class VisualImagePipeline {
             prompt: row.portraitPrompt,
             negative: plan.negativePrompt,
             upscale: upscale,
+            checkpoint: _checkpoint(image),
           ),
           clientId: 'anoworld-avatar-${row.characterId}',
         );
@@ -126,6 +127,7 @@ class VisualImagePipeline {
             prompt: row.scenePrompt,
             negative: plan.negativePrompt,
             upscale: upscale,
+            checkpoint: _checkpoint(image),
           ),
           clientId: 'anoworld-scene-${row.nodeId}',
         );
@@ -203,6 +205,12 @@ class VisualImagePipeline {
   static double? _p(int done, int total) {
     if (total <= 0) return null;
     return done / total;
+  }
+
+  static String _checkpoint(AiImageEndpoint image) {
+    final named = image.model.trim();
+    if (named.isNotEmpty) return named;
+    return ComfyWorkflowTemplates.defaultCheckpoint;
   }
 }
 

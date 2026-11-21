@@ -31,6 +31,37 @@ void main() {
     expect(models, ['a-model', 'b-model']);
   });
 
+  test('lists ComfyUI checkpoints from /models/checkpoints', () async {
+    final client = MockClient((request) async {
+      expect(
+        request.url.toString(),
+        'http://127.0.0.1:8188/models/checkpoints',
+      );
+      return http.Response(
+        '["NoobAI-XL-Vpred-v1.0.safetensors","other.safetensors"]',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final catalog = HttpOpenAiModelCatalog(client: client);
+    final models = await catalog.listModels(
+      const AiEndpointConfig(
+        baseUrl: 'http://127.0.0.1:8188',
+        apiKey: '',
+        model: '',
+        needsApiKey: false,
+        defaultBaseUrl: 'http://127.0.0.1:8188',
+        imageKind: AiImageProviderKind.comfyui,
+      ),
+    );
+
+    expect(models, [
+      'NoobAI-XL-Vpred-v1.0.safetensors',
+      'other.safetensors',
+    ]);
+  });
+
   test('throws when api key missing for providers that need it', () async {
     final catalog = HttpOpenAiModelCatalog(client: MockClient((_) async {
       fail('should not call network');

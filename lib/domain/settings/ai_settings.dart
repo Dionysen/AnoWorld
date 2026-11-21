@@ -98,12 +98,13 @@ extension AiImageProviderKindX on AiImageProviderKind {
         _ => true,
       };
 
-  /// OpenAI-compatible `/models` probe; locals often need other endpoints later.
+  /// OpenAI-compatible `/models`, or ComfyUI `/models/checkpoints`.
   bool get supportsModelProbe => switch (this) {
         AiImageProviderKind.openAiCompatible ||
         AiImageProviderKind.openai ||
         AiImageProviderKind.openaiChat ||
-        AiImageProviderKind.siliconFlow =>
+        AiImageProviderKind.siliconFlow ||
+        AiImageProviderKind.comfyui =>
           true,
         _ => false,
       };
@@ -544,6 +545,7 @@ class AiEndpointConfig {
     required this.model,
     required this.needsApiKey,
     this.defaultBaseUrl = '',
+    this.imageKind,
   });
 
   final String baseUrl;
@@ -551,6 +553,9 @@ class AiEndpointConfig {
   final String model;
   final bool needsApiKey;
   final String defaultBaseUrl;
+
+  /// When set, catalog may use provider-specific list endpoints.
+  final AiImageProviderKind? imageKind;
 
   factory AiEndpointConfig.fromText(AiTextEndpoint e) => AiEndpointConfig(
         baseUrl: e.baseUrl,
@@ -566,5 +571,6 @@ class AiEndpointConfig {
         model: e.model,
         needsApiKey: e.needsApiKey,
         defaultBaseUrl: e.kind.defaultBaseUrl,
+        imageKind: e.kind,
       );
 }

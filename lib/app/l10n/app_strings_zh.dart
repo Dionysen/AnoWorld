@@ -1970,7 +1970,8 @@ class AppStringsZh extends AppStrings {
   String get probeHintNoKey => '填好服务地址后，会自动查找可用模型';
 
   @override
-  String get probeHintManual => '请手动填写模型，或点「查找模型」使用常用列表';
+  String get probeHintManual =>
+      '请手动填写模型，或点「查找模型」。ComfyUI 会列出本机 checkpoints';
 
   @override
   String get probingModels => '正在查找可用模型…';

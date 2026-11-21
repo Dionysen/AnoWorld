@@ -5,7 +5,7 @@ import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/openai_base_url.dart';
 import 'package:http/http.dart' as http;
 
-/// Fetches models via OpenAI-compatible `GET {baseUrl}/models`.
+/// Fetches models via OpenAI `GET /models` or ComfyUI `GET /models/checkpoints`.
 class HttpOpenAiModelCatalog implements AiModelCatalog {
   HttpOpenAiModelCatalog({http.Client? client})
       : _client = client ?? http.Client();
@@ -17,6 +17,54 @@ class HttpOpenAiModelCatalog implements AiModelCatalog {
 
   @override
   Future<List<String>> listModels(AiEndpointConfig endpoint) async {
+    if (endpoint.imageKind == AiImageProviderKind.comfyui) {
+      return _listComfyCheckpoints(endpoint);
+    }
+    return _listOpenAiModels(endpoint);
+  }
+
+  Future<List<String>> _listComfyCheckpoints(AiEndpointConfig endpoint) async {
+    var raw = (endpoint.baseUrl.isEmpty
+            ? endpoint.defaultBaseUrl
+            : endpoint.baseUrl)
+        .trim();
+    if (raw.endsWith('/')) raw = raw.substring(0, raw.length - 1);
+    if (raw.isEmpty) {
+      throw AiModelCatalogException('请先填写服务地址');
+    }
+
+    // ComfyUI root is not OpenAI `/v1`; hit `/models/checkpoints` directly.
+    final uri = Uri.parse('$raw/models/checkpoints');
+    final response = await _client
+        .get(uri, headers: const {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw AiModelCatalogException(
+        '连不上 ComfyUI 或查找 checkpoint 失败（错误码 ${response.statusCode}）。'
+        '请确认本机已启动并监听 $raw',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    final ids = <String>[];
+    if (decoded is List) {
+      for (final item in decoded) {
+        final id = item?.toString().trim() ?? '';
+        if (id.isNotEmpty) ids.add(id);
+      }
+    } else {
+      throw AiModelCatalogException('ComfyUI 返回的 checkpoint 列表无法识别');
+    }
+    ids.sort();
+    if (ids.isEmpty) {
+      throw AiModelCatalogException(
+        'ComfyUI 里还没有 checkpoint。请把模型放到 models/checkpoints',
+      );
+    }
+    return ids;
+  }
+
+  Future<List<String>> _listOpenAiModels(AiEndpointConfig endpoint) async {
     final base = normalizeOpenAiBaseUrl(
       endpoint.baseUrl.isEmpty ? endpoint.defaultBaseUrl : endpoint.baseUrl,
     );
