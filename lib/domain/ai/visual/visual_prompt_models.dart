@@ -1,4 +1,5 @@
 import 'package:anoworld/domain/models/json_map.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 
 /// Story-wide visual lock produced by the prompt stage (editable before gen).
 class VisualPromptPlan {
@@ -67,6 +68,7 @@ class CharacterVisualPrompt {
     required this.name,
     required this.visualTags,
     required this.portraitPrompt,
+    this.facing = SpriteFacing.right,
   });
 
   final String characterId;
@@ -78,31 +80,45 @@ class CharacterVisualPrompt {
   /// Full positive prompt for standing portrait / avatar.
   final String portraitPrompt;
 
+  /// Look direction baked into the portrait; stage uses the opposite slot.
+  final SpriteFacing facing;
+
+  AppearanceSlot get preferredSlot => facing.preferredSlot;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'characterId': characterId,
         'name': name,
         'visualTags': visualTags,
         'portraitPrompt': portraitPrompt,
+        'facing': facing.wireName,
+        'preferredSlot': preferredSlot.wireName,
       };
 
   factory CharacterVisualPrompt.fromJson(Map<String, dynamic> json) {
+    final facing = SpriteFacingCodec.parseOr(
+      json.optionalString('facing'),
+      SpriteFacing.right,
+    );
     return CharacterVisualPrompt(
       characterId: json.requireString('characterId'),
       name: json.optionalString('name') ?? '',
       visualTags: json.optionalString('visualTags') ?? '',
       portraitPrompt: json.optionalString('portraitPrompt') ?? '',
+      facing: facing,
     );
   }
 
   CharacterVisualPrompt copyWith({
     String? visualTags,
     String? portraitPrompt,
+    SpriteFacing? facing,
   }) {
     return CharacterVisualPrompt(
       characterId: characterId,
       name: name,
       visualTags: visualTags ?? this.visualTags,
       portraitPrompt: portraitPrompt ?? this.portraitPrompt,
+      facing: facing ?? this.facing,
     );
   }
 }
@@ -132,7 +148,8 @@ class SceneVisualPrompt {
       nodeId: json.requireString('nodeId'),
       title: json.optionalString('title') ?? '',
       scenePrompt: json.optionalString('scenePrompt') ?? '',
-      presentCharacterIds: json.stringList('presentCharacterIds', required: false),
+      presentCharacterIds:
+          json.stringList('presentCharacterIds', required: false),
     );
   }
 

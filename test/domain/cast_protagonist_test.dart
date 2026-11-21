@@ -1,4 +1,5 @@
 import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,8 +24,15 @@ void main() {
   });
 
   test('round-trip isProtagonist in json', () {
-    const member = CastMember(id: 'x', name: 'Test', isProtagonist: true);
+    const member = CastMember(
+      id: 'x',
+      name: 'Test',
+      isProtagonist: true,
+      facing: SpriteFacing.left,
+    );
     final back = CastMember.fromJson(member.toJson());
+    expect(back.facing, SpriteFacing.left);
+    expect(back.preferredSlot, AppearanceSlot.right);
     expect(back.isProtagonist, isTrue);
   });
 }

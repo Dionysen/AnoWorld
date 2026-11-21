@@ -1551,11 +1551,14 @@ class _VnSpeakerSprite extends StatelessWidget {
   final DialogueLine? line;
   final List<Appearance> appearances;
 
-  String? _resolvedAssetId() {
+  String? get _speakerId {
     final speakerId = line?.speakerId?.trim();
     if (speakerId == null || speakerId.isEmpty) return null;
     if (line?.kind == DialogueKind.narration) return null;
+    return speakerId;
+  }
 
+  String? _resolvedAssetId(String speakerId) {
     for (final appearance in appearances) {
       if (appearance.characterId != speakerId) continue;
       final sprite = appearance.spriteAssetId?.trim();
@@ -1568,27 +1571,56 @@ class _VnSpeakerSprite extends StatelessWidget {
     return null;
   }
 
+  AppearanceSlot _resolvedSlot(String speakerId) {
+    for (final appearance in appearances) {
+      if (appearance.characterId != speakerId) continue;
+      final slot = appearance.slot;
+      if (slot != null) return slot;
+    }
+    return project.castById(speakerId)?.preferredSlot ?? AppearanceSlot.left;
+  }
+
+  Alignment _alignFor(AppearanceSlot slot) => switch (slot) {
+        AppearanceSlot.left => Alignment.bottomLeft,
+        AppearanceSlot.right => Alignment.bottomRight,
+        AppearanceSlot.center => Alignment.bottomCenter,
+      };
+
   @override
   Widget build(BuildContext context) {
+    final speakerId = _speakerId;
+    if (speakerId == null) return const SizedBox.shrink();
     final file = _vnAssetFile(
       project: project,
       projectDir: projectDir,
-      assetId: _resolvedAssetId(),
+      assetId: _resolvedAssetId(speakerId),
     );
     if (file == null) return const SizedBox.shrink();
 
+    final slot = _resolvedSlot(speakerId);
+    final align = _alignFor(slot);
+    final sidePad = slot == AppearanceSlot.center ? 0.0 : AppTheme.pagePadding;
+
     return IgnorePointer(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: FractionallySizedBox(
-          heightFactor: 0.78,
-          child: Image.file(
-            file,
-            fit: BoxFit.contain,
-            alignment: Alignment.bottomCenter,
-            filterQuality: FilterQuality.medium,
-            errorBuilder: (context, error, stackTrace) =>
-                const SizedBox.shrink(),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: slot == AppearanceSlot.right ? 0 : sidePad,
+          right: slot == AppearanceSlot.left ? 0 : sidePad,
+        ),
+        child: Align(
+          alignment: align,
+          child: FractionallySizedBox(
+            heightFactor: 0.78,
+            widthFactor: slot == AppearanceSlot.center ? 0.72 : 0.52,
+            alignment: align,
+            child: Image.file(
+              file,
+              fit: BoxFit.contain,
+              alignment: Alignment.bottomCenter,
+              filterQuality: FilterQuality.medium,
+              errorBuilder: (context, error, stackTrace) =>
+                  const SizedBox.shrink(),
+            ),
           ),
         ),
       ),

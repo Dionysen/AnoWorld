@@ -1,4 +1,5 @@
 import 'package:anoworld/domain/models/json_map.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 
 class CastMember {
   const CastMember({
@@ -10,6 +11,7 @@ class CastMember {
     this.exampleLines = const <String>[],
     this.visualTags = '',
     this.avatarAssetId,
+    this.facing = SpriteFacing.right,
     this.isProtagonist = false,
   });
 
@@ -26,8 +28,14 @@ class CastMember {
 
   final String? avatarAssetId;
 
+  /// Portrait look direction; stage slot is the opposite side (center-facing).
+  final SpriteFacing facing;
+
   /// Drives {{char}} and ST char* prompt sections when this member is selected.
   final bool isProtagonist;
+
+  /// Preferred VN stand when [Appearance.slot] is omitted.
+  AppearanceSlot get preferredSlot => facing.preferredSlot;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -38,6 +46,7 @@ class CastMember {
         'exampleLines': exampleLines,
         if (visualTags.trim().isNotEmpty) 'visualTags': visualTags,
         if (avatarAssetId != null) 'avatarAssetId': avatarAssetId,
+        if (facing != SpriteFacing.right) 'facing': facing.wireName,
         if (isProtagonist) 'isProtagonist': true,
       };
 
@@ -51,6 +60,10 @@ class CastMember {
       exampleLines: json.stringList('exampleLines', required: false),
       visualTags: json.optionalString('visualTags') ?? '',
       avatarAssetId: json.optionalString('avatarAssetId'),
+      facing: SpriteFacingCodec.parseOr(
+        json.optionalString('facing'),
+        SpriteFacing.right,
+      ),
       isProtagonist: json.optionalBool('isProtagonist') ?? false,
     );
   }
@@ -65,6 +78,7 @@ class CastMember {
     String? visualTags,
     String? avatarAssetId,
     bool clearAvatarAssetId = false,
+    SpriteFacing? facing,
     bool? isProtagonist,
   }) {
     return CastMember(
@@ -77,6 +91,7 @@ class CastMember {
       visualTags: visualTags ?? this.visualTags,
       avatarAssetId:
           clearAvatarAssetId ? null : (avatarAssetId ?? this.avatarAssetId),
+      facing: facing ?? this.facing,
       isProtagonist: isProtagonist ?? this.isProtagonist,
     );
   }

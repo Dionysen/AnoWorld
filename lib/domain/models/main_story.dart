@@ -395,6 +395,39 @@ extension AppearanceSlotCodec on AppearanceSlot {
   }
 }
 
+/// Direction the portrait face / body looks toward (screen space).
+///
+/// VN convention: face the stage center — facing left stands on the right,
+/// facing right stands on the left.
+enum SpriteFacing { left, right }
+
+extension SpriteFacingCodec on SpriteFacing {
+  String get wireName => name;
+
+  /// Default stage slot so the character looks inward.
+  AppearanceSlot get preferredSlot => switch (this) {
+        SpriteFacing.left => AppearanceSlot.right,
+        SpriteFacing.right => AppearanceSlot.left,
+      };
+
+  static SpriteFacing? tryParse(String? raw) {
+    if (raw == null) return null;
+    return switch (raw.trim().toLowerCase()) {
+      'left' => SpriteFacing.left,
+      'right' => SpriteFacing.right,
+      _ => throw FormatException('Unknown sprite facing "$raw"'),
+    };
+  }
+
+  static SpriteFacing parseOr(String? raw, SpriteFacing fallback) {
+    try {
+      return tryParse(raw) ?? fallback;
+    } on FormatException {
+      return fallback;
+    }
+  }
+}
+
 class Appearance {
   const Appearance({
     required this.characterId,

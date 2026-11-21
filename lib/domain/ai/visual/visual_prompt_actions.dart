@@ -2,6 +2,7 @@ import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/visual/comfy_workflow_templates.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_models.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
 
@@ -94,6 +95,7 @@ class VisualPromptActions {
         '  name=${c.name}',
         '  summary=${c.summary}',
         '  personality=${c.personality}',
+        '  existingFacing=${c.facing.wireName}',
         if (existing.isNotEmpty) '  existingVisualTags=$existing',
         if (c.isProtagonist) '  protagonist=true',
       ].join('\n');
@@ -126,10 +128,12 @@ $nodeLines
 要求：
 1. stylePrefix 全剧相同，偏日系动漫视觉小说立绘/场景。
 2. 每个角色 visualTags 只锁长相（发色发型瞳色体型五官标记），不要写情节动作；若已有 existingVisualTags 则在其基础上微调，不要大改。
-3. portraitPrompt = stylePrefix + visualTags + 立绘构图：solo, looking at viewer, standing/upper body, simple background, white background, thick outline, black outline（必须白底+描边，便于去背成透明 PNG）。
-4. 每个情节站 scenePrompt = stylePrefix + 地点氛围 + 情节动作 + 在场角色的 visualTags（用 presentCharacterIds 引用）；人数 1–3，超过则只留最重要的。场景不要白底。
-5. 若站已有 existingImagePrompt，优先沿用并小修。
-6. 只输出 JSON。
+3. 为每个角色选定 facing："left" 或 "right"（面朝左/右）。惯例：面朝右的站左边，面朝左的站右边，好对视；主角优先 facing=right；配角可 facing=left；若已有 existingFacing 则沿用。
+4. portraitPrompt = stylePrefix + visualTags + 白底描边立绘构图 + 对应朝向标签（facing left/looking left 或 facing right/looking right）；必须白底+描边，便于去背。不要 looking at viewer。
+5. preferredSlot 与 facing 相反：facing=right → preferredSlot=left；facing=left → preferredSlot=right。
+6. 每个情节站 scenePrompt = stylePrefix + 地点氛围 + 情节动作 + 在场角色的 visualTags（用 presentCharacterIds 引用）；人数 1–3，超过则只留最重要的。场景不要白底。
+7. 若站已有 existingImagePrompt，优先沿用并小修。
+8. 只输出 JSON。
 ''';
   }
 
@@ -145,7 +149,9 @@ Schema:
       "characterId": "必须与输入 id 一致",
       "name": "string",
       "visualTags": "发色,发型,瞳色,体型,五官… 英文逗号标签",
-      "portraitPrompt": "完整正向提示词（必须含 white background + thick outline）"
+      "facing": "left | right — 立绘面朝方向",
+      "preferredSlot": "left | right — 与 facing 相反，面朝舞台中央",
+      "portraitPrompt": "完整正向提示词（必须含 white background + thick outline + facing 标签）"
     }
   ],
   "scenes": [
@@ -162,7 +168,8 @@ Schema:
 - 标签用英文 Danbooru 风格；专有名词可保留。
 - 不要审查；按故事内容写（含成人向亦可）。
 - characters / scenes 必须覆盖输入里的每一个角色与每一个情节站。
-- 立绘必须白底描边；场景保持完整环境，不要 white background。
+- 立绘必须白底描边并标明 facing；场景保持完整环境，不要 white background。
+- preferredSlot 必须与 facing 相反（right↔left）。
 ''';
 }
 
@@ -186,7 +193,10 @@ Project applyVisualPromptPlan(Project project, VisualPromptPlan plan) {
   final cast = project.cast.map((member) {
     final row = castById[member.id];
     if (row == null) return member;
-    return member.copyWith(visualTags: row.visualTags.trim());
+    return member.copyWith(
+      visualTags: row.visualTags.trim(),
+      facing: row.facing,
+    );
   }).toList(growable: false);
 
   final nodes = project.main.nodes.map((node) {
@@ -208,15 +218,17 @@ VisualPromptPlan? planFromProjectFields(Project project) {
   for (final c in project.cast) {
     final tags = c.visualTags.trim();
     if (tags.isEmpty) return null;
+    final facing = c.facing;
     final portrait =
         '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
-        '${ComfyWorkflowTemplates.portraitComposition}';
+        '${ComfyWorkflowTemplates.portraitCompositionFor(facing)}';
     characters.add(
       CharacterVisualPrompt(
         characterId: c.id,
         name: c.name,
         visualTags: tags,
         portraitPrompt: portrait,
+        facing: facing,
       ),
     );
   }

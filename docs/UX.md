@@ -153,7 +153,7 @@
 
 **当前实现**：路径 3「走向」只生成 `summary` + 大站（含 `synopsis`）+ `default`/`branch` 边（`beats` 可空）；故事页「继续创作」打开创作截面（设定 / 角色 / 情节 / **画面**）；游玩时空拍进 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)，失败或未配文案服务时用「前往：{下一站}」保底；样例「雨夜投宿」仍带预写对白作静态对照。路径 1/2 导入未做。
 
-**阶段 4 画面（MVP）**：创作枢纽 →「画面」→ 先用文本模型生成可控的立绘/场景提示词（`CastMember.visualTags`、`StoryNode.imagePrompt`，可手改）→ 经 ComfyUI（NoobAI）批量出立绘与每站场景图 → 写入 `assets/` 并绑定 `avatarAssetId` / `backgroundAssetId`。立绘提示强制白底+描边，落盘前做边缘 flood-fill 去背成透明 PNG；场景保持完整环境。VN 舞台会铺节点背景图并叠说话人透明立绘；无图仍可玩。
+**阶段 4 画面（MVP）**：创作枢纽 →「画面」→ 先用文本模型生成可控的立绘/场景提示词（`CastMember.visualTags` / `facing`、`StoryNode.imagePrompt`，可手改朝向）→ 经 ComfyUI（NoobAI）批量出立绘与每站场景图 → 写入 `assets/` 并绑定 `avatarAssetId` / `backgroundAssetId`。立绘提示强制白底+描边+朝向标签，落盘前做边缘 flood-fill 去背成透明 PNG；场景保持完整环境。VN 舞台铺节点背景图，说话人透明立绘按 `Appearance.slot`（或 `facing` 对侧）左右摆；无图仍可玩。
 
 ### 创作助手（通用 Agent，已接通）
 

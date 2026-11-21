@@ -713,7 +713,7 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get visualStageBlurb =>
-      '先写好生图提示词（可改），再批量出立绘和每站场景图。画风会锁在同一套标签上';
+      '先写好生图提示词（可改），再批量出立绘和每站场景图。立绘会标朝向并对侧摆位，画风锁在同一套标签上';
 
   @override
   String get visualStageWritePrompts => '生成提示词';
@@ -750,6 +750,15 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get visualStagePortrait => '立绘提示词';
+
+  @override
+  String get visualStageFacing => '立绘朝向';
+
+  @override
+  String get visualStageFacingLeft => '面向左 · 站右边';
+
+  @override
+  String get visualStageFacingRight => '面向右 · 站左边';
 
   @override
   String get visualStageScene => '场景提示词';

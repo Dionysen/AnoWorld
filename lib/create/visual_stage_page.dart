@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/domain/ai/visual/comfy_workflow_templates.dart';
 import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_actions.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_models.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -12,6 +14,7 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
@@ -328,8 +331,44 @@ class _VisualStagePageState extends State<VisualStagePage> {
           ),
         ),
         AppPageGutter(
+          child: AppOptionGroup<SpriteFacing>(
+            label: '${plan.characters[i].name} · ${strings.visualStageFacing}',
+            value: plan.characters[i].facing,
+            options: [
+              AppSegmentOption(
+                value: SpriteFacing.right,
+                label: strings.visualStageFacingRight,
+              ),
+              AppSegmentOption(
+                value: SpriteFacing.left,
+                label: strings.visualStageFacingLeft,
+              ),
+            ],
+            onChanged: busy
+                ? (_) {}
+                : (facing) => setState(() {
+                      final current = _plan;
+                      if (current == null) return;
+                      final list = [...current.characters];
+                      final row = list[i];
+                      list[i] = row.copyWith(
+                        facing: facing,
+                        portraitPrompt:
+                            ComfyWorkflowTemplates.applyFacingToPortraitPrompt(
+                          row.portraitPrompt,
+                          facing,
+                        ),
+                      );
+                      _plan = current.copyWith(characters: list);
+                    }),
+          ),
+        ),
+        AppPageGutter(
           child: _EditableBlock(
-            key: ValueKey('portrait-${plan.characters[i].characterId}'),
+            key: ValueKey(
+              'portrait-${plan.characters[i].characterId}-'
+              '${plan.characters[i].facing.wireName}',
+            ),
             label:
                 '${plan.characters[i].name} · ${strings.visualStagePortrait}',
             initial: plan.characters[i].portraitPrompt,

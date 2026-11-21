@@ -112,7 +112,7 @@ Appearance {
   characterId: Id                // Cast
   spriteAssetId?: AssetId        // 立绘；可空则仅聊天头像或占位
   expression?: string            // 表情键；MVP 可当自由字符串
-  slot?: "left" | "center" | "right"  // VN 站位；可选
+  slot?: "left" | "center" | "right"  // VN 站位；可空则用 Cast.facing 的对侧
 }
 
 DialogueLine {

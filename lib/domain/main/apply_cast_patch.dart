@@ -1,4 +1,5 @@
 import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/main_story.dart';
 
 /// Applies cast ops onto [base].
 class ApplyCastPatch {
@@ -52,6 +53,7 @@ class ApplyCastPatch {
             exampleLines: exampleLines,
             visualTags: existing?.visualTags ?? '',
             avatarAssetId: existing?.avatarAssetId,
+            facing: existing?.facing ?? SpriteFacing.right,
             isProtagonist: raw.containsKey('isProtagonist')
                 ? raw['isProtagonist'] == true
                 : (existing?.isProtagonist ?? false),

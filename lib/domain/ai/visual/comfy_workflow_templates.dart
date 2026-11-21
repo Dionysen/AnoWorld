@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:anoworld/domain/models/main_story.dart';
+
 /// Builds NoobAI-XL V-pred API workflows for AnoWorld visual stage.
 abstract final class ComfyWorkflowTemplates {
   static const String defaultCheckpoint = 'NoobAI-XL-Vpred-v1.0.safetensors';
@@ -15,11 +17,57 @@ abstract final class ComfyWorkflowTemplates {
       'masterpiece, best quality, very awa, absurdres, anime style, '
       'detailed face, sharp focus, thick outline, anime outline, cel shading';
 
-  /// Portrait framing: white studio BG so edge flood-fill can cut alpha.
-  static const String portraitComposition =
-      'solo, looking at viewer, standing, upper body, '
+  /// Shared portrait framing (white studio BG for edge flood-fill alpha).
+  static const String portraitCompositionBase =
+      'solo, standing, upper body, '
       'simple background, white background, plain background, '
       'character focus, thick outline, black outline';
+
+  /// Facing tags so the sprite looks toward stage center when placed opposite.
+  static String portraitFacingTags(SpriteFacing facing) => switch (facing) {
+        SpriteFacing.left => 'facing left, looking left, from side',
+        SpriteFacing.right => 'facing right, looking right, from side',
+      };
+
+  static String portraitCompositionFor(SpriteFacing facing) =>
+      '$portraitCompositionBase, ${portraitFacingTags(facing)}';
+
+  /// Rewrites facing tags in an edited portrait prompt without wiping the rest.
+  static String applyFacingToPortraitPrompt(
+    String prompt,
+    SpriteFacing facing,
+  ) {
+    var cleaned = prompt
+        .replaceAll(
+          RegExp(
+            r'\bfacing (?:to the )?(?:left|right)\b,?\s*',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'\blooking (?:to the )?(?:left|right)\b,?\s*',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'\bfrom side\b,?\s*', caseSensitive: false),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'\blooking at viewer\b,?\s*', caseSensitive: false),
+          '',
+        )
+        .replaceAll(RegExp(r',\s*,+'), ',')
+        .trim();
+    if (cleaned.endsWith(',')) {
+      cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+    }
+    if (cleaned.isEmpty) return portraitCompositionFor(facing);
+    return '$cleaned, ${portraitFacingTags(facing)}';
+  }
 
   static Map<String, dynamic> noobaiTxt2Img({
     required String positive,

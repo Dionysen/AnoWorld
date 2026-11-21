@@ -189,7 +189,7 @@ class VisualImagePipeline {
     final cast = project.cast.map((m) {
       final row = byId[m.id];
       if (row == null) return m;
-      return m.copyWith(visualTags: row.visualTags);
+      return m.copyWith(visualTags: row.visualTags, facing: row.facing);
     }).toList(growable: false);
     final sceneById = <String, SceneVisualPrompt>{
       for (final s in plan.scenes) s.nodeId: s,
