@@ -1,0 +1,240 @@
+import 'package:anoworld/domain/ai/ai_prompt_context.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/visual/comfy_workflow_templates.dart';
+import 'package:anoworld/domain/ai/visual/visual_prompt_models.dart';
+import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/foundation/ai/json_candidate.dart';
+
+/// LLM stage: produce locked visual tags + full prompts under a strict schema.
+class VisualPromptActions {
+  VisualPromptActions({
+    required AiTextClient textClient,
+    this.maxFormatRetries = 1,
+  }) : _text = textClient;
+
+  final AiTextClient _text;
+  final int maxFormatRetries;
+
+  Future<VisualPromptPlan> generatePlan({
+    required AiPromptContext ctx,
+    required Project project,
+  }) {
+    final system = ctx.assembleSystem(taskSuffix: _schema);
+    final user = _userPayload(project);
+    return _completeMapped(ctx: ctx, system: system, user: user);
+  }
+
+  Future<VisualPromptPlan> _completeMapped({
+    required AiPromptContext ctx,
+    required String system,
+    required String user,
+  }) async {
+    Object? lastError;
+    for (var attempt = 0; attempt <= maxFormatRetries; attempt++) {
+      try {
+        final completion = await _text.complete(
+          endpoint: ctx.endpoint,
+          system: system,
+          user: attempt == 0
+              ? user
+              : '$user\n\n上次输出不合规（$lastError）。只输出合法 JSON，不要解释。',
+          generation: ctx.generation,
+        );
+        return planFromRaw(completion.content, projectFallback: null);
+      } catch (error) {
+        lastError = error;
+        if (attempt >= maxFormatRetries) rethrow;
+      }
+    }
+    throw StateError('unreachable');
+  }
+
+  /// Parses model JSON; when [projectFallback] is set, fills missing ids from it.
+  VisualPromptPlan planFromRaw(
+    String raw, {
+    Project? projectFallback,
+  }) {
+    final decoded = decodeJsonCandidate(raw);
+    if (decoded is! Map) {
+      throw const VisualPromptException('画面提示词不是有效 JSON');
+    }
+    final map = Map<String, dynamic>.from(decoded);
+    var plan = VisualPromptPlan.fromJson(map);
+    if (plan.stylePrefix.trim().isEmpty) {
+      plan = plan.copyWith(stylePrefix: ComfyWorkflowTemplates.defaultStylePrefix);
+    }
+    if (plan.negativePrompt.trim().isEmpty) {
+      plan = plan.copyWith(
+        negativePrompt: ComfyWorkflowTemplates.defaultNegative,
+      );
+    }
+    if (plan.characters.isEmpty && projectFallback != null) {
+      throw const VisualPromptException('没有角色画面提示词');
+    }
+    for (final c in plan.characters) {
+      if (c.characterId.trim().isEmpty ||
+          c.visualTags.trim().isEmpty ||
+          c.portraitPrompt.trim().isEmpty) {
+        throw const VisualPromptException('角色画面提示词不完整');
+      }
+    }
+    for (final s in plan.scenes) {
+      if (s.nodeId.trim().isEmpty || s.scenePrompt.trim().isEmpty) {
+        throw const VisualPromptException('场景画面提示词不完整');
+      }
+    }
+    return plan;
+  }
+
+  String _userPayload(Project project) {
+    final castLines = project.cast.map((c) {
+      final existing = c.visualTags.trim();
+      return [
+        '- id=${c.id}',
+        '  name=${c.name}',
+        '  summary=${c.summary}',
+        '  personality=${c.personality}',
+        if (existing.isNotEmpty) '  existingVisualTags=$existing',
+        if (c.isProtagonist) '  protagonist=true',
+      ].join('\n');
+    }).join('\n');
+
+    final nodeLines = project.main.nodes.map((n) {
+      final existing = n.imagePrompt?.trim() ?? '';
+      return [
+        '- id=${n.id}',
+        '  title=${n.title}',
+        '  synopsis=${n.synopsis ?? ''}',
+        '  tags=${n.tags.join(',')}',
+        if (existing.isNotEmpty) '  existingImagePrompt=$existing',
+      ].join('\n');
+    }).join('\n');
+
+    final lore = project.worldBook.combinedText;
+    return '''
+请为下面这个视觉小说故事生成「统一画风」的生图提示词计划（Danbooru / NoobAI 标签风格）。
+
+## 设定摘录
+${lore.trim().isEmpty ? '（无）' : lore}
+
+## 角色
+$castLines
+
+## 情节站（每个站一张场景图）
+$nodeLines
+
+要求：
+1. stylePrefix 全剧相同，偏日系动漫视觉小说立绘/场景。
+2. 每个角色 visualTags 只锁长相（发色发型瞳色体型五官标记），不要写情节动作；若已有 existingVisualTags 则在其基础上微调，不要大改。
+3. portraitPrompt = stylePrefix + visualTags + 站姿半身/全身立绘常用构图（looking at viewer, simple background 等）。
+4. 每个情节站 scenePrompt = stylePrefix + 地点氛围 + 情节动作 + 在场角色的 visualTags（用 presentCharacterIds 引用）；人数 1–3，超过则只留最重要的。
+5. 若站已有 existingImagePrompt，优先沿用并小修。
+6. 只输出 JSON。
+''';
+  }
+
+  static const String _schema = '''
+你是视觉小说美术提示词导演。只输出一个 JSON 对象，不要 markdown。
+
+Schema:
+{
+  "stylePrefix": "string — 全剧统一画风前缀",
+  "negativePrompt": "string",
+  "characters": [
+    {
+      "characterId": "必须与输入 id 一致",
+      "name": "string",
+      "visualTags": "发色,发型,瞳色,体型,五官… 英文逗号标签",
+      "portraitPrompt": "完整正向提示词"
+    }
+  ],
+  "scenes": [
+    {
+      "nodeId": "必须与输入 id 一致",
+      "title": "string",
+      "presentCharacterIds": ["characterId", "..."],
+      "scenePrompt": "完整场景正向提示词"
+    }
+  ]
+}
+
+规则：
+- 标签用英文 Danbooru 风格；专有名词可保留。
+- 不要审查；按故事内容写（含成人向亦可）。
+- characters / scenes 必须覆盖输入里的每一个角色与每一个情节站。
+''';
+}
+
+class VisualPromptException implements Exception {
+  const VisualPromptException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Applies approved plan tags back onto [Project] text fields (no image bytes).
+Project applyVisualPromptPlan(Project project, VisualPromptPlan plan) {
+  final castById = <String, CharacterVisualPrompt>{
+    for (final c in plan.characters) c.characterId: c,
+  };
+  final sceneById = <String, SceneVisualPrompt>{
+    for (final s in plan.scenes) s.nodeId: s,
+  };
+
+  final cast = project.cast.map((member) {
+    final row = castById[member.id];
+    if (row == null) return member;
+    return member.copyWith(visualTags: row.visualTags.trim());
+  }).toList(growable: false);
+
+  final nodes = project.main.nodes.map((node) {
+    final row = sceneById[node.id];
+    if (row == null) return node;
+    return node.copyWith(imagePrompt: row.scenePrompt.trim());
+  }).toList(growable: false);
+
+  return project.copyWith(
+    cast: cast,
+    main: project.main.copyWith(nodes: nodes),
+  );
+}
+
+/// Builds a plan from already-filled project fields (skip LLM if complete).
+VisualPromptPlan? planFromProjectFields(Project project) {
+  if (project.cast.isEmpty || project.main.nodes.isEmpty) return null;
+  final characters = <CharacterVisualPrompt>[];
+  for (final c in project.cast) {
+    final tags = c.visualTags.trim();
+    if (tags.isEmpty) return null;
+    final portrait =
+        '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
+        'solo, looking at viewer, standing, upper body, simple background';
+    characters.add(
+      CharacterVisualPrompt(
+        characterId: c.id,
+        name: c.name,
+        visualTags: tags,
+        portraitPrompt: portrait,
+      ),
+    );
+  }
+  final scenes = <SceneVisualPrompt>[];
+  for (final n in project.main.nodes) {
+    final prompt = n.imagePrompt?.trim() ?? '';
+    if (prompt.isEmpty) return null;
+    scenes.add(
+      SceneVisualPrompt(
+        nodeId: n.id,
+        title: n.title,
+        scenePrompt: prompt,
+      ),
+    );
+  }
+  return VisualPromptPlan(
+    stylePrefix: ComfyWorkflowTemplates.defaultStylePrefix,
+    negativePrompt: ComfyWorkflowTemplates.defaultNegative,
+    characters: characters,
+    scenes: scenes,
+  );
+}

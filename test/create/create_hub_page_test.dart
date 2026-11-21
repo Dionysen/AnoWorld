@@ -14,7 +14,7 @@ void main() {
     now: DateTime.utc(2026, 1, 1),
   );
 
-  testWidgets('create hub lists four edit entries', (tester) async {
+  testWidgets('create hub lists edit entries including visuals', (tester) async {
     final repo = MemoryProjectRepository(
       seed: {sample.meta.id: sample},
     );
@@ -32,6 +32,7 @@ void main() {
     expect(find.text('角色'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);
     expect(find.text('剧情元素'), findsOneWidget);
+    expect(find.text('画面'), findsOneWidget);
   });
 
   testWidgets('create hub subtitles show counts and token size', (tester) async {

@@ -108,14 +108,7 @@ abstract final class MainGraphLayout {
     return main.copyWith(
       nodes: [
         for (final node in main.nodes)
-          StoryNode(
-            id: node.id,
-            title: node.title,
-            synopsis: node.synopsis,
-            beatIds: node.beatIds,
-            layout: layouts[node.id] ?? node.layout,
-            tags: node.tags,
-          ),
+          node.copyWith(layout: layouts[node.id] ?? node.layout),
       ],
     );
   }

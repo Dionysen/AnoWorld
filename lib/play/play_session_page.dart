@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/data/project/project_asset_files.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/bridge_branch_prefetch_action.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
@@ -94,6 +96,9 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   final PlayHistory _history = PlayHistory();
   Timer? _fastForwardTimer;
 
+  /// Absolute project folder (for resolving `assets/` images).
+  String? _projectDir;
+
   Project get _project => widget.project;
 
   bool get _isChat => widget.mode == PlayViewMode.chat;
@@ -142,6 +147,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     _bootstrapped = true;
     _slotId = widget.slotId ?? _newSlotId();
     _runtime = MainRuntime(_baseMain, save: widget.initialSave);
+    unawaited(_resolveProjectDir());
     final resume = widget.resumeSave &&
         widget.slotId != null &&
         widget.initialSave == null;
@@ -156,6 +162,17 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         await _persist();
         await _ensureBridge();
       });
+    }
+  }
+
+  Future<void> _resolveProjectDir() async {
+    try {
+      final dir =
+          await AppScope.projectsOf(context).directoryFor(_project.meta.id);
+      if (!mounted) return;
+      setState(() => _projectDir = dir);
+    } catch (_) {
+      // Background stays empty if the folder cannot be resolved.
     }
   }
 
@@ -1257,6 +1274,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
             )
           : _VnStage(
               runtime: _runtime,
+              project: _project,
+              projectDir: _projectDir,
               speakerLabel: _speakerLabel,
               isNarration: _isNarration,
               // Errors / soft notices only — never the writing placeholder.
@@ -1291,6 +1310,8 @@ class _VnCenterAction {
 class _VnStage extends StatelessWidget {
   const _VnStage({
     required this.runtime,
+    required this.project,
+    required this.projectDir,
     required this.speakerLabel,
     required this.isNarration,
     required this.status,
@@ -1306,6 +1327,8 @@ class _VnStage extends StatelessWidget {
   });
 
   final MainRuntime runtime;
+  final Project project;
+  final String? projectDir;
   final String? Function(DialogueLine) speakerLabel;
   final bool Function(DialogueLine) isNarration;
   final String? status;
@@ -1340,7 +1363,11 @@ class _VnStage extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              const _VnBackground(),
+              _VnBackground(
+                project: project,
+                projectDir: projectDir,
+                backgroundAssetId: runtime.resolvedBackgroundAssetId,
+              ),
               Column(
                 children: [
                   Expanded(
@@ -1472,13 +1499,38 @@ class _VnHistoryBar extends StatelessWidget {
   }
 }
 
-/// Full-bleed stage backdrop. Asset wiring comes later; empty = plain canvas.
+/// Full-bleed stage backdrop. Missing asset = plain canvas.
 class _VnBackground extends StatelessWidget {
-  const _VnBackground();
+  const _VnBackground({
+    required this.project,
+    required this.projectDir,
+    required this.backgroundAssetId,
+  });
+
+  final Project project;
+  final String? projectDir;
+  final String? backgroundAssetId;
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(color: Theme.of(context).colorScheme.surface);
+    final fallback = ColoredBox(color: Theme.of(context).colorScheme.surface);
+    final assetId = backgroundAssetId;
+    final dir = projectDir;
+    if (assetId == null || assetId.isEmpty || dir == null || dir.isEmpty) {
+      return fallback;
+    }
+    final asset = project.assetById(assetId);
+    if (asset == null) return fallback;
+    final path = ProjectAssetFiles.absolutePath(dir, asset.relativePath);
+    final file = File(path);
+    if (!file.existsSync()) return fallback;
+    return Image.file(
+      file,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) => fallback,
+    );
   }
 }
 

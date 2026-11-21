@@ -68,6 +68,8 @@ class ApplyMainGraphPatch {
                       ? StoryNodeKind.fromTags(existing.tags)
                       : StoryNodeKind.scene),
             ),
+            imagePrompt: existing?.imagePrompt,
+            backgroundAssetId: existing?.backgroundAssetId,
           );
         case 'remove_node':
           final id = raw['id']?.toString().trim() ?? '';

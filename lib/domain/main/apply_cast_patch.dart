@@ -50,6 +50,7 @@ class ApplyCastPatch {
             speechStyle:
                 raw['speechStyle']?.toString() ?? existing?.speechStyle ?? '',
             exampleLines: exampleLines,
+            visualTags: existing?.visualTags ?? '',
             avatarAssetId: existing?.avatarAssetId,
             isProtagonist: raw.containsKey('isProtagonist')
                 ? raw['isProtagonist'] == true

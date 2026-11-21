@@ -90,6 +90,8 @@ class StoryNode {
     this.synopsis,
     this.layout,
     this.tags = const <String>[],
+    this.imagePrompt,
+    this.backgroundAssetId,
   });
 
   final String id;
@@ -99,6 +101,12 @@ class StoryNode {
   final NodeLayout? layout;
   final List<String> tags;
 
+  /// Controlled scene image prompt (Danbooru-style); editable before gen.
+  final String? imagePrompt;
+
+  /// One background per station (stage-4 visual pipeline).
+  final String? backgroundAssetId;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'title': title,
@@ -106,6 +114,9 @@ class StoryNode {
         'beatIds': beatIds,
         if (layout != null) 'layout': layout!.toJson(),
         if (tags.isNotEmpty) 'tags': tags,
+        if (imagePrompt != null && imagePrompt!.trim().isNotEmpty)
+          'imagePrompt': imagePrompt,
+        if (backgroundAssetId != null) 'backgroundAssetId': backgroundAssetId,
       };
 
   factory StoryNode.fromJson(Map<String, dynamic> json) {
@@ -118,6 +129,35 @@ class StoryNode {
           ? null
           : NodeLayout.fromJson(json.requireMap('layout')),
       tags: json.stringList('tags', required: false),
+      imagePrompt: json.optionalString('imagePrompt'),
+      backgroundAssetId: json.optionalString('backgroundAssetId'),
+    );
+  }
+
+  StoryNode copyWith({
+    String? id,
+    String? title,
+    String? synopsis,
+    List<String>? beatIds,
+    NodeLayout? layout,
+    List<String>? tags,
+    String? imagePrompt,
+    bool clearImagePrompt = false,
+    String? backgroundAssetId,
+    bool clearBackgroundAssetId = false,
+  }) {
+    return StoryNode(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      synopsis: synopsis ?? this.synopsis,
+      beatIds: beatIds ?? this.beatIds,
+      layout: layout ?? this.layout,
+      tags: tags ?? this.tags,
+      imagePrompt:
+          clearImagePrompt ? null : (imagePrompt ?? this.imagePrompt),
+      backgroundAssetId: clearBackgroundAssetId
+          ? null
+          : (backgroundAssetId ?? this.backgroundAssetId),
     );
   }
 }
@@ -283,6 +323,28 @@ class Beat {
       tags: json.stringList('tags', required: false),
     );
   }
+
+  Beat copyWith({
+    String? id,
+    String? nodeId,
+    Scene? scene,
+    List<Appearance>? appearances,
+    List<DialogueLine>? lines,
+    List<Choice>? choices,
+    String? note,
+    List<String>? tags,
+  }) {
+    return Beat(
+      id: id ?? this.id,
+      nodeId: nodeId ?? this.nodeId,
+      scene: scene ?? this.scene,
+      appearances: appearances ?? this.appearances,
+      lines: lines ?? this.lines,
+      choices: choices ?? this.choices,
+      note: note ?? this.note,
+      tags: tags ?? this.tags,
+    );
+  }
 }
 
 class Scene {
@@ -300,6 +362,19 @@ class Scene {
     return Scene(
       locationText: json.optionalString('locationText'),
       backgroundAssetId: json.optionalString('backgroundAssetId'),
+    );
+  }
+
+  Scene copyWith({
+    String? locationText,
+    String? backgroundAssetId,
+    bool clearBackgroundAssetId = false,
+  }) {
+    return Scene(
+      locationText: locationText ?? this.locationText,
+      backgroundAssetId: clearBackgroundAssetId
+          ? null
+          : (backgroundAssetId ?? this.backgroundAssetId),
     );
   }
 }

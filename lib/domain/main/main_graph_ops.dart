@@ -21,14 +21,7 @@ class MainGraphOps {
     if (node == null) return main;
     return upsertNode(
       main,
-      StoryNode(
-        id: node.id,
-        title: node.title,
-        synopsis: node.synopsis,
-        beatIds: node.beatIds,
-        layout: layout,
-        tags: node.tags,
-      ),
+      node.copyWith(layout: layout),
     );
   }
 
@@ -43,12 +36,9 @@ class MainGraphOps {
     if (node == null) return main;
     return upsertNode(
       main,
-      StoryNode(
-        id: node.id,
+      node.copyWith(
         title: title ?? node.title,
         synopsis: synopsis ?? node.synopsis,
-        beatIds: node.beatIds,
-        layout: node.layout,
         tags: kind == null ? node.tags : StoryNodeKind.apply(node.tags, kind),
       ),
     );
@@ -75,6 +65,8 @@ class MainGraphOps {
         beatIds: const [],
         layout: NodeLayout(x: x, y: y),
         tags: node.tags,
+        imagePrompt: node.imagePrompt,
+        // New station: do not share the previous background asset id.
       ),
     );
   }

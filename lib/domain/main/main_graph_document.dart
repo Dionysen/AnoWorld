@@ -87,6 +87,8 @@ abstract final class MainGraphDocument {
               ? null
               : NodeLayout.fromJson(node.requireMap('layout')),
           tags: node.stringList('tags', required: false),
+          imagePrompt: node.optionalString('imagePrompt'),
+          backgroundAssetId: node.optionalString('backgroundAssetId'),
         );
       }).toList(growable: false),
       edges: json

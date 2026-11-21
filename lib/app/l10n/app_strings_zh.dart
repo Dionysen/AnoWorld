@@ -705,6 +705,67 @@ class AppStringsZh extends AppStrings {
     return '已选 $selected 项，$tokens token';
   }
 
+  @override
+  String get visualStageTitle => '画面';
+
+  @override
+  String get visualStageSubtitle => '立绘与场景图';
+
+  @override
+  String get visualStageBlurb =>
+      '先写好生图提示词（可改），再批量出立绘和每站场景图。画风会锁在同一套标签上';
+
+  @override
+  String get visualStageWritePrompts => '生成提示词';
+
+  @override
+  String get visualStageGenerateImages => '开始出图';
+
+  @override
+  String get visualStageSavePrompts => '保存提示词';
+
+  @override
+  String get visualStageSkipExisting => '跳过已有图片';
+
+  @override
+  String get visualStageNeedCast => '先准备好角色';
+
+  @override
+  String get visualStageNeedNodes => '先准备好情节站';
+
+  @override
+  String get visualStageNeedComfy => '请先在设置 → AI → 生图里选 ComfyUI 并填好地址';
+
+  @override
+  String get visualStagePromptsReady => '提示词已写好，可以改完再出图';
+
+  @override
+  String get visualStageImagesDone => '画面已写入故事';
+
+  @override
+  String get visualStageStylePrefix => '画风前缀';
+
+  @override
+  String get visualStageNegative => '负面提示词';
+
+  @override
+  String get visualStagePortrait => '立绘提示词';
+
+  @override
+  String get visualStageScene => '场景提示词';
+
+  @override
+  String get visualStageBusyPrompts => '正在写提示词…';
+
+  @override
+  String get visualStageBusyImages => '正在出图…';
+
+  @override
+  String get accept => '采用';
+
+  @override
+  String get regenerate => '重来';
+
   // Play.
 
   @override

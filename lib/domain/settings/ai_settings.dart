@@ -278,8 +278,12 @@ class AiImageEndpoint {
   final String apiKey;
   final String model;
 
-  bool get isConfigured =>
-      baseUrl.trim().isNotEmpty && model.trim().isNotEmpty;
+  /// ComfyUI only needs a reachable base URL (checkpoint lives in workflow).
+  bool get isConfigured {
+    if (baseUrl.trim().isEmpty) return false;
+    if (kind == AiImageProviderKind.comfyui) return true;
+    return model.trim().isNotEmpty;
+  }
 
   bool get needsApiKey => kind.needsApiKey;
   bool get supportsModelProbe => kind.supportsModelProbe;

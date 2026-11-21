@@ -203,16 +203,20 @@ class MainRuntime {
 
   String? get resolvedBackgroundAssetId {
     final node = currentNode;
+    if (node == null) return null;
     final beat = currentBeat;
-    if (node == null || beat == null) return null;
-    final direct = beat.scene.backgroundAssetId;
-    if (direct != null && direct.isNotEmpty) return direct;
-    final index = node.beatIds.indexOf(beat.id);
-    for (var i = index - 1; i >= 0; i--) {
-      final prev = main.beatById(node.beatIds[i]);
-      final bg = prev?.scene.backgroundAssetId;
-      if (bg != null && bg.isNotEmpty) return bg;
+    if (beat != null) {
+      final direct = beat.scene.backgroundAssetId;
+      if (direct != null && direct.isNotEmpty) return direct;
+      final index = node.beatIds.indexOf(beat.id);
+      for (var i = index - 1; i >= 0; i--) {
+        final prev = main.beatById(node.beatIds[i]);
+        final bg = prev?.scene.backgroundAssetId;
+        if (bg != null && bg.isNotEmpty) return bg;
+      }
     }
+    final nodeBg = node.backgroundAssetId;
+    if (nodeBg != null && nodeBg.isNotEmpty) return nodeBg;
     return null;
   }
 
@@ -229,16 +233,7 @@ class MainRuntime {
     final beatIds = [...node.beatIds.where((id) => id != beat.id), beat.id];
     final nodes = main.nodes
         .map(
-          (n) => n.id == node.id
-              ? StoryNode(
-                  id: n.id,
-                  title: n.title,
-                  synopsis: n.synopsis,
-                  beatIds: beatIds,
-                  layout: n.layout,
-                  tags: n.tags,
-                )
-              : n,
+          (n) => n.id == node.id ? n.copyWith(beatIds: beatIds) : n,
         )
         .toList(growable: false);
     main = MainStory(

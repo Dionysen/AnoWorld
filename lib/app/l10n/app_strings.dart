@@ -237,6 +237,26 @@ abstract class AppStrings extends AppLocalizations {
   String castSize(int members, int tokens);
   String mainSize(int nodes, int tokens);
   String plotElementsSize(int selected, int tokens);
+  String get visualStageTitle;
+  String get visualStageSubtitle;
+  String get visualStageBlurb;
+  String get visualStageWritePrompts;
+  String get visualStageGenerateImages;
+  String get visualStageSavePrompts;
+  String get visualStageSkipExisting;
+  String get visualStageNeedCast;
+  String get visualStageNeedNodes;
+  String get visualStageNeedComfy;
+  String get visualStagePromptsReady;
+  String get visualStageImagesDone;
+  String get visualStageStylePrefix;
+  String get visualStageNegative;
+  String get visualStagePortrait;
+  String get visualStageScene;
+  String get visualStageBusyPrompts;
+  String get visualStageBusyImages;
+  String get accept;
+  String get regenerate;
 
   // Play.
 

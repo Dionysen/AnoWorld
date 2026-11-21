@@ -8,6 +8,7 @@ class CastMember {
     this.personality = '',
     this.speechStyle = '',
     this.exampleLines = const <String>[],
+    this.visualTags = '',
     this.avatarAssetId,
     this.isProtagonist = false,
   });
@@ -18,6 +19,11 @@ class CastMember {
   final String personality;
   final String speechStyle;
   final List<String> exampleLines;
+
+  /// Locked Danbooru-style appearance tags for image gen (face/hair/body).
+  /// Kept stable across scenes so characters stay recognizable.
+  final String visualTags;
+
   final String? avatarAssetId;
 
   /// Drives {{char}} and ST char* prompt sections when this member is selected.
@@ -30,6 +36,7 @@ class CastMember {
         'personality': personality,
         'speechStyle': speechStyle,
         'exampleLines': exampleLines,
+        if (visualTags.trim().isNotEmpty) 'visualTags': visualTags,
         if (avatarAssetId != null) 'avatarAssetId': avatarAssetId,
         if (isProtagonist) 'isProtagonist': true,
       };
@@ -42,6 +49,7 @@ class CastMember {
       personality: json.optionalString('personality') ?? '',
       speechStyle: json.optionalString('speechStyle') ?? '',
       exampleLines: json.stringList('exampleLines', required: false),
+      visualTags: json.optionalString('visualTags') ?? '',
       avatarAssetId: json.optionalString('avatarAssetId'),
       isProtagonist: json.optionalBool('isProtagonist') ?? false,
     );
@@ -54,7 +62,9 @@ class CastMember {
     String? personality,
     String? speechStyle,
     List<String>? exampleLines,
+    String? visualTags,
     String? avatarAssetId,
+    bool clearAvatarAssetId = false,
     bool? isProtagonist,
   }) {
     return CastMember(
@@ -64,7 +74,9 @@ class CastMember {
       personality: personality ?? this.personality,
       speechStyle: speechStyle ?? this.speechStyle,
       exampleLines: exampleLines ?? this.exampleLines,
-      avatarAssetId: avatarAssetId ?? this.avatarAssetId,
+      visualTags: visualTags ?? this.visualTags,
+      avatarAssetId:
+          clearAvatarAssetId ? null : (avatarAssetId ?? this.avatarAssetId),
       isProtagonist: isProtagonist ?? this.isProtagonist,
     );
   }

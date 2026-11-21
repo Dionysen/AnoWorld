@@ -7,6 +7,7 @@ import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/create/plot_elements_pick_page.dart';
+import 'package:anoworld/create/visual_stage_page.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_token_estimate.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
@@ -206,6 +207,15 @@ class _CreateHubPageState extends State<CreateHubPage>
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(
                     PlotElementsPickPage(projectId: widget.projectId),
+                  ),
+                ),
+                AppListTile(
+                  title: context.strings.visualStageTitle,
+                  subtitle: context.strings.visualStageSubtitle,
+                  icon: Icons.image_outlined,
+                  trailing: const AppForwardIcon(),
+                  onTap: () => _open(
+                    VisualStagePage(projectId: widget.projectId),
                   ),
                 ),
               ],
