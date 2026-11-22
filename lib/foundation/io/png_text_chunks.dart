@@ -2,16 +2,23 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+/// PNG file signature shared by the chunk reader and card import.
+const List<int> _pngSignature = <int>[137, 80, 78, 71, 13, 10, 26, 10];
+
+/// True when [bytes] start with the PNG signature.
+bool isPngBytes(Uint8List bytes) {
+  if (bytes.length < _pngSignature.length) return false;
+  for (var index = 0; index < _pngSignature.length; index++) {
+    if (bytes[index] != _pngSignature[index]) return false;
+  }
+  return true;
+}
+
 /// Extracts a named textual metadata value from a PNG (tEXt / zTXt / iTXt).
 ///
 /// Portable helper — no app-specific keywords. Callers pass `chara` / `ccv3`.
 String? extractPngTextChunk(Uint8List bytes, String keyword) {
-  const signature = <int>[137, 80, 78, 71, 13, 10, 26, 10];
-  if (bytes.length < signature.length) return null;
-  for (var index = 0; index < signature.length; index++) {
-    if (bytes[index] != signature[index]) return null;
-  }
-
+  if (!isPngBytes(bytes)) return null;
   var offset = 8;
   while (offset + 12 <= bytes.length) {
     final length = (bytes[offset] << 24) |

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/data/project/project_package_archive.dart';
 import 'package:anoworld/data/project/project_paths.dart';
 import 'package:anoworld/domain/models/json_map.dart';
@@ -63,6 +64,9 @@ class FolderProjectRepository implements ProjectRepository {
             title: manifest.title,
             updatedAt: manifest.updatedAt,
             directoryPath: entity.path,
+            coverPath: await ProjectCoverFiles.findExistingRelative(
+              entity.path,
+            ),
           ),
         );
       } on Object {

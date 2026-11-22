@@ -8,7 +8,8 @@ class AppShapedAvatar extends StatelessWidget {
     super.key,
     required this.width,
     required this.height,
-    required this.child,
+    this.child,
+    this.background,
     this.shape = BoxShape.circle,
     this.borderRadius,
     this.backgroundColor,
@@ -16,7 +17,10 @@ class AppShapedAvatar extends StatelessWidget {
 
   final double width;
   final double height;
-  final Widget child;
+  final Widget? child;
+
+  /// Painted edge-to-edge behind [child] (for example a story cover image).
+  final Widget? background;
   final BoxShape shape;
   final double? borderRadius;
   final Color? backgroundColor;
@@ -25,7 +29,8 @@ class AppShapedAvatar extends StatelessWidget {
     Key? key,
     required double width,
     required AppAvatarGeometry geometry,
-    required Widget child,
+    Widget? child,
+    Widget? background,
     Color? backgroundColor,
   }) {
     return AppShapedAvatar(
@@ -35,6 +40,7 @@ class AppShapedAvatar extends StatelessWidget {
       shape: geometry.boxShape,
       borderRadius: geometry.radiusFor(width),
       backgroundColor: backgroundColor,
+      background: background,
       child: child,
     );
   }
@@ -44,9 +50,13 @@ class AppShapedAvatar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final bg = backgroundColor ?? scheme.primary.withValues(alpha: 0.18);
     final radius = borderRadius ?? (shape == BoxShape.circle ? width / 2 : 8);
+    final layers = <Widget>[
+      if (background != null) Positioned.fill(child: background!),
+      if (child != null) Center(child: child!),
+    ];
     final content = ColoredBox(
       color: bg,
-      child: Center(child: child),
+      child: Stack(fit: StackFit.expand, children: layers),
     );
     return SizedBox(
       width: width,

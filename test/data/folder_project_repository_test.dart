@@ -99,6 +99,9 @@ void main() {
     await assetFile.parent.create(recursive: true);
     await assetFile.writeAsBytes(const <int>[1, 2, 3, 4]);
 
+    final listed = await repo.listProjects();
+    expect(listed.single.coverPath, 'cover.png');
+
     final bytes = await repo.exportPackageBytes(project: sample);
     expect(bytes, isNotEmpty);
 

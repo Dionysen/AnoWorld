@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
@@ -24,6 +23,7 @@ import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_detail_entry.dart';
 import 'package:anoworld/foundation/widgets/app_detail_section.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
+import 'package:anoworld/foundation/widgets/app_image.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
@@ -111,12 +111,13 @@ class _ProjectHubPageState extends State<ProjectHubPage>
     String? projectDir,
     String? relative,
   ) async {
-    if (projectDir == null || relative == null || relative.trim().isEmpty) {
-      return null;
-    }
-    final absolute = ProjectCoverFiles.absolutePath(projectDir, relative);
-    if (await File(absolute).exists()) return absolute;
-    return null;
+    if (projectDir == null) return null;
+    final resolved = await ProjectCoverFiles.resolveExistingRelative(
+      projectDir,
+      relative,
+    );
+    if (resolved == null) return null;
+    return ProjectCoverFiles.absolutePath(projectDir, resolved);
   }
 
   Future<void> _persist(Project project) async {
@@ -171,7 +172,7 @@ class _ProjectHubPageState extends State<ProjectHubPage>
               icon: Icons.image_outlined,
               onTap: () => Navigator.pop(ctx, 'pick'),
             ),
-            if (project.meta.coverPath != null)
+            if (project.meta.coverPath != null || _coverAbsolutePath != null)
               AppListTile(
                 title: context.strings.restoreDefault,
                 icon: Icons.hide_image_outlined,
@@ -413,37 +414,23 @@ class _ProjectHubPageState extends State<ProjectHubPage>
         ),
       ),
     );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final dpr = MediaQuery.devicePixelRatioOf(context);
-        final cacheWidth = constraints.maxWidth.isFinite
-            ? (constraints.maxWidth * dpr).round()
-            : null;
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            if (coverPath != null)
-              Image.file(
-                File(coverPath),
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.medium,
-                cacheWidth: cacheWidth,
-                errorBuilder: (_, _, _) => placeholder,
-              )
-            else
-              placeholder,
-            Positioned(
-              top: AppTheme.spaceSm,
-              right: AppTheme.spaceSm,
-              child: AppCircleButton(
-                icon: Icons.photo_outlined,
-                tooltip: context.strings.changeCover,
-                onPressed: _changeCover,
-              ),
-            ),
-          ],
-        );
-      },
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (coverPath != null)
+          AppImage(path: coverPath, fallback: placeholder)
+        else
+          placeholder,
+        Positioned(
+          top: AppTheme.spaceSm,
+          right: AppTheme.spaceSm,
+          child: AppCircleButton(
+            icon: Icons.photo_outlined,
+            tooltip: context.strings.changeCover,
+            onPressed: _changeCover,
+          ),
+        ),
+      ],
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:anoworld/domain/models/project_folder.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_cover_tile.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
+import 'package:anoworld/foundation/widgets/app_image.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_press_scale.dart';
 import 'package:anoworld/foundation/widgets/app_shaped_avatar.dart';
@@ -18,6 +19,7 @@ class LibraryBrowseViews extends StatelessWidget {
     required this.avatarShape,
     required this.folders,
     required this.projects,
+    this.covers = const <String, String>{},
     required this.selection,
     required this.onOpenFolder,
     required this.onOpenProject,
@@ -31,6 +33,9 @@ class LibraryBrowseViews extends StatelessWidget {
   final LibraryAvatarShape avatarShape;
   final List<ProjectFolder> folders;
   final List<ProjectSummary> projects;
+
+  /// Project id → absolute cover image path, when the story has one.
+  final Map<String, String> covers;
   final LibrarySelectionController selection;
   final ValueChanged<ProjectFolder> onOpenFolder;
   final ValueChanged<ProjectSummary> onOpenProject;
@@ -107,25 +112,30 @@ class LibraryBrowseViews extends StatelessWidget {
   }
 
   Widget _projectAvatar(
-    BuildContext context, {
-    required String title,
+    BuildContext context,
+    ProjectSummary project, {
     required bool compact,
   }) {
     final scheme = Theme.of(context).colorScheme;
     final size = compact ? 40.0 : 56.0;
+    final title = project.title;
     final letter = title.isEmpty ? '?' : title.characters.first;
+    final cover = covers[project.id];
     return AppShapedAvatar.fromGeometry(
       width: size,
       geometry: compact ? AppAvatarGeometry.circle : _geometry,
       backgroundColor: scheme.primary.withValues(alpha: 0.18),
-      child: Text(
-        letter,
-        style: TextStyle(
-          color: scheme.primary,
-          fontWeight: FontWeight.w600,
-          fontSize: compact ? 14 : 18,
-        ),
-      ),
+      background: cover == null ? null : AppImage(path: cover),
+      child: cover != null
+          ? null
+          : Text(
+              letter,
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: compact ? 14 : 18,
+              ),
+            ),
     );
   }
 
@@ -145,12 +155,13 @@ class LibraryBrowseViews extends StatelessWidget {
 
   Widget _projectCover(
     BuildContext context,
-    String title, {
+    ProjectSummary project, {
     required bool compact,
   }) {
     final scheme = Theme.of(context).colorScheme;
+    final title = project.title;
     final letter = title.isEmpty ? '?' : title.characters.first;
-    return ColoredBox(
+    final placeholder = ColoredBox(
       color: scheme.primary.withValues(alpha: 0.16),
       child: Center(
         child: Text(
@@ -163,6 +174,9 @@ class LibraryBrowseViews extends StatelessWidget {
         ),
       ),
     );
+    final cover = covers[project.id];
+    if (cover == null) return placeholder;
+    return AppImage(path: cover, fallback: placeholder);
   }
 
   Widget _createCover(BuildContext context, {required bool compact}) {
@@ -329,11 +343,7 @@ class LibraryBrowseViews extends StatelessWidget {
             context,
             selectionMode: selectionMode,
             selected: selected,
-            avatar: _projectAvatar(
-              context,
-              title: project.title,
-              compact: false,
-            ),
+            avatar: _projectAvatar(context, project, compact: false),
           ),
           trailing: selectionMode
               ? null
@@ -389,11 +399,7 @@ class LibraryBrowseViews extends StatelessWidget {
             context,
             selectionMode: selectionMode,
             selected: selected,
-            avatar: _projectAvatar(
-              context,
-              title: project.title,
-              compact: true,
-            ),
+            avatar: _projectAvatar(context, project, compact: true),
           ),
           trailing: selectionMode
               ? null
@@ -469,7 +475,7 @@ class LibraryBrowseViews extends StatelessWidget {
               title: project.title,
               subtitle: formatUpdated(project.updatedAt),
               selected: selectionMode && selected,
-              cover: _projectCover(context, project.title, compact: compact),
+              cover: _projectCover(context, project, compact: compact),
               overlay: selectionMode
                   ? _selectionBadge(context, selected)
                   : _moreOverlay(context, () => onProjectMenu(project)),

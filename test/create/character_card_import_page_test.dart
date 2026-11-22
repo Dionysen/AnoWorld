@@ -10,6 +10,7 @@ import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/data/project/project_paths.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/card_import/st_character_card_parser.dart';
+import 'package:anoworld/foundation/widgets/app_image.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -79,6 +80,36 @@ void main() {
     );
   });
 
+  testWidgets('json card previews the sidecar png as cover', (tester) async {
+    final repo = MemoryProjectRepository(idGenerator: () => 'p_sidecar');
+    final json = jsonEncode({
+      'spec': 'chara_card_v2',
+      'data': {'name': '阿福', 'description': '店小二'},
+    });
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: CharacterCardImportPage(
+          pickCardFiles: () async => [
+            PickedCharacterCardFile(
+              name: 'afu.json',
+              bytes: Uint8List.fromList(utf8.encode(json)),
+              coverBytes: _onePixelPng,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('选择角色卡'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppImage), findsOneWidget);
+    expect(find.text('会一起保存为故事封面'), findsOneWidget);
+    expect(find.text('这张卡没有封面图，可在故事页更换'), findsNothing);
+  });
+
   test('png card cover lands in project assets on write', () async {
     final tempRoot = await Directory.systemTemp.createTemp('aw_card_cover_');
     addTearDown(() async {
@@ -131,6 +162,10 @@ void main() {
     );
   });
 }
+
+final Uint8List _onePixelPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+);
 
 Uint8List _minimalPngWithText(String keyword, String value) {
   const signature = <int>[137, 80, 78, 71, 13, 10, 26, 10];

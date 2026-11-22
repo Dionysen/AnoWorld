@@ -38,6 +38,38 @@ abstract final class ProjectCoverFiles {
     }
   }
 
+  /// Relative `cover.<ext>` currently on disk, or null when absent.
+  static Future<String?> findExistingRelative(String projectDir) async {
+    if (projectDir.isEmpty || projectDir.startsWith('memory://')) return null;
+    final assets = Directory(
+      p.join(projectDir, ProjectPaths.assetsFolder),
+    );
+    if (!await assets.exists()) return null;
+    await for (final entity in assets.list()) {
+      if (entity is! File) continue;
+      if (p.basenameWithoutExtension(entity.path).toLowerCase() != fileStem) {
+        continue;
+      }
+      final ext = p.extension(entity.path).replaceAll('.', '').toLowerCase();
+      if (!allowedExtensions.contains(ext)) continue;
+      return ProjectPaths.normalizeRelativeAssetPath(p.basename(entity.path));
+    }
+    return null;
+  }
+
+  /// Keeps [relative] when its file exists, else falls back to any `cover.*`.
+  static Future<String?> resolveExistingRelative(
+    String projectDir,
+    String? relative,
+  ) async {
+    final trimmed = relative?.trim() ?? '';
+    if (trimmed.isNotEmpty &&
+        await File(absolutePath(projectDir, trimmed)).exists()) {
+      return trimmed;
+    }
+    return findExistingRelative(projectDir);
+  }
+
   /// Copies [sourcePath] into the project assets folder as `cover.{ext}`.
   /// Returns the relative path stored on [ProjectMeta.coverPath].
   static Future<String> importFromPath({

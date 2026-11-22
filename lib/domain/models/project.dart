@@ -237,10 +237,14 @@ class ProjectSummary {
     required this.title,
     required this.updatedAt,
     required this.directoryPath,
+    this.coverPath,
   });
 
   final String id;
   final String title;
   final DateTime updatedAt;
   final String directoryPath;
+
+  /// Relative `cover.*` under the project `assets/` folder, when present.
+  final String? coverPath;
 }

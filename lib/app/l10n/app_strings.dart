@@ -480,6 +480,8 @@ abstract class AppStrings extends AppLocalizations {
   String get cardAiNoteHint;
   String get cardWrite;
   String get cardWriteHint;
+  String get cardCoverHint;
+  String get cardCoverMissing;
   String cardReadCount(int count);
   String get cardSanitizeNoChange;
   String cardSanitizeChanged(int count);

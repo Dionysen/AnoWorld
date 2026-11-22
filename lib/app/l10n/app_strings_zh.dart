@@ -1415,6 +1415,12 @@ class AppStringsZh extends AppStrings {
   String get cardWriteHint => '写入后可在创作里继续改设定、角色与情节';
 
   @override
+  String get cardCoverHint => '会一起保存为故事封面';
+
+  @override
+  String get cardCoverMissing => '这张卡没有封面图，可在故事页更换';
+
+  @override
   String cardReadCount(int count) => '已读入 $count 张卡，可勾选要留下的内容';
 
   @override

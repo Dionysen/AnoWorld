@@ -35,6 +35,24 @@ class StCharacterCard {
 
   /// PNG card image bytes used as the story cover (null for JSON-only cards).
   final Uint8List? coverImageBytes;
+
+  StCharacterCard copyWith({Uint8List? coverImageBytes}) {
+    return StCharacterCard(
+      name: name,
+      description: description,
+      personality: personality,
+      scenario: scenario,
+      firstMes: firstMes,
+      mesExample: mesExample,
+      systemPrompt: systemPrompt,
+      postHistoryInstructions: postHistoryInstructions,
+      creatorNotes: creatorNotes,
+      alternateGreetings: alternateGreetings,
+      bookEntries: bookEntries,
+      sourceLabel: sourceLabel,
+      coverImageBytes: coverImageBytes ?? this.coverImageBytes,
+    );
+  }
 }
 
 class StCharacterBookEntry {

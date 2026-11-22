@@ -6,6 +6,7 @@ import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/create_entry_page.dart';
 import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
+import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/data/project/project_package_archive.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/project_folder.dart';
@@ -67,6 +68,7 @@ class WorksTabState extends State<WorksTab> {
   List<ProjectFolder> _folders = const [];
   List<ProjectFolder> _breadcrumbs = const [];
   Map<String, String?> _membership = const {};
+  Map<String, String> _covers = const {};
 
   List<String> get browsePath => List<String>.unmodifiable(_browsePath);
 
@@ -153,6 +155,7 @@ class WorksTabState extends State<WorksTab> {
         _folders = snap.folders;
         _breadcrumbs = snap.breadcrumbs;
         _membership = snap.membership;
+        _covers = snap.covers;
         _loading = false;
         _status = null;
       });
@@ -167,6 +170,7 @@ class WorksTabState extends State<WorksTab> {
     List<ProjectFolder> folders,
     List<ProjectFolder> breadcrumbs,
     Map<String, String?> membership,
+    Map<String, String> covers,
   })> _fetchBrowse(String? folderId) async {
     final projects = AppScope.projectsOf(context);
     final folders = AppScope.foldersOf(context);
@@ -176,14 +180,23 @@ class WorksTabState extends State<WorksTab> {
         ? const <ProjectFolder>[]
         : await folders.breadcrumbs(folderId);
     final membership = <String, String?>{};
+    final covers = <String, String>{};
     for (final project in all) {
       membership[project.id] = await folders.folderIdForProject(project.id);
+      final relative = project.coverPath;
+      if (relative != null && relative.isNotEmpty) {
+        covers[project.id] = ProjectCoverFiles.absolutePath(
+          project.directoryPath,
+          relative,
+        );
+      }
     }
     return (
       projects: all,
       folders: listed,
       breadcrumbs: crumbs,
       membership: membership,
+      covers: covers,
     );
   }
 
@@ -203,6 +216,7 @@ class WorksTabState extends State<WorksTab> {
         _folders = snap.folders;
         _breadcrumbs = snap.breadcrumbs;
         _membership = snap.membership;
+        _covers = snap.covers;
         _loading = false;
       });
     } catch (error) {
@@ -950,6 +964,7 @@ class WorksTabState extends State<WorksTab> {
         avatarShape: display.avatarShape,
         folders: folders,
         projects: projects,
+        covers: _covers,
         selection: widget.selection,
         onOpenFolder: (folder) => openFolder(folder.id),
         onOpenProject: (project) =>

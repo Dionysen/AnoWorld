@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/create_hub_page.dart';
+import 'package:anoworld/data/card_import/card_cover_sidecar.dart';
 import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
@@ -14,6 +15,7 @@ import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
+import 'package:anoworld/foundation/widgets/app_image.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
@@ -32,11 +34,15 @@ class PickedCharacterCardFile {
     required this.name,
     this.path,
     this.bytes,
+    this.coverBytes,
   });
 
   final String name;
   final String? path;
   final Uint8List? bytes;
+
+  /// PNG sitting beside a JSON card (same base name), when found.
+  final Uint8List? coverBytes;
 }
 
 /// Path 1: pick SillyTavern cards → confirm mapped material → write project.
@@ -80,11 +86,16 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
     final out = <PickedCharacterCardFile>[];
     for (final file in files) {
       if (file.name.isEmpty) continue;
+      final path = file.path;
+      final isJson = file.name.toLowerCase().endsWith('.json');
       out.add(
         PickedCharacterCardFile(
           name: file.name,
-          path: file.path,
+          path: path,
           bytes: await file.readAsBytes(),
+          coverBytes: isJson && path != null
+              ? await readCardCoverSidecar(path)
+              : null,
         ),
       );
     }
@@ -182,7 +193,12 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       if (raw == null) {
         throw StCharacterCardParseException(strings.cardCannotRead(file.name));
       }
-      return widget.parser.parseJsonString(raw, sourceLabel: label);
+      final card = widget.parser.parseJsonString(raw, sourceLabel: label);
+      final cover = file.coverBytes;
+      if (card.coverImageBytes == null && cover != null && cover.isNotEmpty) {
+        return card.copyWith(coverImageBytes: cover);
+      }
+      return card;
     }
     throw StCharacterCardParseException(
       strings.cardUnsupportedFormat(p.extension(file.name)),
@@ -289,6 +305,30 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
     }
   }
 
+  Widget _coverPreview(BuildContext context, StCardImportDraft draft) {
+    final strings = context.strings;
+    final bytes = draft.coverImageBytes;
+    if (bytes == null || bytes.isEmpty) {
+      return AppText(strings.cardCoverMissing, role: AppTextRole.caption);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: AppImage(
+            bytes: bytes,
+            fallback: ColoredBox(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppTheme.spaceXs),
+        AppText(strings.cardCoverHint, role: AppTextRole.caption),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
@@ -345,6 +385,8 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
                 controller: _title,
               ),
             ),
+            const SizedBox(height: AppTheme.spaceMd),
+            AppPageGutter(child: _coverPreview(context, draft)),
             const SizedBox(height: AppTheme.spaceLg),
             AppSectionHeader(
               strings.cardTidySection,
