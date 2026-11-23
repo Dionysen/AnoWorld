@@ -1,5 +1,6 @@
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
+import 'package:anoworld/create/visual_asset_preview.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/models/main_story.dart';
@@ -73,8 +74,30 @@ void main() {
     expect(ax, lessThan(bx));
   });
 
-  testWidgets('canvas shows stations and can add a station', (tester) async {
+  testWidgets('short canvas drops the scene preview instead of overflowing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(420, 460);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
     final repo = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: MainGraphPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(VisualAssetPreview), findsNothing);
+    expect(find.byTooltip('加一站'), findsOneWidget);
+  });
+
+  testWidgets('canvas shows stations and can add a station', (tester) async {    final repo = MemoryProjectRepository(
       seed: {sample.meta.id: sample},
     );
     await tester.pumpWidget(
@@ -100,8 +123,34 @@ void main() {
     expect(opened.main.nodes.length, greaterThan(sample.main.nodes.length));
   });
 
-  testWidgets('dragging output port connects two stations', (tester) async {
-    final blank = const ProjectFactory().createBlank(
+  testWidgets('scene preview sits under the canvas, not over its actions', (
+    tester,
+  ) async {
+    final repo = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: MainGraphPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The start station is selected, so its scene preview is on screen.
+    expect(find.text('重新画场景'), findsOneWidget);
+    final preview = tester.getRect(find.byType(VisualAssetPreview));
+    for (final tooltip in ['整理排版', '加一站']) {
+      final action = tester.getRect(find.byTooltip(tooltip));
+      expect(
+        action.bottom,
+        lessThanOrEqualTo(preview.top),
+        reason: '$tooltip is covered by the scene preview',
+      );
+    }
+  });
+
+  testWidgets('dragging output port connects two stations', (tester) async {    final blank = const ProjectFactory().createBlank(
       id: 'p_link',
       title: '连线',
       now: DateTime.utc(2026, 1, 1),

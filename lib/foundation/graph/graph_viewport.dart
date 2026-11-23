@@ -403,12 +403,14 @@ class _GraphViewportState extends State<GraphViewport>
         final nextSize = Size(width, height);
         if (nextSize != _viewportSize) {
           _viewportSize = nextSize;
-          widget.camera?.setViewportSize(nextSize);
-          if (widget.focusSelected) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _focusCamera(animate: false);
-            });
-          }
+          // Camera listeners rebuild the overview map; resize arrives mid-build
+          // so publish it after the frame instead of marking widgets dirty.
+          final camera = widget.camera;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            camera?.setViewportSize(nextSize);
+            if (widget.focusSelected) _focusCamera(animate: false);
+          });
         }
         final camera = widget.camera;
         if (camera != null &&

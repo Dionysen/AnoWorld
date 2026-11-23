@@ -66,6 +66,13 @@ class _MainGraphPageState extends State<MainGraphPage>
 
   static const _ops = MainGraphOps();
 
+  /// Scene preview strip under the canvas (image height).
+  static const double _scenePreviewImageHeight = 112;
+
+  /// Below this canvas height the scene preview is dropped so the station
+  /// graph keeps usable room (no overflow on short / split windows).
+  static const double _minCanvasHeight = 200;
+
   Project? _project;
   String? _projectDir;
   Object? _error;
@@ -830,62 +837,76 @@ class _MainGraphPageState extends State<MainGraphPage>
         (_cardMode ? main.startNodeId : null);
     final project = _project;
     final selectedNodeId = focusId;
-    final showScenePreview = project != null &&
+    final wantsScenePreview = project != null &&
         selectedNodeId != null &&
         !_overviewOpen &&
         _selectedEdgeId == null;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        GraphViewport(
-          camera: _viewportCamera,
-          nodes: _graphNodes(main),
-          edges: _graphEdges(main),
-          selectedId: focusId,
-          selectedEdgeId: _cardMode ? null : _selectedEdgeId,
-          focusSelected: _cardMode,
-          onSelect: (id) => setState(() {
-            _selectedId = id ?? (_cardMode ? focusId : null);
-            if (id != null) _selectedEdgeId = null;
-          }),
-          onSelectEdge: _cardMode
-              ? null
-              : (id) => setState(() {
-                    _selectedEdgeId = id;
-                    if (id != null) _selectedId = null;
-                  }),
-          onMove: _moveNodeLocal,
-          onNodeDragEnd: _onNodeDragEnd,
-          onConnect: _connect,
-          onOpenOutput: (_, portId) => _openEdgeEditor(portId),
-          onAddOutput: (_) => _tipAddOutput(),
-          onOpenNode: _openNodeEditor,
-          onCopyNode: _copyNode,
-          onDeleteNode: main.nodes.length <= 1 ? null : _deleteNode,
-          onAddNode: _addNode,
-          onArrange: _autoLayout,
-          showGrid: _showGrid,
-        ),
-        if (showScenePreview)
-          Positioned(
-            left: AppTheme.pagePadding,
-            right: AppTheme.pagePadding,
-            bottom: AppTheme.pagePadding,
-            child: Material(
-              type: MaterialType.transparency,
-              child: VisualAssetPreview(
-                file: _sceneFileFor(project, selectedNodeId),
-                emptyLabel: context.strings.visualNoScene,
-                height: 112,
-                busy: _regenBusyNodeId == selectedNodeId,
-                actionLabel: context.strings.visualRegenScene,
-                onAction: _regenBusyNodeId == selectedNodeId
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Preview band: surface padding, image, gap, action button.
+        const previewBand = AppTheme.spaceSm * 3 +
+            _scenePreviewImageHeight +
+            AppTheme.buttonHeight;
+        final showScenePreview = wantsScenePreview &&
+            constraints.maxHeight - previewBand >= _minCanvasHeight;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: GraphViewport(
+                camera: _viewportCamera,
+                nodes: _graphNodes(main),
+                edges: _graphEdges(main),
+                selectedId: focusId,
+                selectedEdgeId: _cardMode ? null : _selectedEdgeId,
+                focusSelected: _cardMode,
+                onSelect: (id) => setState(() {
+                  _selectedId = id ?? (_cardMode ? focusId : null);
+                  if (id != null) _selectedEdgeId = null;
+                }),
+                onSelectEdge: _cardMode
                     ? null
-                    : () => _regenerateScene(selectedNodeId),
+                    : (id) => setState(() {
+                          _selectedEdgeId = id;
+                          if (id != null) _selectedId = null;
+                        }),
+                onMove: _moveNodeLocal,
+                onNodeDragEnd: _onNodeDragEnd,
+                onConnect: _connect,
+                onOpenOutput: (_, portId) => _openEdgeEditor(portId),
+                onAddOutput: (_) => _tipAddOutput(),
+                onOpenNode: _openNodeEditor,
+                onCopyNode: _copyNode,
+                onDeleteNode: main.nodes.length <= 1 ? null : _deleteNode,
+                onAddNode: _addNode,
+                onArrange: _autoLayout,
+                showGrid: _showGrid,
               ),
             ),
-          ),
-      ],
+            // Sits under the canvas (not over it) so the canvas actions at its
+            // bottom-right stay visible and tappable at every width.
+            if (showScenePreview)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.pagePadding,
+                  AppTheme.spaceSm,
+                  AppTheme.pagePadding,
+                  AppTheme.pagePadding,
+                ),
+                child: VisualAssetPreview(
+                  file: _sceneFileFor(project, selectedNodeId),
+                  emptyLabel: context.strings.visualNoScene,
+                  height: _scenePreviewImageHeight,
+                  busy: _regenBusyNodeId == selectedNodeId,
+                  actionLabel: context.strings.visualRegenScene,
+                  onAction: _regenBusyNodeId == selectedNodeId
+                      ? null
+                      : () => _regenerateScene(selectedNodeId),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
