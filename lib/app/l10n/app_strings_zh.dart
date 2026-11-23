@@ -121,6 +121,12 @@ class AppStringsZh extends AppStrings {
   String moreEntries(int count) => '还有 $count 条';
 
   @override
+  String get closePreview => '关闭预览';
+
+  @override
+  String get zoomHint => '双击缩放，点一下关闭';
+
+  @override
   String get tidyLayout => '整理排版';
 
   @override

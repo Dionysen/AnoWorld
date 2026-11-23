@@ -4,11 +4,15 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_image_viewer.dart';
 import 'package:anoworld/foundation/widgets/app_surface.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/material.dart';
 
 /// Compact image preview with optional regenerate action (create / graph / cast).
+///
+/// Tapping the picture opens the full-screen lightbox
+/// ([showAppImageViewer]); pass [zoomable] false to keep it inert.
 class VisualAssetPreview extends StatelessWidget {
   const VisualAssetPreview({
     super.key,
@@ -20,6 +24,7 @@ class VisualAssetPreview extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.fit = BoxFit.cover,
+    this.zoomable = true,
   });
 
   final File? file;
@@ -31,12 +36,26 @@ class VisualAssetPreview extends StatelessWidget {
   final VoidCallback? onAction;
   final BoxFit fit;
 
+  /// Whether tapping the picture opens the zoomable full-screen viewer.
+  final bool zoomable;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final tokens = AppUiTokens.of(context);
     final imageFile = file;
-    final hasImage = imageFile != null;
+    final picture = imageFile == null
+        ? _Empty(label: emptyLabel)
+        : Image.file(
+            imageFile,
+            key: ValueKey(
+              '${imageFile.path}-${imageFile.lastModifiedSync().millisecondsSinceEpoch}',
+            ),
+            fit: fit,
+            alignment: Alignment.center,
+            errorBuilder: (_, _, _) => _Empty(label: emptyLabel),
+          );
+    final path = imageFile?.path;
     final preview = ClipRRect(
       borderRadius: BorderRadius.circular(tokens.radius),
       child: ColoredBox(
@@ -44,17 +63,20 @@ class VisualAssetPreview extends StatelessWidget {
         child: SizedBox(
           height: height,
           width: double.infinity,
-          child: hasImage
-              ? Image.file(
-                  imageFile,
-                  key: ValueKey(
-                    '${imageFile.path}-${imageFile.lastModifiedSync().millisecondsSinceEpoch}',
+          child: path != null && zoomable
+              ? MouseRegion(
+                  cursor: SystemMouseCursors.zoomIn,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => showAppImageViewer(
+                      context,
+                      path: path,
+                      label: emptyLabel,
+                    ),
+                    child: picture,
                   ),
-                  fit: fit,
-                  alignment: Alignment.center,
-                  errorBuilder: (_, _, _) => _Empty(label: emptyLabel),
                 )
-              : _Empty(label: emptyLabel),
+              : picture,
         ),
       ),
     );

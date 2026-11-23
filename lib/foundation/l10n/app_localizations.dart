@@ -61,6 +61,11 @@ abstract class AppLocalizations {
   String copiedEntry(String label);
   String moreEntries(int count);
 
+  // Media viewer chrome.
+
+  String get closePreview;
+  String get zoomHint;
+
   // Graph view chrome.
 
   String get tidyLayout;
@@ -202,6 +207,12 @@ class DefaultAppLocalizations extends AppLocalizations {
 
   @override
   String moreEntries(int count) => '$count more';
+
+  @override
+  String get closePreview => 'Close preview';
+
+  @override
+  String get zoomHint => 'Double-tap to zoom; tap to close';
 
   @override
   String get tidyLayout => 'Tidy layout';
