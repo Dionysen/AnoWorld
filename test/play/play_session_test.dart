@@ -372,6 +372,50 @@ void main() {
     expect(find.text('留宿？'), findsOneWidget);
   });
 
+  testWidgets('VN resume notice is a passing toast, not a status line', (
+    tester,
+  ) async {
+    final saves = MemorySaveRepository();
+    await tester.pumpWidget(
+      testScoped(
+        settings: instantVn(),
+        saves: saves,
+        home: PlaySessionPage(
+          key: UniqueKey(),
+          project: sample,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final slot = (await saves.listForProject(sample.meta.id)).single;
+
+    await tester.pumpWidget(
+      testScoped(
+        settings: instantVn(),
+        saves: saves,
+        home: PlaySessionPage(
+          key: UniqueKey(),
+          project: sample,
+          mode: PlayViewMode.visualNovel,
+          slotId: slot.id,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('app_toast')),
+      findsOneWidget,
+    );
+    expect(find.text('已读取进度'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    expect(find.text('已读取进度'), findsNothing);
+  });
+
   testWidgets('chat mode shows tavern composer shell', (tester) async {
     await pumpPlay(tester, mode: PlayViewMode.chat);    expect(find.text('输入消息'), findsOneWidget);
     expect(find.byIcon(Icons.send_rounded), findsOneWidget);

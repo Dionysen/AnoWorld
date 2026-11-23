@@ -237,7 +237,8 @@
 8. **总能继续**：有下一站时用「前往：某站」保底；无下一站时也可「继续 / 告一段落」（看站内选项频率）。出站分叉始终有选项；站内过程拍可以没有选项——点屏幕播完就接下一段。选项最多三个。设置 → AI → **站内选项**（关闭 / 很少 / 有时 / 较多）只影响站内要不要弹选项。
 9. **一步多少句**：设置 → AI → **每段最少句数**（默认 **10**，1–10）；写少了自动重试一次。一次生成通常带来多步点屏。
 10. **渐进预写 + 流式上屏**：最新拍无选项时线性预留 2 拍；有选项时一次批写每条可续写选项后的 1 拍（最多 3 路）。AI 回复按 SSE 流式读入（[`BridgeBeatStreamParser`](../lib/domain/ai/bridge_stream_parser.dart) 边收边解析 `lines` 数组里的每个对白对象），每凑齐一句就交给运行时 [`MainRuntime.appendStreamLine`](../lib/domain/runtime/main_runtime.dart) 直接落在当前拍上，与静态拍一样点屏推进；整批写完后再补选项与场景信息（`updateBeat`）。底部控制栏转圈，对白框不写「正在写」。中途断流时已出现的句子留在屏幕上，并用「继续 / 告一段落」保底，不白屏。点选不丢其它分支；剧情树进存档；整局重开才清空。
-11. **游玩设置**（[`VnSettingsPage`](../lib/play/vn_settings_page.dart)，底部控制栏齿轮进入，只影响视觉小说）：**行数**（[`AppDialogueChrome.minLines`](../lib/foundation/theme/app_dialogue_chrome.dart)–`maxLines`，默认 **4**）、**字号**（默认 **16**）、**文字速度**（[`VnUiSettings.textSpeed`](../lib/domain/settings/vn_ui_settings.dart)，**0–60** 字/秒，默认 **28**；拖到 **0** 为「瞬间」整句直出）、**不透明度**（默认 **72%**），以及「颜色」分区的**背景颜色**与**文字颜色**（各自可自选，也可用「跟随主题」开关回到主题色；文字色同时作用于角色名与正文）。设置存进 [`VnUiSettings`](../lib/domain/settings/vn_ui_settings.dart)，开下一局仍生效。
+11. **续玩提示**：从会话续一局视觉小说时，读回进度的提示只在顶部弹一次 toast「已读取进度」（[`showAppToast`](../lib/foundation/widgets/app_toast.dart)，几秒后自动消失），对白框上方不常驻状态行。
+12. **游玩设置**（[`VnSettingsPage`](../lib/play/vn_settings_page.dart)，底部控制栏齿轮进入，只影响视觉小说）：**行数**（[`AppDialogueChrome.minLines`](../lib/foundation/theme/app_dialogue_chrome.dart)–`maxLines`，默认 **4**）、**字号**（默认 **16**）、**文字速度**（[`VnUiSettings.textSpeed`](../lib/domain/settings/vn_ui_settings.dart)，**0–60** 字/秒，默认 **28**；拖到 **0** 为「瞬间」整句直出）、**不透明度**（默认 **72%**），以及「颜色」分区的**背景颜色**与**文字颜色**（各自可自选，也可用「跟随主题」开关回到主题色；文字色同时作用于角色名与正文）。设置存进 [`VnUiSettings`](../lib/domain/settings/vn_ui_settings.dart)，开下一局仍生效。
 
 失败与重试：生成失败提示检查文案服务；不要静默吞掉进度。短状态/操作反馈（已复制、连线提示、导入结果等）用顶部居中 [`showAppToast`](../lib/foundation/widgets/app_toast.dart)（不可点，左/右滑可关掉），不用系统 SnackBar。
 

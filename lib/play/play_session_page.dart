@@ -35,6 +35,7 @@ import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/foundation/widgets/app_typewriter_text.dart';
 import 'package:anoworld/play/play_chat_message.dart';
 import 'package:anoworld/play/play_chat_view.dart';
@@ -247,7 +248,12 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
             slot.history.length - 1,
           );
         }
-        setState(() => _status = context.strings.progressLoaded);
+        setState(() => _status = null);
+        // Resume notice is a passing toast, not a line above the story.
+        final message = context.strings.progressLoaded;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) showAppToast(context, message);
+        });
       }
     }
     if (_isChat) {
