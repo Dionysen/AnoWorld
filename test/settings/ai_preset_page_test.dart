@@ -38,10 +38,40 @@ void main() {
       '删除当前预设',
       '导入预设',
       '导出预设',
+      '加一条',
       '恢复默认顺序',
     ]) {
       expect(find.byTooltip(tooltip), findsOneWidget);
     }
+  });
+
+  testWidgets('adds a custom prompt and deletes it from its editor', (
+    tester,
+  ) async {
+    await pumpPresetPage(tester);
+
+    await tester.tap(find.byTooltip('加一条'));
+    await tester.pumpAndSettle();
+    expect(find.text('新建提示词'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '第二人称');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('已添加：第二人称'), findsOneWidget);
+
+    final row = find.text('第二人称');
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('删除'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('删除'));
+    await tester.pumpAndSettle();
+    expect(find.text('删除「第二人称」？'), findsOneWidget);
+    await tester.tap(find.text('删除'));
+    await tester.pumpAndSettle();
+    expect(find.text('已删除'), findsOneWidget);
+    expect(find.text('第二人称'), findsNothing);
   });
 
   testWidgets('picker has no action buttons and no long-press menu', (

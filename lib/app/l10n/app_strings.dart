@@ -808,6 +808,14 @@ abstract class AppStrings extends AppLocalizations {
   String get emptyAuthorNote;
   String get filledAutomatically;
 
+  /// Prompt sections: add / delete custom entries.
+  String get promptAddTitle;
+  String get promptAddNameHint;
+  String promptAdded(String name);
+  String promptDeleteTitle(String name);
+  String get promptDeleteDetail;
+  String get promptDeleted;
+
   /// Display name of a prompt section type.
   String promptSectionName(PromptSectionType type);
 

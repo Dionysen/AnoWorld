@@ -1,14 +1,19 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
+import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 
 /// Root-level prompt section list under the preset settings group.
@@ -61,6 +66,31 @@ class PromptManagerPanel extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Ask for a name, then append a custom prompt section to the list.
+  static Future<void> addSection(BuildContext context) async {
+    final strings = context.strings;
+    final name = await showAppTextEditSheet(
+      context: context,
+      title: strings.promptAddTitle,
+      initialValue: '',
+      hint: strings.promptAddNameHint,
+    );
+    final trimmed = name?.trim() ?? '';
+    if (trimmed.isEmpty || !context.mounted) return;
+    final controller = AppScope.settingsOf(context);
+    final identifier =
+        'custom_${DateTime.now().toUtc().microsecondsSinceEpoch}';
+    await controller.updatePromptManager(
+      controller.aiPresets.promptManager.addCustomSection(
+        name: trimmed,
+        identifier: identifier,
+      ),
+    );
+    AppLog.instance.info('添加提示词：$trimmed', tag: 'ai.preset');
+    if (!context.mounted) return;
+    showAppToast(context, strings.promptAdded(trimmed));
   }
 
   static Future<void> openSection(
@@ -129,10 +159,19 @@ class PromptManagerPanel extends StatelessWidget {
     final draft = TextEditingController(text: section.content ?? '');
     final saved = await Navigator.of(context).push<bool>(
       AppSlidePageRoute<bool>(
-        builder: (context) {
+        builder: (pageContext) {
           return AppPage(
             title: sectionLabel(strings, section),
-            onBack: () => Navigator.of(context).pop(false),
+            onBack: () => Navigator.of(pageContext).pop(false),
+            actions: [
+              if (section.isCustom)
+                AppIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: strings.delete,
+                  danger: true,
+                  onPressed: () => _deleteSection(pageContext, section),
+                ),
+            ],
             body: AppPageBody.list(
               children: [
                 AppPageGutter(
@@ -147,7 +186,7 @@ class PromptManagerPanel extends StatelessWidget {
                 AppListTile(
                   title: strings.save,
                   icon: Icons.check_outlined,
-                  onTap: () => Navigator.of(context).pop(true),
+                  onTap: () => Navigator.of(pageContext).pop(true),
                   showDivider: false,
                 ),
               ],
@@ -162,6 +201,38 @@ class PromptManagerPanel extends StatelessWidget {
     await controller.updatePromptManager(
       config.updateSectionByIndex(index, updated),
     );
+  }
+
+  /// Confirm, then remove a custom section and close its editor.
+  static Future<void> _deleteSection(
+    BuildContext context,
+    PromptSection section,
+  ) async {
+    final strings = context.strings;
+    final label = sectionLabel(strings, section);
+    final confirmed = await showAppConfirmSheet(
+      context,
+      title: strings.promptDeleteTitle(label),
+      detail: strings.promptDeleteDetail,
+      confirmLabel: strings.delete,
+      danger: true,
+    );
+    if (!confirmed || !context.mounted) return;
+    final controller = AppScope.settingsOf(context);
+    final config = controller.aiPresets.promptManager;
+    final sorted = config.sortedSections;
+    final index = sorted.indexWhere(
+      (s) =>
+          s.identifier == section.identifier &&
+          s.type == section.type &&
+          s.name == section.name,
+    );
+    if (index < 0) return;
+    await controller.updatePromptManager(config.removeSectionAt(index));
+    AppLog.instance.info('删除提示词：$label', tag: 'ai.preset');
+    if (!context.mounted) return;
+    showAppToast(context, strings.promptDeleted);
+    Navigator.of(context).pop(false);
   }
 }
 

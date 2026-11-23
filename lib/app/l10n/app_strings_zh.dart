@@ -2369,6 +2369,24 @@ class AppStringsZh extends AppStrings {
   String get filledAutomatically => '这段会在写故事时自动带上';
 
   @override
+  String get promptAddTitle => '新建提示词';
+
+  @override
+  String get promptAddNameHint => '比如「少用书面语」';
+
+  @override
+  String promptAdded(String name) => '已添加：$name';
+
+  @override
+  String promptDeleteTitle(String name) => '删除「$name」？';
+
+  @override
+  String get promptDeleteDetail => '删掉后不能恢复';
+
+  @override
+  String get promptDeleted => '已删除';
+
+  @override
   String promptSectionName(PromptSectionType type) => switch (type) {
         PromptSectionType.systemPrompt => '系统提示',
         PromptSectionType.persona => '玩家身份',

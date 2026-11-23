@@ -428,10 +428,21 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
             AppSectionHeader(
               strings.presetPromptsSection,
               gutter: true,
-              trailing: AppIconButton(
-                icon: Icons.restart_alt_outlined,
-                tooltip: strings.presetRestoreOrderAction,
-                onPressed: _restorePromptOrder,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppIconButton(
+                    icon: Icons.add,
+                    tooltip: strings.addOne,
+                    onPressed: () => PromptManagerPanel.addSection(context),
+                  ),
+                  const SizedBox(width: AppTheme.spaceXs),
+                  AppIconButton(
+                    icon: Icons.restart_alt_outlined,
+                    tooltip: strings.presetRestoreOrderAction,
+                    onPressed: _restorePromptOrder,
+                  ),
+                ],
               ),
             ),
             const PromptManagerPanel(),
