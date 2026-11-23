@@ -106,6 +106,7 @@ class VisualImagePipeline {
         castOut.add(
           member.copyWith(
             visualTags: row.visualTags,
+            portraitPrompt: row.portraitPrompt,
             avatarAssetId: assetId,
           ),
         );
@@ -342,8 +343,10 @@ class VisualImagePipeline {
     );
   }
 
-  /// Default portrait prompt from locked tags / facing.
+  /// Default portrait prompt from the kept prompt, else locked tags / facing.
   static String defaultPortraitPrompt(CastMember member) {
+    final stored = member.portraitPrompt.trim();
+    if (stored.isNotEmpty) return stored;
     final tags = member.visualTags.trim();
     if (tags.isEmpty) return '';
     return '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
@@ -371,7 +374,11 @@ class VisualImagePipeline {
     final cast = project.cast.map((m) {
       final row = byId[m.id];
       if (row == null) return m;
-      return m.copyWith(visualTags: row.visualTags, facing: row.facing);
+      return m.copyWith(
+        visualTags: row.visualTags,
+        portraitPrompt: row.portraitPrompt,
+        facing: row.facing,
+      );
     }).toList(growable: false);
     final sceneById = <String, SceneVisualPrompt>{
       for (final s in plan.scenes) s.nodeId: s,

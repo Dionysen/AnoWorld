@@ -195,6 +195,7 @@ Project applyVisualPromptPlan(Project project, VisualPromptPlan plan) {
     if (row == null) return member;
     return member.copyWith(
       visualTags: row.visualTags.trim(),
+      portraitPrompt: row.portraitPrompt.trim(),
       facing: row.facing,
     );
   }).toList(growable: false);
@@ -212,16 +213,34 @@ Project applyVisualPromptPlan(Project project, VisualPromptPlan plan) {
 }
 
 /// Builds a plan from already-filled project fields (skip LLM if complete).
-VisualPromptPlan? planFromProjectFields(Project project) {
-  if (project.cast.isEmpty || project.main.nodes.isEmpty) return null;
+///
+/// Returns null when a character or scene still has no prompt to draw from.
+VisualPromptPlan? planFromProjectFields(Project project) =>
+    _planFromProjectFields(project, keepEmpty: false);
+
+/// Same rows as [planFromProjectFields], but rows without a prompt stay in so
+/// the visual page can list every character / scene before the first pass.
+VisualPromptPlan draftPlanFromProjectFields(Project project) =>
+    _planFromProjectFields(project, keepEmpty: true)!;
+
+VisualPromptPlan? _planFromProjectFields(
+  Project project, {
+  required bool keepEmpty,
+}) {
+  if (!keepEmpty && (project.cast.isEmpty || project.main.nodes.isEmpty)) {
+    return null;
+  }
   final characters = <CharacterVisualPrompt>[];
   for (final c in project.cast) {
     final tags = c.visualTags.trim();
-    if (tags.isEmpty) return null;
+    final stored = c.portraitPrompt.trim();
     final facing = c.facing;
-    final portrait =
-        '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
-        '${ComfyWorkflowTemplates.portraitCompositionFor(facing)}';
+    final derived = tags.isEmpty
+        ? ''
+        : '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
+            '${ComfyWorkflowTemplates.portraitCompositionFor(facing)}';
+    final portrait = stored.isNotEmpty ? stored : derived;
+    if (portrait.isEmpty && !keepEmpty) return null;
     characters.add(
       CharacterVisualPrompt(
         characterId: c.id,
@@ -235,7 +254,7 @@ VisualPromptPlan? planFromProjectFields(Project project) {
   final scenes = <SceneVisualPrompt>[];
   for (final n in project.main.nodes) {
     final prompt = n.imagePrompt?.trim() ?? '';
-    if (prompt.isEmpty) return null;
+    if (prompt.isEmpty && !keepEmpty) return null;
     scenes.add(
       SceneVisualPrompt(
         nodeId: n.id,

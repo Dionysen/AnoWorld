@@ -154,7 +154,7 @@
 
 **当前实现**：路径 3「走向」只生成 `summary` + 大站（含 `synopsis`）+ `default`/`branch` 边（`beats` 可空）；故事页「继续创作」打开创作截面（设定 / 角色 / 情节 / **画面**）；游玩时空拍进 [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)，失败或未配文案服务时用「前往：{下一站}」保底；样例「雨夜投宿」仍带预写对白作静态对照。路径 1/2 导入未做。
 
-**阶段 4 画面（MVP）**：创作枢纽 →「画面」→ 先用文本模型生成可控的立绘/场景提示词（`CastMember.visualTags` / `facing`、`StoryNode.imagePrompt`，可手改朝向）→ 经 ComfyUI（NoobAI）批量出立绘与每站场景图（步数/分辨率/超分读设置）→ 写入 `assets/` 并绑定 `avatarAssetId` / `backgroundAssetId`。立绘提示强制白底+描边+朝向标签，落盘前做边缘 flood-fill 去背成透明 PNG；场景保持完整环境。情节图选中站时画布下方（不盖画布）有一条约 112 高的该站场景图预览条（空间不够时自动收起，不让画布挤爆），站编辑抽屉可「重新画场景」；角色列表与编辑抽屉显示立绘，可「重新画立绘」（[`VisualImagePipeline.regenerateScene`](../lib/domain/ai/visual/visual_image_pipeline.dart) / `regenerateAvatar`）。VN 舞台铺节点背景图，说话人透明立绘按 `Appearance.slot`（或 `facing` 对侧）左右摆；无图仍可玩。
+**阶段 4 画面（MVP）**：创作枢纽「画面」一行显示已有 **n 张立绘，n 张场景图**（`avatarAssetId` / `backgroundAssetId` 的条数，都为 0 时写「还没有立绘和场景图」）。进入后首行两个按钮：**一键生成提示词**（文本模型产出统一画风的立绘/场景提示词，生成完立刻写回故事，落点 `CastMember.visualTags` / `portraitPrompt` / `facing`、`StoryNode.imagePrompt`）与 **一键生成图片**（经 ComfyUI（NoobAI）批量出立绘与每站场景图，步数/分辨率/超分读设置；已有图跳过）。下面是「画风 / 角色立绘 / 场景图」三组条目：左边是已生成图片（未生成用占位图；画风前缀与负面提示词用图标），右边是标题 + 两行提示词预览。点条目进全屏抽屉：图片 + 立绘朝向（角色行）+ 提示词编辑，右上角 **保存**；改过没保存就退出会先问「放弃这次修改？」。立绘提示强制白底+描边+朝向标签，落盘前做边缘 flood-fill 去背成透明 PNG；场景保持完整环境。情节图选中站时画布下方（不盖画布）有一条约 112 高的该站场景图预览条（空间不够时自动收起，不让画布挤爆），站编辑抽屉可「重新画场景」；角色列表与编辑抽屉显示立绘，可「重新画立绘」（[`VisualImagePipeline.regenerateScene`](../lib/domain/ai/visual/visual_image_pipeline.dart) / `regenerateAvatar`）。VN 舞台铺节点背景图，说话人透明立绘按 `Appearance.slot`（或 `facing` 对侧）左右摆；无图仍可玩。
 
 ### 创作助手（通用 Agent，已接通）
 

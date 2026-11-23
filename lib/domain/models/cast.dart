@@ -10,6 +10,7 @@ class CastMember {
     this.speechStyle = '',
     this.exampleLines = const <String>[],
     this.visualTags = '',
+    this.portraitPrompt = '',
     this.avatarAssetId,
     this.facing = SpriteFacing.right,
     this.isProtagonist = false,
@@ -25,6 +26,10 @@ class CastMember {
   /// Locked Danbooru-style appearance tags for image gen (face/hair/body).
   /// Kept stable across scenes so characters stay recognizable.
   final String visualTags;
+
+  /// Full standing-portrait prompt kept from the visual stage. Empty falls
+  /// back to a prompt rebuilt from [visualTags] + [facing].
+  final String portraitPrompt;
 
   final String? avatarAssetId;
 
@@ -45,6 +50,7 @@ class CastMember {
         'speechStyle': speechStyle,
         'exampleLines': exampleLines,
         if (visualTags.trim().isNotEmpty) 'visualTags': visualTags,
+        if (portraitPrompt.trim().isNotEmpty) 'portraitPrompt': portraitPrompt,
         if (avatarAssetId != null) 'avatarAssetId': avatarAssetId,
         if (facing != SpriteFacing.right) 'facing': facing.wireName,
         if (isProtagonist) 'isProtagonist': true,
@@ -59,6 +65,7 @@ class CastMember {
       speechStyle: json.optionalString('speechStyle') ?? '',
       exampleLines: json.stringList('exampleLines', required: false),
       visualTags: json.optionalString('visualTags') ?? '',
+      portraitPrompt: json.optionalString('portraitPrompt') ?? '',
       avatarAssetId: json.optionalString('avatarAssetId'),
       facing: SpriteFacingCodec.parseOr(
         json.optionalString('facing'),
@@ -76,6 +83,7 @@ class CastMember {
     String? speechStyle,
     List<String>? exampleLines,
     String? visualTags,
+    String? portraitPrompt,
     String? avatarAssetId,
     bool clearAvatarAssetId = false,
     SpriteFacing? facing,
@@ -89,6 +97,7 @@ class CastMember {
       speechStyle: speechStyle ?? this.speechStyle,
       exampleLines: exampleLines ?? this.exampleLines,
       visualTags: visualTags ?? this.visualTags,
+      portraitPrompt: portraitPrompt ?? this.portraitPrompt,
       avatarAssetId:
           clearAvatarAssetId ? null : (avatarAssetId ?? this.avatarAssetId),
       facing: facing ?? this.facing,

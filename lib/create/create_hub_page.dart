@@ -157,6 +157,16 @@ class _CreateHubPageState extends State<CreateHubPage>
     return context.strings.mainSize(project.main.nodes.length, size.main);
   }
 
+  String _visualSubtitle(BuildContext context, Project project) {
+    final portraits = project.cast
+        .where((c) => (c.avatarAssetId ?? '').trim().isNotEmpty)
+        .length;
+    final scenes = project.main.nodes
+        .where((n) => (n.backgroundAssetId ?? '').trim().isNotEmpty)
+        .length;
+    return context.strings.visualSize(portraits, scenes);
+  }
+
   String _plotElementsSubtitle(
     BuildContext context,
     Project project,
@@ -262,7 +272,7 @@ class _CreateHubPageState extends State<CreateHubPage>
                 ),
                 AppListTile(
                   title: context.strings.visualStageTitle,
-                  subtitle: context.strings.visualStageSubtitle,
+                  subtitle: _visualSubtitle(context, project),
                   icon: Icons.image_outlined,
                   trailing: const AppForwardIcon(),
                   onTap: () => _open(

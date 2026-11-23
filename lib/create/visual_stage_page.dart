@@ -1,22 +1,35 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/create/visual_asset_preview.dart';
+import 'package:anoworld/data/project/project_asset_files.dart';
 import 'package:anoworld/domain/ai/visual/comfy_workflow_templates.dart';
 import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_actions.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_models.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
+import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
+import 'package:anoworld/foundation/widgets/app_image.dart';
+import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
+import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 
 /// Stage 4: controlled image prompts → ComfyUI portraits + scene backgrounds.
@@ -31,18 +44,22 @@ class VisualStagePage extends StatefulWidget {
 
 class _VisualStagePageState extends State<VisualStagePage> {
   Project? _project;
+  String? _projectDir;
   VisualPromptPlan? _plan;
   Object? _error;
   String? _status;
   double? _progress;
   bool _loading = true;
+  bool _loadScheduled = false;
   bool _busyPrompts = false;
   bool _busyImages = false;
-  bool _skipExisting = true;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // AppScope is an inherited widget: reading it in initState throws.
+    if (_loadScheduled) return;
+    _loadScheduled = true;
     unawaited(_load());
   }
 
@@ -52,15 +69,23 @@ class _VisualStagePageState extends State<VisualStagePage> {
       _error = null;
     });
     try {
-      final project =
-          await AppScope.projectsOf(context).open(widget.projectId);
+      final projects = AppScope.projectsOf(context);
+      final project = await projects.open(widget.projectId);
+      final dir = await projects.directoryFor(widget.projectId);
       if (!mounted) return;
       setState(() {
         _project = project;
-        _plan = planFromProjectFields(project);
+        _projectDir = dir;
+        _plan = draftPlanFromProjectFields(project);
         _loading = false;
       });
-    } catch (error) {
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '打开画面页失败',
+        tag: 'visual.stage',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) return;
       setState(() {
         _error = error;
@@ -69,100 +94,100 @@ class _VisualStagePageState extends State<VisualStagePage> {
     }
   }
 
-  Future<void> _writePrompts() async {
+  Future<void> _generatePrompts() async {
     final project = _project;
     if (project == null) return;
     final strings = context.strings;
     if (project.cast.isEmpty) {
-      setState(() => _error = strings.visualStageNeedCast);
+      showAppToast(context, strings.visualStageNeedCast);
       return;
     }
     if (project.main.nodes.isEmpty) {
-      setState(() => _error = strings.visualStageNeedNodes);
+      showAppToast(context, strings.visualStageNeedNodes);
       return;
     }
     setState(() {
       _busyPrompts = true;
-      _error = null;
+      _progress = null;
       _status = strings.visualStageBusyPrompts;
     });
+    AppLog.instance.info('生成画面提示词', tag: 'visual.prompts');
     try {
       final settings = AppScope.settingsOf(context);
-      final ctx = settings.textPromptContext();
       final actions = VisualPromptActions(
         textClient: AppScope.textClientOf(context),
       );
-      final plan = await actions.generatePlan(ctx: ctx, project: project);
+      final plan = await actions.generatePlan(
+        ctx: settings.textPromptContext(),
+        project: project,
+      );
       if (!mounted) return;
       setState(() {
         _plan = plan;
         _busyPrompts = false;
-        _status = strings.visualStagePromptsReady;
+        _status = null;
       });
-    } catch (error) {
+      await _savePlan(plan);
+      if (!mounted) return;
+      AppLog.instance.info('画面提示词已生成', tag: 'visual.prompts');
+      showAppToast(context, strings.visualStagePromptsSaved);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '生成画面提示词失败',
+        tag: 'visual.prompts',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) return;
       setState(() {
         _busyPrompts = false;
-        _error = error;
         _status = null;
       });
+      showAppToast(context, error.toString());
     }
-  }
-
-  Future<void> _savePromptsOnly() async {
-    final project = _project;
-    final plan = _plan;
-    if (project == null || plan == null) return;
-    final projects = AppScope.projectsOf(context);
-    final changes = AppScope.projectChangesOf(context);
-    final savedLabel = context.strings.visualStageSavePrompts;
-    final next = applyVisualPromptPlan(project, plan);
-    await projects.save(next);
-    changes.markChanged(widget.projectId);
-    if (!mounted) return;
-    setState(() {
-      _project = next;
-      _status = savedLabel;
-    });
   }
 
   Future<void> _generateImages() async {
     final project = _project;
-    var plan = _plan;
+    final plan = _plan;
     final strings = context.strings;
-    if (project == null) return;
-    plan ??= planFromProjectFields(project);
-    if (plan == null) {
-      setState(() => _error = '请先生成或填写提示词');
+    if (project == null || plan == null) return;
+    if (project.cast.isEmpty) {
+      showAppToast(context, strings.visualStageNeedCast);
+      return;
+    }
+    if (project.main.nodes.isEmpty) {
+      showAppToast(context, strings.visualStageNeedNodes);
+      return;
+    }
+    if (!plan.isComplete) {
+      showAppToast(context, strings.visualStageNeedPrompts);
       return;
     }
     final image = AppScope.settingsOf(context).ai.image;
     if (image.kind != AiImageProviderKind.comfyui || !image.isConfigured) {
-      setState(() => _error = strings.visualStageNeedComfy);
+      showAppToast(context, strings.visualStageNeedComfy);
       return;
     }
+    final projects = AppScope.projectsOf(context);
+    final changes = AppScope.projectChangesOf(context);
     setState(() {
       _busyImages = true;
-      _error = null;
-      _status = strings.visualStageBusyImages;
       _progress = 0;
-      _plan = plan;
+      _status = strings.visualStageBusyImages;
     });
+    AppLog.instance.info('开始生成画面图片', tag: 'visual.images');
     try {
-      final projects = AppScope.projectsOf(context);
-      final changes = AppScope.projectChangesOf(context);
-      final doneLabel = strings.visualStageImagesDone;
-      final dir = await projects.directoryFor(widget.projectId);
+      final dir = _projectDir ?? await projects.directoryFor(widget.projectId);
       if (dir == null || dir.isEmpty) {
         throw const VisualImageException('找不到故事文件夹');
       }
-      final pipeline = VisualImagePipeline();
-      final next = await pipeline.run(
+      final next = await VisualImagePipeline().run(
         project: project,
         projectDir: dir,
         image: image,
         plan: plan,
-        skipExisting: _skipExisting,
+        skipExisting: true,
         onProgress: (message, progress) {
           if (!mounted) return;
           setState(() {
@@ -171,44 +196,182 @@ class _VisualStagePageState extends State<VisualStagePage> {
           });
         },
       );
-      await projects.save(next);
+      final saved = await saveProjectMerged(
+        projects,
+        widget.projectId,
+        (latest) => latest.copyWith(
+          cast: next.cast,
+          assets: next.assets,
+          main: next.main,
+        ),
+      );
+      if (!mounted) return;
       changes.markChanged(widget.projectId);
+      setState(() {
+        _project = saved;
+        _plan = draftPlanFromProjectFields(saved);
+        _busyImages = false;
+        _status = null;
+        _progress = null;
+      });
+      AppLog.instance.info('画面图片已写入', tag: 'visual.images');
+      showAppToast(context, strings.visualStageImagesDone);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '生成画面图片失败',
+        tag: 'visual.images',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) return;
       setState(() {
-        _project = next;
         _busyImages = false;
-        _status = doneLabel;
-        _progress = 1;
+        _status = null;
+        _progress = null;
       });
-    } catch (error) {
+      showAppToast(context, error.toString());
+    }
+  }
+
+  /// Auto-save: prompts are the layer this page owns.
+  Future<void> _savePlan(VisualPromptPlan plan) async {
+    final saved = await saveProjectMerged(
+      AppScope.projectsOf(context),
+      widget.projectId,
+      (latest) => applyVisualPromptPlan(latest, plan),
+    );
+    if (!mounted) return;
+    AppScope.projectChangesOf(context).markChanged(widget.projectId);
+    setState(() => _project = saved);
+  }
+
+  File? _assetFile(Project project, String? assetId) {
+    final dir = _projectDir;
+    final id = assetId?.trim();
+    if (dir == null || id == null || id.isEmpty) return null;
+    return ProjectAssetFiles.tryFile(
+      projectDir: dir,
+      asset: project.assetById(id),
+    );
+  }
+
+  List<_VisualRow> _styleRows(VisualPromptPlan plan) {
+    final strings = context.strings;
+    return [
+      _VisualRow(
+        title: strings.visualStageStylePrefix,
+        prompt: plan.stylePrefix,
+        icon: Icons.palette_outlined,
+        missingLabel: strings.visualStageNoPrompt,
+        apply: (next, prompt, _) => next.copyWith(stylePrefix: prompt),
+      ),
+      _VisualRow(
+        title: strings.visualStageNegative,
+        prompt: plan.negativePrompt,
+        icon: Icons.block,
+        missingLabel: strings.visualStageNoPrompt,
+        apply: (next, prompt, _) => next.copyWith(negativePrompt: prompt),
+      ),
+    ];
+  }
+
+  List<_VisualRow> _portraitRows(Project project, VisualPromptPlan plan) {
+    final strings = context.strings;
+    return [
+      for (final row in plan.characters)
+        _VisualRow(
+          title: row.name,
+          prompt: row.portraitPrompt,
+          icon: Icons.person_outline,
+          missingLabel: strings.visualNoPortrait,
+          showsImage: true,
+          file: _assetFile(
+            project,
+            project.castById(row.characterId)?.avatarAssetId,
+          ),
+          facing: row.facing,
+          previewFit: BoxFit.contain,
+          apply: (next, prompt, facing) => next.copyWith(
+            characters: [
+              for (final c in next.characters)
+                c.characterId == row.characterId
+                    ? c.copyWith(
+                        portraitPrompt: prompt,
+                        facing: facing ?? c.facing,
+                      )
+                    : c,
+            ],
+          ),
+        ),
+    ];
+  }
+
+  List<_VisualRow> _sceneRows(Project project, VisualPromptPlan plan) {
+    final strings = context.strings;
+    return [
+      for (final row in plan.scenes)
+        _VisualRow(
+          title: row.title,
+          prompt: row.scenePrompt,
+          icon: Icons.image_outlined,
+          missingLabel: strings.visualNoScene,
+          showsImage: true,
+          file: _assetFile(
+            project,
+            project.main.nodeById(row.nodeId)?.backgroundAssetId,
+          ),
+          apply: (next, prompt, _) => next.copyWith(
+            scenes: [
+              for (final s in next.scenes)
+                s.nodeId == row.nodeId ? s.copyWith(scenePrompt: prompt) : s,
+            ],
+          ),
+        ),
+    ];
+  }
+
+  Future<void> _editRow(_VisualRow row) async {
+    final plan = _plan;
+    if (plan == null) return;
+    final edit = await showAppSheet<_PromptEdit>(
+      context: context,
+      size: AppSheetSize.full,
+      builder: (_) => _PromptSheet(row: row),
+    );
+    if (edit == null || !mounted) return;
+    final next = row.apply(plan, edit.prompt, edit.facing);
+    setState(() => _plan = next);
+    AppLog.instance.info('改画面提示词：${row.title}', tag: 'visual.stage');
+    try {
+      await _savePlan(next);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '保存画面提示词失败',
+        tag: 'visual.stage',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) return;
-      setState(() {
-        _busyImages = false;
-        _error = error;
-      });
+      showAppToast(context, context.strings.visualPromptSaveFailed);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
+    final project = _project;
+    final plan = _plan;
     final busy = _busyPrompts || _busyImages;
     return AppPage(
       title: strings.visualStageTitle,
       onBack: () => Navigator.of(context).maybePop(),
       body: AppPageBody.list(
         children: [
-          AppPageGutter(
-            child: AppText(
-              strings.visualStageBlurb,
-              role: AppTextRole.caption,
-            ),
-          ),
           if (_loading)
             AppPageGutter(
               child: AppText(strings.loading, role: AppTextRole.caption),
             )
-          else if (_project == null)
+          else if (project == null || plan == null)
             AppPageGutter(
               child: AppEmptyState(
                 message: strings.openStoryFailed,
@@ -222,217 +385,177 @@ class _VisualStagePageState extends State<VisualStagePage> {
             )
           else ...[
             AppPageGutter(
-              child: Wrap(
-                spacing: AppTheme.spaceSm,
-                runSpacing: AppTheme.spaceSm,
+              child: Row(
                 children: [
-                  AppButton(
-                    label: strings.visualStageWritePrompts,
-                    onPressed: busy ? null : _writePrompts,
+                  Expanded(
+                    child: AppButton(
+                      label: strings.visualStageWritePrompts,
+                      onPressed: busy ? null : _generatePrompts,
+                    ),
                   ),
-                  AppButton(
-                    label: strings.visualStageSavePrompts,
-                    onPressed: busy || _plan == null ? null : _savePromptsOnly,
-                    variant: AppButtonVariant.secondary,
-                  ),
-                  AppButton(
-                    label: strings.visualStageGenerateImages,
-                    onPressed: busy || _plan == null ? null : _generateImages,
+                  const SizedBox(width: AppTheme.spaceSm),
+                  Expanded(
+                    child: AppButton(
+                      label: strings.visualStageGenerateImages,
+                      variant: AppButtonVariant.secondary,
+                      onPressed: busy ? null : _generateImages,
+                    ),
                   ),
                 ],
               ),
             ),
-            AppPageGutter(
-              child: SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(strings.visualStageSkipExisting),
-                value: _skipExisting,
-                onChanged:
-                    busy ? null : (v) => setState(() => _skipExisting = v),
-              ),
-            ),
-            if (_status != null)
+            if (busy)
               AppPageGutter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AppText(_status!, role: AppTextRole.caption),
-                    if (_progress != null) ...[
-                      const SizedBox(height: AppTheme.spaceSm),
-                      LinearProgressIndicator(value: _progress),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: AppTheme.spaceInline),
+                  child: Row(
+                    children: [
+                      const AppBusyIndicator(size: 16, padding: EdgeInsets.zero),
+                      const SizedBox(width: AppTheme.spaceSm),
+                      Expanded(
+                        child: AppText(
+                          _busyLabel(_status),
+                          role: AppTextRole.caption,
+                          maxLines: 2,
+                        ),
+                      ),
                     ],
-                  ],
+                  ),
                 ),
               ),
-            if (_error != null)
-              AppPageGutter(
-                child: AppText(
-                  _error.toString(),
-                  role: AppTextRole.caption,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-            if (_plan != null) ..._planEditors(strings, _plan!, busy),
+            ..._sections(strings, project, plan, busy),
           ],
         ],
       ),
     );
   }
 
-  List<Widget> _planEditors(
+  String _busyLabel(String? status) {
+    final text = status?.trim() ?? '';
+    final progress = _progress;
+    if (progress == null) return text;
+    final pct = '${(progress * 100).round()}%';
+    return text.isEmpty ? pct : '$text · $pct';
+  }
+
+  List<Widget> _sections(
     AppStrings strings,
+    Project project,
     VisualPromptPlan plan,
     bool busy,
   ) {
+    final portraits = _portraitRows(project, plan);
+    final scenes = _sceneRows(project, plan);
+
+    Widget stack(List<_VisualRow> items) => AppListTileStack(
+          tiles: [
+            for (final row in items)
+              AppListTile(
+                title: row.title,
+                subtitle: row.subtitle,
+                leading: row.showsImage
+                    ? _VisualThumb(file: row.file, icon: row.icon)
+                    : null,
+                icon: row.showsImage ? null : row.icon,
+                trailing: const AppForwardIcon(),
+                onTap: busy ? null : () => _editRow(row),
+              ),
+          ],
+        );
+
     return [
-      AppPageGutter(
-        child: _EditableBlock(
-          key: ValueKey('style-${plan.stylePrefix.hashCode}'),
-          label: strings.visualStageStylePrefix,
-          initial: plan.stylePrefix,
-          maxLines: 3,
-          enabled: !busy,
-          onChanged: (v) => setState(() {
-            final current = _plan;
-            if (current == null) return;
-            _plan = current.copyWith(stylePrefix: v);
-          }),
-        ),
+      Padding(
+        padding: const EdgeInsets.only(top: AppTheme.spaceMd),
+        child: AppSectionHeader(strings.visualStageStyleSection, gutter: true),
       ),
-      AppPageGutter(
-        child: _EditableBlock(
-          key: ValueKey('neg-${plan.negativePrompt.hashCode}'),
-          label: strings.visualStageNegative,
-          initial: plan.negativePrompt,
-          maxLines: 3,
-          enabled: !busy,
-          onChanged: (v) => setState(() {
-            final current = _plan;
-            if (current == null) return;
-            _plan = current.copyWith(negativePrompt: v);
-          }),
-        ),
-      ),
-      for (var i = 0; i < plan.characters.length; i++) ...[
-        AppPageGutter(
-          child: _EditableBlock(
-            key: ValueKey('tags-${plan.characters[i].characterId}'),
-            label: '${plan.characters[i].name} · visualTags',
-            initial: plan.characters[i].visualTags,
-            maxLines: 2,
-            enabled: !busy,
-            onChanged: (v) => setState(() {
-              final current = _plan;
-              if (current == null) return;
-              final list = [...current.characters];
-              list[i] = list[i].copyWith(visualTags: v);
-              _plan = current.copyWith(characters: list);
-            }),
-          ),
-        ),
-        AppPageGutter(
-          child: AppOptionGroup<SpriteFacing>(
-            label: '${plan.characters[i].name} · ${strings.visualStageFacing}',
-            value: plan.characters[i].facing,
-            options: [
-              AppSegmentOption(
-                value: SpriteFacing.right,
-                label: strings.visualStageFacingRight,
-              ),
-              AppSegmentOption(
-                value: SpriteFacing.left,
-                label: strings.visualStageFacingLeft,
-              ),
-            ],
-            onChanged: busy
-                ? (_) {}
-                : (facing) => setState(() {
-                      final current = _plan;
-                      if (current == null) return;
-                      final list = [...current.characters];
-                      final row = list[i];
-                      list[i] = row.copyWith(
-                        facing: facing,
-                        portraitPrompt:
-                            ComfyWorkflowTemplates.applyFacingToPortraitPrompt(
-                          row.portraitPrompt,
-                          facing,
-                        ),
-                      );
-                      _plan = current.copyWith(characters: list);
-                    }),
-          ),
-        ),
-        AppPageGutter(
-          child: _EditableBlock(
-            key: ValueKey(
-              'portrait-${plan.characters[i].characterId}-'
-              '${plan.characters[i].facing.wireName}',
-            ),
-            label:
-                '${plan.characters[i].name} · ${strings.visualStagePortrait}',
-            initial: plan.characters[i].portraitPrompt,
-            maxLines: 4,
-            enabled: !busy,
-            onChanged: (v) => setState(() {
-              final current = _plan;
-              if (current == null) return;
-              final list = [...current.characters];
-              list[i] = list[i].copyWith(portraitPrompt: v);
-              _plan = current.copyWith(characters: list);
-            }),
-          ),
-        ),
+      stack(_styleRows(plan)),
+      if (portraits.isNotEmpty) ...[
+        const SizedBox(height: AppTheme.spaceMd),
+        AppSectionHeader(strings.visualStagePortraitSection, gutter: true),
+        stack(portraits),
       ],
-      for (var i = 0; i < plan.scenes.length; i++) ...[
-        AppPageGutter(
-          child: _EditableBlock(
-            key: ValueKey('scene-${plan.scenes[i].nodeId}'),
-            label: '${plan.scenes[i].title} · ${strings.visualStageScene}',
-            initial: plan.scenes[i].scenePrompt,
-            maxLines: 5,
-            enabled: !busy,
-            onChanged: (v) => setState(() {
-              final current = _plan;
-              if (current == null) return;
-              final list = [...current.scenes];
-              list[i] = list[i].copyWith(scenePrompt: v);
-              _plan = current.copyWith(scenes: list);
-            }),
-          ),
-        ),
+      if (scenes.isNotEmpty) ...[
+        const SizedBox(height: AppTheme.spaceMd),
+        AppSectionHeader(strings.visualStageSceneSection, gutter: true),
+        stack(scenes),
       ],
     ];
   }
 }
 
-class _EditableBlock extends StatefulWidget {
-  const _EditableBlock({
-    super.key,
-    required this.label,
-    required this.initial,
-    required this.onChanged,
-    this.maxLines = 1,
-    this.enabled = true,
+/// One prompt row on the list: image (or icon), title, prompt preview.
+class _VisualRow {
+  const _VisualRow({
+    required this.title,
+    required this.prompt,
+    required this.icon,
+    required this.missingLabel,
+    required this.apply,
+    this.showsImage = false,
+    this.file,
+    this.facing,
+    this.previewFit = BoxFit.cover,
   });
 
-  final String label;
-  final String initial;
-  final ValueChanged<String> onChanged;
-  final int maxLines;
-  final bool enabled;
+  final String title;
+  final String prompt;
+  final IconData icon;
 
-  @override
-  State<_EditableBlock> createState() => _EditableBlockState();
+  /// Shown as the preview when the prompt is still empty.
+  final String missingLabel;
+
+  /// Rewrites this row inside a plan (auto-saved by the page).
+  final VisualPromptPlan Function(
+    VisualPromptPlan plan,
+    String prompt,
+    SpriteFacing? facing,
+  ) apply;
+
+  /// True for picture rows (portrait / scene); prompt-only rows use [icon].
+  final bool showsImage;
+
+  /// Generated picture for this row, when it has one.
+  final File? file;
+
+  /// Set on portrait rows: the look direction baked into the prompt.
+  final SpriteFacing? facing;
+
+  final BoxFit previewFit;
+
+  String get subtitle {
+    final text = prompt.trim();
+    return text.isEmpty ? missingLabel : text;
+  }
 }
 
-class _EditableBlockState extends State<_EditableBlock> {
+/// Save result of the prompt sheet.
+class _PromptEdit {
+  const _PromptEdit({required this.prompt, this.facing});
+
+  final String prompt;
+  final SpriteFacing? facing;
+}
+
+class _PromptSheet extends StatefulWidget {
+  const _PromptSheet({required this.row});
+
+  final _VisualRow row;
+
+  @override
+  State<_PromptSheet> createState() => _PromptSheetState();
+}
+
+class _PromptSheetState extends State<_PromptSheet> {
   late final TextEditingController _controller;
+  late final String _initial;
+  late SpriteFacing? _facing;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initial);
+    _initial = widget.row.prompt.trim();
+    _controller = TextEditingController(text: _initial);
+    _facing = widget.row.facing;
   }
 
   @override
@@ -441,18 +564,99 @@ class _EditableBlockState extends State<_EditableBlock> {
     super.dispose();
   }
 
+  bool get _dirty =>
+      _controller.text.trim() != _initial || _facing != widget.row.facing;
+
+  void _setFacing(SpriteFacing facing) {
+    setState(() {
+      _facing = facing;
+      _controller.text = ComfyWorkflowTemplates.applyFacingToPortraitPrompt(
+        _controller.text,
+        facing,
+      );
+    });
+  }
+
+  void _save() {
+    Navigator.of(context).pop(
+      _PromptEdit(prompt: _controller.text.trim(), facing: _facing),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      ignoring: !widget.enabled,
-      child: Opacity(
-        opacity: widget.enabled ? 1 : 0.55,
-        child: AppTextField(
-          label: widget.label,
-          controller: _controller,
-          maxLines: widget.maxLines,
-          minLines: widget.maxLines > 1 ? 2 : 1,
-          onChanged: widget.onChanged,
+    final strings = context.strings;
+    final row = widget.row;
+    return AppSheetEditForm(
+      title: row.title,
+      isDirty: _dirty,
+      onSave: _save,
+      body: AppSheetScrollBody(
+        children: [
+          if (row.showsImage) ...[
+            VisualAssetPreview(
+              file: row.file,
+              emptyLabel: row.missingLabel,
+              height: 160,
+              fit: row.previewFit,
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+          ],
+          if (row.facing != null) ...[
+            AppOptionGroup<SpriteFacing>(
+              label: strings.visualStageFacing,
+              value: _facing ?? SpriteFacing.right,
+              options: [
+                AppSegmentOption(
+                  value: SpriteFacing.right,
+                  label: strings.visualStageFacingRight,
+                ),
+                AppSegmentOption(
+                  value: SpriteFacing.left,
+                  label: strings.visualStageFacingLeft,
+                ),
+              ],
+              onChanged: _setFacing,
+            ),
+            const SizedBox(height: AppTheme.spaceMd),
+          ],
+          AppTextField(
+            label: strings.visualPromptLabel,
+            controller: _controller,
+            minLines: 6,
+            maxLines: 12,
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Square row thumbnail: picture when generated, glyph placeholder otherwise.
+class _VisualThumb extends StatelessWidget {
+  const _VisualThumb({required this.file, required this.icon});
+
+  static const double size = 56;
+
+  final File? file;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final radius = AppUiTokens.of(context).radius;
+    final fallback = Icon(icon, size: 20, color: scheme.onSurfaceVariant);
+    final path = file?.path;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: SizedBox.square(
+        dimension: size,
+        child: ColoredBox(
+          color: scheme.surfaceContainerHighest,
+          child: path == null
+              ? Center(child: fallback)
+              : AppImage(path: path, fit: BoxFit.cover, fallback: fallback),
         ),
       ),
     );

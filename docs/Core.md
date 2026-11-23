@@ -75,6 +75,7 @@ App 全局（设置，与酒馆同类）
 - 来源：手建，或从 ST 角色卡**选择性摘取**字段后映射至此（及必要的 WorldBook 条目）；解析见 [`StCharacterCardParser`](../lib/domain/card_import/st_character_card_parser.dart)，映射见 [`StCardProjectMapper`](../lib/domain/card_import/st_card_project_mapper.dart)。导入时 [`RichTextSanitizer`](../lib/foundation/text/rich_text_sanitizer.dart) 去 HTML、保留 Markdown；可选手动「清理格式」。PNG 卡面写入故事 `ProjectMeta.coverPath`（[`ProjectCoverFiles.importFromBytes`](../lib/data/project/project_cover_files.dart)）。
 - 立绘等图片：优先走**生图通道**配置的供应商（与文本/LLM 供应商列表分离，对齐 NativeTavern `ImageGenProvider`）；同时支持用户本地导入；运行时只认资源引用。
 - 立绘朝向 `facing`：`"left"` / `"right"`（默认 right）。惯例面朝舞台中央——面向右站左边、面向左站右边；`Appearance.slot` 未写时用 `facing` 的对侧。生图提示词会写入对应 facing 标签。
+- 画面提示词：`visualTags` 锁长相标签（发色发型瞳色体型等，跨场景稳定）；`portraitPrompt` 存「画面」页确认的完整立绘提示词（空则按 `visualTags + facing` 现拼）。场景提示词落在 `StoryNode.imagePrompt`。
 - 角色是素材与演出主体，不是 ST 运行时人格容器；无插件、无正则人格脚本。
 
 ## Main（主线）——可选脉络 + 区间内 AI

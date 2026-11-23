@@ -15,6 +15,11 @@ class VisualPromptPlan {
   final List<CharacterVisualPrompt> characters;
   final List<SceneVisualPrompt> scenes;
 
+  /// Every character / scene row has a prompt worth drawing.
+  bool get isComplete =>
+      characters.every((c) => c.portraitPrompt.trim().isNotEmpty) &&
+      scenes.every((s) => s.scenePrompt.trim().isNotEmpty);
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'stylePrefix': stylePrefix,
         'negativePrompt': negativePrompt,

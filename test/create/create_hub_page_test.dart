@@ -86,6 +86,40 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('还没选'), findsOneWidget);
+    expect(find.text('还没有立绘和场景图'), findsOneWidget);
+  });
+
+  testWidgets('visual row counts generated portraits and scenes', (
+    tester,
+  ) async {
+    final withPictures = sample.copyWith(
+      cast: [
+        for (final member in sample.cast)
+          member.copyWith(
+            avatarAssetId: member.isProtagonist ? 'avatar_c_hero' : null,
+          ),
+      ],
+      main: sample.main.copyWith(
+        nodes: [
+          for (final node in sample.main.nodes)
+            node.id == 'n1'
+                ? node.copyWith(backgroundAssetId: 'bg_n1')
+                : node,
+        ],
+      ),
+    );
+    final repo = MemoryProjectRepository(
+      seed: {sample.meta.id: withPictures},
+    );
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        home: CreateHubPage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 张立绘，1 张场景图'), findsOneWidget);
   });
 
   testWidgets('create hub opens background / cast / main', (tester) async {

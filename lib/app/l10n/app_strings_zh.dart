@@ -733,23 +733,25 @@ class AppStringsZh extends AppStrings {
   String get visualStageTitle => '画面';
 
   @override
-  String get visualStageSubtitle => '立绘与场景图';
+  String visualSize(int portraits, int scenes) {
+    if (portraits == 0 && scenes == 0) return '还没有立绘和场景图';
+    return '$portraits 张立绘，$scenes 张场景图';
+  }
 
   @override
-  String get visualStageBlurb =>
-      '先写好生图提示词（可改），再批量出立绘和每站场景图。立绘会标朝向并对侧摆位，画风锁在同一套标签上';
+  String get visualStageWritePrompts => '一键生成提示词';
 
   @override
-  String get visualStageWritePrompts => '生成提示词';
+  String get visualStageGenerateImages => '一键生成图片';
 
   @override
-  String get visualStageGenerateImages => '开始出图';
+  String get visualStageStyleSection => '画风';
 
   @override
-  String get visualStageSavePrompts => '保存提示词';
+  String get visualStagePortraitSection => '角色立绘';
 
   @override
-  String get visualStageSkipExisting => '跳过已有图片';
+  String get visualStageSceneSection => '场景图';
 
   @override
   String get visualStageNeedCast => '先准备好角色';
@@ -758,22 +760,22 @@ class AppStringsZh extends AppStrings {
   String get visualStageNeedNodes => '先准备好情节站';
 
   @override
-  String get visualStageNeedComfy => '请先在设置 → AI → 生图里选 ComfyUI 并填好地址';
+  String get visualStageNeedComfy => '先在设置里选好生图服务，填好地址';
 
   @override
-  String get visualStagePromptsReady => '提示词已写好，可以改完再出图';
+  String get visualStageNeedPrompts => '先生成提示词，再出图';
 
   @override
-  String get visualStageImagesDone => '画面已写入故事';
+  String get visualStagePromptsSaved => '提示词已保存';
+
+  @override
+  String get visualStageImagesDone => '图片已写入故事';
 
   @override
   String get visualStageStylePrefix => '画风前缀';
 
   @override
   String get visualStageNegative => '负面提示词';
-
-  @override
-  String get visualStagePortrait => '立绘提示词';
 
   @override
   String get visualStageFacing => '立绘朝向';
@@ -785,7 +787,13 @@ class AppStringsZh extends AppStrings {
   String get visualStageFacingRight => '面向右 · 站左边';
 
   @override
-  String get visualStageScene => '场景提示词';
+  String get visualStageNoPrompt => '还没有提示词';
+
+  @override
+  String get visualPromptLabel => '提示词';
+
+  @override
+  String get visualPromptSaveFailed => '提示词没保存上，再试一次';
 
   @override
   String get visualStageBusyPrompts => '正在写提示词…';
