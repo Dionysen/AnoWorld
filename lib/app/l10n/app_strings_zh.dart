@@ -796,6 +796,18 @@ class AppStringsZh extends AppStrings {
   String get visualPromptSaveFailed => '提示词没保存上，再试一次';
 
   @override
+  String get visualPromptRegen => '重新生成提示词';
+
+  @override
+  String get visualPromptRegenDone => '提示词已更新';
+
+  @override
+  String get visualImageRegen => '重新生成图片';
+
+  @override
+  String get visualImageRegenDone => '图片已更新';
+
+  @override
   String get visualStageBusyPrompts => '正在写提示词…';
 
   @override

@@ -1,9 +1,12 @@
 import 'package:anoworld/create/visual_stage_page.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
+import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_actions.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -174,6 +177,82 @@ void main() {
     expect(promptButton.right, lessThan(imageButton.left));
   });
 
+  testWidgets('sheet offers prompt and picture regen per row', (tester) async {
+    await pumpPage(tester, viewSize: const Size(900, 1200));
+
+    await tester.tap(find.text('城门'));
+    await tester.pumpAndSettle();
+    expect(find.text('重新生成提示词'), findsOneWidget);
+    expect(find.text('重新生成图片'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    // Style prefix has no picture: only the prompt action.
+    await tester.tap(find.text('画风前缀'));
+    await tester.pumpAndSettle();
+    expect(find.text('重新生成提示词'), findsOneWidget);
+    expect(find.text('重新生成图片'), findsNothing);
+  });
+
+  testWidgets('regenerating one prompt only rewrites that field', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final repo = MemoryProjectRepository(seed: {sample.meta.id: sample});
+    await tester.pumpWidget(
+      testScoped(
+        projects: repo,
+        textClient: _FakePromptClient(
+          'Prompt: "masterpiece, 1boy, red_scarf, white background"',
+        ),
+        home: VisualStagePage(projectId: sample.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('城门'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重新生成提示词'));
+    await tester.pumpAndSettle();
+    // Model chatter is trimmed down to one prompt line.
+    expect(
+      find.text('masterpiece, 1boy, red_scarf, white background'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    final opened = await repo.open(sample.meta.id);
+    expect(
+      opened.main.nodeById('n1')!.imagePrompt,
+      'masterpiece, 1boy, red_scarf, white background',
+    );
+    // Sibling scene keeps its own prompt untouched.
+    expect(opened.main.nodeById('n2')!.imagePrompt, isNull);
+  });
+
+  testWidgets('picture regen needs a prompt, then an image provider', (
+    tester,
+  ) async {
+    await pumpPage(tester, viewSize: const Size(900, 1200));
+
+    await tester.tap(find.text('少年'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重新生成图片'));
+    await tester.pumpAndSettle();
+    expect(find.text('先生成提示词，再出图'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'masterpiece, 1boy');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重新生成图片'));
+    await tester.pumpAndSettle();
+    expect(find.text('先在设置里选好生图服务，填好地址'), findsOneWidget);
+    // Placeholder stays: the sheet still has no picture to show.
+    expect(find.text('还没有立绘'), findsWidgets);
+  });
+
   test('draft plan keeps empty rows so the list still shows them', () {
     final draft = draftPlanFromProjectFields(sample);
     expect(draft.characters, hasLength(2));
@@ -207,4 +286,32 @@ void main() {
     expect(plan.characters.single.portraitPrompt, 'kept prompt');
     expect(plan.scenes.single.scenePrompt, 'kept scene');
   });
+
+  test('normalizeVisualPrompt folds model chatter into one line', () {
+    expect(
+      normalizeVisualPrompt('```\nPrompt: "masterpiece, anime"\n```'),
+      'masterpiece, anime',
+    );
+    expect(
+      normalizeVisualPrompt('提示词：1girl,\n  white background\n'),
+      '1girl, white background',
+    );
+    expect(normalizeVisualPrompt('   '), '');
+  });
+}
+
+class _FakePromptClient implements AiTextClient {
+  _FakePromptClient(this.reply);
+
+  final String reply;
+
+  @override
+  Future<AiTextCompletion> complete({
+    required AiTextEndpoint endpoint,
+    required String system,
+    required String user,
+    GenerationPreset? generation,
+  }) async {
+    return AiTextCompletion(content: reply);
+  }
 }

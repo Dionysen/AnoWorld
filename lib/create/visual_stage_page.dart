@@ -263,6 +263,7 @@ class _VisualStagePageState extends State<VisualStagePage> {
         prompt: plan.stylePrefix,
         icon: Icons.palette_outlined,
         missingLabel: strings.visualStageNoPrompt,
+        target: VisualPromptTarget.stylePrefix,
         apply: (next, prompt, _) => next.copyWith(stylePrefix: prompt),
       ),
       _VisualRow(
@@ -270,6 +271,7 @@ class _VisualStagePageState extends State<VisualStagePage> {
         prompt: plan.negativePrompt,
         icon: Icons.block,
         missingLabel: strings.visualStageNoPrompt,
+        target: VisualPromptTarget.negativePrompt,
         apply: (next, prompt, _) => next.copyWith(negativePrompt: prompt),
       ),
     ];
@@ -285,6 +287,8 @@ class _VisualStagePageState extends State<VisualStagePage> {
           icon: Icons.person_outline,
           missingLabel: strings.visualNoPortrait,
           showsImage: true,
+          target: VisualPromptTarget.portrait,
+          characterId: row.characterId,
           file: _assetFile(
             project,
             project.castById(row.characterId)?.avatarAssetId,
@@ -316,6 +320,8 @@ class _VisualStagePageState extends State<VisualStagePage> {
           icon: Icons.image_outlined,
           missingLabel: strings.visualNoScene,
           showsImage: true,
+          target: VisualPromptTarget.scene,
+          nodeId: row.nodeId,
           file: _assetFile(
             project,
             project.main.nodeById(row.nodeId)?.backgroundAssetId,
@@ -336,7 +342,12 @@ class _VisualStagePageState extends State<VisualStagePage> {
     final edit = await showAppSheet<_PromptEdit>(
       context: context,
       size: AppSheetSize.full,
-      builder: (_) => _PromptSheet(row: row),
+      builder: (_) => _PromptSheet(
+        row: row,
+        onRegeneratePrompt: (current) => _regeneratePrompt(row, current),
+        onRegenerateImage:
+            row.showsImage ? (prompt) => _regenerateImage(row, prompt) : null,
+      ),
     );
     if (edit == null || !mounted) return;
     final next = row.apply(plan, edit.prompt, edit.facing);
@@ -353,6 +364,128 @@ class _VisualStagePageState extends State<VisualStagePage> {
       );
       if (!mounted) return;
       showAppToast(context, context.strings.visualPromptSaveFailed);
+    }
+  }
+
+  /// One-row prompt rewrite; returns the new text without saving it.
+  Future<String?> _regeneratePrompt(_VisualRow row, String current) async {
+    final project = _project;
+    final plan = _plan;
+    if (project == null || plan == null) return null;
+    final strings = context.strings;
+    try {
+      final actions = VisualPromptActions(
+        textClient: AppScope.textClientOf(context),
+      );
+      final prompt = await actions.regeneratePrompt(
+        ctx: AppScope.settingsOf(context).textPromptContext(),
+        project: project,
+        plan: plan,
+        target: row.target,
+        current: current,
+        characterId: row.characterId,
+        nodeId: row.nodeId,
+      );
+      AppLog.instance.info('重写提示词：${row.title}', tag: 'visual.prompts');
+      if (!mounted) return prompt;
+      showAppToast(context, strings.visualPromptRegenDone);
+      return prompt;
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '重写提示词失败：${row.title}',
+        tag: 'visual.prompts',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return null;
+      showAppToast(context, error.toString());
+      return null;
+    }
+  }
+
+  /// Redraws one picture with [prompt] after saving that prompt.
+  Future<File?> _regenerateImage(_VisualRow row, String prompt) async {
+    final project = _project;
+    final plan = _plan;
+    final characterId = row.characterId;
+    final nodeId = row.nodeId;
+    if (project == null || plan == null) return null;
+    final strings = context.strings;
+    if (prompt.trim().isEmpty) {
+      showAppToast(context, strings.visualStageNeedPrompts);
+      return null;
+    }
+    final image = AppScope.settingsOf(context).ai.image;
+    if (image.kind != AiImageProviderKind.comfyui || !image.isConfigured) {
+      showAppToast(context, strings.visualStageNeedComfy);
+      return null;
+    }
+    final projects = AppScope.projectsOf(context);
+    final changes = AppScope.projectChangesOf(context);
+    try {
+      final dir = _projectDir ?? await projects.directoryFor(widget.projectId);
+      if (dir == null || dir.isEmpty) {
+        throw const VisualImageException('找不到故事文件夹');
+      }
+      final nextPlan = row.apply(plan, prompt, row.facing);
+      final latest = await saveProjectMerged(
+        projects,
+        widget.projectId,
+        (stored) => applyVisualPromptPlan(stored, nextPlan),
+      );
+      AppLog.instance.info('重画${row.title}', tag: 'visual.regen');
+      final pipeline = VisualImagePipeline();
+      final redrawn = switch (row.target) {
+        VisualPromptTarget.portrait => await pipeline.regenerateAvatar(
+            project: latest,
+            projectDir: dir,
+            image: image,
+            characterId: characterId!,
+            prompt: prompt,
+          ),
+        VisualPromptTarget.scene => await pipeline.regenerateScene(
+            project: latest,
+            projectDir: dir,
+            image: image,
+            nodeId: nodeId!,
+            prompt: prompt,
+          ),
+        VisualPromptTarget.stylePrefix ||
+        VisualPromptTarget.negativePrompt =>
+          throw const VisualImageException('这一行没有图片'),
+      };
+      final saved = await saveProjectMerged(
+        projects,
+        widget.projectId,
+        (stored) => stored.copyWith(
+          cast: redrawn.cast,
+          assets: redrawn.assets,
+          main: redrawn.main,
+        ),
+      );
+      if (!mounted) return null;
+      changes.markChanged(widget.projectId);
+      setState(() {
+        _project = saved;
+        _plan = row.apply(plan, prompt, row.facing);
+      });
+      showAppToast(context, strings.visualImageRegenDone);
+      return _assetFile(
+        saved,
+        row.target == VisualPromptTarget.portrait
+            ? saved.castById(characterId!)?.avatarAssetId
+            : saved.main.nodeById(nodeId!)?.backgroundAssetId,
+      );
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '重画失败：${row.title}',
+        tag: 'visual.regen',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return null;
+      showAppToast(context, error.toString());
+      return null;
     }
   }
 
@@ -490,9 +623,12 @@ class _VisualRow {
     required this.prompt,
     required this.icon,
     required this.missingLabel,
+    required this.target,
     required this.apply,
     this.showsImage = false,
     this.file,
+    this.characterId,
+    this.nodeId,
     this.facing,
     this.previewFit = BoxFit.cover,
   });
@@ -503,6 +639,9 @@ class _VisualRow {
 
   /// Shown as the preview when the prompt is still empty.
   final String missingLabel;
+
+  /// Which plan field this row rewrites.
+  final VisualPromptTarget target;
 
   /// Rewrites this row inside a plan (auto-saved by the page).
   final VisualPromptPlan Function(
@@ -516,6 +655,12 @@ class _VisualRow {
 
   /// Generated picture for this row, when it has one.
   final File? file;
+
+  /// Portrait rows: the cast member whose picture this row draws.
+  final String? characterId;
+
+  /// Scene rows: the story node whose picture this row draws.
+  final String? nodeId;
 
   /// Set on portrait rows: the look direction baked into the prompt.
   final SpriteFacing? facing;
@@ -537,9 +682,19 @@ class _PromptEdit {
 }
 
 class _PromptSheet extends StatefulWidget {
-  const _PromptSheet({required this.row});
+  const _PromptSheet({
+    required this.row,
+    required this.onRegeneratePrompt,
+    this.onRegenerateImage,
+  });
 
   final _VisualRow row;
+
+  /// Fresh prompt for this row only (unsaved until **保存**).
+  final Future<String?> Function(String current) onRegeneratePrompt;
+
+  /// Redraws this row's picture with [prompt]; null when the row has none.
+  final Future<File?> Function(String prompt)? onRegenerateImage;
 
   @override
   State<_PromptSheet> createState() => _PromptSheetState();
@@ -547,8 +702,11 @@ class _PromptSheet extends StatefulWidget {
 
 class _PromptSheetState extends State<_PromptSheet> {
   late final TextEditingController _controller;
-  late final String _initial;
+  late String _initial;
   late SpriteFacing? _facing;
+  late File? _file;
+  bool _promptBusy = false;
+  bool _imageBusy = false;
 
   @override
   void initState() {
@@ -556,6 +714,7 @@ class _PromptSheetState extends State<_PromptSheet> {
     _initial = widget.row.prompt.trim();
     _controller = TextEditingController(text: _initial);
     _facing = widget.row.facing;
+    _file = widget.row.file;
   }
 
   @override
@@ -567,6 +726,8 @@ class _PromptSheetState extends State<_PromptSheet> {
   bool get _dirty =>
       _controller.text.trim() != _initial || _facing != widget.row.facing;
 
+  bool get _busy => _promptBusy || _imageBusy;
+
   void _setFacing(SpriteFacing facing) {
     setState(() {
       _facing = facing;
@@ -574,6 +735,33 @@ class _PromptSheetState extends State<_PromptSheet> {
         _controller.text,
         facing,
       );
+    });
+  }
+
+  Future<void> _regenPrompt() async {
+    setState(() => _promptBusy = true);
+    final prompt = await widget.onRegeneratePrompt(_controller.text.trim());
+    if (!mounted) return;
+    setState(() {
+      _promptBusy = false;
+      if (prompt != null && prompt.isNotEmpty) _controller.text = prompt;
+    });
+  }
+
+  Future<void> _regenImage() async {
+    final draw = widget.onRegenerateImage;
+    if (draw == null) return;
+    final prompt = _controller.text.trim();
+    setState(() => _imageBusy = true);
+    final file = await draw(prompt);
+    if (!mounted) return;
+    setState(() {
+      _imageBusy = false;
+      if (file != null) {
+        _file = file;
+        // The prompt was saved along with the picture.
+        _initial = prompt;
+      }
     });
   }
 
@@ -587,6 +775,7 @@ class _PromptSheetState extends State<_PromptSheet> {
   Widget build(BuildContext context) {
     final strings = context.strings;
     final row = widget.row;
+    final draw = widget.onRegenerateImage;
     return AppSheetEditForm(
       title: row.title,
       isDirty: _dirty,
@@ -595,14 +784,54 @@ class _PromptSheetState extends State<_PromptSheet> {
         children: [
           if (row.showsImage) ...[
             VisualAssetPreview(
-              file: row.file,
+              file: _file,
               emptyLabel: row.missingLabel,
               height: 160,
               fit: row.previewFit,
             ),
             const SizedBox(height: AppTheme.spaceMd),
           ],
+          Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  label: strings.visualPromptRegen,
+                  variant: AppButtonVariant.secondary,
+                  onPressed: _busy ? null : _regenPrompt,
+                ),
+              ),
+              if (draw != null) ...[
+                const SizedBox(width: AppTheme.spaceSm),
+                Expanded(
+                  child: AppButton(
+                    label: strings.visualImageRegen,
+                    variant: AppButtonVariant.secondary,
+                    onPressed: _busy ? null : _regenImage,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (_busy)
+            Padding(
+              padding: const EdgeInsets.only(top: AppTheme.spaceInline),
+              child: Row(
+                children: [
+                  const AppBusyIndicator(size: 16, padding: EdgeInsets.zero),
+                  const SizedBox(width: AppTheme.spaceSm),
+                  Expanded(
+                    child: AppText(
+                      _imageBusy
+                          ? strings.visualStageBusyImages
+                          : strings.visualStageBusyPrompts,
+                      role: AppTextRole.caption,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (row.facing != null) ...[
+            const SizedBox(height: AppTheme.spaceMd),
             AppOptionGroup<SpriteFacing>(
               label: strings.visualStageFacing,
               value: _facing ?? SpriteFacing.right,

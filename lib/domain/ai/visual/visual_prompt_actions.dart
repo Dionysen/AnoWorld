@@ -25,6 +25,40 @@ class VisualPromptActions {
     return _completeMapped(ctx: ctx, system: system, user: user);
   }
 
+  /// Rewrites one row's prompt in isolation, so [plan] may keep the
+  /// surrounding style lock as context.
+  Future<String> regeneratePrompt({
+    required AiPromptContext ctx,
+    required Project project,
+    required VisualPromptTarget target,
+    required String current,
+    VisualPromptPlan? plan,
+    String? characterId,
+    String? nodeId,
+  }) async {
+    final completion = await _text.complete(
+      endpoint: ctx.endpoint,
+      system: ctx.assembleSystem(
+        project: project,
+        taskSuffix: _rowRules(target),
+      ),
+      user: _rowPayload(
+        project: project,
+        plan: plan,
+        target: target,
+        current: current,
+        characterId: characterId,
+        nodeId: nodeId,
+      ),
+      generation: ctx.generation,
+    );
+    final prompt = normalizeVisualPrompt(completion.content);
+    if (prompt.isEmpty) {
+      throw const VisualPromptException('没写出提示词，请再试一次');
+    }
+    return prompt;
+  }
+
   Future<VisualPromptPlan> _completeMapped({
     required AiPromptContext ctx,
     required String system,
@@ -137,6 +171,113 @@ $nodeLines
 ''';
   }
 
+  /// Rules for one-row rewrites: plain text out, never JSON.
+  static String _rowRules(VisualPromptTarget target) => switch (target) {
+        VisualPromptTarget.stylePrefix => '''
+你只负责视觉小说的统一画风前缀。只输出一行英文 Danbooru 标签串（逗号分隔），
+不要 JSON、不要 markdown、不要解释。
+- 全剧立绘与场景共用这一条，含质量标签与 thick outline / anime outline / cel shading。
+- 不写具体角色长相，不写地点。
+''',
+        VisualPromptTarget.negativePrompt => '''
+你只负责立绘的负面提示词。只输出一行英文标签串（逗号分隔），不要解释。
+- 压掉：低质量、解剖错误、多余手指、水印签名、复杂背景 / 景物 / 渐变底。
+''',
+        VisualPromptTarget.portrait => '''
+你只负责一个角色的完整立绘正向提示词。只输出一行英文标签串，不要解释。
+- 结构：统一画风前缀 + 长相标签 + 白底描边立绘构图 + 朝向标签。
+- 必须含 white background 与 thick outline，便于去背；不要 looking at viewer。
+- 朝向必须与给出的 facing 一致（facing right → facing right, looking right, from side）。
+''',
+        VisualPromptTarget.scene => '''
+你只负责一个情节站的完整场景正向提示词。只输出一行英文标签串，不要解释。
+- 结构：统一画风前缀 + 地点与氛围 + 情节动作 + 在场角色的长相标签。
+- 保持完整环境，不要 white background；画面里最多 3 人。
+''',
+      };
+
+  String _rowPayload({
+    required Project project,
+    required VisualPromptPlan? plan,
+    required VisualPromptTarget target,
+    required String current,
+    String? characterId,
+    String? nodeId,
+  }) {
+    final lore = project.worldBook.combinedText.trim();
+    final excerpt =
+        lore.length > 600 ? '${lore.substring(0, 600)}…' : lore;
+    final style = plan?.stylePrefix.trim() ?? '';
+    final negative = plan?.negativePrompt.trim() ?? '';
+    final existing = current.trim();
+    final head = [
+      '## 故事',
+      '标题：${project.meta.title.trim()}',
+      '设定摘录：${excerpt.isEmpty ? '（无）' : excerpt}',
+    ];
+
+    switch (target) {
+      case VisualPromptTarget.stylePrefix:
+        return [
+          ...head,
+          if (style.isNotEmpty) '现有画风前缀：$style',
+          if (existing.isNotEmpty) '当前这一行：$existing',
+          '为这个故事写一条统一画风前缀。',
+        ].join('\n');
+      case VisualPromptTarget.negativePrompt:
+        return [
+          ...head,
+          if (existing.isNotEmpty) '当前负面提示词：$existing',
+          '为这个故事的立绘写一条负面提示词。',
+        ].join('\n');
+      case VisualPromptTarget.portrait:
+        final member = characterId == null
+            ? null
+            : project.castById(characterId);
+        final tags = member?.visualTags.trim() ?? '';
+        return [
+          ...head,
+          '## 角色',
+          'name=${member?.name ?? ''}',
+          'summary=${member?.summary ?? ''}',
+          'personality=${member?.personality ?? ''}',
+          'facing=${member?.facing.wireName ?? 'right'}',
+          if (tags.isNotEmpty) 'visualTags=$tags',
+          if (style.isNotEmpty) '## 统一画风前缀（必须原样沿用）\n$style',
+          if (negative.isNotEmpty) '## 负面提示词（参考，不必写进正向）\n$negative',
+          if (existing.isNotEmpty) '## 当前立绘提示词（在此基础上改，别大改长相）\n$existing',
+          '为这个角色写一条完整立绘提示词。',
+        ].join('\n');
+      case VisualPromptTarget.scene:
+        final node = nodeId == null ? null : project.main.nodeById(nodeId);
+        final present = plan?.scenes
+                .where((s) => s.nodeId == nodeId)
+                .expand((s) => s.presentCharacterIds) ??
+            const <String>[];
+        final castById = <String, CharacterVisualPrompt>{
+          for (final c in plan?.characters ?? const <CharacterVisualPrompt>[])
+            c.characterId: c,
+        };
+        return [
+          ...head,
+          '## 情节站',
+          'title=${node?.title ?? ''}',
+          'synopsis=${node?.synopsis ?? ''}',
+          'tags=${node?.tags.join(',') ?? ''}',
+          if (present.isNotEmpty) ...[
+            '## 在场角色',
+            for (final id in present)
+              if (castById[id] != null)
+                '- ${castById[id]!.name}: ${castById[id]!.visualTags}',
+          ],
+          if (style.isNotEmpty) '## 统一画风前缀（必须原样沿用）\n$style',
+          if (negative.isNotEmpty) '## 负面提示词（参考，不必写进正向）\n$negative',
+          if (existing.isNotEmpty) '## 当前场景提示词（在此基础上改）\n$existing',
+          '为这一站写一条完整场景提示词。',
+        ].join('\n');
+    }
+  }
+
   static const String _schema = '''
 你是视觉小说美术提示词导演。只输出一个 JSON 对象，不要 markdown。
 
@@ -193,23 +334,48 @@ Project applyVisualPromptPlan(Project project, VisualPromptPlan plan) {
   final cast = project.cast.map((member) {
     final row = castById[member.id];
     if (row == null) return member;
-    return member.copyWith(
-      visualTags: row.visualTags.trim(),
-      portraitPrompt: row.portraitPrompt.trim(),
-      facing: row.facing,
-    );
+    final tags = row.visualTags.trim();
+    final prompt = row.portraitPrompt.trim();
+    var next = member.copyWith(facing: row.facing);
+    if (tags.isNotEmpty) next = next.copyWith(visualTags: tags);
+    // Empty rows keep whatever the story already has.
+    if (prompt.isNotEmpty) next = next.copyWith(portraitPrompt: prompt);
+    return next;
   }).toList(growable: false);
 
   final nodes = project.main.nodes.map((node) {
     final row = sceneById[node.id];
     if (row == null) return node;
-    return node.copyWith(imagePrompt: row.scenePrompt.trim());
+    final prompt = row.scenePrompt.trim();
+    if (prompt.isEmpty) return node;
+    return node.copyWith(imagePrompt: prompt);
   }).toList(growable: false);
 
   return project.copyWith(
     cast: cast,
     main: project.main.copyWith(nodes: nodes),
   );
+}
+
+/// One editable prompt row inside a story's visual plan.
+enum VisualPromptTarget { stylePrefix, negativePrompt, portrait, scene }
+
+/// Trims model output down to a single prompt line.
+///
+/// Strips code fences, a leading `prompt:` / `提示词：` label, wrapping quotes
+/// and line breaks, so a chatty reply still lands as one tag string.
+String normalizeVisualPrompt(String raw) {
+  var text = raw.trim();
+  text = text.replaceAll(RegExp(r'^```[a-zA-Z]*'), '').trim();
+  text = text.replaceAll(RegExp(r'```$'), '').trim();
+  text = text.replaceAll(
+    RegExp(r'^(prompt|positive prompt|提示词)\s*[:：]\s*', caseSensitive: false),
+    '',
+  );
+  text = text.replaceAll(RegExp(r'[\r\n]+'), ' ');
+  text = text.replaceAll(RegExp(r'\s{2,}'), ' ');
+  text = text.replaceAll(RegExp(r'''^["'“”‘’]+|["'“”‘’]+$'''), '');
+  return text.trim();
 }
 
 /// Builds a plan from already-filled project fields (skip LLM if complete).
