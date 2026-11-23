@@ -10,6 +10,7 @@ class PlayChatMessage {
     required this.isUser,
     this.avatarLabel,
     this.reasoning,
+    this.streaming = false,
   });
 
   final String id;
@@ -18,10 +19,14 @@ class PlayChatMessage {
   final String? avatarLabel;
   final String? reasoning;
 
+  /// Assistant turn still arriving; suppresses the typing bubble.
+  final bool streaming;
+
   factory PlayChatMessage.fromTavern(
     TavernChatMessage message, {
     required String userLabel,
     required String assistantLabel,
+    bool streaming = false,
   }) {
     final isUser = message.role == TavernChatRole.user;
     return PlayChatMessage(
@@ -30,6 +35,7 @@ class PlayChatMessage {
       isUser: isUser,
       avatarLabel: isUser ? userLabel : assistantLabel,
       reasoning: isUser ? null : message.reasoning,
+      streaming: streaming,
     );
   }
 }

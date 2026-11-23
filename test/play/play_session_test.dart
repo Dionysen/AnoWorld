@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:anoworld/app/settings_controller.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/data/project/project_asset_files.dart';
 import 'package:anoworld/data/save/memory_save_repository.dart';
@@ -11,7 +12,6 @@ import 'package:anoworld/domain/models/project_asset.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
-import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
@@ -24,34 +24,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/test_app.dart';
 
-class _QueuedTextClient implements AiTextClient {
-  _QueuedTextClient(this._replies);
-
-  final List<String> _replies;
-  int calls = 0;
-  final List<Completer<void>> _gates = <Completer<void>>[];
-
-  /// Release the next pending model reply (FIFO).
-  void releaseNext() {
-    if (_gates.isEmpty) return;
-    _gates.removeAt(0).complete();
-  }
-
-  @override
-  Future<AiTextCompletion> complete({
-    required AiTextEndpoint endpoint,
-    required String system,
-    required String user,
-    GenerationPreset? generation,
-  }) async {
-    final gate = Completer<void>();
-    _gates.add(gate);
-    await gate.future;
-    if (calls >= _replies.length) {
-      throw AiTextException('no more replies');
-    }
-    return AiTextCompletion(content: _replies[calls++]);
-  }
+/// VN text appears instantly in these flow tests; the reveal itself is covered
+/// by the `AppTypewriterText` widget test.
+SettingsController instantVn([SettingsController? base]) {
+  final controller = base ?? testSettingsController();
+  controller.vnUi = controller.vnUi.copyWith(textSpeed: 0);
+  return controller;
 }
 
 /// Serves linear beat JSON or a branch-batch payload (echoing choiceIds).
@@ -170,6 +148,7 @@ void main() {
   Future<void> pumpLongPlay(WidgetTester tester) async {
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         home: PlaySessionPage(
           project: long,
           mode: PlayViewMode.visualNovel,
@@ -186,6 +165,7 @@ void main() {
   }) async {
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         home: PlaySessionPage(
           project: sample,
           mode: mode,
@@ -195,6 +175,30 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('VN line types out: first tap completes it, next advances', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testScoped(
+        home: PlaySessionPage(
+          project: sample,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('该走了。'), findsNothing);
+    await tester.tap(find.byType(AppDialoguePanel));
+    await tester.pump();
+    expect(find.text('该走了。'), findsOneWidget);
+
+    await tester.tap(find.byType(AppDialoguePanel));
+    await tester.pumpAndSettle();
+    expect(find.text('留宿？'), findsOneWidget);
+  });
 
   testWidgets('VN play reaches choices then can end', (tester) async {
     await pumpPlay(tester);
@@ -323,6 +327,7 @@ void main() {
     final saves = MemorySaveRepository();
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         saves: saves,
         home: PlaySessionPage(
           key: UniqueKey(),
@@ -349,6 +354,7 @@ void main() {
     // Reopen the same slot: still on the rewound line, newest progress kept.
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         saves: saves,
         home: PlaySessionPage(
           key: UniqueKey(),
@@ -380,6 +386,7 @@ void main() {
     final saves = MemorySaveRepository();
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         saves: saves,
         home: PlaySessionPage(
           project: sample,
@@ -401,6 +408,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         home: PlaySessionPage(
           project: skeleton,
           mode: PlayViewMode.visualNovel,
@@ -451,7 +459,7 @@ void main() {
 
     await tester.pumpWidget(
       testScoped(
-        settings: settings,
+        settings: instantVn(settings),
         textClient: client,
         saves: saves,
         home: PlaySessionPage(
@@ -534,7 +542,7 @@ void main() {
 
     await tester.pumpWidget(
       testScoped(
-        settings: settings,
+        settings: instantVn(settings),
         textClient: client,
         saves: saves,
         home: PlaySessionPage(
@@ -611,6 +619,7 @@ void main() {
     );
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         home: PlaySessionPage(
           project: withNarration,
           mode: PlayViewMode.visualNovel,
@@ -677,6 +686,7 @@ void main() {
     );
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         home: PlaySessionPage(
           project: paged,
           mode: PlayViewMode.visualNovel,
@@ -708,7 +718,7 @@ void main() {
     final settings = testSettingsController();
     await tester.pumpWidget(
       testScoped(
-        settings: settings,
+        settings: instantVn(settings),
         home: PlaySessionPage(
           project: sample,
           mode: PlayViewMode.visualNovel,
@@ -761,7 +771,7 @@ void main() {
     await settings.updateVnUi(const VnUiSettings(textHex: '#FF3366'));
     await tester.pumpWidget(
       testScoped(
-        settings: settings,
+        settings: instantVn(settings),
         home: PlaySessionPage(
           project: sample,
           mode: PlayViewMode.visualNovel,
@@ -842,6 +852,7 @@ void main() {
 
     await tester.pumpWidget(
       testScoped(
+        settings: instantVn(),
         projects: _TempDirProjects(project: staged, dir: dir.path),
         saves: saves,
         home: PlaySessionPage(

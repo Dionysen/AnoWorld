@@ -32,6 +32,12 @@ abstract final class AppDialogueChrome {
   static const double maxOpacity = 1;
   static const double opacityStep = 0.02;
 
+  /// Typewriter speed in characters per second; 0 shows text instantly.
+  static const double defaultTextSpeed = 28;
+  static const double minTextSpeed = 0;
+  static const double maxTextSpeed = 60;
+  static const double textSpeedStep = 1;
+
   /// Gaussian blur applied to the stage behind the panel.
   static const double blurSigma = 14;
 

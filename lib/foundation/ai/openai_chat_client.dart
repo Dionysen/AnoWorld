@@ -31,6 +31,24 @@ class OpenAiChatCompletion {
   bool get hasToolCalls => toolCalls.isNotEmpty;
 }
 
+/// One incremental chunk of a streamed chat completion.
+class OpenAiChatDelta {
+  const OpenAiChatDelta({
+    this.content = '',
+    this.reasoning = '',
+    this.finishReason,
+  });
+
+  final String content;
+  final String reasoning;
+
+  /// Set on the final event when the provider named a reason.
+  final String? finishReason;
+
+  bool get isEmpty =>
+      content.isEmpty && reasoning.isEmpty && finishReason == null;
+}
+
 /// Portable non-streaming OpenAI-compatible chat completions client.
 ///
 /// No product/business types — callers supply endpoint fields directly.
@@ -61,6 +79,183 @@ class OpenAiChatClient {
     /// `auto` (default) / `none` / `required`; only sent with [tools].
     String? toolChoice,
   }) async {
+    final request = _prepare(
+      baseUrl: baseUrl,
+      fallbackBaseUrl: fallbackBaseUrl,
+      model: model,
+      apiKey: apiKey,
+      needsApiKey: needsApiKey,
+      messages: messages,
+      temperature: temperature,
+      maxTokens: maxTokens,
+      generation: generation,
+      reasoningEffort: reasoningEffort,
+      reasoning: reasoning,
+      tools: tools,
+      toolChoice: toolChoice,
+    );
+
+    late final http.Response response;
+    try {
+      response = await _client.post(
+        request.uri,
+        headers: request.headers,
+        body: jsonEncode(request.body),
+      );
+    } catch (_) {
+      throw OpenAiChatException('连不上服务，请检查地址或网络');
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final detail = _extractErrorMessage(response.body);
+      throw OpenAiChatException(
+        detail.isEmpty ? '请求失败，请稍后重试' : detail,
+      );
+    }
+
+    final decoded = _tryDecodeMap(response.body);
+    if (decoded == null) {
+      throw OpenAiChatException('返回内容无法识别');
+    }
+    return _completionFromMap(decoded);
+  }
+
+  /// Streams one completion as incremental deltas (`stream: true`).
+  ///
+  /// Providers that ignore streaming (plain JSON body) or reject
+  /// `text/event-stream` still work: the whole reply is delivered as one
+  /// content delta so callers never need a separate non-streaming path.
+  Stream<OpenAiChatDelta> stream({
+    required String baseUrl,
+    required String model,
+    required List<OpenAiChatMessage> messages,
+    String apiKey = '',
+    bool needsApiKey = true,
+    String? fallbackBaseUrl,
+    double temperature = defaultTemperature,
+    int maxTokens = defaultMaxTokens,
+    GenerationPreset? generation,
+    String? reasoningEffort,
+    Map<String, dynamic>? reasoning,
+  }) async* {
+    final prepared = _prepare(
+      baseUrl: baseUrl,
+      fallbackBaseUrl: fallbackBaseUrl,
+      model: model,
+      apiKey: apiKey,
+      needsApiKey: needsApiKey,
+      messages: messages,
+      temperature: temperature,
+      maxTokens: maxTokens,
+      generation: generation,
+      reasoningEffort: reasoningEffort,
+      reasoning: reasoning,
+      stream: true,
+    );
+
+    final request = http.Request('POST', prepared.uri)
+      ..headers.addAll(prepared.headers)
+      ..body = jsonEncode(prepared.body);
+    request.headers['Accept'] = 'text/event-stream';
+
+    late final http.StreamedResponse response;
+    try {
+      response = await _client.send(request);
+    } catch (_) {
+      throw OpenAiChatException('连不上服务，请检查地址或网络');
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final raw = await response.stream.bytesToString();
+      final detail = _extractErrorMessage(raw);
+      throw OpenAiChatException(
+        detail.isEmpty ? '请求失败，请稍后重试' : detail,
+      );
+    }
+
+    final contentType = response.headers['content-type'] ?? '';
+    if (!contentType.toLowerCase().contains('text/event-stream')) {
+      // Provider answered in one piece; keep the caller's stream shape.
+      final raw = await response.stream.bytesToString();
+      final decoded = _tryDecodeMap(raw);
+      if (decoded == null) {
+        throw OpenAiChatException('返回内容无法识别');
+      }
+      final completion = _completionFromMap(decoded);
+      if (completion.hasReasoning) {
+        yield OpenAiChatDelta(reasoning: completion.reasoning!);
+      }
+      yield OpenAiChatDelta(
+        content: completion.content,
+        finishReason: completion.finishReason,
+      );
+      return;
+    }
+
+    var content = StringBuffer();
+    var reasoningText = StringBuffer();
+    String? finishReason;
+    await for (final line in response.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith(':')) continue;
+      if (!trimmed.startsWith('data:')) continue;
+      final payload = trimmed.substring(5).trim();
+      if (payload.isEmpty) continue;
+      if (payload == '[DONE]') break;
+      final map = _tryDecodeMap(payload);
+      if (map == null) continue;
+      final choices = map['choices'];
+      if (choices is! List || choices.isEmpty) continue;
+      final first = choices.first;
+      if (first is! Map) continue;
+      final finishRaw = first['finish_reason'];
+      if (finishRaw is String && finishRaw.isNotEmpty) {
+        finishReason = finishRaw;
+      }
+      final delta = first['delta'];
+      if (delta is! Map) continue;
+      final rawContent = delta['content'];
+      final deltaContent = rawContent is String ? rawContent : '';
+      // Deltas must keep their own spacing — trim only for the emptiness test.
+      final deltaReasoning = _readRawReasoningField(delta);
+      if (deltaContent.isEmpty && deltaReasoning.isEmpty) continue;
+      content.write(deltaContent);
+      reasoningText.write(deltaReasoning);
+      yield OpenAiChatDelta(
+        content: deltaContent,
+        reasoning: deltaReasoning,
+      );
+    }
+
+    if (content.toString().trim().isEmpty) {
+      throw _emptyReply(finishReason, reasoningText.toString());
+    }
+    yield OpenAiChatDelta(finishReason: finishReason);
+  }
+
+  /// Validates and builds the request shared by [complete] and [stream].
+  ({
+    Uri uri,
+    Map<String, String> headers,
+    Map<String, dynamic> body,
+  }) _prepare({
+    required String baseUrl,
+    required String model,
+    required List<OpenAiChatMessage> messages,
+    String apiKey = '',
+    bool needsApiKey = true,
+    String? fallbackBaseUrl,
+    double temperature = defaultTemperature,
+    int maxTokens = defaultMaxTokens,
+    GenerationPreset? generation,
+    String? reasoningEffort,
+    Map<String, dynamic>? reasoning,
+    List<OpenAiTool> tools = const <OpenAiTool>[],
+    String? toolChoice,
+    bool stream = false,
+  }) {
     final base = normalizeOpenAiBaseUrl(
       baseUrl.trim().isEmpty ? (fallbackBaseUrl ?? '') : baseUrl,
     );
@@ -84,6 +279,9 @@ class OpenAiChatClient {
       'temperature': generation?.temperature ?? temperature,
       'max_tokens': generation?.maxTokens ?? maxTokens,
     };
+    if (stream) {
+      body['stream'] = true;
+    }
     if (generation != null) {
       body['top_p'] = generation.topP;
       body['frequency_penalty'] = generation.frequencyPenalty;
@@ -109,34 +307,19 @@ class OpenAiChatClient {
     }
 
     final headers = <String, String>{
-      'Accept': 'application/json',
+      'Accept': stream ? 'text/event-stream' : 'application/json',
       'Content-Type': 'application/json',
       if (apiKey.trim().isNotEmpty)
         'Authorization': 'Bearer ${apiKey.trim()}',
     };
 
-    late final http.Response response;
-    try {
-      response = await _client.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(body),
-      );
-    } catch (_) {
-      throw OpenAiChatException('连不上服务，请检查地址或网络');
-    }
+    return (uri: uri, headers: headers, body: body);
+  }
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final detail = _extractErrorMessage(response.body);
-      throw OpenAiChatException(
-        detail.isEmpty ? '请求失败，请稍后重试' : detail,
-      );
-    }
-
-    final decoded = _tryDecodeMap(response.body);
-    if (decoded == null) {
-      throw OpenAiChatException('返回内容无法识别');
-    }
+  /// Decodes a non-streamed completion body.
+  static OpenAiChatCompletion _completionFromMap(
+    Map<String, dynamic> decoded,
+  ) {
     final choices = decoded['choices'];
     if (choices is! List || choices.isEmpty) {
       throw OpenAiChatException('模型没有返回可用内容');
@@ -238,6 +421,19 @@ class OpenAiChatClient {
       }
     }
     return null;
+  }
+
+  /// Same fields as [_readReasoningField] but keeps the delta's own spacing.
+  static String _readRawReasoningField(Map delta) {
+    for (final key in const [
+      'reasoning_content',
+      'reasoning',
+      'thought',
+    ]) {
+      final value = delta[key];
+      if (value is String && value.isNotEmpty) return value;
+    }
+    return '';
   }
 
   static Map<String, dynamic>? _tryDecodeMap(String body) {

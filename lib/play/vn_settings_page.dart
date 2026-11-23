@@ -65,6 +65,17 @@ class VnSettingsPage extends StatelessWidget {
                     controller.updateVnUi(vnUi.copyWith(fontSize: value)),
               ),
               AppSlider(
+                label: strings.dialogueTextSpeed,
+                icon: Icons.speed_outlined,
+                value: vnUi.textSpeed,
+                min: AppDialogueChrome.minTextSpeed,
+                max: AppDialogueChrome.maxTextSpeed,
+                step: AppDialogueChrome.textSpeedStep,
+                valueText: (v) => strings.dialogueTextSpeedValue(v.round()),
+                onChanged: (value) =>
+                    controller.updateVnUi(vnUi.copyWith(textSpeed: value)),
+              ),
+              AppSlider(
                 label: strings.dialogueOpacity,
                 icon: Icons.opacity,
                 value: vnUi.opacity,

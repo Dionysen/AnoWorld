@@ -320,6 +320,9 @@ abstract class AppStrings extends AppLocalizations {
   String get statusWriting;
   String get statusTurnFailed;
   String get statusRestarted;
+
+  /// Chat: the player cut off a streaming reply.
+  String get statusStopped;
   String get statusSafeExit;
   String get fallbackBeatText;
   String gotoNode(String name);
@@ -340,6 +343,8 @@ abstract class AppStrings extends AppLocalizations {
   String get dialogueBoxHint;
   String get dialogueLines;
   String dialogueLinesValue(int lines);
+  String get dialogueTextSpeed;
+  String dialogueTextSpeedValue(int charsPerSecond);
   String get dialogueFontSize;
   String dialogueFontSizeValue(double size);
   String get dialogueColorsSection;

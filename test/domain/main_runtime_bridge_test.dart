@@ -137,6 +137,63 @@ void main() {
     expect(runtime.needsBridge, isTrue);
   });
 
+  test('streamed lines grow the beat without moving the cursor', () {
+    const main = MainStory(
+      summary: '开放',
+      startNodeId: 'n1',
+      nodes: [
+        StoryNode(id: 'n1', title: '开场', beatIds: []),
+      ],
+      edges: [],
+      beats: [],
+    );
+    final runtime = MainRuntime(main);
+    runtime.adoptBridgeBeat(
+      const Beat(
+        id: 'b_stream',
+        nodeId: 'n1',
+        scene: Scene(locationText: '雨夜'),
+        appearances: [],
+        lines: [
+          DialogueLine(id: 'l0', text: '第一句', kind: DialogueKind.narration),
+        ],
+        choices: [],
+      ),
+    );
+    expect(runtime.pointer.lineIndex, 0);
+    expect(runtime.pointer.phase, PlayPhase.lines);
+
+    runtime.appendStreamLine(
+      'b_stream',
+      const DialogueLine(
+        id: 'l1',
+        text: '第二句',
+        kind: DialogueKind.narration,
+      ),
+    );
+    expect(runtime.currentBeat?.lines, hasLength(2));
+    expect(runtime.pointer.lineIndex, 0);
+    runtime.advance();
+    expect(runtime.pointer.lineIndex, 1);
+
+    runtime.updateBeat(
+      const Beat(
+        id: 'b_stream',
+        nodeId: 'n1',
+        scene: Scene(locationText: '雨夜'),
+        appearances: [],
+        lines: [
+          DialogueLine(id: 'l0', text: '第一句', kind: DialogueKind.narration),
+          DialogueLine(id: 'l1', text: '第二句', kind: DialogueKind.narration),
+          DialogueLine(id: 'l2', text: '第三句', kind: DialogueKind.narration),
+        ],
+        choices: [],
+      ),
+    );
+    expect(runtime.pointer.lineIndex, 1);
+    expect(runtime.currentBeat?.lines, hasLength(3));
+  });
+
   test('empty start node requests bridge', () {
     const main = MainStory(
       summary: '骨架',

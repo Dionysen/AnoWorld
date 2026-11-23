@@ -35,6 +35,7 @@ import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
+import 'package:anoworld/foundation/widgets/app_typewriter_text.dart';
 import 'package:anoworld/play/play_chat_message.dart';
 import 'package:anoworld/play/play_chat_view.dart';
 import 'package:anoworld/play/chat_settings_page.dart';
@@ -82,8 +83,19 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   /// VN AI call in flight (immediate adopt or background prefetch).
   bool _generating = false;
+
+  /// Beat id currently arriving line by line (VN streaming).
+  String? _streamBeatId;
+
   bool _assistantBusy = false;
   bool _choicesBusy = false;
+
+  /// Chat: the player asked to stop the streaming reply.
+  bool _chatStopRequested = false;
+
+  /// Live subscription + completion for the chat stream, so stop can cut it.
+  StreamSubscription<TavernChatChunk>? _chatSub;
+  Completer<void>? _chatDone;
 
   /// Linear stay-path beats ahead of the player (not yet adopted).
   /// Target depth: [_prefetchTarget] while the newest beat has no choices.
@@ -138,12 +150,18 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   List<PlayChatMessage> get _chatUiMessages {
     final user = _userLabel;
     final assistant = _assistantLabel;
+    final streamingIndex = _assistantBusy &&
+            _chat.isNotEmpty &&
+            _chat.last.role == TavernChatRole.assistant
+        ? _chat.length - 1
+        : -1;
     return [
-      for (final m in _chat)
+      for (var i = 0; i < _chat.length; i++)
         PlayChatMessage.fromTavern(
-          m,
+          _chat[i],
           userLabel: user,
           assistantLabel: assistant,
+          streaming: i == streamingIndex,
         ),
     ];
   }
@@ -190,6 +208,11 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   @override
   void dispose() {
     _fastForwardTimer?.cancel();
+    unawaited(_chatSub?.cancel());
+    _chatSub = null;
+    final done = _chatDone;
+    _chatDone = null;
+    if (done != null && !done.isCompleted) done.complete();
     _generateEpoch++;
     super.dispose();
   }
@@ -281,6 +304,13 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   void _advance() {
     if (!_runtime.canAdvance) return;
+    final beat = _runtime.currentBeat;
+    // Streaming beat: the last arrived line is the edge — wait for more.
+    if (beat != null &&
+        beat.id == _streamBeatId &&
+        _runtime.pointer.lineIndex >= beat.lines.length - 1) {
+      return;
+    }
     setState(() {
       _runtime.advance();
       _recordPosition();
@@ -474,43 +504,119 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
   Future<void> _generateAssistantTurn({required bool refreshChoices}) async {
     if (!mounted || _chatLocked) return;
+    _chatStopRequested = false;
     setState(() {
       _assistantBusy = true;
       _status = context.strings.statusWriting;
     });
 
     final settings = AppScope.settingsOf(context);
+    final strings = context.strings;
     final ctx = settings.textPromptContext();
-    try {
-      final action = TavernChatGenerateAction(
-        textClient: AppScope.textClientOf(context),
-      );
-      final result = await action.generate(
-        ctx: ctx,
-        project: _project,
-        history: List<TavernChatMessage>.unmodifiable(_chat),
-        plotCatalog: settings.plotElements,
-      );
+    final action = TavernChatGenerateAction(
+      textClient: AppScope.textClientOf(context),
+    );
+    final messageId = _newChatId('assistant');
+    final content = StringBuffer();
+    final reasoning = StringBuffer();
+    final clock = Stopwatch()..start();
+    var added = false;
+    var lastPaint = 0;
+
+    /// Applies the streamed text to the bubble; throttled to keep rebuilds cheap.
+    void paint({bool force = false}) {
       if (!mounted) return;
+      final now = clock.elapsedMilliseconds;
+      if (!force && now - lastPaint < 50) return;
+      lastPaint = now;
       setState(() {
-        _chat.add(
-          TavernChatMessage(
-            id: _newChatId('assistant'),
-            role: TavernChatRole.assistant,
-            content: result.content,
-            reasoning: result.reasoning,
-          ),
+        final text = content.toString();
+        if (!added) {
+          added = true;
+          _chat.add(
+            TavernChatMessage(
+              id: messageId,
+              role: TavernChatRole.assistant,
+              content: text,
+              reasoning: _reasoningOrNull(reasoning),
+            ),
+          );
+          _status = null;
+          return;
+        }
+        _replaceChatMessage(
+          messageId,
+          content: text,
+          reasoning: _reasoningOrNull(reasoning),
         );
+      });
+    }
+
+    void dropPartialIfEmpty() {
+      if (added && content.toString().trim().isEmpty) {
+        _chat.removeWhere((m) => m.id == messageId);
+      }
+    }
+
+    try {
+      final done = Completer<void>();
+      final sub = action
+          .streamGenerate(
+            ctx: ctx,
+            project: _project,
+            history: List<TavernChatMessage>.unmodifiable(_chat),
+            plotCatalog: settings.plotElements,
+          )
+          .listen(
+            (chunk) {
+              if (_chatStopRequested) return;
+              content.write(chunk.content);
+              reasoning.write(chunk.reasoning);
+              paint();
+            },
+            onError: (Object error, StackTrace stack) {
+              if (!done.isCompleted) done.completeError(error, stack);
+            },
+            onDone: () {
+              if (!done.isCompleted) done.complete();
+            },
+            cancelOnError: true,
+          );
+      _chatSub = sub;
+      _chatDone = done;
+      try {
+        await done.future;
+      } finally {
+        if (identical(_chatSub, sub)) _chatSub = null;
+        if (identical(_chatDone, done)) _chatDone = null;
+        await sub.cancel();
+      }
+      if (!mounted) return;
+      final stopped = _chatStopRequested;
+      final text = content.toString().trim();
+      final reasoningText = _reasoningOrNull(reasoning);
+      setState(() {
+        dropPartialIfEmpty();
+        if (added && text.isNotEmpty) {
+          _replaceChatMessage(
+            messageId,
+            content: text,
+            reasoning: reasoningText,
+          );
+        }
         _assistantBusy = false;
-        _status = null;
+        _status = stopped
+            ? strings.statusStopped
+            : (text.isEmpty ? strings.statusTurnFailed : null);
       });
       await _persist();
-      if (refreshChoices) {
+      if (refreshChoices && !stopped && text.isNotEmpty) {
         await _refreshReplyChoices();
       }
     } on AiTextException catch (error) {
       if (!mounted) return;
       setState(() {
+        dropPartialIfEmpty();
         _assistantBusy = false;
         _status = error.message;
       });
@@ -518,11 +624,49 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
+        dropPartialIfEmpty();
         _assistantBusy = false;
-        _status = context.strings.statusTurnFailed;
+        _status = strings.statusTurnFailed;
       });
       await _persist();
     }
+  }
+
+  static String? _reasoningOrNull(StringBuffer buffer) {
+    final text = buffer.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
+  /// Replaces one chat bubble in place (streaming reply growth).
+  void _replaceChatMessage(
+    String id, {
+    required String content,
+    String? reasoning,
+  }) {
+    final index = _chat.lastIndexWhere((m) => m.id == id);
+    if (index < 0) return;
+    _chat[index] = TavernChatMessage(
+      id: id,
+      role: TavernChatRole.assistant,
+      content: content,
+      reasoning: reasoning,
+    );
+  }
+
+  /// Stops the streaming reply; whatever was already written stays.
+  void _stopChatStream() {
+    if (!_assistantBusy) return;
+    _chatStopRequested = true;
+    unawaited(_chatSub?.cancel());
+    _chatSub = null;
+    final done = _chatDone;
+    _chatDone = null;
+    if (done != null && !done.isCompleted) done.complete();
+    setState(() {
+      _assistantBusy = false;
+      _status = context.strings.statusStopped;
+    });
+    unawaited(_persist());
   }
 
   bool get _canRegenerateChat {
@@ -534,6 +678,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   /// after it) then write a replacement from that cut point.
   bool get _canRegenerateVn {
     if (_isChat || _runtime.pointer.isEnded) return false;
+    if (_streamBeatId != null) return false;
     if (_runtime.needsBridge) return true;
     final beatId = _runtime.pointer.beatId;
     if (beatId.isEmpty) return false;
@@ -676,6 +821,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     _branchSourceBeatId = null;
     _generateEpoch++;
     _generating = false;
+    _streamBeatId = null;
     _prefetchPaused = false;
   }
 
@@ -1002,10 +1148,21 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     });
 
     final settings = AppScope.settingsOf(context);
-    try {
-      final action = BridgeGenerateAction(
-        textClient: AppScope.textClientOf(context),
+    final client = AppScope.textClientOf(context);
+    // The beat the player is waiting for arrives line by line; background
+    // prefetch stays buffered (streaming it would show nothing).
+    if (adopt && client is AiTextStreamClient) {
+      await _streamBeat(
+        node: node,
+        session: session,
+        epoch: epoch,
+        linkFromBeatId: linkFromBeatId,
+        linkChoiceId: linkChoiceId,
       );
+      return;
+    }
+    try {
+      final action = BridgeGenerateAction(textClient: client);
       final beat = await action.generate(
         ctx: settings.textPromptContext(),
         project: _project.copyWith(main: _runtime.main),
@@ -1135,6 +1292,195 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     );
   }
 
+  /// Writes one beat the player is waiting for, showing every line as it
+  /// arrives. Errors are handled here so a half-written beat still counts.
+  Future<void> _streamBeat({
+    required StoryNode node,
+    required BridgeSession session,
+    required int epoch,
+    String? linkFromBeatId,
+    String? linkChoiceId,
+  }) async {
+    final settings = AppScope.settingsOf(context);
+    final strings = context.strings;
+    final action = BridgeGenerateAction(
+      textClient: AppScope.textClientOf(context),
+    );
+    final beatId = 'bridge_${node.id}_${session.turnCount + 1}';
+    Beat? live;
+
+    try {
+      await for (final event in action.streamGenerate(
+        ctx: settings.textPromptContext(),
+        project: _project.copyWith(main: _runtime.main),
+        nodeId: node.id,
+        session: session,
+        plotCatalog: settings.plotElements,
+        userAliases: _userAliases(),
+        minLines: settings.ai.minBridgeLines,
+        inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
+      )) {
+        if (!mounted || epoch != _generateEpoch) return;
+        switch (event) {
+          case BridgeBeatLineEvent():
+            final line = event.line;
+            if (live == null) {
+              live = Beat(
+                id: beatId,
+                nodeId: node.id,
+                scene: Scene(locationText: event.location),
+                appearances: const [],
+                lines: <DialogueLine>[line],
+                choices: const <Choice>[],
+              );
+              setState(() {
+                _streamBeatId = beatId;
+                _runtime.adoptBridgeBeat(live!);
+                _recordPosition();
+              });
+              AppLog.instance.info('流式第一句已上屏', tag: 'play.vn');
+            } else {
+              // Keep the parked copy in step with the runtime so a mid-stream
+              // failure still commits every line the player already saw.
+              live = live.copyWith(lines: [...live.lines, line]);
+              setState(() => _runtime.appendStreamLine(beatId, line));
+            }
+          case BridgeBeatDoneEvent():
+            final beat = event.beat;
+            setState(() {
+              if (live == null) {
+                // No line ever streamed through (one-shot fallback):
+                // enter the finished beat directly.
+                _runtime.adoptBridgeBeat(beat);
+                _recordPosition();
+              } else {
+                _runtime.updateBeat(beat);
+              }
+              _streamBeatId = null;
+              _generating = false;
+              _prefetchPaused = false;
+              _status = null;
+            });
+            AppLog.instance.info(
+              '流式本拍完成：${beat.lines.length} 句',
+              tag: 'play.vn',
+            );
+            await _commitStreamedBeat(
+              beat,
+              session,
+              fromBeatId: linkFromBeatId,
+              choiceId: linkChoiceId,
+            );
+        }
+      }
+    } on AiTextException catch (error) {
+      if (!mounted || epoch != _generateEpoch) return;
+      await _finishStreamedFailure(
+        error.message,
+        live: live,
+        node: node,
+        session: session,
+        fromBeatId: linkFromBeatId,
+        choiceId: linkChoiceId,
+      );
+    } catch (error, stack) {
+      if (!mounted || epoch != _generateEpoch) return;
+      AppLog.instance.error(
+        '流式本拍异常',
+        tag: 'play.vn',
+        error: error,
+        stackTrace: stack,
+      );
+      await _finishStreamedFailure(
+        strings.statusTurnFailed,
+        live: live,
+        node: node,
+        session: session,
+        fromBeatId: linkFromBeatId,
+        choiceId: linkChoiceId,
+      );
+    }
+  }
+
+  /// Parks a finished beat in the session (story tree, summary, branch edge).
+  Future<void> _commitStreamedBeat(
+    Beat beat,
+    BridgeSession session, {
+    String? fromBeatId,
+    String? choiceId,
+  }) async {
+    final withBeat = session.withBeat(beat);
+    var next = withBeat.copyWith(
+      nodeId: beat.nodeId,
+      turnCount: withBeat.turnsForNode(beat.nodeId),
+      summary:
+          '${session.summary} ${beat.lines.map((l) => l.text).join(' ')}'
+              .trim(),
+    );
+    if (fromBeatId != null &&
+        fromBeatId.isNotEmpty &&
+        choiceId != null &&
+        choiceId.isNotEmpty) {
+      next = next.withBranchEdge(
+        fromBeatId: fromBeatId,
+        choiceId: choiceId,
+        toBeatId: beat.id,
+      );
+    }
+    _bridge = next;
+    await _persist();
+    _maintainPrefetchBuffer();
+  }
+
+  /// Stream died: keep the lines already on screen, or fall back when none
+  /// arrived.
+  Future<void> _finishStreamedFailure(
+    String message, {
+    required Beat? live,
+    required StoryNode node,
+    required BridgeSession session,
+    String? fromBeatId,
+    String? choiceId,
+  }) async {
+    final beat = live;
+    if (beat == null) {
+      final fallback = _fallbackBeat(
+        nodeId: node.id,
+        turn: session.turnCount + 1,
+        text: message,
+      );
+      _adoptBeat(
+        fallback,
+        _bridge ?? BridgeSession(nodeId: node.id),
+        fromBeatId: fromBeatId,
+        choiceId: choiceId,
+      );
+      setState(() {
+        _streamBeatId = null;
+        _generating = false;
+        _status = context.strings.statusSafeExit;
+      });
+      await _persist();
+      return;
+    }
+
+    setState(() {
+      _streamBeatId = null;
+      _generating = false;
+      _status = message;
+    });
+    AppLog.instance.warning(
+      '流式中断，保留已出现的 ${beat.lines.length} 句',
+      tag: 'play.vn',
+    );
+    await _commitStreamedBeat(
+      beat,
+      session,
+      fromBeatId: fromBeatId,
+      choiceId: choiceId,
+    );
+  }
+
   List<_VnCenterAction> _centerActions() {
     // Hide choices only while the player is blocked waiting for the next beat.
     if (_waitingForBeat) return const [];
@@ -1252,6 +1598,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                     onPickModel: () => pickAndApplyTextModel(context),
                     onOpenSettings: _openChatSettings,
                     onRefreshChoices: _refreshReplyChoices,
+                    onStop: _assistantBusy ? _stopChatStream : null,
                   ),
                 ),
               ],
@@ -1274,6 +1621,9 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                 fastForwarding: _fastForwardTimer != null,
                 canRegenerate: _canRegenerateVn,
                 generating: _generating,
+                streaming: _streamBeatId != null,
+                revealInstant:
+                    _history.canForward || _fastForwardTimer != null,
                 onStageTap: _onStageTap,
                 onBack: _goBack,
                 onForward: _forward,
@@ -1317,6 +1667,8 @@ class _VnStage extends StatefulWidget {
     required this.fastForwarding,
     required this.canRegenerate,
     required this.generating,
+    required this.streaming,
+    required this.revealInstant,
     required this.onStageTap,
     required this.onBack,
     required this.onForward,
@@ -1340,6 +1692,12 @@ class _VnStage extends StatefulWidget {
   final bool fastForwarding;
   final bool canRegenerate;
   final bool generating;
+
+  /// The current beat is still arriving from the model.
+  final bool streaming;
+
+  /// Replaying recorded lines: show text without the typewriter.
+  final bool revealInstant;
   final VoidCallback onStageTap;
   final VoidCallback onBack;
   final VoidCallback onForward;
@@ -1357,6 +1715,9 @@ class _VnStageState extends State<_VnStage> {
   int _page = 0;
   List<String> _pages = const <String>[];
   Object? _pagesKey;
+
+  /// Answers「this page still being written?」for the tap handler.
+  final TypewriterHandle _typing = TypewriterHandle();
 
   String? get _placeholder {
     final runtime = widget.runtime;
@@ -1415,11 +1776,20 @@ class _VnStageState extends State<_VnStage> {
   }
 
   void _handleTap() {
+    // Still revealing this page: the first tap only finishes it.
+    if (!_typing.isDone) {
+      _typing.complete();
+      return;
+    }
     if (_turnPage()) return;
     widget.onStageTap();
   }
 
   void _handleForward() {
+    if (!_typing.isDone) {
+      _typing.complete();
+      return;
+    }
     if (_turnPage()) return;
     widget.onForward();
   }
@@ -1463,6 +1833,11 @@ class _VnStageState extends State<_VnStage> {
 
         final narration = line != null && widget.isNarration(line);
         final body = line == null ? '' : stripDialogueSpeakerLabel(line.text);
+        final beat = runtime.currentBeat;
+        // Last line of a beat the model is still writing: wait for more.
+        final atStreamTail = widget.streaming &&
+            beat != null &&
+            runtime.pointer.lineIndex >= beat.lines.length - 1;
         final textColor = tryParseHexColor(widget.settings.textHex);
         final bodyStyle = AppDialogueChrome.bodyStyle(
           context,
@@ -1542,18 +1917,39 @@ class _VnStageState extends State<_VnStage> {
                                   role: AppTextRole.caption,
                                   color: scheme.onSurfaceVariant,
                                 )
-                              : null,
-                          child: Text(
-                            pageText ?? _placeholder ?? '',
-                            style: AppDialogueChrome.bodyStyle(
-                              context,
-                              widget.settings.fontSize,
-                              italic: pageText == null || narration,
-                              color: textColor,
-                            ),
-                            maxLines: lines,
-                            overflow: TextOverflow.clip,
-                          ),
+                              : (atStreamTail
+                                  ? AppText(
+                                      '…',
+                                      role: AppTextRole.caption,
+                                      color: scheme.onSurfaceVariant,
+                                    )
+                                  : null),
+                          child: pageText == null
+                              ? Text(
+                                  _placeholder ?? '',
+                                  style: AppDialogueChrome.bodyStyle(
+                                    context,
+                                    widget.settings.fontSize,
+                                    italic: true,
+                                    color: textColor,
+                                  ),
+                                  maxLines: lines,
+                                  overflow: TextOverflow.clip,
+                                )
+                              : AppTypewriterText(
+                                  text: pageText,
+                                  handle: _typing,
+                                  charsPerSecond: widget.revealInstant
+                                      ? 0
+                                      : widget.settings.textSpeed,
+                                  style: AppDialogueChrome.bodyStyle(
+                                    context,
+                                    widget.settings.fontSize,
+                                    italic: narration,
+                                    color: textColor,
+                                  ),
+                                  maxLines: lines,
+                                ),
                         ),
                         if (showControls) ...[
                           const SizedBox(height: AppTheme.spaceSm),

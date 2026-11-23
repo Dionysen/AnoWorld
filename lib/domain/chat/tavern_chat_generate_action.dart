@@ -3,7 +3,9 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/chat/tavern_chat_message.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 
 /// Assistant turn prose + optional reasoning from the model.
@@ -15,6 +17,14 @@ class TavernChatGenerateResult {
 
   final String content;
   final String? reasoning;
+}
+
+/// One streamed piece of the assistant turn.
+class TavernChatChunk {
+  const TavernChatChunk({this.content = '', this.reasoning = ''});
+
+  final String content;
+  final String reasoning;
 }
 
 /// Generates the next assistant reply in a tavern-style chat (one user → one AI).
@@ -30,6 +40,86 @@ class TavernChatGenerateAction {
     required List<TavernChatMessage> history,
     PlotElementCatalog? plotCatalog,
   }) async {
+    final request = _buildRequest(
+      ctx: ctx,
+      project: project,
+      history: history,
+      plotCatalog: plotCatalog,
+    );
+    final result = await _text.complete(
+      endpoint: request.endpoint,
+      system: request.system,
+      user: request.user,
+      generation: request.generation,
+    );
+    final out = result.content.trim();
+    if (out.isEmpty) {
+      throw AiTextException('这一轮没有写出内容，请重试');
+    }
+    final reasoning = result.reasoning?.trim();
+    return TavernChatGenerateResult(
+      content: out,
+      reasoning: reasoning == null || reasoning.isEmpty ? null : reasoning,
+    );
+  }
+
+  /// Same turn as [generate], delivered while the model writes it.
+  ///
+  /// Falls back to a single whole chunk when the client cannot stream.
+  Stream<TavernChatChunk> streamGenerate({
+    required AiPromptContext ctx,
+    required Project project,
+    required List<TavernChatMessage> history,
+    PlotElementCatalog? plotCatalog,
+  }) async* {
+    final request = _buildRequest(
+      ctx: ctx,
+      project: project,
+      history: history,
+      plotCatalog: plotCatalog,
+    );
+    final streaming =
+        _text is AiTextStreamClient ? _text as AiTextStreamClient : null;
+    if (streaming == null) {
+      final result = await generate(
+        ctx: ctx,
+        project: project,
+        history: history,
+        plotCatalog: plotCatalog,
+      );
+      yield TavernChatChunk(
+        content: result.content,
+        reasoning: result.reasoning ?? '',
+      );
+      return;
+    }
+
+    final content = StringBuffer();
+    await for (final chunk in streaming.streamText(
+      endpoint: request.endpoint,
+      system: request.system,
+      user: request.user,
+      generation: request.generation,
+    )) {
+      if (chunk.isEmpty) continue;
+      content.write(chunk.content);
+      yield TavernChatChunk(
+        content: chunk.content,
+        reasoning: chunk.reasoning,
+      );
+    }
+    if (content.toString().trim().isEmpty) {
+      throw AiTextException('这一轮没有写出内容，请重试');
+    }
+  }
+
+  ({AiTextEndpoint endpoint, String system, String user, GenerationPreset? generation})
+      _buildRequest({
+    required AiPromptContext ctx,
+    required Project project,
+    required List<TavernChatMessage> history,
+    PlotElementCatalog? plotCatalog,
+  }) {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
         (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
@@ -102,20 +192,11 @@ class TavernChatGenerateAction {
     }
     buffer.writeln(tailLine);
 
-    final result = await _text.complete(
+    return (
       endpoint: endpoint,
       system: system,
       user: buffer.toString(),
       generation: ctx.generation,
-    );
-    final out = result.content.trim();
-    if (out.isEmpty) {
-      throw AiTextException('这一轮没有写出内容，请重试');
-    }
-    final reasoning = result.reasoning?.trim();
-    return TavernChatGenerateResult(
-      content: out,
-      reasoning: reasoning == null || reasoning.isEmpty ? null : reasoning,
     );
   }
 

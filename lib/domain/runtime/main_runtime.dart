@@ -246,6 +246,41 @@ class MainRuntime {
     pointer = _enterBeat(main, nodeId: beat.nodeId, beatId: beat.id);
   }
 
+  /// Appends a line to a beat that is still streaming in.
+  ///
+  /// Keeps [pointer] untouched so the player's cursor stays on the line they
+  /// were reading; only the end of the beat grows.
+  void appendStreamLine(String beatId, DialogueLine line) {
+    final index = main.beats.indexWhere((b) => b.id == beatId);
+    if (index < 0) return;
+    final beat = main.beats[index];
+    _replaceBeat(beat.copyWith(lines: [...beat.lines, line]));
+  }
+
+  /// Swaps the streamed beat for its final version (choices, scene, lines).
+  void updateBeat(Beat beat) {
+    if (!main.beats.any((b) => b.id == beat.id)) return;
+    _replaceBeat(beat);
+    if (pointer.beatId == beat.id &&
+        pointer.lineIndex >= beat.lines.length &&
+        beat.lines.isNotEmpty) {
+      pointer = pointer.copyWith(lineIndex: beat.lines.length - 1);
+    }
+  }
+
+  void _replaceBeat(Beat beat) {
+    final beats = [
+      for (final b in main.beats) b.id == beat.id ? beat : b,
+    ];
+    main = MainStory(
+      summary: main.summary,
+      startNodeId: main.startNodeId,
+      nodes: main.nodes,
+      edges: main.edges,
+      beats: beats,
+    );
+  }
+
   void advance() {
     if (!canAdvance) return;
     final beat = currentBeat;

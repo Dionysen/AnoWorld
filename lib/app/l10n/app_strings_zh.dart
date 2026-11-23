@@ -954,6 +954,9 @@ class AppStringsZh extends AppStrings {
   String get statusRestarted => '已从头开始';
 
   @override
+  String get statusStopped => '已停止生成';
+
+  @override
   String get statusSafeExit => '用稳妥出口继续';
 
   @override
@@ -1006,6 +1009,13 @@ class AppStringsZh extends AppStrings {
 
   @override
   String dialogueLinesValue(int lines) => '$lines 行';
+
+  @override
+  String get dialogueTextSpeed => '文字速度';
+
+  @override
+  String dialogueTextSpeedValue(int charsPerSecond) =>
+      charsPerSecond <= 0 ? '瞬间' : '每秒 $charsPerSecond 字';
 
   @override
   String get dialogueFontSize => '字号';

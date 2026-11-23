@@ -8,6 +8,8 @@ void main() {
     expect(settings.lines, AppDialogueChrome.defaultLines);
     expect(settings.fontSize, AppDialogueChrome.defaultFontSize);
     expect(settings.opacity, AppDialogueChrome.defaultOpacity);
+    expect(settings.textSpeed, AppDialogueChrome.defaultTextSpeed);
+    expect(settings.typewriterEnabled, isTrue);
     expect(settings.backgroundHex, isEmpty);
     expect(settings.followsTheme, isTrue);
     expect(settings.textHex, isEmpty);
@@ -19,16 +21,25 @@ void main() {
       'lines': 99,
       'fontSize': 1,
       'opacity': 3,
+      'textSpeed': 999,
     });
     expect(settings.lines, AppDialogueChrome.maxLines);
     expect(settings.fontSize, AppDialogueChrome.minFontSize);
     expect(settings.opacity, AppDialogueChrome.maxOpacity);
+    expect(settings.textSpeed, AppDialogueChrome.maxTextSpeed);
+  });
+
+  test('zero text speed means instant reveal', () {
+    final settings = const VnUiSettings().copyWith(textSpeed: 0);
+    expect(settings.typewriterEnabled, isFalse);
+    expect(VnUiSettings.fromJson(settings.toJson()).textSpeed, 0);
   });
 
   test('round-trips json', () {
     const original = VnUiSettings(
       lines: 5,
       fontSize: 20,
+      textSpeed: 42,
       backgroundHex: '#10131B',
       textHex: '#F2F4F8',
       opacity: 0.5,

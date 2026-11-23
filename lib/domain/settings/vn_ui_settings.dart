@@ -8,6 +8,7 @@ class VnUiSettings {
   const VnUiSettings({
     this.lines = AppDialogueChrome.defaultLines,
     this.fontSize = AppDialogueChrome.defaultFontSize,
+    this.textSpeed = AppDialogueChrome.defaultTextSpeed,
     this.backgroundHex = '',
     this.textHex = '',
     this.opacity = AppDialogueChrome.defaultOpacity,
@@ -17,6 +18,9 @@ class VnUiSettings {
   final int lines;
 
   final double fontSize;
+
+  /// Typewriter speed in characters per second; 0 shows text instantly.
+  final double textSpeed;
 
   /// `#RRGGBB` fill; empty follows the theme surface.
   final String backgroundHex;
@@ -31,9 +35,12 @@ class VnUiSettings {
 
   bool get textFollowsTheme => textHex.isEmpty;
 
+  bool get typewriterEnabled => textSpeed > 0;
+
   VnUiSettings copyWith({
     int? lines,
     double? fontSize,
+    double? textSpeed,
     String? backgroundHex,
     String? textHex,
     double? opacity,
@@ -41,6 +48,7 @@ class VnUiSettings {
     return VnUiSettings(
       lines: lines ?? this.lines,
       fontSize: fontSize ?? this.fontSize,
+      textSpeed: textSpeed ?? this.textSpeed,
       backgroundHex: backgroundHex ?? this.backgroundHex,
       textHex: textHex ?? this.textHex,
       opacity: opacity ?? this.opacity,
@@ -50,6 +58,7 @@ class VnUiSettings {
   Map<String, dynamic> toJson() => <String, dynamic>{
     'lines': lines,
     'fontSize': fontSize,
+    'textSpeed': textSpeed,
     'backgroundHex': backgroundHex,
     'textHex': textHex,
     'opacity': opacity,
@@ -68,6 +77,12 @@ class VnUiSettings {
             .toDouble(),
         AppDialogueChrome.minFontSize,
         AppDialogueChrome.maxFontSize,
+      ),
+      textSpeed: _clampDouble(
+        (json.optionalNum('textSpeed') ?? AppDialogueChrome.defaultTextSpeed)
+            .toDouble(),
+        AppDialogueChrome.minTextSpeed,
+        AppDialogueChrome.maxTextSpeed,
       ),
       backgroundHex: json.optionalString('backgroundHex') ?? '',
       textHex: json.optionalString('textHex') ?? '',
@@ -91,6 +106,7 @@ class VnUiSettings {
     return other is VnUiSettings &&
         other.lines == lines &&
         other.fontSize == fontSize &&
+        other.textSpeed == textSpeed &&
         other.backgroundHex == backgroundHex &&
         other.textHex == textHex &&
         other.opacity == opacity;
@@ -98,5 +114,5 @@ class VnUiSettings {
 
   @override
   int get hashCode =>
-      Object.hash(lines, fontSize, backgroundHex, textHex, opacity);
+      Object.hash(lines, fontSize, textSpeed, backgroundHex, textHex, opacity);
 }

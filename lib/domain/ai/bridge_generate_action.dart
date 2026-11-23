@@ -1,17 +1,71 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/bridge_stream_parser.dart';
 import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
-import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 
 /// Sentinel beat id for "stay in interval / generate again".
 const String kBridgeStayBeatId = '__stay__';
+
+/// One event while a beat streams in.
+sealed class BridgeBeatEvent {
+  const BridgeBeatEvent();
+}
+
+/// A dialogue line that just became readable on the stage.
+class BridgeBeatLineEvent extends BridgeBeatEvent {
+  const BridgeBeatLineEvent({required this.line, this.location});
+
+  final DialogueLine line;
+
+  /// Scene location text, once the model has written it.
+  final String? location;
+}
+
+/// The whole beat is final (choices, scene, authoritative lines).
+class BridgeBeatDoneEvent extends BridgeBeatEvent {
+  const BridgeBeatDoneEvent(this.beat);
+
+  final Beat beat;
+}
+
+/// Prompt and request fields shared by buffered and streamed generation.
+class _BridgeRequest {
+  const _BridgeRequest({
+    required this.endpoint,
+    required this.system,
+    required this.user,
+    required this.project,
+    required this.nodeId,
+    required this.beatId,
+    required this.legalNodeIds,
+    required this.forceConverge,
+    required this.openMode,
+    required this.userAliases,
+    required this.allowInStationChoices,
+    required this.generation,
+  });
+
+  final AiTextEndpoint endpoint;
+  final String system;
+  final String user;
+  final Project project;
+  final String nodeId;
+  final String beatId;
+  final Set<String> legalNodeIds;
+  final bool forceConverge;
+  final bool openMode;
+  final List<String> userAliases;
+  final bool allowInStationChoices;
+  final GenerationPreset? generation;
+}
 
 /// Generates one bridge Beat for the current main node interval.
 class BridgeGenerateAction {
@@ -35,6 +89,205 @@ class BridgeGenerateAction {
     InStationChoiceFrequency inStationChoiceFrequency =
         InStationChoiceFrequency.rare,
   }) async {
+    final request = _prepare(
+      ctx: ctx,
+      project: project,
+      nodeId: nodeId,
+      session: session,
+      plotCatalog: plotCatalog,
+      maxBeats: maxBeats,
+      userAliases: userAliases,
+      minLines: minLines,
+      inStationChoiceFrequency: inStationChoiceFrequency,
+    );
+    final user = request.user;
+    String? lastError;
+    var attemptUser = user;
+    for (var attempt = 0; attempt <= maxFormatRetries; attempt++) {
+      final raw = (await _text.complete(
+        endpoint: request.endpoint,
+        system: request.system,
+        user: attemptUser,
+        generation: request.generation,
+      ))
+          .content;
+      try {
+        final beat = parseBeatJson(
+          raw,
+          project: project,
+          nodeId: nodeId,
+          beatId: request.beatId,
+          legalNodeIds: request.legalNodeIds,
+          forceConverge: request.forceConverge,
+          openMode: request.openMode,
+          userAliases: userAliases,
+          allowInStationChoices: request.allowInStationChoices,
+        );
+        if (beat.lines.length >= minLines) return beat;
+        lastError = '这次只写了 ${beat.lines.length} 句，至少要 $minLines 句';
+        if (attempt >= maxFormatRetries) {
+          AppLog.instance.warning(
+            '本拍句数不足，按当前结果继续：${beat.lines.length}/$minLines 句',
+            tag: 'play.vn',
+          );
+          return beat;
+        }
+        AppLog.instance.info(
+          '本拍句数不足，重试中：${beat.lines.length}/$minLines 句',
+          tag: 'play.vn',
+        );
+        attemptUser = '$user\n\n上次太短了：$lastError\n请补到至少 $minLines 句再输出。';
+      } on BridgeMapException catch (error) {
+        lastError = error.message;
+        if (attempt >= maxFormatRetries) break;
+        attemptUser = '$user\n\n上次无法使用：$lastError\n只输出合法 JSON。';
+      }
+    }
+    throw AiTextException(lastError ?? '这一段生成失败，请重试');
+  }
+
+  /// Same beat as [generate], delivered while the model writes it.
+  ///
+  /// Emits every `lines[]` row as soon as its JSON object closes, then the
+  /// authoritative [Beat]. Falls back to one whole beat when the client
+  /// cannot stream. Errors surface as the usual [AiTextException]; lines that
+  /// already went out stay on screen.
+  Stream<BridgeBeatEvent> streamGenerate({
+    required AiPromptContext ctx,
+    required Project project,
+    required String nodeId,
+    required BridgeSession session,
+    PlotElementCatalog? plotCatalog,
+    int maxBeats = BridgeSession.defaultMaxBeats,
+    List<String> userAliases = const <String>[],
+    int minLines = 1,
+    InStationChoiceFrequency inStationChoiceFrequency =
+        InStationChoiceFrequency.rare,
+  }) async* {
+    final request = _prepare(
+      ctx: ctx,
+      project: project,
+      nodeId: nodeId,
+      session: session,
+      plotCatalog: plotCatalog,
+      maxBeats: maxBeats,
+      userAliases: userAliases,
+      minLines: minLines,
+      inStationChoiceFrequency: inStationChoiceFrequency,
+    );
+    final streaming =
+        _text is AiTextStreamClient ? _text as AiTextStreamClient : null;
+    if (streaming == null) {
+      final beat = await generate(
+        ctx: ctx,
+        project: project,
+        nodeId: nodeId,
+        session: session,
+        plotCatalog: plotCatalog,
+        maxBeats: maxBeats,
+        userAliases: userAliases,
+        minLines: minLines,
+        inStationChoiceFrequency: inStationChoiceFrequency,
+      );
+      yield BridgeBeatDoneEvent(beat);
+      return;
+    }
+
+    final parser = BridgeBeatStreamParser(
+      project: project,
+      beatId: request.beatId,
+      userAliases: userAliases,
+    );
+    final raw = StringBuffer();
+    await for (final chunk in streaming.streamText(
+      endpoint: request.endpoint,
+      system: request.system,
+      user: request.user,
+      generation: request.generation,
+    )) {
+      if (chunk.content.isEmpty) continue;
+      raw.write(chunk.content);
+      for (final line in parser.add(chunk.content)) {
+        yield BridgeBeatLineEvent(line: line, location: parser.location);
+      }
+    }
+
+    final Beat beat;
+    try {
+      beat = parseBeatJson(
+        raw.toString(),
+        project: project,
+        nodeId: nodeId,
+        beatId: request.beatId,
+        legalNodeIds: request.legalNodeIds,
+        forceConverge: request.forceConverge,
+        openMode: request.openMode,
+        userAliases: userAliases,
+        allowInStationChoices: request.allowInStationChoices,
+      );
+      if (beat.lines.length < minLines) {
+        AppLog.instance.warning(
+          '流式本拍句数不足，按当前结果继续：${beat.lines.length}/$minLines 句',
+          tag: 'play.vn',
+        );
+      }
+      yield BridgeBeatDoneEvent(beat);
+    } on BridgeMapException catch (error) {
+      // The stream was already shown; finish with the lines we have instead
+      // of throwing the whole beat away.
+      AppLog.instance.warning(
+        '流式本拍收尾失败，按已出现的句子继续：${error.message}',
+        tag: 'play.vn',
+      );
+      yield BridgeBeatDoneEvent(
+        _partialBeat(
+          request: request,
+          project: project,
+          parser: parser,
+        ),
+      );
+    }
+  }
+
+  /// Beat built from the lines that already reached the player.
+  static Beat _partialBeat({
+    required _BridgeRequest request,
+    required Project project,
+    required BridgeBeatStreamParser parser,
+  }) {
+    final lines = parser.lines;
+    return Beat(
+      id: request.beatId,
+      nodeId: request.nodeId,
+      scene: Scene(locationText: parser.location),
+      appearances: const [],
+      lines: lines.isEmpty
+          ? <DialogueLine>[
+              DialogueLine(
+                id: '${request.beatId}_l0',
+                text: '……',
+                kind: DialogueKind.narration,
+              ),
+            ]
+          : lines,
+      choices: request.forceConverge
+          ? fallbackChoices(project.main, request.nodeId)
+          : const <Choice>[],
+    );
+  }
+
+  /// Prompt + request fields shared by [generate] and [streamGenerate].
+  _BridgeRequest _prepare({
+    required AiPromptContext ctx,
+    required Project project,
+    required String nodeId,
+    required BridgeSession session,
+    PlotElementCatalog? plotCatalog,
+    required int maxBeats,
+    required List<String> userAliases,
+    required int minLines,
+    required InStationChoiceFrequency inStationChoiceFrequency,
+  }) {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
         (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
@@ -123,50 +376,21 @@ class BridgeGenerateAction {
     if (summaryText.length < session.summary.length) {
       AppLog.instance.info('区间摘要超出预算，只带最新部分', tag: 'play.vn');
     }
-    final user = blockFor(summaryText);
-    String? lastError;
-    var attemptUser = user;
-    for (var attempt = 0; attempt <= maxFormatRetries; attempt++) {
-      final raw = (await _text.complete(
-        endpoint: endpoint,
-        system: system,
-        user: attemptUser,
-        generation: ctx.generation,
-      ))
-          .content;
-      try {
-        final beat = parseBeatJson(
-          raw,
-          project: project,
-          nodeId: nodeId,
-          beatId: 'bridge_${nodeId}_${session.turnCount + 1}',
-          legalNodeIds: exits.map((e) => e.to).toSet(),
-          forceConverge: forceConverge,
-          openMode: openMode,
-          userAliases: userAliases,
-          allowInStationChoices: allowInStationChoices,
-        );
-        if (beat.lines.length >= minLines) return beat;
-        lastError = '这次只写了 ${beat.lines.length} 句，至少要 $minLines 句';
-        if (attempt >= maxFormatRetries) {
-          AppLog.instance.warning(
-            '本拍句数不足，按当前结果继续：${beat.lines.length}/$minLines 句',
-            tag: 'play.vn',
-          );
-          return beat;
-        }
-        AppLog.instance.info(
-          '本拍句数不足，重试中：${beat.lines.length}/$minLines 句',
-          tag: 'play.vn',
-        );
-        attemptUser = '$user\n\n上次太短了：$lastError\n请补到至少 $minLines 句再输出。';
-      } on BridgeMapException catch (error) {
-        lastError = error.message;
-        if (attempt >= maxFormatRetries) break;
-        attemptUser = '$user\n\n上次无法使用：$lastError\n只输出合法 JSON。';
-      }
-    }
-    throw AiTextException(lastError ?? '这一段生成失败，请重试');
+
+    return _BridgeRequest(
+      endpoint: endpoint,
+      system: system,
+      user: blockFor(summaryText),
+      project: project,
+      nodeId: nodeId,
+      beatId: 'bridge_${nodeId}_${session.turnCount + 1}',
+      legalNodeIds: exits.map((e) => e.to).toSet(),
+      forceConverge: forceConverge,
+      openMode: openMode,
+      userAliases: userAliases,
+      allowInStationChoices: allowInStationChoices,
+      generation: ctx.generation,
+    );
   }
 
   /// Guaranteed exit choices when AI is unavailable.
@@ -305,46 +529,6 @@ $choiceRule
 禁止发明不在合法下一站列表里的 nodeId。''';
   }
 
-  static bool _isNarratorSpeaker(String speaker) {
-    final s = speaker.trim().toLowerCase();
-    return s.isEmpty ||
-        s == '旁白' ||
-        s == 'narrator' ||
-        s == 'narration' ||
-        s == 'system';
-  }
-
-  static bool _isUserSpeaker(String speaker, List<String> userAliases) {
-    final s = speaker.trim();
-    if (s.isEmpty) return false;
-    final lower = s.toLowerCase();
-    if (lower == 'user' ||
-        lower == '{{user}}' ||
-        s == '玩家' ||
-        s == '我') {
-      return true;
-    }
-    for (final alias in userAliases) {
-      final a = alias.trim();
-      if (a.isEmpty) continue;
-      if (a == s || a.toLowerCase() == lower) return true;
-    }
-    return false;
-  }
-
-  static String? _resolveSpeakerId(
-    String speaker,
-    Project project,
-    List<String> userAliases,
-  ) {
-    if (_isNarratorSpeaker(speaker)) return null;
-    if (_isUserSpeaker(speaker, userAliases)) return kPlayUserSpeakerId;
-    for (final member in project.cast) {
-      if (member.name == speaker) return member.id;
-    }
-    return speaker;
-  }
-
   /// Shared Beat JSON mapper (also used by branch batch prefetch).
   static Beat parseBeatJson(
     String raw, {
@@ -368,28 +552,15 @@ $choiceRule
       for (var i = 0; i < linesRaw.length; i++) {
         final item = linesRaw[i];
         if (item is! Map) continue;
-        final row = Map<String, dynamic>.from(item);
-        var text = '${row['text'] ?? ''}'.trim();
-        if (text.isEmpty) continue;
-        var speaker = '${row['speaker'] ?? ''}'.trim();
-        // Recover character/user from "名字：" in text when speaker is missing/旁白.
-        final labeled = dialogueSpeakerLabel(text);
-        if (labeled != null && _isNarratorSpeaker(speaker)) {
-          speaker = labeled;
-        }
-        text = stripDialogueSpeakerLabel(text);
-        final narration = _isNarratorSpeaker(speaker);
-        final speakerId = narration
-            ? null
-            : _resolveSpeakerId(speaker, project, userAliases);
-        lines.add(
-          DialogueLine(
-            id: '${beatId}_l$i',
-            text: text,
-            speakerId: speakerId,
-            kind: narration ? DialogueKind.narration : DialogueKind.speech,
-          ),
+        final line = dialogueLineFromRow(
+          Map<String, dynamic>.from(item),
+          index: i,
+          beatId: beatId,
+          project: project,
+          userAliases: userAliases,
         );
+        if (line == null) continue;
+        lines.add(line);
       }
     }
     if (lines.isEmpty) {

@@ -65,10 +65,14 @@ class _PlayChatViewState extends State<PlayChatView> {
   @override
   void didUpdateWidget(covariant PlayChatView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final oldLast = oldWidget.messages.isEmpty ? null : oldWidget.messages.last;
+    final newLast = widget.messages.isEmpty ? null : widget.messages.last;
+    final grew = oldLast?.text.length != newLast?.text.length;
     if (widget.messages.length != oldWidget.messages.length ||
         widget.isGenerating != oldWidget.isGenerating ||
         widget.replyChoices.length != oldWidget.replyChoices.length ||
-        widget.inputLocked != oldWidget.inputLocked) {
+        widget.inputLocked != oldWidget.inputLocked ||
+        grew) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _measureChrome();
         if (_pinnedToBottom) _scrollToEnd();
@@ -153,6 +157,10 @@ class _PlayChatViewState extends State<PlayChatView> {
     final empty = widget.messages.isEmpty &&
         !widget.isGenerating &&
         !_showChoices;
+    final lastStreaming =
+        widget.messages.isNotEmpty && widget.messages.last.streaming;
+    final showTyping = widget.isGenerating && !lastStreaming;
+    final extraRows = (showTyping || _showChoices) ? 1 : 0;
 
     return AppChatBackgroundLayer(
       background: chatUi.background,
@@ -180,8 +188,8 @@ class _PlayChatViewState extends State<PlayChatView> {
                               16,
                               12 + _bottomChrome,
                             ),
-                            itemCount: widget.messages.length +
-                                (widget.isGenerating || _showChoices ? 1 : 0),
+                            itemCount:
+                                widget.messages.length + extraRows,
                             itemBuilder: (context, index) {
                               if (index < widget.messages.length) {
                                 final msg = widget.messages[index];
@@ -207,7 +215,7 @@ class _PlayChatViewState extends State<PlayChatView> {
                                   showReasoning: chatUi.showReasoning,
                                 );
                               }
-                              if (widget.isGenerating) {
+                              if (showTyping) {
                                 return AppChatBubble(
                                   text: '',
                                   role: AppChatBubbleRole.character,

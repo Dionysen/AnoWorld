@@ -110,6 +110,8 @@ App 全局（设置，与酒馆同类）
 
 - 玩家处在某主节点的「发挥区间」：本站 `synopsis`（可空）、出边（可无）、WorldBook / Cast、全局 AiPreset、近期游玩摘要。
 - **VN**：AI 实时生成对白与过程选项（[`MainRuntime`](../lib/domain/runtime/main_runtime.dart) + [`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)）。
+- **流式（VN / 聊天共用）**：[`OpenAiChatClient.stream`](../lib/foundation/ai/openai_chat_client.dart) 走 SSE（`stream: true`，`data:` 逐行解析，非 SSE 响应降级为一次性 delta）；[`ThinkTagStreamFilter`](../lib/foundation/ai/think_tag_stream_filter.dart) 在流中剥掉 `<think>` 一类块，不会把半个标签漏到正文。领域侧 [`AiTextStreamClient.streamText`](../lib/domain/ai/ai_text_client.dart) 只给真正会流式的客户端实现，其余客户端由 [`TavernChatGenerateAction.streamGenerate`](../lib/domain/chat/tavern_chat_generate_action.dart) / [`BridgeGenerateAction.streamGenerate`](../lib/domain/ai/bridge_generate_action.dart) 一次性包成单块，调用方行为一致。
+- **VN 边流边落树**：[`BridgeBeatStreamParser`](../lib/domain/ai/bridge_stream_parser.dart) 在 `"lines": [` 内逐个平衡 `{…}`，每闭合一个对白对象就产出 `DialogueLine`；第一句到达时 `adoptBridgeBeat` 把新拍挂到当前节点，后续句子走 [`MainRuntime.appendStreamLine`](../lib/domain/runtime/main_runtime.dart)（只加 `lines`，不动 `pointer.lineIndex`），整批结束后 `updateBeat` 提交选项与场景。断流时已出现的句子留在拍里，并补「继续 / 告一段落」保底。
 - **有出边**：须存在收敛通路；玩家点导向某站的选项后跳到 `edge.to`。
 - **无出边（开放区间）**：不强制下一站；选项以 stay「继续」为主，可 `end`「告一段落」；失败保底同此。
 - **禁止（有骨架时）**：擅自增删主节点、发明不存在的下一站 id。
