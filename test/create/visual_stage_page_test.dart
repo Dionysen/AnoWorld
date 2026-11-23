@@ -84,14 +84,17 @@ void main() {
     await tester.pumpAndSettle();
 
     final opened = await repo.open(sample.meta.id);
+    // Portraits are always saved waist-up, even when the edit omitted framing.
     expect(
       opened.castById('c_hero')!.portraitPrompt,
-      'masterpiece, 1boy, silver_hair, white background',
+      'masterpiece, 1boy, silver_hair, upper body, white background',
     );
     // Sheet closed, list row now previews the saved prompt.
     expect(find.text('立绘朝向'), findsNothing);
     expect(
-      find.text('masterpiece, 1boy, silver_hair, white background'),
+      find.text(
+        'masterpiece, 1boy, silver_hair, upper body, white background',
+      ),
       findsOneWidget,
     );
   });
@@ -283,7 +286,9 @@ void main() {
     );
     final plan = planFromProjectFields(project)!;
     expect(plan.isComplete, isTrue);
-    expect(plan.characters.single.portraitPrompt, 'kept prompt');
+    // Older full-body prompts are normalized for drawing without a re-save.
+    expect(plan.characters.single.portraitPrompt, contains('kept prompt'));
+    expect(plan.characters.single.portraitPrompt, contains('upper body'));
     expect(plan.scenes.single.scenePrompt, 'kept scene');
   });
 

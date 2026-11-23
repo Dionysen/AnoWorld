@@ -24,6 +24,18 @@ void main() {
     expect(prompt, contains(ComfyWorkflowTemplates.portraitFacingTags(SpriteFacing.left)));
   });
 
+  test('defaultPortraitPrompt forces stored prompts waist-up', () {
+    const member = CastMember(
+      id: 'c1',
+      name: 'A',
+      visualTags: '1girl, black_hair',
+      portraitPrompt: 'masterpiece, 1girl, full body, white background',
+    );
+    final prompt = VisualImagePipeline.defaultPortraitPrompt(member);
+    expect(prompt, contains('upper body'));
+    expect(prompt, isNot(contains('full body')));
+  });
+
   test('defaultScenePrompt prefers imagePrompt', () {
     const withPrompt = StoryNode(
       id: 'n1',

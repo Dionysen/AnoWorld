@@ -106,7 +106,9 @@ class VisualImagePipeline {
         castOut.add(
           member.copyWith(
             visualTags: row.visualTags,
-            portraitPrompt: row.portraitPrompt,
+            portraitPrompt: ComfyWorkflowTemplates.enforcePortraitFraming(
+              row.portraitPrompt,
+            ),
             avatarAssetId: assetId,
           ),
         );
@@ -211,8 +213,9 @@ class VisualImagePipeline {
     if (member == null) {
       throw const VisualImageException('找不到这个角色');
     }
-    final resolvedPrompt =
-        (prompt ?? defaultPortraitPrompt(member)).trim();
+    final resolvedPrompt = ComfyWorkflowTemplates.enforcePortraitFraming(
+      (prompt ?? defaultPortraitPrompt(member)).trim(),
+    );
     if (resolvedPrompt.isEmpty) {
       throw const VisualImageException('还没有立绘提示词，先去「画面」写好');
     }
@@ -346,7 +349,9 @@ class VisualImagePipeline {
   /// Default portrait prompt from the kept prompt, else locked tags / facing.
   static String defaultPortraitPrompt(CastMember member) {
     final stored = member.portraitPrompt.trim();
-    if (stored.isNotEmpty) return stored;
+    if (stored.isNotEmpty) {
+      return ComfyWorkflowTemplates.enforcePortraitFraming(stored);
+    }
     final tags = member.visualTags.trim();
     if (tags.isEmpty) return '';
     return '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
@@ -376,7 +381,9 @@ class VisualImagePipeline {
       if (row == null) return m;
       return m.copyWith(
         visualTags: row.visualTags,
-        portraitPrompt: row.portraitPrompt,
+        portraitPrompt: ComfyWorkflowTemplates.enforcePortraitFraming(
+          row.portraitPrompt,
+        ),
         facing: row.facing,
       );
     }).toList(growable: false);
