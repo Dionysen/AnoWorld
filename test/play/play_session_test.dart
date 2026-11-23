@@ -1,9 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:anoworld/data/project/memory_project_repository.dart';
+import 'package:anoworld/data/project/project_asset_files.dart';
 import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/models/project_asset.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
+import 'package:anoworld/domain/repositories/save_repository.dart';
+import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/vn_ui_settings.dart';
@@ -94,8 +101,7 @@ class _VnPrefetchClient implements AiTextClient {
   }
 }
 
-String _beatJson(String text, {bool stay = true}) {
-  final choice = stay
+String _beatJson(String text, {bool stay = true}) {  final choice = stay
       ? '{"text":"继续","target":{"type":"beat","beatId":"__stay__"}}'
       : '{"text":"结束","target":{"type":"end"}}';
   return '{"location":"室内","lines":[{"speaker":"旁白","text":"$text"}],'
@@ -768,4 +774,113 @@ void main() {
     final body = tester.widget<Text>(find.text('该走了。'));
     expect(body.style?.color, const Color(0xFFFF3366));
   });
+
+  testWidgets('VN keeps the station background after resuming a slot', (
+    tester,
+  ) async {
+    final dir = Directory.systemTemp.createTempSync('aw_vn_stage_bg');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final file = File(ProjectAssetFiles.absolutePath(dir.path, 'bg.png'));
+    file.parent.createSync(recursive: true);
+    file.writeAsBytesSync(_tinyPng);
+
+    // Station-owned art: strip beat-level backgrounds so only the node's
+    // station image can satisfy the stage.
+    final staged = sample.copyWith(
+      assets: const [
+        ProjectAsset(
+          id: 'a_bg',
+          kind: ProjectAssetKind.background,
+          relativePath: 'bg.png',
+        ),
+      ],
+      main: sample.main.copyWith(
+        nodes: [
+          for (final node in sample.main.nodes)
+            node.id == 'n1'
+                ? node.copyWith(backgroundAssetId: 'a_bg')
+                : node,
+        ],
+        beats: [
+          for (final beat in sample.main.beats)
+            beat.copyWith(
+              scene: Scene(locationText: beat.scene.locationText),
+            ),
+        ],
+      ),
+    );
+
+    final saves = MemorySaveRepository(
+      seed: {
+        'slot_bg': SaveSlot(
+          id: 'slot_bg',
+          projectId: staged.meta.id,
+          pointer: const MainSavePointer(nodeId: 'n1', beatId: 'b_ai'),
+          savedAt: DateTime.utc(2026, 1, 2),
+          bridge: const BridgeSession(
+            nodeId: 'n1',
+            generatedBeats: [
+              Beat(
+                id: 'b_ai',
+                nodeId: 'n1',
+                scene: Scene(locationText: '城门'),
+                appearances: [],
+                lines: [
+                  DialogueLine(
+                    id: 'l_ai',
+                    text: '雨停了。',
+                    kind: DialogueKind.narration,
+                  ),
+                ],
+                choices: [],
+              ),
+            ],
+          ),
+        ),
+      },
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        projects: _TempDirProjects(project: staged, dir: dir.path),
+        saves: saves,
+        home: PlaySessionPage(
+          project: staged,
+          mode: PlayViewMode.visualNovel,
+          slotId: 'slot_bg',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('雨停了。'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(vnBackdropKey),
+        matching: find.byType(Image),
+      ),
+      findsOneWidget,
+    );
+  });
 }
+
+/// Serves one project from a real temp directory so asset files resolve.
+class _TempDirProjects extends MemoryProjectRepository {
+  _TempDirProjects({required Project project, required this.dir})
+    : super(seed: {project.meta.id: project});
+
+  final String dir;
+
+  @override
+  Future<String?> directoryFor(String projectId) async => dir;
+}
+
+/// 1×1 transparent PNG — enough for `Image.file` to build a provider.
+const List<int> _tinyPng = <int>[
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
+  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+];

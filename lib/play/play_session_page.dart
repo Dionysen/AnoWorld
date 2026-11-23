@@ -10,6 +10,7 @@ import 'package:anoworld/domain/ai/bridge_branch_prefetch_action.dart';
 import 'package:anoworld/domain/ai/bridge_generate_action.dart';
 import 'package:anoworld/domain/chat/tavern_chat_generate_action.dart';
 import 'package:anoworld/domain/chat/tavern_reply_choice_action.dart';
+import 'package:anoworld/domain/main/merge_generated_beats.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
@@ -233,41 +234,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     }
   }
 
-  MainStory _mergeBeats(MainStory main, List<Beat> beats) {
-    var working = main;
-    for (final beat in beats) {
-      final node = working.nodeById(beat.nodeId);
-      if (node == null) continue;
-      final allBeats = [
-        ...working.beats.where((b) => b.id != beat.id),
-        beat,
-      ];
-      final ids = node.beatIds.contains(beat.id)
-          ? node.beatIds
-          : [...node.beatIds, beat.id];
-      working = MainStory(
-        summary: working.summary,
-        startNodeId: working.startNodeId,
-        nodes: working.nodes
-            .map(
-              (n) => n.id == node.id
-                  ? StoryNode(
-                      id: n.id,
-                      title: n.title,
-                      synopsis: n.synopsis,
-                      beatIds: ids,
-                      layout: n.layout,
-                      tags: n.tags,
-                    )
-                  : n,
-            )
-            .toList(growable: false),
-        edges: working.edges,
-        beats: allBeats,
-      );
-    }
-    return working;
-  }
+  MainStory _mergeBeats(MainStory main, List<Beat> beats) =>
+      mergeGeneratedBeats(main, beats);
 
   bool _isNarration(DialogueLine line) =>
       line.kind == DialogueKind.narration || line.speakerId == null;
