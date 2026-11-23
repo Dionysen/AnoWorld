@@ -967,6 +967,42 @@ class AppStringsZh extends AppStrings {
   String get historyFastForward => '快进';
 
   @override
+  String get vnSettingsTitle => '游玩设置';
+
+  @override
+  String get dialogueBoxSection => '对话框';
+
+  @override
+  String get dialogueBoxHint => '高度固定，超出的文字翻到下一页';
+
+  @override
+  String get dialogueLines => '行数';
+
+  @override
+  String dialogueLinesValue(int lines) => '$lines 行';
+
+  @override
+  String get dialogueFontSize => '字号';
+
+  @override
+  String dialogueFontSizeValue(double size) => size.round().toString();
+
+  @override
+  String get dialogueBackground => '背景颜色';
+
+  @override
+  String get dialogueBackgroundTheme => '跟随主题';
+
+  @override
+  String get dialogueBackgroundThemeHint => '取当前主题的底色，配上半透明与模糊';
+
+  @override
+  String get dialogueOpacity => '不透明度';
+
+  @override
+  String dialogueOpacityValue(int percent) => '$percent%';
+
+  @override
   String get imageGenQualitySection => '生图质量';
 
   @override

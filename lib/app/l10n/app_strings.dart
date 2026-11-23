@@ -326,6 +326,21 @@ abstract class AppStrings extends AppLocalizations {
   String get historyBack;
   String get historyForward;
   String get historyFastForward;
+
+  // Visual-novel reading box (opened from the play control bar).
+  String get vnSettingsTitle;
+  String get dialogueBoxSection;
+  String get dialogueBoxHint;
+  String get dialogueLines;
+  String dialogueLinesValue(int lines);
+  String get dialogueFontSize;
+  String dialogueFontSizeValue(double size);
+  String get dialogueBackground;
+  String get dialogueBackgroundTheme;
+  String get dialogueBackgroundThemeHint;
+  String get dialogueOpacity;
+  String dialogueOpacityValue(int percent);
+
   String get imageGenQualitySection;
   String get imageGenQualityHint;
   String get imageGenStepsLabel;

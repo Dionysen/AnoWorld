@@ -8,6 +8,8 @@ import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
+import 'package:anoworld/foundation/widgets/app_dialogue_panel.dart';
+import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -626,5 +628,99 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('该走了。'), findsOneWidget);
+  });
+
+  testWidgets('VN hides the title bar and keeps controls under the box', (
+    tester,
+  ) async {
+    await pumpPlay(tester);
+
+    expect(find.text(sample.meta.title), findsNothing);
+    expect(find.byTooltip('返回'), findsOneWidget);
+    expect(find.byTooltip('游玩设置'), findsOneWidget);
+    expect(find.byTooltip('重新生成'), findsOneWidget);
+  });
+
+  testWidgets('VN pages a long line before advancing', (tester) async {
+    final paged = sample.copyWith(
+      main: sample.main.copyWith(
+        beats: [
+          Beat(
+            id: 'b1',
+            nodeId: 'n1',
+            scene: sample.main.beats.first.scene,
+            appearances: sample.main.beats.first.appearances,
+            lines: [
+              DialogueLine(
+                id: 'l_long',
+                text: '雨还在下，' * 40,
+                kind: DialogueKind.narration,
+              ),
+              const DialogueLine(
+                id: 'l_next',
+                text: '第二句。',
+                kind: DialogueKind.narration,
+              ),
+            ],
+            choices: const [],
+          ),
+          sample.main.beats[1],
+        ],
+      ),
+    );
+    await tester.pumpWidget(
+      testScoped(
+        home: PlaySessionPage(
+          project: paged,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1/2'), findsOneWidget);
+    expect(find.text('第二句。'), findsNothing);
+    final boxHeight = tester.getSize(find.byType(AppDialoguePanel)).height;
+
+    await tester.tap(find.textContaining('雨还在下').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('2/2'), findsOneWidget);
+    expect(find.text('第二句。'), findsNothing);
+    expect(tester.getSize(find.byType(AppDialoguePanel)).height, boxHeight);
+
+    await tester.tap(find.textContaining('雨还在下').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('第二句。'), findsOneWidget);
+    expect(tester.getSize(find.byType(AppDialoguePanel)).height, boxHeight);
+  });
+
+  testWidgets('VN settings opens from the control bar', (tester) async {
+    final settings = testSettingsController();
+    await tester.pumpWidget(
+      testScoped(
+        settings: settings,
+        home: PlaySessionPage(
+          project: sample,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('游玩设置'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('对话框'), findsWidgets);
+    expect(find.text('行数'), findsOneWidget);
+    expect(find.text('字号'), findsOneWidget);
+    expect(find.text('不透明度'), findsOneWidget);
+
+    await tester.tap(find.byType(AppSwitch));
+    await tester.pumpAndSettle();
+    expect(settings.vnUi.followsTheme, isFalse);
   });
 }

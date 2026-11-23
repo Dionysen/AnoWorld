@@ -1,5 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
@@ -18,19 +19,24 @@ import 'package:anoworld/domain/runtime/play_history.dart';
 import 'package:anoworld/domain/runtime/play_pointer.dart';
 import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
+import 'package:anoworld/domain/settings/vn_ui_settings.dart';
+import 'package:anoworld/foundation/l10n/app_localizations.dart';
+import 'package:anoworld/foundation/text/text_paginator.dart';
+import 'package:anoworld/foundation/theme/app_dialogue_chrome.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
+import 'package:anoworld/foundation/widgets/app_dialogue_panel.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
-import 'package:anoworld/foundation/widgets/app_surface.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/play/play_chat_message.dart';
 import 'package:anoworld/play/play_chat_view.dart';
 import 'package:anoworld/play/chat_settings_page.dart';
+import 'package:anoworld/play/vn_settings_page.dart';
 import 'package:anoworld/settings/ai_model_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -638,6 +644,10 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     pushAppSlide(context, const ChatSettingsPage());
   }
 
+  void _openVnSettings() {
+    pushAppSlide(context, const VnSettingsPage());
+  }
+
   Future<void> _refreshReplyChoices() async {
     if (!mounted || _assistantBusy || _choicesBusy) return;
     if (_chat.isEmpty || _chat.last.role != TavernChatRole.assistant) {
@@ -1213,8 +1223,11 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   Widget build(BuildContext context) {
     final chatMode = _isChat;
     final title = widget.project.meta.title;
+    final settings = AppScope.settingsOf(context);
     return AppPage(
       title: title,
+      // VN plays full-bleed: no software title bar, controls sit under the box.
+      showTitle: chatMode,
       // Chat keeps a quieter header than other large page titles.
       titleWidget: chatMode
           ? AppText(
@@ -1223,18 +1236,8 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
               maxLines: 1,
             )
           : null,
-      onBack: () => Navigator.of(context).maybePop(),
+      onBack: chatMode ? () => Navigator.of(context).maybePop() : null,
       actions: [
-        if (!chatMode && _canRegenerateVn)
-          AppCircleButton(
-            icon: Icons.refresh_rounded,
-            tooltip: context.strings.regenerateSegment,
-            onPressed: _regenerateVnSegment,
-          ),
-        if (!chatMode && _generating)
-          AppBusyIndicator(
-            semanticLabel: context.strings.generatingSegment,
-          ),
         if (chatMode && _canRegenerateChat)
           AppCircleButton(
             icon: Icons.refresh_rounded,
@@ -1272,24 +1275,34 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                 ),
               ],
             )
-          : _VnStage(
-              runtime: _runtime,
-              project: _project,
-              projectDir: _projectDir,
-              speakerLabel: _speakerLabel,
-              isNarration: _isNarration,
-              // Errors / soft notices only — never the writing placeholder.
-              status: _status,
-              centerActions: _centerActions(),
-              canBack: _history.canBack,
-              canForward: _history.canForward || _canContinueStory,
-              canFastForward: _history.canForward,
-              fastForwarding: _fastForwardTimer != null,
-              onStageTap: _onStageTap,
-              onBack: _goBack,
-              onForward: _forward,
-              onFastForward:
-                  _fastForwardTimer != null ? _stopFastForward : _startFastForward,
+          : ListenableBuilder(
+              listenable: settings,
+              builder: (context, _) => _VnStage(
+                runtime: _runtime,
+                project: _project,
+                projectDir: _projectDir,
+                settings: settings.vnUi,
+                speakerLabel: _speakerLabel,
+                isNarration: _isNarration,
+                // Errors / soft notices only — never the writing placeholder.
+                status: _status,
+                centerActions: _centerActions(),
+                canBack: _history.canBack,
+                canForward: _history.canForward || _canContinueStory,
+                canFastForward: _history.canForward,
+                fastForwarding: _fastForwardTimer != null,
+                canRegenerate: _canRegenerateVn,
+                generating: _generating,
+                onStageTap: _onStageTap,
+                onBack: _goBack,
+                onForward: _forward,
+                onFastForward: _fastForwardTimer != null
+                    ? _stopFastForward
+                    : _startFastForward,
+                onRegenerate: _regenerateVnSegment,
+                onSettings: _openVnSettings,
+                onExit: () => Navigator.of(context).maybePop(),
+              ),
             ),
     );
   }
@@ -1307,11 +1320,12 @@ class _VnCenterAction {
   final AppButtonVariant variant;
 }
 
-class _VnStage extends StatelessWidget {
+class _VnStage extends StatefulWidget {
   const _VnStage({
     required this.runtime,
     required this.project,
     required this.projectDir,
+    required this.settings,
     required this.speakerLabel,
     required this.isNarration,
     required this.status,
@@ -1320,15 +1334,21 @@ class _VnStage extends StatelessWidget {
     required this.canForward,
     required this.canFastForward,
     required this.fastForwarding,
+    required this.canRegenerate,
+    required this.generating,
     required this.onStageTap,
     required this.onBack,
     required this.onForward,
     required this.onFastForward,
+    required this.onRegenerate,
+    required this.onSettings,
+    required this.onExit,
   });
 
   final MainRuntime runtime;
   final Project project;
   final String? projectDir;
+  final VnUiSettings settings;
   final String? Function(DialogueLine) speakerLabel;
   final bool Function(DialogueLine) isNarration;
   final String? status;
@@ -1337,49 +1357,172 @@ class _VnStage extends StatelessWidget {
   final bool canForward;
   final bool canFastForward;
   final bool fastForwarding;
+  final bool canRegenerate;
+  final bool generating;
   final VoidCallback onStageTap;
   final VoidCallback onBack;
   final VoidCallback onForward;
   final VoidCallback onFastForward;
+  final VoidCallback onRegenerate;
+  final VoidCallback onSettings;
+  final VoidCallback onExit;
+
+  @override
+  State<_VnStage> createState() => _VnStageState();
+}
+
+class _VnStageState extends State<_VnStage> {
+  /// Page of the current line on screen (0-based).
+  int _page = 0;
+  List<String> _pages = const <String>[];
+  Object? _pagesKey;
+
+  String? get _placeholder {
+    final runtime = widget.runtime;
+    if (runtime.pointer.isEnded) return context.strings.segmentEnded;
+    if (runtime.currentLine != null) return null;
+    if (runtime.pointer.phase == PlayPhase.choices) {
+      return context.strings.choosePlease;
+    }
+    // Waiting for the next beat: keep the box quiet.
+    return '…';
+  }
+
+  /// Splits the current line into fixed-line pages (cached per geometry).
+  List<String> _paginate({
+    required Object sourceKey,
+    required String text,
+    required TextStyle style,
+    required double width,
+    required int lines,
+    required double fontSize,
+    required TextScaler scaler,
+  }) {
+    if (text.trim().isEmpty) {
+      _pages = const <String>[];
+      _pagesKey = null;
+      _page = 0;
+      return _pages;
+    }
+    final key = (
+      sourceKey,
+      text,
+      width.round(),
+      lines,
+      fontSize,
+      scaler.scale(10).round(),
+    );
+    if (key != _pagesKey) {
+      _pagesKey = key;
+      _pages = paginateText(
+        text,
+        style: style,
+        maxWidth: width,
+        maxLines: lines,
+        textScaler: scaler,
+      );
+      _page = 0;
+    }
+    return _pages;
+  }
+
+  /// Turns to the next page of the current line; false when it is the last.
+  bool _turnPage() {
+    if (_page + 1 >= _pages.length) return false;
+    setState(() => _page++);
+    return true;
+  }
+
+  void _handleTap() {
+    if (_turnPage()) return;
+    widget.onStageTap();
+  }
+
+  void _handleForward() {
+    if (_turnPage()) return;
+    widget.onForward();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final strings = context.strings;
+    final runtime = widget.runtime;
     final scheme = Theme.of(context).colorScheme;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final line = runtime.currentLine;
-    final showChoices = centerActions.isNotEmpty;
+    final ended = runtime.pointer.isEnded;
+    final line = ended ? null : runtime.currentLine;
+    final showChoices = widget.centerActions.isNotEmpty;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Very short viewports: keep the dialogue readable, drop the history bar.
-        final showHistory = constraints.maxHeight >= 260;
-        final maxDialogueHeight =
-            (constraints.maxHeight * 0.55).clamp(96.0, 360.0);
+        // Very short viewports: keep the dialogue readable, drop the controls.
+        final showControls = constraints.maxHeight >= 260;
+        final controlsHeight = showControls
+            ? AppIconButton.hitTarget + AppTheme.spaceSm
+            : 0.0;
+        final statusHeight = widget.status == null
+            ? 0.0
+            : AppTheme.spaceSm + 20;
+        final panelWidth = math.max(
+          0.0,
+          constraints.maxWidth - AppTheme.pagePadding * 2,
+        );
+        final available =
+            constraints.maxHeight -
+            AppTheme.pagePadding -
+            bottomInset -
+            controlsHeight -
+            statusHeight;
+        final linePx = widget.settings.fontSize * AppDialogueChrome.lineHeight;
+        final bodyRoom =
+            available -
+            AppDialogueChrome.headerHeight -
+            AppDialogueChrome.padding.vertical;
+        final fitLines = bodyRoom <= 0 ? 1 : (bodyRoom / linePx).floor();
+        final lines = fitLines.clamp(1, widget.settings.lines);
+
+        final narration = line != null && widget.isNarration(line);
+        final body = line == null ? '' : stripDialogueSpeakerLabel(line.text);
+        final bodyStyle = AppDialogueChrome.bodyStyle(
+          context,
+          widget.settings.fontSize,
+          italic: narration,
+        );
+        final pages = _paginate(
+          sourceKey: line?.id ?? (ended ? 'ended' : 'empty'),
+          text: body,
+          style: bodyStyle,
+          width: AppDialogueChrome.textWidth(panelWidth),
+          lines: lines,
+          fontSize: widget.settings.fontSize,
+          scaler: MediaQuery.textScalerOf(context),
+        );
+        final pageIndex = pages.isEmpty ? 0 : _page.clamp(0, pages.length - 1);
+        final pageText = pages.isEmpty ? null : pages[pageIndex];
+        final speaker = line == null ? null : widget.speakerLabel(line);
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: onStageTap,
+          onTap: _handleTap,
           child: Stack(
             fit: StackFit.expand,
             children: [
               _VnBackground(
-                project: project,
-                projectDir: projectDir,
+                project: widget.project,
+                projectDir: widget.projectDir,
                 backgroundAssetId: runtime.resolvedBackgroundAssetId,
               ),
               if (!showChoices)
                 _VnSpeakerSprite(
-                  project: project,
-                  projectDir: projectDir,
-                  line: runtime.pointer.isEnded ? null : line,
+                  project: widget.project,
+                  projectDir: widget.projectDir,
+                  line: line,
                   appearances: runtime.appearances,
                 ),
               Column(
                 children: [
                   Expanded(
                     child: showChoices
-                        ? _VnChoiceOverlay(actions: centerActions)
+                        ? _VnChoiceOverlay(actions: widget.centerActions)
                         : const SizedBox.expand(),
                   ),
                   Padding(
@@ -1393,45 +1536,61 @@ class _VnStage extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        ConstrainedBox(
-                          constraints:
-                              BoxConstraints(maxHeight: maxDialogueHeight),
-                          child: _VnDialogueBox(
-                            line: runtime.pointer.isEnded ? null : line,
-                            speaker: runtime.pointer.isEnded || line == null
-                                ? null
-                                : speakerLabel(line),
-                            narration: !runtime.pointer.isEnded &&
-                                line != null &&
-                                isNarration(line),
-                            accent: scheme.primary,
-                            placeholder: () {
-                              if (runtime.pointer.isEnded) {
-                                return strings.segmentEnded;
-                              }
-                              if (line != null) return null;
-                              if (runtime.pointer.phase == PlayPhase.choices) {
-                                return strings.choosePlease;
-                              }
-                              // Waiting for the next beat: keep the box quiet;
-                              // title-bar spinner is the only busy signal.
-                              if (runtime.needsBridge) return '…';
-                              return '…';
-                            }(),
-                            status: status,
+                        if (widget.status != null) ...[
+                          AppText(
+                            widget.status!,
+                            role: AppTextRole.caption,
+                            maxLines: 2,
+                          ),
+                          const SizedBox(height: AppTheme.spaceSm),
+                        ],
+                        AppDialoguePanel(
+                          lines: lines,
+                          fontSize: widget.settings.fontSize,
+                          backgroundHex: widget.settings.backgroundHex,
+                          opacity: widget.settings.opacity,
+                          header: speaker == null
+                              ? null
+                              : AppText(
+                                  speaker,
+                                  role: AppTextRole.label,
+                                  color: scheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                  maxLines: 1,
+                                ),
+                          trailing: pages.length > 1
+                              ? AppText(
+                                  '${pageIndex + 1}/${pages.length}',
+                                  role: AppTextRole.caption,
+                                  color: scheme.onSurfaceVariant,
+                                )
+                              : null,
+                          child: Text(
+                            pageText ?? _placeholder ?? '',
+                            style: AppDialogueChrome.bodyStyle(
+                              context,
+                              widget.settings.fontSize,
+                              italic: pageText == null || narration,
+                            ),
+                            maxLines: lines,
+                            overflow: TextOverflow.clip,
                           ),
                         ),
-                        if (showHistory) ...[
+                        if (showControls) ...[
                           const SizedBox(height: AppTheme.spaceSm),
-                          _VnHistoryBar(
-                            enabled: true,
-                            canBack: canBack,
-                            canForward: canForward,
-                            canFastForward: canFastForward,
-                            fastForwarding: fastForwarding,
-                            onBack: onBack,
-                            onForward: onForward,
-                            onFastForward: onFastForward,
+                          _VnControlBar(
+                            canBack: widget.canBack,
+                            canForward: widget.canForward,
+                            canFastForward: widget.canFastForward,
+                            fastForwarding: widget.fastForwarding,
+                            canRegenerate: widget.canRegenerate,
+                            generating: widget.generating,
+                            onExit: widget.onExit,
+                            onBack: widget.onBack,
+                            onForward: _handleForward,
+                            onFastForward: widget.onFastForward,
+                            onRegenerate: widget.onRegenerate,
+                            onSettings: widget.onSettings,
                           ),
                         ],
                       ],
@@ -1447,21 +1606,23 @@ class _VnStage extends StatelessWidget {
   }
 }
 
-/// Back / forward / fast-forward row under the dialogue box.
-class _VnHistoryBar extends StatelessWidget {
-  const _VnHistoryBar({
-    required this.enabled,
+/// Stage control bar: exit, history, regenerate, reading settings.
+class _VnControlBar extends StatelessWidget {
+  const _VnControlBar({
     required this.canBack,
     required this.canForward,
     required this.canFastForward,
     required this.fastForwarding,
+    required this.canRegenerate,
+    required this.generating,
+    required this.onExit,
     required this.onBack,
     required this.onForward,
     required this.onFastForward,
+    required this.onRegenerate,
+    required this.onSettings,
   });
 
-  /// Generation in flight: rewinding would be overridden when the beat lands.
-  final bool enabled;
   final bool canBack;
 
   /// Forward can also keep the story going at the newest progress.
@@ -1470,36 +1631,68 @@ class _VnHistoryBar extends StatelessWidget {
   /// Fast-forward only replays recorded lines, so it needs history ahead.
   final bool canFastForward;
   final bool fastForwarding;
+  final bool canRegenerate;
+
+  /// Writing in flight: the regenerate slot shows a ring instead.
+  final bool generating;
+  final VoidCallback onExit;
   final VoidCallback onBack;
   final VoidCallback onForward;
   final VoidCallback onFastForward;
+  final VoidCallback onRegenerate;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: AppTheme.spaceXs,
+      runSpacing: AppTheme.spaceXs,
       children: [
+        AppIconButton(
+          icon: Icons.arrow_back,
+          tooltip: context.ui.back,
+          onPressed: onExit,
+        ),
         AppIconButton(
           icon: Icons.skip_previous_rounded,
           tooltip: strings.historyBack,
-          onPressed: enabled && canBack ? onBack : null,
+          onPressed: canBack ? onBack : null,
         ),
-        const SizedBox(width: AppTheme.spaceMd),
         AppIconButton(
           icon: Icons.skip_next_rounded,
           tooltip: strings.historyForward,
-          onPressed: enabled && canForward ? onForward : null,
+          onPressed: canForward ? onForward : null,
         ),
-        const SizedBox(width: AppTheme.spaceMd),
         AppIconButton(
           icon: fastForwarding
               ? Icons.pause_rounded
               : Icons.fast_forward_rounded,
           tooltip: strings.historyFastForward,
-          onPressed: enabled && (canFastForward || fastForwarding)
-              ? onFastForward
-              : null,
+          onPressed: canFastForward || fastForwarding ? onFastForward : null,
+        ),
+        if (generating)
+          SizedBox(
+            width: AppIconButton.hitTarget,
+            height: AppIconButton.hitTarget,
+            child: Center(
+              child: AppBusyIndicator(
+                padding: EdgeInsets.zero,
+                semanticLabel: strings.generatingSegment,
+              ),
+            ),
+          )
+        else
+          AppIconButton(
+            icon: Icons.refresh_rounded,
+            tooltip: strings.regenerateSegment,
+            onPressed: canRegenerate ? onRegenerate : null,
+          ),
+        AppIconButton(
+          icon: Icons.settings_outlined,
+          tooltip: strings.vnSettingsTitle,
+          onPressed: onSettings,
         ),
       ],
     );
@@ -1581,10 +1774,10 @@ class _VnSpeakerSprite extends StatelessWidget {
   }
 
   Alignment _alignFor(AppearanceSlot slot) => switch (slot) {
-        AppearanceSlot.left => Alignment.bottomLeft,
-        AppearanceSlot.right => Alignment.bottomRight,
-        AppearanceSlot.center => Alignment.bottomCenter,
-      };
+    AppearanceSlot.left => Alignment.bottomLeft,
+    AppearanceSlot.right => Alignment.bottomRight,
+    AppearanceSlot.center => Alignment.bottomCenter,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -1638,9 +1831,7 @@ File? _vnAssetFile({
   if (id == null || id.isEmpty || dir == null || dir.isEmpty) return null;
   final asset = project.assetById(id);
   if (asset == null) return null;
-  final file = File(
-    ProjectAssetFiles.absolutePath(dir, asset.relativePath),
-  );
+  final file = File(ProjectAssetFiles.absolutePath(dir, asset.relativePath));
   if (!file.existsSync()) return null;
   return file;
 }
@@ -1674,68 +1865,6 @@ class _VnChoiceOverlay extends StatelessWidget {
               ],
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VnDialogueBox extends StatelessWidget {
-  const _VnDialogueBox({
-    required this.line,
-    required this.speaker,
-    required this.narration,
-    required this.accent,
-    required this.placeholder,
-    required this.status,
-  });
-
-  final DialogueLine? line;
-  final String? speaker;
-  final bool narration;
-  final Color accent;
-  final String? placeholder;
-  final String? status;
-
-  @override
-  Widget build(BuildContext context) {
-    final body = line == null
-        ? null
-        : stripDialogueSpeakerLabel(line!.text);
-
-    return AppSurface(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (status != null) ...[
-              AppText(status!, role: AppTextRole.caption),
-              const SizedBox(height: AppTheme.spaceSm),
-            ],
-            if (speaker != null) ...[
-              AppText(
-                speaker!,
-                role: AppTextRole.label,
-                color: accent,
-                fontWeight: FontWeight.w700,
-                maxLines: 1,
-              ),
-              const SizedBox(height: AppTheme.spaceSm),
-            ],
-            if (body != null)
-              AppText(
-                body,
-                role: AppTextRole.body,
-                fontStyle: narration ? FontStyle.italic : null,
-              )
-            else if (placeholder != null)
-              AppText(
-                placeholder!,
-                role: AppTextRole.body,
-                fontStyle: FontStyle.italic,
-              ),
-          ],
         ),
       ),
     );

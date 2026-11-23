@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'app_hex_color.dart';
+
 /// Chat backdrop kinds (aligned with NativeTavern `BackgroundType`).
 enum AppChatBackgroundKind {
   none,
@@ -106,13 +108,8 @@ class AppChatBackground {
   static String _normList(List<String>? colors) =>
       (colors ?? const <String>[]).map(_norm).join(',');
 
-  static Color parseHex(String? hex, {Color fallback = Colors.transparent}) {
-    if (hex == null || hex.isEmpty) return fallback;
-    var value = hex.replaceAll('#', '');
-    if (value.length == 6) value = 'FF$value';
-    if (value.length != 8) return fallback;
-    return Color(int.parse(value, radix: 16));
-  }
+  static Color parseHex(String? hex, {Color fallback = Colors.transparent}) =>
+      tryParseHexColor(hex) ?? fallback;
 
   static Alignment angleToAlignment(double angle) {
     final rad = angle * math.pi / 180.0;

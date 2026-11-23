@@ -191,7 +191,8 @@ void main() {
     expect(find.text('雨夜投宿'), findsWidgets);
     await tester.tap(find.text('雨夜投宿').first);
     await tester.pumpAndSettle();
-    expect(find.text('雨夜投宿'), findsWidgets);
+    // Visual-novel play has no title bar; the stage controls are the landmark.
+    expect(find.byTooltip('游玩设置'), findsOneWidget);
     expect(find.byTooltip('保存进度'), findsNothing);
   });
 

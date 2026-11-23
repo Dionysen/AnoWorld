@@ -8,6 +8,7 @@ import 'package:anoworld/domain/settings/ai_preset_state.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PrefsSettingsRepository implements SettingsRepository {
@@ -18,6 +19,7 @@ class PrefsSettingsRepository implements SettingsRepository {
   static const personasKey = 'anoworld.personas.v1';
   static const aiPresetsKey = 'anoworld.ai_presets.v1';
   static const chatUiKey = 'anoworld.chat_ui.v1';
+  static const vnUiKey = 'anoworld.vn_ui.v1';
   static const plotElementsKey = 'anoworld.plot_elements.v1';
 
   SharedPreferences? preferences;
@@ -98,6 +100,19 @@ class PrefsSettingsRepository implements SettingsRepository {
   @override
   Future<void> saveChatUi(ChatUiSettings settings) async {
     await (await _prefs()).setString(chatUiKey, jsonEncode(settings.toJson()));
+  }
+
+  @override
+  Future<VnUiSettings> loadVnUi() async {
+    final raw = (await _prefs()).getString(vnUiKey);
+    if (raw == null || raw.isEmpty) return const VnUiSettings();
+    final map = asJsonMap(jsonDecode(raw), path: vnUiKey);
+    return VnUiSettings.fromJson(map);
+  }
+
+  @override
+  Future<void> saveVnUi(VnUiSettings settings) async {
+    await (await _prefs()).setString(vnUiKey, jsonEncode(settings.toJson()));
   }
 
   @override

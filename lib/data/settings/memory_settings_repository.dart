@@ -5,6 +5,7 @@ import 'package:anoworld/domain/settings/ai_preset_state.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 
 class MemorySettingsRepository implements SettingsRepository {
   MemorySettingsRepository({
@@ -13,12 +14,14 @@ class MemorySettingsRepository implements SettingsRepository {
     PersonaSettings? personas,
     AiPresetCatalog? aiPresets,
     ChatUiSettings? chatUi,
+    VnUiSettings? vnUi,
     PlotElementCatalog? plotElements,
   })  : _ai = ai ?? const AiSettings(),
         _appearance = appearance ?? AppearanceSettings(),
         _personas = personas ?? const PersonaSettings().ensureDefault(),
         _aiPresets = aiPresets ?? AiPresetCatalog(),
         _chatUi = chatUi ?? const ChatUiSettings(),
+        _vnUi = vnUi ?? const VnUiSettings(),
         _plotElements = plotElements ?? PlotElementCatalog();
 
   AiSettings _ai;
@@ -26,6 +29,7 @@ class MemorySettingsRepository implements SettingsRepository {
   PersonaSettings _personas;
   AiPresetCatalog _aiPresets;
   ChatUiSettings _chatUi;
+  VnUiSettings _vnUi;
   PlotElementCatalog _plotElements;
 
   @override
@@ -66,6 +70,14 @@ class MemorySettingsRepository implements SettingsRepository {
   @override
   Future<void> saveChatUi(ChatUiSettings settings) async {
     _chatUi = settings;
+  }
+
+  @override
+  Future<VnUiSettings> loadVnUi() async => _vnUi;
+
+  @override
+  Future<void> saveVnUi(VnUiSettings settings) async {
+    _vnUi = settings;
   }
 
   @override

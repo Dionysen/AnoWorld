@@ -4,6 +4,7 @@ import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/built_in_plot_elements.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -74,5 +75,26 @@ void main() {
     final loaded = await repo.loadPlotElements();
     expect(loaded.overrides[seedId]?.keyword, '覆写词');
     expect(loaded.custom.single.id, 'pe_user');
+  });
+
+  test('prefs settings repository round-trips VN display prefs', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final repo = PrefsSettingsRepository(preferences: prefs);
+
+    await repo.saveVnUi(
+      const VnUiSettings(
+        lines: 6,
+        fontSize: 19,
+        backgroundHex: '#10131B',
+        opacity: 0.6,
+      ),
+    );
+
+    final loaded = await repo.loadVnUi();
+    expect(loaded.lines, 6);
+    expect(loaded.fontSize, 19);
+    expect(loaded.backgroundHex, '#10131B');
+    expect(loaded.opacity, 0.6);
   });
 }

@@ -12,6 +12,7 @@ import 'package:anoworld/domain/project/entity_id.dart';
 import 'package:anoworld/domain/settings/chat_ui_settings.dart';
 import 'package:anoworld/domain/settings/persona_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
@@ -42,6 +43,7 @@ class SettingsController extends ChangeNotifier {
   PersonaSettings personas = const PersonaSettings().ensureDefault();
   AiPresetCatalog aiPresets = AiPresetCatalog();
   ChatUiSettings chatUi = const ChatUiSettings();
+  VnUiSettings vnUi = const VnUiSettings();
   PlotElementCatalog plotElements = PlotElementCatalog();
   Brightness platformBrightness;
   List<SystemFont> fontCatalog = const [];
@@ -70,6 +72,7 @@ class SettingsController extends ChangeNotifier {
     personas = (await repository.loadPersonas()).ensureDefault();
     aiPresets = await repository.loadAiPresets();
     chatUi = await repository.loadChatUi();
+    vnUi = await repository.loadVnUi();
     plotElements = await repository.loadPlotElements();
     if (aiPresets.activePresetId == null) {
       await applyAiPreset(BuiltInAIPresets.defaultPreset);
@@ -84,6 +87,12 @@ class SettingsController extends ChangeNotifier {
     chatUi = next;
     notifyListeners();
     await repository.saveChatUi(next);
+  }
+
+  Future<void> updateVnUi(VnUiSettings next) async {
+    vnUi = next;
+    notifyListeners();
+    await repository.saveVnUi(next);
   }
 
   Future<void> updatePlotElements(PlotElementCatalog next) async {
