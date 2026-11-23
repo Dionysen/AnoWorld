@@ -3,7 +3,7 @@ import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
-import 'package:anoworld/domain/runtime/play_speakers.dart';
+import 'package:anoworld/domain/runtime/play_role.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -13,12 +13,18 @@ void main() {
     worldBook: base.worldBook,
     cast: const <CastMember>[
       CastMember(id: 'c_lin', name: '林'),
+      CastMember(id: 'c_me', name: '旅人'),
     ],
     main: base.main,
   );
+  const role = PlayRole(playerCastId: 'c_me', aliases: <String>['我']);
 
   test('only emits a line once its object closes', () {
-    final parser = BridgeBeatStreamParser(project: project, beatId: 'b1');
+    final parser = BridgeBeatStreamParser(
+      project: project,
+      beatId: 'b1',
+      role: role,
+    );
     expect(
       parser.add('{"location":"雨夜","lines":[{"speaker":"林","text":"你来了'),
       isEmpty,
@@ -36,34 +42,73 @@ void main() {
   });
 
   test('handles escaped quotes and leading fences', () {
-    final parser = BridgeBeatStreamParser(project: project, beatId: 'b1');
+    final parser = BridgeBeatStreamParser(
+      project: project,
+      beatId: 'b1',
+      role: role,
+    );
     final added = parser.add(
       '```json\n{"lines":[{"speaker":"林","text":"他说\\"走吧\\""}]}',
     );
     expect(added.single.text, '他说"走吧"');
   });
 
-  test('maps the player alias onto the user speaker', () {
+  test('maps the player role and aliases onto the player member', () {
     final parser = BridgeBeatStreamParser(
       project: project,
       beatId: 'b1',
-      userAliases: const <String>['旅人'],
+      role: role,
     );
     final added = parser.add(
-      '{"lines":[{"speaker":"旅人","text":"我跟着你"}]}',
+      '{"lines":[{"speaker":"我","text":"我跟着你"}]}',
     );
-    expect(added.single.speakerId, kPlayUserSpeakerId);
+    expect(added.single.speakerId, 'c_me');
+    expect(added.single.kind, DialogueKind.speech);
+  });
+
+  test('unknown speaker falls back to narration', () {
+    final parser = BridgeBeatStreamParser(
+      project: project,
+      beatId: 'b1',
+      role: role,
+    );
+    final added = parser.add(
+      '{"lines":[{"speaker":"黑衣人","text":"站住"}]}',
+    );
+    expect(added.single.speakerId, isNull);
+    expect(added.single.kind, DialogueKind.narration);
+  });
+
+  test('recovers a cast speaker from a leading label', () {
+    final parser = BridgeBeatStreamParser(
+      project: project,
+      beatId: 'b1',
+      role: role,
+    );
+    final added = parser.add(
+      '{"lines":[{"speaker":"旁白","text":"林：进来吧"}]}',
+    );
+    expect(added.single.speakerId, 'c_lin');
+    expect(added.single.text, '进来吧');
   });
 
   test('skips rows without text instead of stalling', () {
-    final parser = BridgeBeatStreamParser(project: project, beatId: 'b1');
+    final parser = BridgeBeatStreamParser(
+      project: project,
+      beatId: 'b1',
+      role: role,
+    );
     expect(parser.add('{"lines":[{"speaker":"林","text":""},'), isEmpty);
     final added = parser.add('{"speaker":"林","text":"继续"}');
     expect(added.single.text, '继续');
   });
 
   test('stops at the end of the lines array', () {
-    final parser = BridgeBeatStreamParser(project: project, beatId: 'b1');
+    final parser = BridgeBeatStreamParser(
+      project: project,
+      beatId: 'b1',
+      role: role,
+    );
     final added = parser.add(
       '{"lines":[{"speaker":"林","text":"一"}],'
       '"choices":[{"text":"{\\"type\\":\\"end\\"}","target":{}}]}',

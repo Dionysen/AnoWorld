@@ -9,13 +9,11 @@ import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
-import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_field.dart';
-import 'package:anoworld/play/play_mode_sheet.dart';
-import 'package:anoworld/play/play_session_page.dart';
+import 'package:anoworld/play/start_play.dart';
 import 'package:flutter/material.dart';
 
 enum _Stage { world, cast, main }
@@ -330,17 +328,7 @@ class _StagedCreatePageState extends State<StagedCreatePage> {
         }
         final latest = _project;
         if (latest == null) return;
-        final mode = await showPlayModeSheet(context);
-        if (!mounted || mode == null) return;
-        await Navigator.of(context).pushReplacement(
-          AppSlidePageRoute<void>(
-            builder: (_) => PlaySessionPage(
-              project: latest,
-              mode: mode,
-              resumeSave: false,
-            ),
-          ),
-        );
+        await startNewPlay(context, latest, replace: true);
     }
   }
 

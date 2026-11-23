@@ -5,6 +5,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/create/cast_extract_page.dart';
 import 'package:anoworld/create/visual_asset_preview.dart';
 import 'package:anoworld/data/project/project_asset_files.dart';
 import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
@@ -21,6 +22,7 @@ import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
@@ -122,6 +124,14 @@ class _CastEditorPageState extends State<CastEditorPage>
       if (!mounted) return;
       await _persist(next);
     });
+  }
+
+  Future<void> _openExtract() async {
+    await pushAppSlide(
+      context,
+      CastExtractPage(projectId: widget.projectId),
+    );
+    if (mounted) await _load();
   }
 
   String _subtitle(AppStrings strings, CastMember member) {
@@ -237,6 +247,11 @@ class _CastEditorPageState extends State<CastEditorPage>
       onBack: () => Navigator.of(context).maybePop(),
       actions: [
         AppCircleButton(
+          icon: Icons.auto_awesome_outlined,
+          tooltip: strings.castExtractEntry,
+          onPressed: _loading || _error != null ? null : _openExtract,
+        ),
+        AppCircleButton(
           icon: Icons.add,
           tooltip: strings.castAddMember,
           onPressed: _loading || _error != null ? null : () => _editMember(),
@@ -271,10 +286,21 @@ class _CastEditorPageState extends State<CastEditorPage>
                 child: AppEmptyState(
                   message: strings.castEmpty,
                   detail: strings.castEmptyDetail,
-                  action: AppButton(
-                    label: strings.castAddOne,
-                    onPressed: () => _editMember(),
-                    variant: AppButtonVariant.secondary,
+                  action: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AppButton(
+                        label: strings.castExtractEntry,
+                        onPressed: () => _openExtract(),
+                      ),
+                      const SizedBox(height: AppTheme.spaceSm),
+                      AppButton(
+                        label: strings.castAddOne,
+                        onPressed: () => _editMember(),
+                        variant: AppButtonVariant.secondary,
+                      ),
+                    ],
                   ),
                 ),
               )

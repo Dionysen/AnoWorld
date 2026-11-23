@@ -453,6 +453,25 @@ abstract class AppStrings extends AppLocalizations {
   String get castDeleteMember;
   String get castUnnamedMember;
 
+  // Play role (who the player is in a VN slot) and world-book cast extraction.
+
+  String get playRoleTitle;
+  String get playRoleHint;
+  String get castExtractEntry;
+  String get castExtractTitle;
+  String get castExtractIntro;
+  String get castExtractRunning;
+  String get castExtractEmpty;
+  String get castExtractEmptyDetail;
+  String get castExtractFailed;
+  String get castExtractExisting;
+  String get castExtractNew;
+  String get castExtractApply;
+  String get castExtractGoVisual;
+  String get castAliasesLabel;
+  String castExtractDone(int count);
+  String castExtractDiscarded(int count);
+
   String get mainGraphCanvas;
   String get mainGraphCard;
   String get mainGraphOverview;

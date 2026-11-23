@@ -120,6 +120,7 @@ class SavesTabState extends State<SavesTab> {
           mode: row.slot.mode,
           slotId: row.slot.id,
           resumeSave: true,
+          playerCastId: row.slot.playerCastId,
         ),
       );
     } catch (error) {

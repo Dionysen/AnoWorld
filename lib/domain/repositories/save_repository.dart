@@ -15,6 +15,7 @@ class SaveSlot {
     this.replyChoices = const <String>[],
     this.history = const <MainSavePointer>[],
     this.historyCursor = -1,
+    this.playerCastId,
   });
 
   /// Unique slot id (one project may have many slots).
@@ -38,6 +39,10 @@ class SaveSlot {
 
   /// Cursor into [history]; `-1` when absent (legacy slot).
   final int historyCursor;
+
+  /// Cast member the player role-plays, locked when the slot was created.
+  /// Null on legacy slots (fall back to the protagonist).
+  final String? playerCastId;
 }
 
 /// Per-story play progress: many slots per [SaveSlot.projectId].
@@ -59,6 +64,7 @@ abstract interface class SaveRepository {
     List<String> replyChoices = const <String>[],
     List<MainSavePointer> history = const <MainSavePointer>[],
     int historyCursor = -1,
+    String? playerCastId,
   });
 
   Future<void> clear(String slotId);

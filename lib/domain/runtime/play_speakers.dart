@@ -1,11 +1,10 @@
 import 'package:anoworld/domain/models/cast.dart';
-
-/// Speaker id for player lines (composer / explicit User aliases).
-const String kPlayUserSpeakerId = '__user__';
-
-final RegExp _speakerLabelPattern = RegExp(r'^([^：:\n]{1,24})[：:]\s*');
+import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/runtime/play_role.dart';
 
 /// Leading `名字：` / `Name:` label, if any.
+final RegExp _speakerLabelPattern = RegExp(r'^([^：:\n]{1,24})[：:]\s*');
+
 String? dialogueSpeakerLabel(String text) {
   final trimmed = text.trimLeft();
   final match = _speakerLabelPattern.firstMatch(trimmed);
@@ -25,30 +24,45 @@ String stripDialogueSpeakerLabel(String text) {
   return trimmed.substring(match.end);
 }
 
-/// Whether [speakerId] refers to a cast member (by id or exact name).
-bool speakerIsCastMember(String? speakerId, List<CastMember> cast) {
-  if (speakerId == null || speakerId.isEmpty) return false;
-  if (speakerId == kPlayUserSpeakerId) return false;
-  for (final member in cast) {
-    if (member.id == speakerId || member.name == speakerId) return true;
-  }
-  return false;
+const Set<String> _narratorNames = <String>{
+  '旁白',
+  '叙述',
+  'narrator',
+  'narration',
+  'system',
+  '系统',
+};
+
+/// Whether [speaker] is a narration marker (empty / 旁白 / narrator …).
+bool isNarratorSpeaker(String speaker) {
+  final normalized = normalizeCastName(speaker).toLowerCase();
+  return normalized.isEmpty || _narratorNames.contains(normalized);
 }
 
-/// Player speech: explicit user id, known aliases, or any non-cast speaker
-/// (story nicknames like「老公」when User is the husband).
-bool speakerIsPlayer({
-  required String? speakerId,
-  required List<CastMember> cast,
-  List<String> userAliases = const <String>[],
+/// Maps a model-supplied speaker string to a defined cast id, or narration.
+///
+/// Strict contract: a line is spoken only by a defined [CastMember] (including
+/// the player's own member). Anything else becomes narration so no bare name
+/// ever reaches the stage.
+///
+/// [recognized] is false when the speaker is narration or an unknown name.
+({String? castId, bool recognized}) resolveDialogueSpeaker({
+  required String speaker,
+  required Project project,
+  required PlayRole role,
 }) {
-  if (speakerId == null || speakerId.isEmpty) return false;
-  if (speakerId == kPlayUserSpeakerId) return true;
-  final lower = speakerId.toLowerCase();
-  for (final alias in userAliases) {
-    final a = alias.trim();
-    if (a.isEmpty) continue;
-    if (a == speakerId || a.toLowerCase() == lower) return true;
+  if (isNarratorSpeaker(speaker)) {
+    return (castId: null, recognized: false);
   }
-  return !speakerIsCastMember(speakerId, cast);
+  final member = castMemberForSpeaker(project.cast, speaker);
+  if (member != null) {
+    return (castId: member.id, recognized: true);
+  }
+  if (role.speaksAsPlayer(speaker, project)) {
+    final playerId = role.playerIn(project)?.id;
+    if (playerId != null) {
+      return (castId: playerId, recognized: true);
+    }
+  }
+  return (castId: null, recognized: false);
 }

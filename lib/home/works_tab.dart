@@ -29,9 +29,7 @@ import 'package:anoworld/home/library_display_labels.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:anoworld/home/library_selection.dart';
-import 'package:anoworld/foundation/widgets/app_page_route.dart';
-import 'package:anoworld/play/play_mode_sheet.dart';
-import 'package:anoworld/play/play_session_page.dart';
+import 'package:anoworld/play/start_play.dart';
 import 'package:anoworld/project/project_hub_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -835,20 +833,8 @@ class WorksTabState extends State<WorksTab> {
     try {
       final project = await AppScope.projectsOf(context).open(summary.id);
       if (!mounted) return;
-      final mode = await showPlayModeSheet(context);
-      if (!mounted || mode == null) return;
-      AppLog.instance.info(
-        '开始故事：${summary.title}（${mode.name}）',
-        tag: 'works.story',
-      );
-      await pushAppSlide(
-        context,
-        PlaySessionPage(
-          project: project,
-          mode: mode,
-          resumeSave: false,
-        ),
-      );
+      AppLog.instance.info('开始故事：${summary.title}', tag: 'works.story');
+      await startNewPlay(context, project);
       if (mounted) await reload();
     } catch (error, stack) {
       AppLog.instance.error(

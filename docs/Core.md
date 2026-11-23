@@ -45,7 +45,7 @@ App 全局（设置，与酒馆同类）
 | `chatHistory` | 游玩区间会话（非无限聊） |
 | `main` / `jailbreak` / custom | 预设文件内文案 |
 
-**宏与变量**：提示词与条目正文中的 `{{user}}`、`{{char}}`、`{{description}}`、时间/随机，以及 ST **Macros 2.0** 变量语法，在发送前按酒馆规则展开（实现 port 同级 NativeTavern 的 `MacroService` / 变量层）。`{{char}}` 等**角色宏**只绑定 **勾选主角** 的 `CastMember`（[`isProtagonist`](../lib/domain/models/cast.dart)）；未勾选则无焦点、宏不胡填别名。配角通过各成员字段与世界书进上下文。
+**宏与变量**：提示词与条目正文中的 `{{user}}`、`{{char}}`、`{{description}}`、时间/随机，以及 ST **Macros 2.0** 变量语法，在发送前按酒馆规则展开（实现 port 同级 NativeTavern 的 `MacroService` / 变量层）。**聊天**里 `{{char}}` 绑定 **勾选主角** 的 `CastMember`（[`isProtagonist`](../lib/domain/models/cast.dart)），`{{user}}` 走 Persona；**视觉小说**改由本局 [`PlayRole`](../lib/domain/runtime/play_role.dart) 决定：`{{user}}` = 玩家扮演的角色，`{{char}}` = `focusIn`（玩家演主角时自动让位给另一名角色）。未勾选 / 未选角色则无焦点、宏不胡填别名。配角通过各成员字段与世界书进上下文。
 
 **任务层**：在上述 ST 拼装完成之后，应用层再追加 AnoWorld 专用段（当前站 `synopsis`、合法下一站 JSON、schema），不由宏替代。
 
@@ -67,12 +67,16 @@ App 全局（设置，与酒馆同类）
 
 - **是什么**：与酒馆 **User Persona** 相同——全局可建多套，选用一套作为当前玩家；提供显示名与描述，写入提示词 `persona` 段，并驱动 `{{user}}` / `{{user_description}}` / `{{persona}}` 等宏（数据形状对照 NativeTavern `Persona`）。
 - **作用域**：默认全局；与 ST 类似的「绑定某角色/某对话」可分期对齐，MVP 至少支持**选一个当前 Persona**。
-- **与 Cast 分工**：Persona = **玩家**是谁；Cast = **故事里有哪些角色**（含配角）。玩家名字出现在对白里用 Persona，不出现在 Cast 里（除非作者故意做自设角色条目）。
+- **与 Cast 分工**：Persona = **玩家**是谁（聊天、`{{user}}` 默认来源）；Cast = **故事里有哪些角色**（含配角）。视觉小说里玩家身份改由**本局扮演的角色**（`SaveSlot.playerCastId`）承担，聊天仍用 Persona。玩家名字出现在对白里时，VN 用所选角色名 / 别名，聊天用 Persona。
 
 ## Cast（角色）
 
-- 姓名、设定摘要、性格、对白风格、示例对白、立绘/头像资源引用等；**支持多名角色（主角 + 配角）**，比重酒馆的「单卡聊天」更细。其中 **至多一名** 可勾 **主角**（驱动 `{{char}}`）；导入角色卡时第一张默认勾选。
-- 来源：手建，或从 ST 角色卡**选择性摘取**字段后映射至此（及必要的 WorldBook 条目）；解析见 [`StCharacterCardParser`](../lib/domain/card_import/st_character_card_parser.dart)，映射见 [`StCardProjectMapper`](../lib/domain/card_import/st_card_project_mapper.dart)。导入时 [`RichTextSanitizer`](../lib/foundation/text/rich_text_sanitizer.dart) 去 HTML、保留 Markdown；可选手动「清理格式」。PNG 卡面写入故事 `ProjectMeta.coverPath`（[`ProjectCoverFiles.importFromBytes`](../lib/data/project/project_cover_files.dart)）。
+- **唯一真相**：姓名、别名、设定摘要、性格、对白风格、示例对白、立绘/头像资源引用等；**支持多名角色（主角 + 配角）**，比重酒馆的「单卡聊天」更细。其中 **至多一名** 可勾 **主角**（聊天 / 默认焦点；导入角色卡时第一张默认勾选）。
+- **别名** `aliases`：同一角色的称呼 / 称号（如「苏姐」「老公」）。匹配统一走 [`normalizeCastName`](../lib/domain/models/cast.dart)：去首尾引号与空白、去末尾 `（冷笑）` 类修饰，再按 **id → 归一化名 → 别名** 找 [`CastMember`](../lib/domain/models/cast.dart)，见 [`castMemberForSpeaker`](../lib/domain/models/cast.dart)。
+- **说话人严格协议**：VN 的 `lines[].speakerId` **只能是 Cast id 或空**（空 = 旁白）。解析入口 [`resolveDialogueSpeaker`](../lib/domain/runtime/play_speakers.dart)：空 / 旁白 / narrator → 旁白；id / 名字 / 别名 → 该角色；玩家称呼 → 本局角色 id；其余一律旁白并记 `AppLog`（`play.vn`）。未知名字不会以字符串形式进入舞台或对白框。
+- **一键从世界书抽取**：世界书常把人物表塞在任意格式（标题、表格、缩进列表、台词）里。`lib/domain/cast_extract/` 先由 [`CastScanner`](../lib/domain/cast_extract/cast_scan.dart) 按条目打分并切成 ≤1200 字窗口，再由 [`CastExtractionAction`](../lib/domain/cast_extract/cast_extraction_action.dart) 分批（≤6000 字 / 批）按严格 JSON 抽取字段；[`gateExtractedCast`](../lib/domain/cast_extract/cast_merge.dart) 校验 `name` / `aliases` / `exampleLines` 必须在原文出现，做 `{{char}}/{{user}}` 清洗与长度上限，再由 `buildCastMergeCandidates` 按归一化名 / 别名**幂等合并**（只补空字段、别名取并集、不动 `avatarAssetId` / `portraitPrompt` / `facing` / `isProtagonist`）。预览页 [`CastExtractPage`](../lib/create/cast_extract_page.dart) 从角色页进入，确认后只写 `cast`。
+- 来源：手建、世界书抽取、或从 ST 角色卡**选择性摘取**字段后映射至此（及必要的 WorldBook 条目）；解析见 [`StCharacterCardParser`](../lib/domain/card_import/st_character_card_parser.dart)，映射见 [`StCardProjectMapper`](../lib/domain/card_import/st_card_project_mapper.dart)。导入时 [`RichTextSanitizer`](../lib/foundation/text/rich_text_sanitizer.dart) 去 HTML、保留 Markdown；可选手动「清理格式」。PNG 卡面写入故事 `ProjectMeta.coverPath`（[`ProjectCoverFiles.importFromBytes`](../lib/data/project/project_cover_files.dart)）。
+- **本局扮演角色（仅 VN）**：开新局时选一名 Cast 作为玩家，存入 [`SaveSlot.playerCastId`](../lib/domain/repositories/save_repository.dart)，本局不可改；续玩按存档恢复，旧档缺失时回退主角。玩家开口即该角色，立绘与配角同规则显示。聊天仍用 Persona。
 - 立绘等图片：优先走**生图通道**配置的供应商（与文本/LLM 供应商列表分离，对齐 NativeTavern `ImageGenProvider`）；同时支持用户本地导入；运行时只认资源引用。
 - 立绘朝向 `facing`：`"left"` / `"right"`（默认 right）。惯例面朝舞台中央——面向右站左边、面向左站右边；`Appearance.slot` 未写时用 `facing` 的对侧。生图提示词会写入对应 facing 标签。
 - 画面提示词：`visualTags` 锁长相标签（发色发型瞳色体型等，跨场景稳定）；`portraitPrompt` 存「画面」页确认的完整立绘提示词（空则按 `visualTags + facing` 现拼）。场景提示词落在 `StoryNode.imagePrompt`。

@@ -3,6 +3,7 @@ import 'package:anoworld/domain/ai/macro_context_builder.dart';
 import 'package:anoworld/domain/ai/play_context_selector.dart';
 import 'package:anoworld/domain/ai/prompt_assembler.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/runtime/play_role.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
@@ -37,6 +38,7 @@ class AiPromptContext {
     required String taskSuffix,
     PlotElementCatalog? plotCatalog,
     Iterable<String> recentText = const <String>[],
+    PlayRole? playRole,
     ContextBudget? budget,
     int reservedTokens = 0,
   }) {
@@ -45,6 +47,7 @@ class AiPromptContext {
       worldInfoBefore: '',
       worldInfoAfter: '',
       inlineWorldBook: false,
+      playRole: playRole,
       taskSuffix: taskSuffix,
     );
     final selection = const PlayContextSelector().select(
@@ -60,6 +63,7 @@ class AiPromptContext {
       worldInfoBefore: selection.loreText,
       worldInfoAfter: selection.plotText,
       inlineWorldBook: false,
+      playRole: playRole,
       taskSuffix: taskSuffix,
     );
   }
@@ -68,6 +72,7 @@ class AiPromptContext {
     Project? project,
     PlotElementCatalog? plotCatalog,
     String worldInfoBefore = '',
+    PlayRole? playRole,
     required String taskSuffix,
     String worldInfoAfter = '',
     /// When false the full world book is not inlined and [worldInfoBefore] is
@@ -86,9 +91,15 @@ class AiPromptContext {
       if (worldInfoAfter.trim().isNotEmpty) worldInfoAfter.trim(),
       if (plotBlock.isNotEmpty) plotBlock,
     ].join('\n\n');
+    final role = playRole;
+    final playAs = role != null && project != null ? role.playerIn(project) : null;
+    final focus = role != null && project != null
+        ? role.focusIn(project)
+        : project?.protagonist;
     final macro = MacroContextBuilder().build(
       persona: persona,
-      protagonist: project?.protagonist,
+      playAs: playAs,
+      protagonist: focus,
       cast: project?.cast ?? const [],
       modelName: endpoint.model,
     );

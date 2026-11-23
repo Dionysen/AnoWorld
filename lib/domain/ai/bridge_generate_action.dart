@@ -5,6 +5,7 @@ import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
+import 'package:anoworld/domain/runtime/play_role.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
@@ -48,7 +49,7 @@ class _BridgeRequest {
     required this.legalNodeIds,
     required this.forceConverge,
     required this.openMode,
-    required this.userAliases,
+    required this.role,
     required this.allowInStationChoices,
     required this.generation,
   });
@@ -62,7 +63,7 @@ class _BridgeRequest {
   final Set<String> legalNodeIds;
   final bool forceConverge;
   final bool openMode;
-  final List<String> userAliases;
+  final PlayRole role;
   final bool allowInStationChoices;
   final GenerationPreset? generation;
 }
@@ -84,7 +85,7 @@ class BridgeGenerateAction {
     required BridgeSession session,
     PlotElementCatalog? plotCatalog,
     int maxBeats = BridgeSession.defaultMaxBeats,
-    List<String> userAliases = const <String>[],
+    PlayRole role = PlayRole.none,
     int minLines = 1,
     InStationChoiceFrequency inStationChoiceFrequency =
         InStationChoiceFrequency.rare,
@@ -96,7 +97,7 @@ class BridgeGenerateAction {
       session: session,
       plotCatalog: plotCatalog,
       maxBeats: maxBeats,
-      userAliases: userAliases,
+      role: role,
       minLines: minLines,
       inStationChoiceFrequency: inStationChoiceFrequency,
     );
@@ -120,7 +121,7 @@ class BridgeGenerateAction {
           legalNodeIds: request.legalNodeIds,
           forceConverge: request.forceConverge,
           openMode: request.openMode,
-          userAliases: userAliases,
+          role: role,
           allowInStationChoices: request.allowInStationChoices,
         );
         if (beat.lines.length >= minLines) return beat;
@@ -159,7 +160,7 @@ class BridgeGenerateAction {
     required BridgeSession session,
     PlotElementCatalog? plotCatalog,
     int maxBeats = BridgeSession.defaultMaxBeats,
-    List<String> userAliases = const <String>[],
+    PlayRole role = PlayRole.none,
     int minLines = 1,
     InStationChoiceFrequency inStationChoiceFrequency =
         InStationChoiceFrequency.rare,
@@ -171,7 +172,7 @@ class BridgeGenerateAction {
       session: session,
       plotCatalog: plotCatalog,
       maxBeats: maxBeats,
-      userAliases: userAliases,
+      role: role,
       minLines: minLines,
       inStationChoiceFrequency: inStationChoiceFrequency,
     );
@@ -185,7 +186,7 @@ class BridgeGenerateAction {
         session: session,
         plotCatalog: plotCatalog,
         maxBeats: maxBeats,
-        userAliases: userAliases,
+        role: role,
         minLines: minLines,
         inStationChoiceFrequency: inStationChoiceFrequency,
       );
@@ -196,7 +197,7 @@ class BridgeGenerateAction {
     final parser = BridgeBeatStreamParser(
       project: project,
       beatId: request.beatId,
-      userAliases: userAliases,
+      role: role,
     );
     final raw = StringBuffer();
     await for (final chunk in streaming.streamText(
@@ -222,7 +223,7 @@ class BridgeGenerateAction {
         legalNodeIds: request.legalNodeIds,
         forceConverge: request.forceConverge,
         openMode: request.openMode,
-        userAliases: userAliases,
+        role: role,
         allowInStationChoices: request.allowInStationChoices,
       );
       if (beat.lines.length < minLines) {
@@ -284,7 +285,7 @@ class BridgeGenerateAction {
     required BridgeSession session,
     PlotElementCatalog? plotCatalog,
     required int maxBeats,
-    required List<String> userAliases,
+    required PlayRole role,
     required int minLines,
     required InStationChoiceFrequency inStationChoiceFrequency,
   }) {
@@ -342,7 +343,7 @@ class BridgeGenerateAction {
     String blockFor(String summaryText) => _userBlock(
           node: node,
           project: project,
-          userAliases: userAliases,
+          role: role,
           nextStationBlock: nextStationBlock,
           summary: summaryText,
           turnCount: session.turnCount,
@@ -362,6 +363,7 @@ class BridgeGenerateAction {
         for (final beat in session.generatedBeats.reversed.take(2))
           for (final line in beat.lines) line.text,
       ],
+      playRole: role,
       taskSuffix: task,
       budget: budget,
       reservedTokens: budget.estimate(blockFor('')),
@@ -387,7 +389,7 @@ class BridgeGenerateAction {
       legalNodeIds: exits.map((e) => e.to).toSet(),
       forceConverge: forceConverge,
       openMode: openMode,
-      userAliases: userAliases,
+      role: role,
       allowInStationChoices: allowInStationChoices,
       generation: ctx.generation,
     );
@@ -463,7 +465,7 @@ class BridgeGenerateAction {
   static String _userBlock({
     required StoryNode node,
     required Project project,
-    required List<String> userAliases,
+    required PlayRole role,
     required String nextStationBlock,
     required String summary,
     required int turnCount,
@@ -471,11 +473,17 @@ class BridgeGenerateAction {
     required bool openMode,
     required String paceHint,
   }) {
+    final castLine = project.cast.map((c) {
+      final aliases = c.aliases.where((a) => a.trim().isNotEmpty).toList();
+      return aliases.isEmpty ? c.name : '${c.name}（别名：${aliases.join('/')}）';
+    }).join('、');
+    final player = role.playerIn(project);
+    final focus = role.focusIn(project);
     return '''
 当前站：${node.title}
 本站目标：${node.synopsis ?? ''}
-角色：${project.cast.map((c) => c.name).join('、')}
-玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
+角色：${castLine.isEmpty ? '（无）' : castLine}
+玩家扮演：${player?.name ?? '（未指定）'}${focus == null ? '' : '\n焦点角色：${focus.name}'}
 $nextStationBlock
 区间摘要：$summary
 已生成拍数：$turnCount/${openMode ? '∞' : maxBeats}
@@ -495,14 +503,14 @@ $paceHint请生成本站下一小段对白。''';
     const choiceCap =
         'choices 最多 ${BridgeSession.maxChoicesPerBeat} 个。';
     final sharedHead = '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
-输出格式：{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[...]}
+输出格式：{"location":"地点","lines":[{"speaker":"角色名","text":"纯正文"}],"choices":[...]}
 规则：
+- speaker 只能是「角色」列表里的名字或别名、玩家扮演角色的名字，或「旁白」；不要发明列表外的名字。
+- 玩家开口：speaker 用玩家扮演角色的名字（或「我」）。
+- 环境/动作叙述：speaker 用「旁白」（仍须主角可感知）。
 - text 只写对白/叙述正文，禁止「瑞希：」「User：」这类前缀。
 - 全程以主角（玩家）视角：写其所见所闻所感；旁白只能写主角能感知的环境与动作，禁止上帝全知（不在场的密谋、他人内心、远处同时发生的事）。
 - 若主角需要得知本不该知道的事，必须安排亲历获知（跟踪、潜入、到场目击等），并写出占用时间/耽误正事等代价；禁止无代价突然知道。
-- 角色开口：speaker 必须是角色列表里的名字，不能写成旁白。
-- 玩家开口：speaker 用玩家称呼（或故事里对玩家的叫法，如「老公」）。
-- 环境/动作叙述：speaker 用「旁白」（仍须主角可感知）。
 $minLineRule
 - $choiceCap''';
     if (openMode) {
@@ -538,7 +546,7 @@ $choiceRule
     required Set<String> legalNodeIds,
     required bool forceConverge,
     required bool openMode,
-    List<String> userAliases = const <String>[],
+    PlayRole role = PlayRole.none,
     bool allowInStationChoices = true,
   }) {
     final decoded = decodeJsonCandidate(raw);
@@ -557,7 +565,7 @@ $choiceRule
           index: i,
           beatId: beatId,
           project: project,
-          userAliases: userAliases,
+          role: role,
         );
         if (line == null) continue;
         lines.add(line);

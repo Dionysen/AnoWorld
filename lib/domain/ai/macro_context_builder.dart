@@ -8,6 +8,7 @@ class MacroContextBuilder {
 
   MacroContext build({
     UserPersona? persona,
+    CastMember? playAs,
     CastMember? protagonist,
     Iterable<CastMember> cast = const [],
     String scenario = '',
@@ -23,13 +24,21 @@ class MacroContextBuilder {
     int maxResponseTokens = 0,
   }) {
     final hero = protagonist;
+    final playerName = playAs?.name.trim() ?? '';
+    final playerSummary = playAs?.summary.trim() ?? '';
     final groupNames = [
       for (final member in cast)
-        if (hero == null || member.id != hero.id) member.name,
+        if ((hero == null || member.id != hero.id) &&
+            (playAs == null || member.id != playAs.id))
+          member.name,
     ];
     return MacroContext(
-      userName: persona?.name ?? 'User',
-      userDescription: persona?.description ?? '',
+      userName: playerName.isNotEmpty
+          ? playerName
+          : (persona?.name ?? 'User'),
+      userDescription: playerSummary.isNotEmpty
+          ? playerSummary
+          : (persona?.description ?? ''),
       characterName: hero?.name ?? 'Assistant',
       characterDescription: hero?.summary ?? '',
       characterPersonality: hero?.personality ?? '',

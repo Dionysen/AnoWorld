@@ -2,75 +2,51 @@ import 'dart:convert';
 
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/runtime/play_role.dart';
 import 'package:anoworld/domain/runtime/play_speakers.dart';
 
 /// Maps one `lines[]` row of a beat reply; null when it carries no text.
 ///
 /// Shared by the buffered parse and the streaming scanner so a line looks the
-/// same whichever path produced it.
+/// same whichever path produced it. Speaker resolution is strict: a line is
+/// spoken only by a defined cast member; unknown names fall back to narration.
 DialogueLine? dialogueLineFromRow(
   Map row, {
   required int index,
   required String beatId,
   required Project project,
-  List<String> userAliases = const <String>[],
+  required PlayRole role,
 }) {
   var text = '${row['text'] ?? ''}'.trim();
   if (text.isEmpty) return null;
   var speaker = '${row['speaker'] ?? ''}'.trim();
-  // Recover character/user from "名字：" in text when speaker is missing/旁白.
+
+  // Recover the character from a leading「名字：」when speaker is missing or
+  // 旁白, but only when that label names a real speaker.
   final labeled = dialogueSpeakerLabel(text);
-  if (labeled != null && _isNarratorSpeaker(speaker)) {
-    speaker = labeled;
+  if (labeled != null) {
+    final labelResolves = resolveDialogueSpeaker(
+      speaker: labeled,
+      project: project,
+      role: role,
+    ).recognized;
+    if (labelResolves) {
+      if (isNarratorSpeaker(speaker)) speaker = labeled;
+      text = stripDialogueSpeakerLabel(text);
+    }
   }
-  text = stripDialogueSpeakerLabel(text);
-  final narration = _isNarratorSpeaker(speaker);
-  final speakerId = narration
-      ? null
-      : _resolveSpeakerId(speaker, project, userAliases);
+
+  final resolved = resolveDialogueSpeaker(
+    speaker: speaker,
+    project: project,
+    role: role,
+  );
   return DialogueLine(
     id: '${beatId}_l$index',
     text: text,
-    speakerId: speakerId,
-    kind: narration ? DialogueKind.narration : DialogueKind.speech,
+    speakerId: resolved.castId,
+    kind: resolved.recognized ? DialogueKind.speech : DialogueKind.narration,
   );
-}
-
-bool _isNarratorSpeaker(String speaker) {
-  final s = speaker.trim().toLowerCase();
-  return s.isEmpty ||
-      s == '旁白' ||
-      s == 'narrator' ||
-      s == 'narration' ||
-      s == 'system';
-}
-
-bool _isUserSpeaker(String speaker, List<String> userAliases) {
-  final s = speaker.trim();
-  if (s.isEmpty) return false;
-  final lower = s.toLowerCase();
-  if (lower == 'user' || lower == '{{user}}' || s == '玩家' || s == '我') {
-    return true;
-  }
-  for (final alias in userAliases) {
-    final a = alias.trim();
-    if (a.isEmpty) continue;
-    if (a == s || a.toLowerCase() == lower) return true;
-  }
-  return false;
-}
-
-String? _resolveSpeakerId(
-  String speaker,
-  Project project,
-  List<String> userAliases,
-) {
-  if (_isNarratorSpeaker(speaker)) return null;
-  if (_isUserSpeaker(speaker, userAliases)) return kPlayUserSpeakerId;
-  for (final member in project.cast) {
-    if (member.name == speaker) return member.id;
-  }
-  return speaker;
 }
 
 /// Pulls finished `lines[]` objects out of a partially streamed beat JSON.
@@ -82,12 +58,12 @@ class BridgeBeatStreamParser {
   BridgeBeatStreamParser({
     required this.project,
     required this.beatId,
-    this.userAliases = const <String>[],
+    required this.role,
   });
 
   final Project project;
   final String beatId;
-  final List<String> userAliases;
+  final PlayRole role;
 
   final StringBuffer _raw = StringBuffer();
   final List<DialogueLine> _lines = <DialogueLine>[];
@@ -114,7 +90,7 @@ class BridgeBeatStreamParser {
         index: i,
         beatId: beatId,
         project: project,
-        userAliases: userAliases,
+        role: role,
       );
       if (line == null) continue;
       _lines.add(line);
@@ -129,7 +105,7 @@ class BridgeBeatStreamParser {
     if (key < 0) return;
     final colon = text.indexOf(':', key);
     if (colon < 0) return;
-    var quote = text.indexOf('"', colon + 1);
+    final quote = text.indexOf('"', colon + 1);
     if (quote < 0) return;
     final end = _stringEnd(text, quote + 1);
     if (end < 0) return;

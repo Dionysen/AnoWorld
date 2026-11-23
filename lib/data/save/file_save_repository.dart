@@ -100,6 +100,7 @@ class FileSaveRepository implements SaveRepository {
           )
           .toList(growable: false),
       historyCursor: (map.optionalNum('historyCursor') ?? -1).toInt(),
+      playerCastId: map.optionalString('playerCastId'),
     );
   }
 
@@ -114,6 +115,7 @@ class FileSaveRepository implements SaveRepository {
     List<String> replyChoices = const <String>[],
     List<MainSavePointer> history = const <MainSavePointer>[],
     int historyCursor = -1,
+    String? playerCastId,
   }) async {
     final file = await _slotFile(slotId);
     final payload = <String, dynamic>{
@@ -129,6 +131,8 @@ class FileSaveRepository implements SaveRepository {
       if (history.isNotEmpty)
         'history': history.map((p) => p.toJson()).toList(growable: false),
       if (historyCursor >= 0) 'historyCursor': historyCursor,
+      if (playerCastId != null && playerCastId.isNotEmpty)
+        'playerCastId': playerCastId,
     };
     await file.writeAsString(
       '${const JsonEncoder.withIndent('  ').convert(payload)}\n',

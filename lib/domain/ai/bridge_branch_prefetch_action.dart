@@ -7,6 +7,7 @@ import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
+import 'package:anoworld/domain/runtime/play_role.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/json_candidate.dart';
@@ -53,7 +54,7 @@ class BridgeBranchPrefetchAction {
     required BridgeSession session,
     required List<BridgeBranchPrefetchRequest> branches,
     PlotElementCatalog? plotCatalog,
-    List<String> userAliases = const <String>[],
+    PlayRole role = PlayRole.none,
     int minLines = 1,
     InStationChoiceFrequency inStationChoiceFrequency =
         InStationChoiceFrequency.rare,
@@ -97,11 +98,12 @@ class BridgeBranchPrefetchAction {
         : '';
     final task = '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
 为下面每一条选项各写「选中后立刻播放」的一小段对白（一拍）。
-输出格式：{"branches":[{"choiceId":"与输入一致","beat":{"location":"地点","lines":[{"speaker":"角色名或旁白或玩家称呼","text":"纯正文"}],"choices":[]}}]}
+输出格式：{"branches":[{"choiceId":"与输入一致","beat":{"location":"地点","lines":[{"speaker":"角色名","text":"纯正文"}],"choices":[]}}]}
 规则：
 - 每个 choiceId 恰好一条；不要发明未列出的 choiceId。
 - text 只写正文，禁止「名字：」前缀。
-- 角色开口用角色列表里的名字；玩家用玩家称呼；叙述用「旁白」。
+- speaker 只能是「角色」列表里的名字或别名、玩家扮演角色的名字，或「旁白」；不要发明列表外的名字。
+- 叙述用「旁白」。
 $minLineRule
 - 这些「选中后」的拍默认是站内过程：choices 用空数组 []，不要给选项（玩家点屏续写）。
 - 每拍 choices 若非空则最多 ${BridgeSession.maxChoicesPerBeat} 个。
@@ -109,11 +111,17 @@ $minLineRule
 
     final budget = ContextBudget.of(ctx.generation);
     final branchBlock = branchLines.join('\n');
+    final castLine = project.cast.map((c) {
+      final aliases = c.aliases.where((a) => a.trim().isNotEmpty).toList();
+      return aliases.isEmpty ? c.name : '${c.name}（别名：${aliases.join('/')}）';
+    }).join('、');
+    final player = role.playerIn(project);
+    final focus = role.focusIn(project);
     String blockFor(String summaryText) => '''
 当前站：${source.title}
 本站目标：${source.synopsis ?? ''}
-角色：${project.cast.map((c) => c.name).join('、')}
-玩家称呼：${userAliases.where((a) => a.trim().isNotEmpty).join('、')}
+角色：${castLine.isEmpty ? '（无）' : castLine}
+玩家扮演：${player?.name ?? '（未指定）'}${focus == null ? '' : '\n焦点角色：${focus.name}'}
 区间摘要：$summaryText
 请为下列选项各写选中后的下一拍：
 $branchBlock''';
@@ -129,6 +137,7 @@ $branchBlock''';
           for (final line in beat.lines) line.text,
         for (final branch in limited) branch.choice.text,
       ],
+      playRole: role,
       taskSuffix: task,
       budget: budget,
       reservedTokens: budget.estimate(blockFor('')),
@@ -226,7 +235,7 @@ $branchBlock''';
           legalNodeIds: exits,
           forceConverge: false,
           openMode: openMode,
-          userAliases: userAliases,
+          role: role,
           allowInStationChoices: allowChoices,
         );
         if (minLines > 1 && beat.lines.length < minLines) {

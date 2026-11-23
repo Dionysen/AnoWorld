@@ -1321,6 +1321,56 @@ class AppStringsZh extends AppStrings {
   @override
   String get castProtagonistHint => '酒馆里「当前角色」的名字与设定来源';
 
+  // ---- Play role / cast extraction ----
+
+  @override
+  String get playRoleTitle => '你扮演谁';
+
+  @override
+  String get playRoleHint => '本局固定，开始后不能更改';
+
+  @override
+  String get castExtractEntry => '从世界书提取';
+
+  @override
+  String get castExtractTitle => '从世界书提取角色';
+
+  @override
+  String get castExtractIntro => '扫一遍世界书，把散落的角色整理成角色卡';
+
+  @override
+  String get castExtractRunning => '正在读世界书';
+
+  @override
+  String get castExtractEmpty => '世界书里没找到角色';
+
+  @override
+  String get castExtractEmptyDetail => '先在设定里写好人物条目，再来提取';
+
+  @override
+  String get castExtractFailed => '没能完成，请再试一次';
+
+  @override
+  String get castExtractExisting => '已有，只补空字段';
+
+  @override
+  String get castExtractNew => '新角色';
+
+  @override
+  String get castExtractApply => '写入角色';
+
+  @override
+  String get castExtractGoVisual => '去生成立绘';
+
+  @override
+  String get castAliasesLabel => '别名';
+
+  @override
+  String castExtractDone(int count) => '已加入 $count 名角色';
+
+  @override
+  String castExtractDiscarded(int count) => '有 $count 处与原文对不上，已跳过';
+
   @override
   String get castDeleteMember => '删除这个角色';
 

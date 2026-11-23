@@ -26,7 +26,6 @@ import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_image.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
-import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
@@ -34,8 +33,7 @@ import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
-import 'package:anoworld/play/play_mode_sheet.dart';
-import 'package:anoworld/play/play_session_page.dart';
+import 'package:anoworld/play/start_play.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -217,16 +215,7 @@ class _ProjectHubPageState extends State<ProjectHubPage>
   Future<void> _play() async {
     final project = _project;
     if (project == null) return;
-    final mode = await showPlayModeSheet(context);
-    if (!mounted || mode == null) return;
-    await pushAppSlide(
-      context,
-      PlaySessionPage(
-        project: project,
-        mode: mode,
-        resumeSave: false,
-      ),
-    );
+    await startNewPlay(context, project);
   }
 
   Future<void> _openEditor(Widget page) async {

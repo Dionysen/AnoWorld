@@ -213,6 +213,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('视觉小说'));
     await tester.pumpAndSettle();
+    expect(find.text('你扮演谁'), findsOneWidget);
+    await tester.tap(find.text('少年').last);
+    await tester.pumpAndSettle();
 
     expect(find.text('该走了。'), findsOneWidget);
     expect(find.byTooltip('保存进度'), findsNothing);

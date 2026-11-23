@@ -6,7 +6,7 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/bridge_session.dart';
-import 'package:anoworld/domain/runtime/play_speakers.dart';
+import 'package:anoworld/domain/runtime/play_role.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
@@ -224,6 +224,7 @@ void main() {
     final project = blank.copyWith(
       cast: const [
         CastMember(id: 'c1', name: '瑞希', summary: ''),
+        CastMember(id: 'c_me', name: '旅人'),
       ],
     );
     final client = _ScriptedTextClient([
@@ -241,13 +242,13 @@ void main() {
       project: project,
       nodeId: project.main.startNodeId,
       session: BridgeSession(nodeId: project.main.startNodeId),
-      userAliases: const ['User'],
+      role: const PlayRole(playerCastId: 'c_me', aliases: <String>['User']),
     );
     expect(beat.lines[0].text, '你会更开心吗？');
     expect(beat.lines[0].speakerId, 'c1');
     expect(beat.lines[0].kind, DialogueKind.speech);
     expect(beat.lines[1].text, '会。');
-    expect(beat.lines[1].speakerId, kPlayUserSpeakerId);
+    expect(beat.lines[1].speakerId, 'c_me');
     expect(beat.lines[2].kind, DialogueKind.narration);
     expect(beat.lines[2].speakerId, isNull);
     // speaker 误标旁白但正文带「瑞希：」时收回角色归属

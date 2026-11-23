@@ -18,6 +18,7 @@ import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/runtime/main_runtime.dart';
 import 'package:anoworld/domain/runtime/play_history.dart';
 import 'package:anoworld/domain/runtime/play_pointer.dart';
+import 'package:anoworld/domain/runtime/play_role.dart';
 import 'package:anoworld/domain/runtime/play_speakers.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/domain/settings/vn_ui_settings.dart';
@@ -61,6 +62,7 @@ class PlaySessionPage extends StatefulWidget {
     this.slotId,
     this.resumeSave = true,
     this.initialSave,
+    this.playerCastId,
   });
 
   final Project project;
@@ -70,6 +72,10 @@ class PlaySessionPage extends StatefulWidget {
   final String? slotId;
   final bool resumeSave;
   final MainSavePointer? initialSave;
+
+  /// Cast member the player role-plays; locked for the slot. Null falls back to
+  /// the protagonist (legacy slots / stories without a chosen role).
+  final String? playerCastId;
 
   @override
   State<PlaySessionPage> createState() => _PlaySessionPageState();
@@ -81,6 +87,9 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   BridgeSession? _bridge;
   String? _status;
   bool _bootstrapped = false;
+
+  /// Cast member the player role-plays; locked for this session.
+  String? _playerCastId;
 
   /// VN AI call in flight (immediate adopt or background prefetch).
   bool _generating = false;
@@ -140,10 +149,42 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     return name.isNotEmpty ? name : context.strings.userLabelFallback;
   }
 
+  /// Default role when the caller did not pick one: the flagged protagonist,
+  /// else the first member.
+  String? get _defaultPlayerCastId {
+    final protagonist = _project.protagonist;
+    if (protagonist != null) return protagonist.id;
+    return _project.cast.isEmpty ? null : _project.cast.first.id;
+  }
+
+  List<String> _playerAliases() {
+    final persona = AppScope.settingsOf(context).activePersona;
+    return <String>[
+      if (persona != null && persona.name.trim().isNotEmpty) persona.name.trim(),
+      '我',
+      '玩家',
+      '用户',
+      'User',
+      '{{user}}',
+    ];
+  }
+
+  PlayRole get _playRole =>
+      PlayRole(playerCastId: _playerCastId, aliases: _playerAliases());
+
   String get _assistantLabel {
-    for (final member in _project.cast) {
-      if (member.isProtagonist) return member.name;
+    // Chat keeps the card's protagonist; only a VN session shifts focus to the
+    // character that is not the player.
+    if (_isChat) {
+      final lead = _project.protagonist;
+      if (lead != null) return lead.name;
+      if (_project.cast.isNotEmpty) return _project.cast.first.name;
+      return context.strings.castLabelFallback;
     }
+    final focus = _playRole.focusIn(_project);
+    if (focus != null) return focus.name;
+    final lead = _project.protagonist;
+    if (lead != null) return lead.name;
     if (_project.cast.isNotEmpty) return _project.cast.first.name;
     return context.strings.castLabelFallback;
   }
@@ -176,6 +217,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     if (_bootstrapped) return;
     _bootstrapped = true;
     _slotId = widget.slotId ?? _newSlotId();
+    _playerCastId = widget.playerCastId ?? _defaultPlayerCastId;
     _runtime = MainRuntime(_baseMain, save: widget.initialSave);
     unawaited(_resolveProjectDir());
     final resume = widget.resumeSave &&
@@ -222,6 +264,9 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     final slot = await AppScope.savesOf(context).load(slotId);
     if (!mounted) return;
     if (slot != null) {
+      // Reopening a slot keeps the character chosen when it was created.
+      final locked = slot.playerCastId;
+      if (locked != null && locked.isNotEmpty) _playerCastId = locked;
       if (_isChat) {
         _chat
           ..clear()
@@ -233,8 +278,14 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         var main = _baseMain;
         final bridge = slot.bridge;
         if (bridge != null && bridge.generatedBeats.isNotEmpty) {
-          main = _mergeBeats(main, bridge.generatedBeats);
-          _bridge = bridge;
+          final beats = [
+            for (final beat in bridge.generatedBeats)
+              _normalizeBeatSpeakers(beat),
+          ];
+          main = _mergeBeats(main, beats);
+          _bridge = bridge.copyWith(
+            generatedBeats: List<Beat>.unmodifiable(beats),
+          );
         }
         _runtime = MainRuntime(main, save: slot.pointer);
         _history.clear();
@@ -266,23 +317,54 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
   MainStory _mergeBeats(MainStory main, List<Beat> beats) =>
       mergeGeneratedBeats(main, beats);
 
-  bool _isNarration(DialogueLine line) =>
-      line.kind == DialogueKind.narration || line.speakerId == null;
+  bool _isNarration(DialogueLine line) {
+    if (line.kind == DialogueKind.narration) return true;
+    final speakerId = line.speakerId;
+    if (speakerId == null || speakerId.isEmpty) return true;
+    // A speaker that is not a defined cast member is narration, never a label.
+    return _project.castById(speakerId) == null;
+  }
 
   String? _speakerLabel(DialogueLine line) {
     if (_isNarration(line)) return null;
-    final member = _project.castById(line.speakerId!);
-    return member?.name ?? line.speakerId!;
+    // Only a defined cast member may be labelled; unknown ids stay narration.
+    return _project.castById(line.speakerId!)?.name;
   }
 
-  List<String> _userAliases() {
-    final persona = AppScope.settingsOf(context).activePersona;
-    return <String>[
-      if (persona != null && persona.name.trim().isNotEmpty) persona.name.trim(),
-      'User',
-      '玩家',
-      '{{user}}',
-    ];
+  /// Re-resolves legacy string speakers (old saves stored model names raw).
+  ///
+  /// Beats written before the strict protocol may carry e.g. `speakerId:
+  /// "梦涵"`. Map them through the same resolver so the stage agrees with new
+  /// beats; unknown names become narration.
+  Beat _normalizeBeatSpeakers(Beat beat) {
+    var changed = false;
+    final lines = <DialogueLine>[];
+    for (final line in beat.lines) {
+      final speakerId = line.speakerId;
+      final needsResolve = line.kind == DialogueKind.speech &&
+          speakerId != null &&
+          _project.castById(speakerId) == null;
+      if (!needsResolve) {
+        lines.add(line);
+        continue;
+      }
+      final resolved = resolveDialogueSpeaker(
+        speaker: speakerId,
+        project: _project,
+        role: _playRole,
+      );
+      lines.add(
+        DialogueLine(
+          id: line.id,
+          text: line.text,
+          speakerId: resolved.castId,
+          kind:
+              resolved.recognized ? DialogueKind.speech : DialogueKind.narration,
+        ),
+      );
+      changed = true;
+    }
+    return changed ? beat.copyWith(lines: List<DialogueLine>.unmodifiable(lines)) : beat;
   }
 
   /// Records the runtime cursor as the newest VN progress.
@@ -305,6 +387,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       history:
           _isChat ? const <MainSavePointer>[] : _history.entries.toList(),
       historyCursor: _isChat ? -1 : _history.cursor,
+      playerCastId: _isChat ? null : _playerCastId,
     );
   }
 
@@ -1017,7 +1100,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         session: base,
         branches: requests,
         plotCatalog: settings.plotElements,
-        userAliases: _userAliases(),
+        role: _playRole,
         minLines: settings.ai.minBridgeLines,
         inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
       );
@@ -1175,7 +1258,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         nodeId: node.id,
         session: session,
         plotCatalog: settings.plotElements,
-        userAliases: _userAliases(),
+        role: _playRole,
         minLines: settings.ai.minBridgeLines,
         inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
       );
@@ -1322,7 +1405,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         nodeId: node.id,
         session: session,
         plotCatalog: settings.plotElements,
-        userAliases: _userAliases(),
+        role: _playRole,
         minLines: settings.ai.minBridgeLines,
         inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
       )) {

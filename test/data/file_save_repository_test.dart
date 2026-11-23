@@ -24,6 +24,7 @@ void main() {
       slotId: 'slot_a',
       projectId: 'proj_rain_night',
       pointer: const MainSavePointer(nodeId: 'n2', beatId: 'b2'),
+      playerCastId: 'c_keeper',
     );
     final loaded = await repo.load('slot_a');
     expect(loaded, isNotNull);
@@ -31,6 +32,7 @@ void main() {
     expect(loaded.projectId, 'proj_rain_night');
     expect(loaded.pointer.nodeId, 'n2');
     expect(loaded.pointer.beatId, 'b2');
+    expect(loaded.playerCastId, 'c_keeper');
 
     await repo.clear('slot_a');
     expect(await repo.load('slot_a'), isNull);

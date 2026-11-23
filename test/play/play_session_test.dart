@@ -917,6 +917,108 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('the chosen player character gets its sprite on the stage', (
+    tester,
+  ) async {
+    final dir = Directory.systemTemp.createTempSync('aw_vn_player_sprite');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final file = File(ProjectAssetFiles.absolutePath(dir.path, 'keeper.png'));
+    file.parent.createSync(recursive: true);
+    file.writeAsBytesSync(_tinyPng);
+
+    final staged = sample.copyWith(
+      assets: const [
+        ProjectAsset(
+          id: 'a_keeper',
+          kind: ProjectAssetKind.avatar,
+          relativePath: 'keeper.png',
+        ),
+      ],
+      cast: [
+        sample.cast.first.copyWith(avatarAssetId: 'a_keeper'),
+        sample.cast[1],
+      ],
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        settings: instantVn(),
+        projects: _TempDirProjects(project: staged, dir: dir.path),
+        home: PlaySessionPage(
+          project: staged,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+          playerCastId: 'c_hero',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('该走了。'), findsOneWidget);
+    // The stage draws the player's own member, not only other characters.
+    expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('unknown speaker ids never surface as a name', (tester) async {
+    final staged = sample.copyWith(
+      main: sample.main.copyWith(
+        beats: [
+          Beat(
+            id: 'b1',
+            nodeId: 'n1',
+            scene: const Scene(locationText: '城门'),
+            appearances: const [],
+            lines: const [
+              DialogueLine(
+                id: 'l1',
+                speakerId: '梦涵',
+                text: '你们来了。',
+              ),
+            ],
+            choices: const [],
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        settings: instantVn(),
+        home: PlaySessionPage(
+          project: staged,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+          playerCastId: 'c_keeper',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('你们来了。'), findsOneWidget);
+    expect(find.text('梦涵'), findsNothing);
+  });
+
+  testWidgets('a new slot stores the chosen player character', (tester) async {
+    final saves = MemorySaveRepository();
+    await tester.pumpWidget(
+      testScoped(
+        settings: instantVn(),
+        saves: saves,
+        home: PlaySessionPage(
+          project: sample,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+          playerCastId: 'c_keeper',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final slots = await saves.listForProject(sample.meta.id);
+    expect(slots, hasLength(1));
+    expect(slots.single.playerCastId, 'c_keeper');
+  });
 }
 
 /// Serves one project from a real temp directory so asset files resolve.

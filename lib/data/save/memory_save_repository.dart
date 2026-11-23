@@ -38,6 +38,7 @@ class MemorySaveRepository implements SaveRepository {
     List<String> replyChoices = const <String>[],
     List<MainSavePointer> history = const <MainSavePointer>[],
     int historyCursor = -1,
+    String? playerCastId,
   }) async {
     _slots[slotId] = SaveSlot(
       id: slotId,
@@ -50,6 +51,7 @@ class MemorySaveRepository implements SaveRepository {
       replyChoices: List<String>.unmodifiable(replyChoices),
       history: List<MainSavePointer>.unmodifiable(history),
       historyCursor: historyCursor,
+      playerCastId: playerCastId,
     );
   }
 
