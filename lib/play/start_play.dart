@@ -48,11 +48,15 @@ Future<void> startNewPlay(
     resumeSave: false,
     playerCastId: playerCastId,
   );
+  // Playing is a full-window experience: a visual-novel stage or chat screen
+  // must not be squeezed into a master-detail column.
   if (replace) {
-    await Navigator.of(context).pushReplacement(
+    // Only the staged-create flow replaces, and that page is always pushed on
+    // the root navigator, so replacing the root's top route is safe.
+    await Navigator.of(context, rootNavigator: true).pushReplacement(
       AppSlidePageRoute<void>(builder: (_) => page),
     );
   } else {
-    await pushAppSlide(context, page);
+    await pushAppSlide(context, page, fullscreen: true);
   }
 }

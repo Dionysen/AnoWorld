@@ -18,6 +18,36 @@ abstract final class AppLayout {
   /// Settings / list pane beside the rail.
   static const double secondaryPaneWidth = 220;
 
+  /// Master-detail split (content list | detail), on top of the rail.
+  ///
+  /// Distinct from [secondaryPaneWidth]: there the extra pane is a bookkeeping
+  /// section list, while here pane 2 is the real content list, so both panes
+  /// need room to breathe. Same order as `NativeTavern`'s `MasterDetailBranch`.
+  static const double masterPaneMinWidth = 360;
+  static const double masterPaneDefaultWidth = 400;
+
+  /// Draggable hit target between master and detail (hairline sits centered).
+  static const double paneResizeHandleWidth = 6;
+
+  /// Master + handle + detail must all fit before the split turns on.
+  static double get masterDetailContentMinWidth =>
+      masterPaneMinWidth + paneResizeHandleWidth + detailPaneMinWidth;
+
+  /// [contentWidth] is the body width left after the rail (and any nav list).
+  static bool useMasterDetail(double contentWidth) =>
+      contentWidth >= masterDetailContentMinWidth;
+
+  /// Keeps both panes above their minimums while the divider is dragged.
+  static double clampMasterPaneWidth({
+    required double desired,
+    required double contentWidth,
+  }) {
+    final maxPane =
+        contentWidth - detailPaneMinWidth - paneResizeHandleWidth;
+    if (maxPane <= masterPaneMinWidth) return masterPaneMinWidth;
+    return desired.clamp(masterPaneMinWidth, maxPane).toDouble();
+  }
+
   /// Minimum width reserved for the detail / page body in three-pane mode.
   static const double detailPaneMinWidth = 320;
 

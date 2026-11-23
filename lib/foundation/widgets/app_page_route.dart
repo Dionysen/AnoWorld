@@ -64,13 +64,22 @@ Widget _slideTransition({
 }
 
 /// Pushes [page] with the shared horizontal slide transition.
+///
+/// [fullscreen] targets the root navigator, so a page opened from a
+/// master-detail detail column covers the whole window instead of staying in
+/// the column. Play stages always do that; harmless in single-column layouts,
+/// where the root navigator is the nearest one anyway.
 Future<T?> pushAppSlide<T extends Object?>(
   BuildContext context,
   Widget page, {
   bool storyChrome = false,
+  bool fullscreen = false,
 }) {
   final route = storyChrome
       ? AppStorySlidePageRoute<T>(builder: (_) => page)
       : AppSlidePageRoute<T>(builder: (_) => page);
-  return Navigator.of(context).push<T>(route);
+  final navigator = fullscreen
+      ? Navigator.of(context, rootNavigator: true)
+      : Navigator.of(context);
+  return navigator.push<T>(route);
 }

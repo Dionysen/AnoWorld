@@ -27,4 +27,64 @@ void main() {
       isTrue,
     );
   });
+
+  group('master-detail split', () {
+    test('needs master + handle + detail to fit', () {
+      expect(
+        AppLayout.masterDetailContentMinWidth,
+        AppLayout.masterPaneMinWidth +
+            AppLayout.paneResizeHandleWidth +
+            AppLayout.detailPaneMinWidth,
+      );
+      expect(
+        AppLayout.useMasterDetail(
+          AppLayout.masterDetailContentMinWidth - 1,
+        ),
+        isFalse,
+      );
+      expect(
+        AppLayout.useMasterDetail(AppLayout.masterDetailContentMinWidth),
+        isTrue,
+      );
+    });
+
+    test('clamp keeps both panes above their minimums', () {
+      const contentWidth = 1000.0;
+      final maxPane =
+          contentWidth - AppLayout.detailPaneMinWidth -
+          AppLayout.paneResizeHandleWidth;
+
+      expect(
+        AppLayout.clampMasterPaneWidth(
+          desired: 120,
+          contentWidth: contentWidth,
+        ),
+        AppLayout.masterPaneMinWidth,
+      );
+      expect(
+        AppLayout.clampMasterPaneWidth(
+          desired: 4000,
+          contentWidth: contentWidth,
+        ),
+        maxPane,
+      );
+      expect(
+        AppLayout.clampMasterPaneWidth(
+          desired: 420,
+          contentWidth: contentWidth,
+        ),
+        420,
+      );
+    });
+
+    test('too-narrow host falls back to the master minimum', () {
+      expect(
+        AppLayout.clampMasterPaneWidth(
+          desired: 500,
+          contentWidth: AppLayout.masterDetailContentMinWidth - 1,
+        ),
+        AppLayout.masterPaneMinWidth,
+      );
+    });
+  });
 }

@@ -26,6 +26,7 @@ class LibraryBrowseViews extends StatelessWidget {
     required this.onFolderMenu,
     required this.onProjectMenu,
     required this.formatUpdated,
+    this.activeId,
     this.onCreate,
   });
 
@@ -46,6 +47,10 @@ class LibraryBrowseViews extends StatelessWidget {
   /// When set, a story-shaped “add” tile is appended after folders/projects.
   final VoidCallback? onCreate;
 
+  /// Story being shown in the wide-window detail pane; stays highlighted so
+  /// the list keeps showing where the detail came from.
+  final String? activeId;
+
   EdgeInsets _listPadding(BuildContext context, {bool horizontal = false}) {
     final mediaBottom = MediaQuery.paddingOf(context).bottom;
     final h = horizontal ? AppTheme.pagePadding : 0.0;
@@ -64,6 +69,13 @@ class LibraryBrowseViews extends StatelessWidget {
       };
 
   bool get _showCreate => onCreate != null;
+
+  /// Multi-select wins over the detail-pane highlight; folders never stay lit.
+  bool _isActiveRow(String id, bool selected) {
+    if (selection.selectionMode) return selected;
+    final active = activeId;
+    return active != null && active == id;
+  }
 
   int get _baseCount => folders.length + projects.length;
 
@@ -315,7 +327,7 @@ class LibraryBrowseViews extends StatelessWidget {
           return AppListTile(
             title: folder.name,
             subtitle: _folderSubtitle(context, folder),
-            selected: selectionMode && selected,
+            selected: _isActiveRow(folder.id, selected),
             leading: _selectionOrAvatar(
               context,
               selectionMode: selectionMode,
@@ -338,7 +350,7 @@ class LibraryBrowseViews extends StatelessWidget {
         return AppListTile(
           title: project.title,
           subtitle: formatUpdated(project.updatedAt),
-          selected: selectionMode && selected,
+          selected: _isActiveRow(project.id, selected),
           leading: _selectionOrAvatar(
             context,
             selectionMode: selectionMode,
@@ -373,7 +385,7 @@ class LibraryBrowseViews extends StatelessWidget {
           final selected = selection.isSelected(folder.id);
           return AppListTile(
             title: folder.name,
-            selected: selectionMode && selected,
+            selected: _isActiveRow(folder.id, selected),
             leading: _selectionOrAvatar(
               context,
               selectionMode: selectionMode,
@@ -394,7 +406,7 @@ class LibraryBrowseViews extends StatelessWidget {
         final selected = selection.isSelected(project.id);
         return AppListTile(
           title: project.title,
-          selected: selectionMode && selected,
+          selected: _isActiveRow(project.id, selected),
           leading: _selectionOrAvatar(
             context,
             selectionMode: selectionMode,
@@ -459,7 +471,7 @@ class LibraryBrowseViews extends StatelessWidget {
                 compact: compact,
                 title: folder.name,
                 subtitle: _folderSubtitle(context, folder),
-                selected: selectionMode && selected,
+                selected: _isActiveRow(folder.id, selected),
                 cover: _folderCover(context, compact: compact),
                 overlay: selectionMode
                     ? _selectionBadge(context, selected)
@@ -474,7 +486,7 @@ class LibraryBrowseViews extends StatelessWidget {
               compact: compact,
               title: project.title,
               subtitle: formatUpdated(project.updatedAt),
-              selected: selectionMode && selected,
+              selected: _isActiveRow(project.id, selected),
               cover: _projectCover(context, project, compact: compact),
               overlay: selectionMode
                   ? _selectionBadge(context, selected)

@@ -12,11 +12,14 @@ import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/project_folder.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
+import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_detail_pane.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_master_detail.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_prompt_dialog.dart';
 import 'package:anoworld/foundation/widgets/app_search_field.dart';
@@ -24,6 +27,7 @@ import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/create_assistant_draft_store.dart';
+import 'package:anoworld/home/home_tab_back.dart';
 import 'package:anoworld/home/library_browse_views.dart';
 import 'package:anoworld/home/library_display_labels.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
@@ -40,21 +44,23 @@ class WorksTab extends StatefulWidget {
     required this.selection,
     this.pickImportDirectory,
     this.pickImportPackage,
-    this.onSelectionChromeChanged,
+    this.onChromeChanged,
     this.onBrowsePathChanged,
   });
 
   final LibrarySelectionController selection;
   final Future<String?> Function()? pickImportDirectory;
   final Future<Uint8List?> Function()? pickImportPackage;
-  final VoidCallback? onSelectionChromeChanged;
+
+  /// Home chrome (back handling / assistant) may need a rebuild.
+  final VoidCallback? onChromeChanged;
   final ValueChanged<List<String>>? onBrowsePathChanged;
 
   @override
   State<WorksTab> createState() => WorksTabState();
 }
 
-class WorksTabState extends State<WorksTab> {
+class WorksTabState extends State<WorksTab> implements HomeTabBack {
   final _searchController = TextEditingController();
   final List<String> _browsePath = <String>[];
   bool _folderEnterForward = true;
@@ -67,6 +73,12 @@ class WorksTabState extends State<WorksTab> {
   List<ProjectFolder> _breadcrumbs = const [];
   Map<String, String?> _membership = const {};
   Map<String, String> _covers = const {};
+
+  /// Story shown in the wide-window detail pane; null shows the empty hint.
+  String? _selectedProjectId;
+
+  /// Stack of the detail column (story page, then whatever it opens).
+  final _detailPane = AppDetailPaneController();
 
   List<String> get browsePath => List<String>.unmodifiable(_browsePath);
 
@@ -81,6 +93,7 @@ class WorksTabState extends State<WorksTab> {
   void initState() {
     super.initState();
     widget.selection.addListener(_onSelectionChanged);
+    _detailPane.addListener(_onDetailPaneChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _display = AppScope.libraryDisplayOf(context);
       _display!.addListener(_onDisplayChanged);
@@ -91,14 +104,24 @@ class WorksTabState extends State<WorksTab> {
   @override
   void dispose() {
     widget.selection.removeListener(_onSelectionChanged);
+    _detailPane
+      ..removeListener(_onDetailPaneChanged)
+      ..dispose();
     _display?.removeListener(_onDisplayChanged);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
+  /// The pane opened / closed a page, so the shell's back state changed.
+  void _onDetailPaneChanged() {
+    if (!mounted) return;
+    setState(() {});
+    widget.onChromeChanged?.call();
+  }
+
   void _onSelectionChanged() {
-    widget.onSelectionChromeChanged?.call();
+    widget.onChromeChanged?.call();
     setState(() {});
   }
 
@@ -125,9 +148,22 @@ class WorksTabState extends State<WorksTab> {
     await _navigateBrowse(next, forward: false);
   }
 
+  @override
+  bool get canGoBack =>
+      _detailPane.canPop ||
+      widget.selection.selectionMode ||
+      _selectedProjectId != null ||
+      _browsePath.isNotEmpty;
+
+  @override
   bool handleSystemBack() {
+    if (_detailPane.pop()) return true;
     if (widget.selection.selectionMode) {
       widget.selection.exit();
+      return true;
+    }
+    if (_selectedProjectId != null) {
+      setState(() => _selectedProjectId = null);
       return true;
     }
     if (_browsePath.isNotEmpty) {
@@ -248,6 +284,22 @@ class WorksTabState extends State<WorksTab> {
   Future<void> _openRoute(Widget page) async {
     await pushStoryRoute<void>(context, page);
     if (mounted) await reload();
+  }
+
+  /// Wide windows select in the detail pane; narrow ones push the full page.
+  Future<void> _openProject(
+    ProjectSummary project, {
+    required bool split,
+  }) async {
+    widget.selection.exit();
+    if (split) {
+      setState(() => _selectedProjectId = project.id);
+      widget.onChromeChanged?.call();
+      AppLog.instance.info('选中故事：${project.title}', tag: 'works.story');
+      return;
+    }
+    AppLog.instance.info('查看故事：${project.title}', tag: 'works.story');
+    await _openRoute(ProjectHubPage(projectId: project.id));
   }
 
   Future<void> createBlank() async {
@@ -597,6 +649,10 @@ class WorksTabState extends State<WorksTab> {
       }
     }
     widget.selection.exit();
+    if (!mounted) return;
+    if (ids.contains(_selectedProjectId)) {
+      setState(() => _selectedProjectId = null);
+    }
     await reload();
   }
 
@@ -703,6 +759,10 @@ class WorksTabState extends State<WorksTab> {
     await folders.removeProjectMembership(projectId);
     await projects.delete(projectId);
     await _dropAssistantConversation(projectId);
+    if (!mounted) return;
+    if (_selectedProjectId == projectId) {
+      setState(() => _selectedProjectId = null);
+    }
     await reload();
   }
 
@@ -927,6 +987,7 @@ class WorksTabState extends State<WorksTab> {
   Widget _browseList({
     required List<ProjectFolder> folders,
     required List<ProjectSummary> projects,
+    required bool split,
   }) {
     final searching = _query.trim().isNotEmpty;
     if (folders.isEmpty && projects.isEmpty && searching) {
@@ -952,9 +1013,9 @@ class WorksTabState extends State<WorksTab> {
         projects: projects,
         covers: _covers,
         selection: widget.selection,
+        activeId: split ? _selectedProjectId : null,
         onOpenFolder: (folder) => openFolder(folder.id),
-        onOpenProject: (project) =>
-            _openRoute(ProjectHubPage(projectId: project.id)),
+        onOpenProject: (project) => _openProject(project, split: split),
         onFolderMenu: _folderMenu,
         onProjectMenu: _projectMenu,
         formatUpdated: (updatedAt) => _formatUpdated(context, updatedAt),
@@ -1077,6 +1138,33 @@ class WorksTabState extends State<WorksTab> {
 
   @override
   Widget build(BuildContext context) {
+    final paneWidth = AppScope.paneWidthOf(context);
+    final selectedId = _selectedProjectId;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Same constraints AppMasterDetail measures, so tap behaviour and the
+        // rendered column count can never disagree.
+        final split = AppLayout.useMasterDetail(constraints.maxWidth);
+        return AppMasterDetail(
+          primary: _masterPane(context, split),
+          // Same page a narrow window pushes: the third column *is* the story
+          // page, and its editors / play session open on top of it in place.
+          detail: selectedId == null
+              ? null
+              : ProjectHubPage(
+                  key: ValueKey<String>('story-pane-$selectedId'),
+                  projectId: selectedId,
+                ),
+          emptyLabel: context.strings.selectStoryHint,
+          paneWidth: paneWidth,
+          detailController: _detailPane,
+        );
+      },
+    );
+  }
+
+  Widget _masterPane(BuildContext context, bool split) {
     final strings = context.strings;
     final selectionMode = widget.selection.selectionMode;
     final folders = _visibleFolders;
@@ -1209,7 +1297,11 @@ class WorksTabState extends State<WorksTab> {
                         end: Offset.zero,
                       ).animate(animation),
                       child: ColoredBox(
-                        color: Theme.of(context).colorScheme.surface,
+                        // Match the master pane background so the wide-window
+                        // surface step is not painted over mid-slide.
+                        color: split
+                            ? Theme.of(context).colorScheme.surfaceContainerLow
+                            : Theme.of(context).colorScheme.surface,
                         child: child,
                       ),
                     );
@@ -1219,6 +1311,7 @@ class WorksTabState extends State<WorksTab> {
                     child: _browseList(
                       folders: folders,
                       projects: projects,
+                      split: split,
                     ),
                   ),
                 ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../frame/immersive_frame.dart';
 import '../l10n/app_localizations.dart';
+import '../layout/pane_detail_scope.dart';
 import '../theme/app_theme.dart';
 import 'app_circle_button.dart';
 import 'app_text.dart';
@@ -18,6 +19,10 @@ import 'app_text.dart';
 /// 3. [body]
 ///
 /// Home hubs pass [showTitle] false and put search / toolbars in [body].
+///
+/// Embedded in a master-detail detail pane ([PaneDetailScope]): chrome band and
+/// back button are dropped — the host shell already owns the window chrome and
+/// the list beside the pane is the way back.
 class AppPage extends StatelessWidget {
   const AppPage({
     super.key,
@@ -75,6 +80,13 @@ class AppPage extends StatelessWidget {
     final metrics = ImmersiveScope.metricsOf(context);
     final theme = Theme.of(context);
     final media = MediaQuery.of(context);
+    // Inside a split detail pane the shell already consumed the chrome band and
+    // the safe-area insets. The pane's bottom route is the selected item, and
+    // the list beside it replaces the back button; pages pushed on top of it
+    // inside the column still need their own way back.
+    final inDetailPane = PaneDetailScope.isActive(context);
+    final paneRoot =
+        inDetailPane && (ModalRoute.of(context)?.isFirst ?? true);
     final barColor =
         theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
     final backdrop = background;
@@ -95,10 +107,9 @@ class AppPage extends StatelessWidget {
               // Window/status chrome only — never place app title / back /
               // actions here (desktop custom title bar is background + OS
               // controls).
-              final chromeHeight = math.min(
-                metrics.barHeight,
-                constraints.maxHeight,
-              );
+              final chromeHeight = inDetailPane
+                  ? 0.0
+                  : math.min(metrics.barHeight, constraints.maxHeight);
               final belowChrome = math.max(
                 0.0,
                 constraints.maxHeight - chromeHeight,
@@ -114,6 +125,7 @@ class AppPage extends StatelessWidget {
               final showBack =
                   showSoftwareTitle &&
                   onBack != null &&
+                  !paneRoot &&
                   constraints.maxWidth >= 72;
               final showTitleText =
                   showSoftwareTitle &&
@@ -191,10 +203,12 @@ class AppPage extends StatelessWidget {
                       // Bottom inset stays in MediaQuery so floating chrome
                       // (capsule nav) can overlay while scroll bodies pad
                       // themselves.
-                      padding: EdgeInsets.only(
-                        left: media.padding.left,
-                        right: media.padding.right,
-                      ),
+                      padding: inDetailPane
+                          ? EdgeInsets.zero
+                          : EdgeInsets.only(
+                              left: media.padding.left,
+                              right: media.padding.right,
+                            ),
                       child: body,
                     ),
                   ),

@@ -15,10 +15,10 @@ import 'package:anoworld/domain/repositories/project_folder_repository.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
-import 'package:anoworld/foundation/fonts/file_system_font_repository.dart';
-import 'package:anoworld/foundation/fonts/system_font.dart';
+import 'package:anoworld/foundation/fonts/file_system_font_repository.dart';import 'package:anoworld/foundation/fonts/system_font.dart';
 import 'package:anoworld/foundation/fonts/system_font_catalog.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
+import 'package:anoworld/foundation/layout/app_pane_width.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
@@ -63,6 +63,7 @@ App testApp({
   ProjectFolderRepository? folders,
   SettingsController? settings,
   LibraryDisplayController? libraryDisplay,
+  AppPaneWidthController? paneWidth,
   AiTextClient? textClient,
   Future<String?> Function()? pickImportDirectory,
   Future<Uint8List?> Function()? pickImportPackage,
@@ -74,6 +75,7 @@ App testApp({
     folders: folders ?? MemoryProjectFolderRepository(),
     settingsController: controller,
     libraryDisplay: libraryDisplay ?? LibraryDisplayController(),
+    paneWidth: paneWidth,
     textClient: textClient,
     pickImportDirectory: pickImportDirectory,
     pickImportPackage: pickImportPackage,
@@ -87,6 +89,7 @@ Widget testScoped({
   ProjectFolderRepository? folders,
   SettingsController? settings,
   LibraryDisplayController? libraryDisplay,
+  AppPaneWidthController? paneWidth,
   AiTextClient? textClient,
   ProjectChangeNotifier? projectChanges,
   List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
@@ -98,6 +101,7 @@ Widget testScoped({
     folders: folders ?? MemoryProjectFolderRepository(),
     settings: controller,
     libraryDisplay: libraryDisplay ?? LibraryDisplayController(),
+    paneWidth: paneWidth ?? AppPaneWidthController(),
     createAssistant: CreateAssistantController(),
     projectChanges: projectChanges ?? ProjectChangeNotifier(),
     textClient: textClient,

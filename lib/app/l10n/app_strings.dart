@@ -145,7 +145,9 @@ abstract class AppStrings extends AppLocalizations {
   String get plotElementsHubHint;
   String get aiPresetTitle;
   String get aiPresetHubHint;
+  String get selectPlayModeHint;
   String get noPersonaYet;
+  String get selectPersonaHint;
 
   // Stories (故事) tab.
 
@@ -164,6 +166,7 @@ abstract class AppStrings extends AppLocalizations {
   String get avatarSquare;
   String get avatarRectangle;
   String get noMatchingStories;
+  String get selectStoryHint;
   String createFailed(Object error);
   String sampleWriteFailed(Object error);
   String importedStory(String title);
@@ -668,6 +671,7 @@ abstract class AppStrings extends AppLocalizations {
   String daysAgo(int days);
   String loadFailed(Object error);
   String cannotResume(Object error);
+  String get selectSaveHint;
 
   // Settings shell.
 

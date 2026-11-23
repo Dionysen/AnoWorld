@@ -17,6 +17,7 @@ import 'package:anoworld/domain/repositories/settings_repository.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/foundation/ai/variables_service.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
+import 'package:anoworld/foundation/layout/app_pane_width.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/create_assistant_overlay.dart';
@@ -33,6 +34,7 @@ class App extends StatefulWidget {
     this.settingsRepository,
     this.settingsController,
     this.libraryDisplay,
+    this.paneWidth,
     this.createAssistant,
     this.textClient,
     this.pickImportDirectory,
@@ -45,6 +47,7 @@ class App extends StatefulWidget {
   final SettingsRepository? settingsRepository;
   final SettingsController? settingsController;
   final LibraryDisplayController? libraryDisplay;
+  final AppPaneWidthController? paneWidth;
   final CreateAssistantController? createAssistant;
   final AiTextClient? textClient;
   final Future<String?> Function()? pickImportDirectory;
@@ -61,6 +64,11 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       );
   late final LibraryDisplayController _libraryDisplay =
       widget.libraryDisplay ?? LibraryDisplayController();
+  late final AppPaneWidthController _paneWidth =
+      widget.paneWidth ?? AppPaneWidthController(storageKey: _paneWidthKey);
+
+  /// Persisted master-detail divider position (see [AppPaneWidthController]).
+  static const String _paneWidthKey = 'anoworld.master_pane_width.v1';
   late final CreateAssistantController _createAssistant =
       widget.createAssistant ?? CreateAssistantController();
   final ProjectChangeNotifier _projectChanges = ProjectChangeNotifier();
@@ -87,6 +95,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     if (widget.libraryDisplay == null) {
       _libraryDisplay.load();
     }
+    if (widget.paneWidth == null) {
+      _paneWidth.load();
+    }
   }
 
   @override
@@ -97,6 +108,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     }
     if (widget.libraryDisplay == null) {
       _libraryDisplay.dispose();
+    }
+    if (widget.paneWidth == null) {
+      _paneWidth.dispose();
     }
     if (widget.createAssistant == null) {
       _createAssistant.dispose();
@@ -120,6 +134,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       folders: widget.folders ?? FileProjectFolderRepository(),
       settings: _settings,
       libraryDisplay: _libraryDisplay,
+      paneWidth: _paneWidth,
       createAssistant: _createAssistant,
       projectChanges: _projectChanges,
       textClient: widget.textClient,

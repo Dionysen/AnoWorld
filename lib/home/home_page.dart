@@ -5,6 +5,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/home/home_nav.dart';
+import 'package:anoworld/home/home_tab_back.dart';
 import 'package:anoworld/home/library_selection.dart';
 import 'package:anoworld/home/me_tab.dart';
 import 'package:anoworld/home/play_modes_tab.dart';
@@ -35,6 +36,8 @@ class _HomePageState extends State<HomePage> {
   final _worksSelection = LibrarySelectionController();
   final _savesKey = GlobalKey<SavesTabState>();
   final _worksKey = GlobalKey<WorksTabState>();
+  final _playKey = GlobalKey<PlayModesTabState>();
+  final _meKey = GlobalKey<MeTabState>();
   bool _assistantSynced = false;
 
   @override
@@ -76,30 +79,29 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _onSelectionChromeChanged() {
+  void _onChromeChanged() {
     setState(() {});
     _syncAssistantVisibility();
   }
 
+  /// The active tab's inner state (selection / folder / detail) owns back.
+  HomeTabBack? get _activeTabBack => switch (_tab) {
+    HomeTab.sessions => _savesKey.currentState,
+    HomeTab.stories => _worksKey.currentState,
+    HomeTab.playModes => _playKey.currentState,
+    HomeTab.me => _meKey.currentState,
+  };
+
   @override
   Widget build(BuildContext context) {
-    final selection = _activeSelection;
-    final selectionMode = selection?.selectionMode ?? false;
-    final works = _worksKey.currentState;
+    final backHandler = _activeTabBack;
 
     return PopScope(
-      canPop: !selectionMode && (works?.browsePath.isEmpty ?? true),
+      canPop: !(backHandler?.canGoBack ?? false),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (_tab == HomeTab.stories &&
-            (_worksKey.currentState?.handleSystemBack() ?? false)) {
+        if (backHandler?.handleSystemBack() ?? false) {
           setState(() {});
-          return;
-        }
-        if (selectionMode && selection != null) {
-          selection.exit();
-          setState(() {});
-          _syncAssistantVisibility();
         }
       },
       child: LayoutBuilder(
@@ -120,18 +122,18 @@ class _HomePageState extends State<HomePage> {
                     key: _savesKey,
                     selection: _savesSelection,
                     onBrowseWorks: () => _selectTab(HomeTab.stories.tabIndex),
-                    onSelectionChromeChanged: _onSelectionChromeChanged,
+                    onChromeChanged: _onChromeChanged,
                   ),
                   WorksTab(
                     key: _worksKey,
                     selection: _worksSelection,
                     pickImportDirectory: widget.pickImportDirectory,
                     pickImportPackage: widget.pickImportPackage,
-                    onSelectionChromeChanged: _onSelectionChromeChanged,
+                    onChromeChanged: _onChromeChanged,
                     onBrowsePathChanged: (_) => setState(() {}),
                   ),
-                  const PlayModesTab(),
-                  const MeTab(),
+                  PlayModesTab(key: _playKey, onChromeChanged: _onChromeChanged),
+                  MeTab(key: _meKey, onChromeChanged: _onChromeChanged),
                 ],
               ),
             ),

@@ -438,7 +438,13 @@ class AppStringsZh extends AppStrings {
   String get aiPresetHubHint => '输出风格、采样与提示词';
 
   @override
+  String get selectPlayModeHint => '选一个入口看内容';
+
+  @override
   String get noPersonaYet => '还没有身份';
+
+  @override
+  String get selectPersonaHint => '选一个身份看详情';
 
   // Stories tab.
 
@@ -486,6 +492,9 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get noMatchingStories => '没有匹配的故事';
+
+  @override
+  String get selectStoryHint => '选一个故事看详情';
 
   @override
   String createFailed(Object error) => '新建失败：$error';
@@ -1931,6 +1940,9 @@ class AppStringsZh extends AppStrings {
 
   @override
   String lastPlayed(String kind, String relative) => '$kind · 上次游玩 $relative';
+
+  @override
+  String get selectSaveHint => '选一条存档看详情';
 
   @override
   String get justNow => '刚刚';

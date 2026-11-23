@@ -6,6 +6,7 @@ import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/repositories/project_folder_repository.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
+import 'package:anoworld/foundation/layout/app_pane_width.dart';
 import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:flutter/widgets.dart';
@@ -19,6 +20,7 @@ class AppScope extends InheritedWidget {
     required this.folders,
     required this.settings,
     required this.libraryDisplay,
+    required this.paneWidth,
     required this.createAssistant,
     required this.projectChanges,
     this.modelCatalog,
@@ -31,6 +33,7 @@ class AppScope extends InheritedWidget {
   final ProjectFolderRepository folders;
   final SettingsController settings;
   final LibraryDisplayController libraryDisplay;
+  final AppPaneWidthController paneWidth;
   final CreateAssistantController createAssistant;
   final ProjectChangeNotifier projectChanges;
   final AiModelCatalog? modelCatalog;
@@ -56,6 +59,10 @@ class AppScope extends InheritedWidget {
   static LibraryDisplayController libraryDisplayOf(BuildContext context) =>
       of(context).libraryDisplay;
 
+  /// Shared master-detail divider position (wide-window list | detail hubs).
+  static AppPaneWidthController paneWidthOf(BuildContext context) =>
+      of(context).paneWidth;
+
   static CreateAssistantController createAssistantOf(BuildContext context) =>
       of(context).createAssistant;
 
@@ -75,6 +82,7 @@ class AppScope extends InheritedWidget {
       folders != oldWidget.folders ||
       settings != oldWidget.settings ||
       libraryDisplay != oldWidget.libraryDisplay ||
+      paneWidth != oldWidget.paneWidth ||
       createAssistant != oldWidget.createAssistant ||
       projectChanges != oldWidget.projectChanges ||
       modelCatalog != oldWidget.modelCatalog ||

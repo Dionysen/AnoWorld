@@ -2,17 +2,24 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
+import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_detail_pane.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_master_detail.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_search_field.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
+import 'package:anoworld/home/home_tab_back.dart';
 import 'package:anoworld/home/library_selection.dart';
+import 'package:anoworld/home/save_detail_pane.dart';
+import 'package:anoworld/home/save_time_label.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:anoworld/project/project_hub_page.dart';
@@ -23,40 +30,59 @@ class SavesTab extends StatefulWidget {
     super.key,
     required this.selection,
     required this.onBrowseWorks,
-    this.onSelectionChromeChanged,
+    this.onChromeChanged,
   });
 
   final LibrarySelectionController selection;
   final VoidCallback onBrowseWorks;
-  final VoidCallback? onSelectionChromeChanged;
+
+  /// Home chrome (back handling / assistant) may need a rebuild.
+  final VoidCallback? onChromeChanged;
 
   @override
   State<SavesTab> createState() => SavesTabState();
 }
 
-class SavesTabState extends State<SavesTab> {
+class SavesTabState extends State<SavesTab> implements HomeTabBack {
   final _searchController = TextEditingController();
   String _query = '';
   bool _loading = true;
   String? _error;
   List<_SaveRow> _rows = const [];
 
+  /// Save shown in the wide-window detail pane; null shows the empty hint.
+  String? _selectedSlotId;
+
+  /// Stack of the detail column (the saved session, then whatever it opens).
+  final _detailPane = AppDetailPaneController();
+
   @override
   void initState() {
     super.initState();
     widget.selection.addListener(_onSelectionChanged);
+    _detailPane.addListener(_onDetailPaneChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => reload());
   }
 
   @override
   void dispose() {
     widget.selection.removeListener(_onSelectionChanged);
+    _detailPane
+      ..removeListener(_onDetailPaneChanged)
+      ..dispose();
     _searchController.dispose();
     super.dispose();
   }
 
+  /// The pane opened / closed a page, so the shell's back state changed.
+  void _onDetailPaneChanged() {
+    if (!mounted) return;
+    setState(() {});
+    widget.onChromeChanged?.call();
+  }
+
   void _onSelectionChanged() {
-    widget.onSelectionChromeChanged?.call();
+    widget.onChromeChanged?.call();
     setState(() {});
   }
 
@@ -81,6 +107,10 @@ class SavesTabState extends State<SavesTab> {
       setState(() {
         _rows = rows;
         _loading = false;
+        if (_selectedSlotId != null &&
+            !rows.any((row) => row.slot.id == _selectedSlotId)) {
+          _selectedSlotId = null;
+        }
       });
     } catch (error) {
       if (!mounted) return;
@@ -99,6 +129,33 @@ class SavesTabState extends State<SavesTab> {
         .toList(growable: false);
   }
 
+  _SaveRow? _rowFor(String slotId) {
+    for (final row in _rows) {
+      if (row.slot.id == slotId) return row;
+    }
+    return null;
+  }
+
+  @override
+  bool get canGoBack =>
+      _detailPane.canPop ||
+      widget.selection.selectionMode ||
+      _selectedSlotId != null;
+
+  @override
+  bool handleSystemBack() {
+    if (_detailPane.pop()) return true;
+    if (widget.selection.selectionMode) {
+      widget.selection.exit();
+      return true;
+    }
+    if (_selectedSlotId != null) {
+      setState(() => _selectedSlotId = null);
+      return true;
+    }
+    return false;
+  }
+
   Future<void> _openRoute(Widget page, {bool storyChrome = false}) async {
     if (storyChrome) {
       await pushStoryRoute<void>(context, page);
@@ -114,7 +171,10 @@ class SavesTabState extends State<SavesTab> {
       final project =
           await AppScope.projectsOf(context).open(row.project.id);
       if (!mounted) return;
-      await _openRoute(
+      AppLog.instance.info('继续游玩：${row.project.title}', tag: 'play.session');
+      // Always full-screen: play is a stage, not a column.
+      await pushAppSlide<void>(
+        context,
         PlaySessionPage(
           project: project,
           mode: row.slot.mode,
@@ -122,7 +182,9 @@ class SavesTabState extends State<SavesTab> {
           resumeSave: true,
           playerCastId: row.slot.playerCastId,
         ),
+        fullscreen: true,
       );
+      if (mounted) await reload();
     } catch (error) {
       if (!mounted) return;
       showAppToast(context, context.strings.cannotResume(error));
@@ -208,27 +270,12 @@ class SavesTabState extends State<SavesTab> {
     await reload();
   }
 
-  String _formatRelative(BuildContext context, DateTime at) {
-    final strings = context.strings;
-    final local = at.toLocal();
-    final now = DateTime.now();
-    final diff = now.difference(local);
-    if (diff.inMinutes < 1) return strings.justNow;
-    if (diff.inHours < 1) return strings.minutesAgo(diff.inMinutes);
-    if (diff.inDays < 1) return strings.hoursAgo(diff.inHours);
-    if (diff.inDays < 7) return strings.daysAgo(diff.inDays);
-    final y = local.year.toString().padLeft(4, '0');
-    final m = local.month.toString().padLeft(2, '0');
-    final d = local.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
-
   String _subtitle(BuildContext context, _SaveRow row) {
     final strings = context.strings;
     final kind = row.slot.mode == PlayViewMode.chat
         ? strings.kindChat
         : strings.kindVisualNovel;
-    return strings.lastPlayed(kind, _formatRelative(context, row.slot.savedAt));
+    return strings.lastPlayed(kind, saveTimeLabel(context, row.slot.savedAt));
   }
 
   Widget _leading({required bool selected, required bool selectionMode}) {
@@ -247,6 +294,35 @@ class SavesTabState extends State<SavesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final paneWidth = AppScope.paneWidthOf(context);
+    final selectedId = _selectedSlotId;
+    final selected = selectedId == null ? null : _rowFor(selectedId);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final split = AppLayout.useMasterDetail(constraints.maxWidth);
+        return AppMasterDetail(
+          primary: _masterPane(context, split: split),
+          // Play is full-screen, so the column keeps the save's own summary and
+          // 「继续游玩」 opens the stage over the whole window.
+          detail: selected == null
+              ? null
+              : SaveDetailPane(
+                  key: ValueKey<String>('save-detail-${selected.slot.id}'),
+                  slot: selected.slot,
+                  projectId: selected.project.id,
+                  onResume: () => _resumePlay(selected),
+                  onOpenStory: () => _openStory(selected),
+                  onDelete: () => _deleteOne(selected.slot.id),
+                ),
+          emptyLabel: context.strings.selectSaveHint,
+          paneWidth: paneWidth,
+          detailController: _detailPane,
+        );
+      },
+    );
+  }
+
+  Widget _masterPane(BuildContext context, {required bool split}) {
     final strings = context.strings;
     final selectionMode = widget.selection.selectionMode;
     final visible = _visible;
@@ -292,11 +368,11 @@ class SavesTabState extends State<SavesTab> {
                   ),
                   if (widget.selection.hasSelection) ...[
                     const SizedBox(width: AppTheme.spaceSm),
-                      AppIconButton(
-                        icon: Icons.delete_outline,
-                        tooltip: strings.delete,
-                        danger: true,
-                        onPressed: deleteSelected,
+                    AppIconButton(
+                      icon: Icons.delete_outline,
+                      tooltip: strings.delete,
+                      danger: true,
+                      onPressed: deleteSelected,
                     ),
                   ],
                 ] else
@@ -367,10 +443,14 @@ class SavesTabState extends State<SavesTab> {
                               final row = visible[index];
                               final selected =
                                   widget.selection.isSelected(row.slot.id);
+                              final active =
+                                  !selectionMode &&
+                                  split &&
+                                  row.slot.id == _selectedSlotId;
                               return AppListTile(
                                 title: row.project.title,
                                 subtitle: _subtitle(context, row),
-                                selected: selectionMode && selected,
+                                selected: selectionMode ? selected : active,
                                 leading: _leading(
                                   selected: selected,
                                   selectionMode: selectionMode,
@@ -437,6 +517,11 @@ class SavesTabState extends State<SavesTab> {
                                 onTap: () {
                                   if (selectionMode) {
                                     widget.selection.toggle(row.slot.id);
+                                  } else if (split) {
+                                    setState(() {
+                                      _selectedSlotId = row.slot.id;
+                                    });
+                                    widget.onChromeChanged?.call();
                                   } else {
                                     _resumePlay(row);
                                   }
