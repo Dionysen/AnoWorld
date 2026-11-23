@@ -61,6 +61,55 @@ void main() {
     expect(plan.stylePrefix, contains('anime'));
   });
 
+  test('portrait prompts are forced waist-up and drop full-body tags', () {
+    final enforced = ComfyWorkflowTemplates.enforcePortraitFraming(
+      'masterpiece, 1girl, full body, wide shot, black_hair, white background',
+    );
+    expect(enforced, contains('upper body'));
+    expect(enforced, contains('white background'));
+    expect(enforced, isNot(contains('full body')));
+    expect(enforced, isNot(contains('wide shot')));
+    // Idempotent: saving twice does not duplicate the framing tag.
+    expect(
+      ComfyWorkflowTemplates.enforcePortraitFraming(enforced),
+      enforced,
+    );
+  });
+
+  test('portrait negative adds framing tags without touching scenes', () {
+    final portrait = ComfyWorkflowTemplates.portraitNegative('low quality');
+    expect(portrait, contains('low quality'));
+    expect(portrait, contains('full body'));
+
+    final wf = ComfyWorkflowTemplates.scene(prompt: 'night, city');
+    expect(wf['5']?['inputs']?['text'], isNot(contains('full body')));
+  });
+
+  test('planFromRaw normalizes model portraits to upper body', () {
+    const raw = '''
+{
+  "stylePrefix": "masterpiece, anime",
+  "negativePrompt": "low quality",
+  "characters": [
+    {
+      "characterId": "c1",
+      "name": "A",
+      "visualTags": "1girl, black_hair",
+      "facing": "right",
+      "portraitPrompt": "masterpiece, 1girl, black_hair, full body, white background"
+    }
+  ],
+  "scenes": []
+}
+''';
+    final plan = VisualPromptActions(
+      textClient: _FakeTextClient(),
+    ).planFromRaw(raw);
+    final portrait = plan.characters.single.portraitPrompt;
+    expect(portrait, contains('upper body'));
+    expect(portrait, isNot(contains('full body')));
+  });
+
   test('portrait facing tags flip when rewriting prompt', () {
     final right = ComfyWorkflowTemplates.applyFacingToPortraitPrompt(
       'masterpiece, 1girl, facing left, looking left, from side',

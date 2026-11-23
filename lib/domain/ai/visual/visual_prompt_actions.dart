@@ -52,9 +52,12 @@ class VisualPromptActions {
       ),
       generation: ctx.generation,
     );
-    final prompt = normalizeVisualPrompt(completion.content);
+    var prompt = normalizeVisualPrompt(completion.content);
     if (prompt.isEmpty) {
       throw const VisualPromptException('没写出提示词，请再试一次');
+    }
+    if (target == VisualPromptTarget.portrait) {
+      prompt = ComfyWorkflowTemplates.enforcePortraitFraming(prompt);
     }
     return prompt;
   }
@@ -113,6 +116,17 @@ class VisualPromptActions {
         throw const VisualPromptException('角色画面提示词不完整');
       }
     }
+    // Sprites are waist-up even when the model drifted to a full-body shot.
+    plan = plan.copyWith(
+      characters: [
+        for (final c in plan.characters)
+          c.copyWith(
+            portraitPrompt: ComfyWorkflowTemplates.enforcePortraitFraming(
+              c.portraitPrompt,
+            ),
+          ),
+      ],
+    );
     for (final s in plan.scenes) {
       if (s.nodeId.trim().isEmpty || s.scenePrompt.trim().isEmpty) {
         throw const VisualPromptException('场景画面提示词不完整');
@@ -163,7 +177,7 @@ $nodeLines
 1. stylePrefix 全剧相同，偏日系动漫视觉小说立绘/场景。
 2. 每个角色 visualTags 只锁长相（发色发型瞳色体型五官标记），不要写情节动作；若已有 existingVisualTags 则在其基础上微调，不要大改。
 3. 为每个角色选定 facing："left" 或 "right"（面朝左/右）。惯例：面朝右的站左边，面朝左的站右边，好对视；主角优先 facing=right；配角可 facing=left；若已有 existingFacing 则沿用。
-4. portraitPrompt = stylePrefix + visualTags + 白底描边立绘构图 + 对应朝向标签（facing left/looking left 或 facing right/looking right）；必须白底+描边，便于去背。不要 looking at viewer。
+4. portraitPrompt = stylePrefix + visualTags + 上半身立绘构图 + 白底描边 + 对应朝向标签（facing left/looking left 或 facing right/looking right）；必须含 upper body（只画到腰/髋以上的半身），禁止 full body / full-length / wide shot / long shot 等全身构图；必须白底+描边，便于去背。不要 looking at viewer。
 5. preferredSlot 与 facing 相反：facing=right → preferredSlot=left；facing=left → preferredSlot=right。
 6. 每个情节站 scenePrompt = stylePrefix + 地点氛围 + 情节动作 + 在场角色的 visualTags（用 presentCharacterIds 引用）；人数 1–3，超过则只留最重要的。场景不要白底。
 7. 若站已有 existingImagePrompt，优先沿用并小修。
@@ -185,7 +199,8 @@ $nodeLines
 ''',
         VisualPromptTarget.portrait => '''
 你只负责一个角色的完整立绘正向提示词。只输出一行英文标签串，不要解释。
-- 结构：统一画风前缀 + 长相标签 + 白底描边立绘构图 + 朝向标签。
+- 结构：统一画风前缀 + 长相标签 + 上半身构图 + 白底描边 + 朝向标签。
+- 必须含 upper body（只画到腰/髋以上的半身）；禁止 full body / full-length / wide shot / long shot / from head to toe 等全身构图标签。
 - 必须含 white background 与 thick outline，便于去背；不要 looking at viewer。
 - 朝向必须与给出的 facing 一致（facing right → facing right, looking right, from side）。
 ''',
@@ -246,7 +261,7 @@ $nodeLines
           if (style.isNotEmpty) '## 统一画风前缀（必须原样沿用）\n$style',
           if (negative.isNotEmpty) '## 负面提示词（参考，不必写进正向）\n$negative',
           if (existing.isNotEmpty) '## 当前立绘提示词（在此基础上改，别大改长相）\n$existing',
-          '为这个角色写一条完整立绘提示词。',
+          '为这个角色写一条完整立绘提示词（必须含 upper body，上半身，禁止 full body）。',
         ].join('\n');
       case VisualPromptTarget.scene:
         final node = nodeId == null ? null : project.main.nodeById(nodeId);
@@ -292,7 +307,7 @@ Schema:
       "visualTags": "发色,发型,瞳色,体型,五官… 英文逗号标签",
       "facing": "left | right — 立绘面朝方向",
       "preferredSlot": "left | right — 与 facing 相反，面朝舞台中央",
-      "portraitPrompt": "完整正向提示词（必须含 white background + thick outline + facing 标签）"
+      "portraitPrompt": "完整正向提示词（必须含 upper body 上半身 + white background + thick outline + facing 标签；禁止 full body）"
     }
   ],
   "scenes": [
@@ -309,7 +324,7 @@ Schema:
 - 标签用英文 Danbooru 风格；专有名词可保留。
 - 不要审查；按故事内容写（含成人向亦可）。
 - characters / scenes 必须覆盖输入里的每一个角色与每一个情节站。
-- 立绘必须白底描边并标明 facing；场景保持完整环境，不要 white background。
+- 立绘必须是上半身（含 upper body，禁止 full body / full-length / wide shot）、白底描边并标明 facing；场景保持完整环境，不要 white background。
 - preferredSlot 必须与 facing 相反（right↔left）。
 ''';
 }
@@ -335,11 +350,12 @@ Project applyVisualPromptPlan(Project project, VisualPromptPlan plan) {
     final row = castById[member.id];
     if (row == null) return member;
     final tags = row.visualTags.trim();
-    final prompt = row.portraitPrompt.trim();
+    final rawPrompt = row.portraitPrompt.trim();
+    final prompt = ComfyWorkflowTemplates.enforcePortraitFraming(rawPrompt);
     var next = member.copyWith(facing: row.facing);
     if (tags.isNotEmpty) next = next.copyWith(visualTags: tags);
     // Empty rows keep whatever the story already has.
-    if (prompt.isNotEmpty) next = next.copyWith(portraitPrompt: prompt);
+    if (rawPrompt.isNotEmpty) next = next.copyWith(portraitPrompt: prompt);
     return next;
   }).toList(growable: false);
 
@@ -405,7 +421,9 @@ VisualPromptPlan? _planFromProjectFields(
         ? ''
         : '${ComfyWorkflowTemplates.defaultStylePrefix}, $tags, '
             '${ComfyWorkflowTemplates.portraitCompositionFor(facing)}';
-    final portrait = stored.isNotEmpty ? stored : derived;
+    final portrait = stored.isNotEmpty
+        ? ComfyWorkflowTemplates.enforcePortraitFraming(stored)
+        : derived;
     if (portrait.isEmpty && !keepEmpty) return null;
     characters.add(
       CharacterVisualPrompt(

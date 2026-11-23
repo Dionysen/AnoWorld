@@ -295,17 +295,21 @@ class _VisualStagePageState extends State<VisualStagePage> {
           ),
           facing: row.facing,
           previewFit: BoxFit.contain,
-          apply: (next, prompt, facing) => next.copyWith(
-            characters: [
-              for (final c in next.characters)
-                c.characterId == row.characterId
-                    ? c.copyWith(
-                        portraitPrompt: prompt,
-                        facing: facing ?? c.facing,
-                      )
-                    : c,
-            ],
-          ),
+          apply: (next, prompt, facing) {
+            final portrait =
+                ComfyWorkflowTemplates.enforcePortraitFraming(prompt);
+            return next.copyWith(
+              characters: [
+                for (final c in next.characters)
+                  c.characterId == row.characterId
+                      ? c.copyWith(
+                          portraitPrompt: portrait,
+                          facing: facing ?? c.facing,
+                        )
+                      : c,
+              ],
+            );
+          },
         ),
     ];
   }

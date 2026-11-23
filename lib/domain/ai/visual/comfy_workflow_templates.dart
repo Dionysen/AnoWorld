@@ -18,10 +18,72 @@ abstract final class ComfyWorkflowTemplates {
       'detailed face, sharp focus, thick outline, anime outline, cel shading';
 
   /// Shared portrait framing (white studio BG for edge flood-fill alpha).
+  ///
+  /// Character sprites are waist-up: [portraitFramingTag] is forced into every
+  /// portrait prompt, while [portraitNegative] suppresses full-body shots.
   static const String portraitCompositionBase =
-      'solo, standing, upper body, '
+      'solo, $portraitFramingTag, '
       'simple background, white background, plain background, '
       'character focus, thick outline, black outline';
+
+  /// Waist-up tag every character portrait must carry.
+  static const String portraitFramingTag = 'upper body';
+
+  /// Portrait-only negatives that keep the sprite upper body.
+  static const String portraitNegativeTags =
+      'full body, full-length, wide shot, long shot';
+
+  /// Tags that would pull a portrait back to a full-body composition.
+  static final RegExp _fullBodyFraming = RegExp(
+    r'\b(?:full[\s_-]?body|full[\s_-]?length|wide shot|long shot|'
+    r'from head to toe)\b,?\s*',
+    caseSensitive: false,
+  );
+
+  static final RegExp _waistUpFraming = RegExp(
+    r'\b(?:upper[\s_-]?body|half[\s_-]?body|cowboy shot|bust shot)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _studioBackground = RegExp(
+    r'\b(?:white background|simple background|plain background)\b',
+    caseSensitive: false,
+  );
+
+  /// Forces [prompt] into a waist-up portrait: drops full-body framing tags and
+  /// injects [portraitFramingTag] when the prompt has no waist-up tag yet.
+  ///
+  /// Idempotent, so callers can apply it on every save and again before draw.
+  static String enforcePortraitFraming(String prompt) {
+    var cleaned = prompt
+        .replaceAll(_fullBodyFraming, '')
+        .replaceAll(RegExp(r',\s*,+'), ',')
+        .replaceAll(RegExp(r'^\s*,\s*'), '')
+        .trim();
+    if (cleaned.endsWith(',')) {
+      cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+    }
+    if (cleaned.isEmpty) return portraitCompositionBase;
+    if (_waistUpFraming.hasMatch(cleaned)) return cleaned;
+
+    // Keep studio tags at the tail so the framing tag lands with the subject.
+    final background = _studioBackground.firstMatch(cleaned);
+    if (background == null) return '$cleaned, $portraitFramingTag';
+    final head = cleaned.substring(0, background.start).trim();
+    final tail = cleaned.substring(background.start).trim();
+    final headClean =
+        head.endsWith(',') ? head.substring(0, head.length - 1).trim() : head;
+    if (headClean.isEmpty) return '$portraitFramingTag, $tail';
+    return '$headClean, $portraitFramingTag, $tail';
+  }
+
+  /// Appends portrait-only negatives without touching scene negatives.
+  static String portraitNegative(String negative) {
+    final base = negative.trim();
+    if (base.isEmpty) return portraitNegativeTags;
+    if (base.toLowerCase().contains('full body')) return base;
+    return '$base, $portraitNegativeTags';
+  }
 
   /// Facing tags so the sprite looks toward stage center when placed opposite.
   static String portraitFacingTags(SpriteFacing facing) => switch (facing) {
@@ -66,7 +128,9 @@ abstract final class ComfyWorkflowTemplates {
       cleaned = cleaned.substring(0, cleaned.length - 1).trim();
     }
     if (cleaned.isEmpty) return portraitCompositionFor(facing);
-    return '$cleaned, ${portraitFacingTags(facing)}';
+    return enforcePortraitFraming(
+      '$cleaned, ${portraitFacingTags(facing)}',
+    );
   }
 
   static Map<String, dynamic> noobaiTxt2Img({
@@ -198,8 +262,8 @@ abstract final class ComfyWorkflowTemplates {
     String checkpoint = defaultCheckpoint,
   }) {
     return noobaiTxt2Img(
-      positive: prompt,
-      negative: negative,
+      positive: enforcePortraitFraming(prompt),
+      negative: portraitNegative(negative),
       width: width,
       height: height,
       steps: steps,
