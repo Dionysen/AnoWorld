@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/models/story_card_meta.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/validation/project_validator.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,6 +41,34 @@ void main() {
       expect(again.cast.map((c) => c.id), <String>['c_hero', 'c_keeper']);
       expect(again.main.beatById('b2')!.choices, hasLength(2));
       expect(again.main.beatById('b2')!.choices[0].target.type.name, 'end');
+    });
+
+    test('card metadata round-trips and stays out of the file when empty', () {
+      final project = const ProjectFactory().createBlank(
+        id: 'p_card',
+        title: '卡片',
+        now: DateTime.utc(2026, 1, 1),
+      );
+      expect(project.toJson()['meta'].containsKey('card'), isFalse);
+
+      final withCard = project.copyWith(
+        meta: project.meta.copyWith(
+          card: const StoryCardMeta(
+            creator: '阿福',
+            version: '1.2',
+            creatorNotes: '原作者注',
+            tags: <String>['古风', '客栈'],
+          ),
+        ),
+      );
+      final decoded = Project.fromJson(
+        jsonDecode(jsonEncode(withCard.toJson())) as Map<String, dynamic>,
+      );
+
+      expect(decoded.meta.card.creator, '阿福');
+      expect(decoded.meta.card.version, '1.2');
+      expect(decoded.meta.card.creatorNotes, '原作者注');
+      expect(decoded.meta.card.tags, <String>['古风', '客栈']);
     });
 
     test('factory sample matches MainBeat linear example', () {

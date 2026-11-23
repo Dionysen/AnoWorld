@@ -12,6 +12,9 @@ class StCharacterCard {
     this.systemPrompt = '',
     this.postHistoryInstructions = '',
     this.creatorNotes = '',
+    this.creator = '',
+    this.characterVersion = '',
+    this.tags = const <String>[],
     this.alternateGreetings = const <String>[],
     this.bookEntries = const <StCharacterBookEntry>[],
     this.sourceLabel = '',
@@ -27,6 +30,15 @@ class StCharacterCard {
   final String systemPrompt;
   final String postHistoryInstructions;
   final String creatorNotes;
+
+  /// Card author, kept as story metadata (`meta.card`).
+  final String creator;
+
+  /// Card revision (`character_version`), kept as story metadata.
+  final String characterVersion;
+
+  /// Card tags, kept as story metadata.
+  final List<String> tags;
   final List<String> alternateGreetings;
   final List<StCharacterBookEntry> bookEntries;
 
@@ -47,6 +59,9 @@ class StCharacterCard {
       systemPrompt: systemPrompt,
       postHistoryInstructions: postHistoryInstructions,
       creatorNotes: creatorNotes,
+      creator: creator,
+      characterVersion: characterVersion,
+      tags: tags,
       alternateGreetings: alternateGreetings,
       bookEntries: bookEntries,
       sourceLabel: sourceLabel,

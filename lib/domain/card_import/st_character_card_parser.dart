@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:anoworld/domain/card_import/st_card_placeholders.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/foundation/io/png_text_chunks.dart';
 
@@ -66,21 +67,7 @@ class StCharacterCardParser {
     }
     final map = _decodeEmbeddedPayload(payload);
     final card = parseJsonMap(map, sourceLabel: sourceLabel);
-    return StCharacterCard(
-      name: card.name,
-      description: card.description,
-      personality: card.personality,
-      scenario: card.scenario,
-      firstMes: card.firstMes,
-      mesExample: card.mesExample,
-      systemPrompt: card.systemPrompt,
-      postHistoryInstructions: card.postHistoryInstructions,
-      creatorNotes: card.creatorNotes,
-      alternateGreetings: card.alternateGreetings,
-      bookEntries: card.bookEntries,
-      sourceLabel: card.sourceLabel,
-      coverImageBytes: bytes,
-    );
+    return card.copyWith(coverImageBytes: bytes);
   }
 
   Map<String, dynamic> _decodeEmbeddedPayload(String payload) {
@@ -126,16 +113,19 @@ class StCharacterCardParser {
     }
     return StCharacterCard(
       name: name,
-      description: _stringOf(data['description']) ?? '',
-      personality: _stringOf(data['personality']) ?? '',
-      scenario: _stringOf(data['scenario']) ?? '',
-      firstMes: _stringOf(data['first_mes']) ?? '',
-      mesExample: _stringOf(data['mes_example']) ?? '',
-      systemPrompt: _stringOf(data['system_prompt']) ?? '',
+      description: _textOf(data['description']) ?? '',
+      personality: _textOf(data['personality']) ?? '',
+      scenario: _textOf(data['scenario']) ?? '',
+      firstMes: _textOf(data['first_mes']) ?? '',
+      mesExample: _textOf(data['mes_example']) ?? '',
+      systemPrompt: _textOf(data['system_prompt']) ?? '',
       postHistoryInstructions:
-          _stringOf(data['post_history_instructions']) ?? '',
-      creatorNotes: _stringOf(data['creator_notes']) ?? '',
-      alternateGreetings: _stringList(data['alternate_greetings']),
+          _textOf(data['post_history_instructions']) ?? '',
+      creatorNotes: _textOf(data['creator_notes']) ?? '',
+      creator: _textOf(data['creator']) ?? '',
+      characterVersion: _textOf(data['character_version']) ?? '',
+      tags: _textList(data['tags']),
+      alternateGreetings: _textList(data['alternate_greetings']),
       bookEntries: _bookEntries(data['character_book']),
       sourceLabel: sourceLabel,
     );
@@ -153,19 +143,25 @@ class StCharacterCardParser {
     }
     return StCharacterCard(
       name: name,
-      description: _stringOf(json['description']) ??
-          _stringOf(json['char_persona']) ??
+      description: _textOf(json['description']) ??
+          _textOf(json['char_persona']) ??
           '',
-      personality: _stringOf(json['personality']) ?? '',
-      scenario: _stringOf(json['scenario']) ??
-          _stringOf(json['world_scenario']) ??
+      personality: _textOf(json['personality']) ?? '',
+      scenario: _textOf(json['scenario']) ??
+          _textOf(json['world_scenario']) ??
           '',
-      firstMes: _stringOf(json['first_mes']) ??
-          _stringOf(json['char_greeting']) ??
+      firstMes: _textOf(json['first_mes']) ??
+          _textOf(json['char_greeting']) ??
           '',
-      mesExample: _stringOf(json['mes_example']) ??
-          _stringOf(json['example_dialogue']) ??
+      mesExample: _textOf(json['mes_example']) ??
+          _textOf(json['example_dialogue']) ??
           '',
+      creatorNotes: _textOf(json['creatorcomment']) ??
+          _textOf(json['creator_notes']) ??
+          '',
+      creator: _textOf(json['creator']) ?? '',
+      characterVersion: _textOf(json['character_version']) ?? '',
+      tags: _textList(json['tags']),
       sourceLabel: sourceLabel,
     );
   }
@@ -173,21 +169,26 @@ class StCharacterCardParser {
   List<StCharacterBookEntry> _bookEntries(Object? raw) {
     if (raw is! Map) return const [];
     final entriesRaw = raw['entries'];
-    if (entriesRaw is! List) return const [];
+    // Spec says list; some exports ship the ST lorebook `{uid: entry}` map.
+    final rows = switch (entriesRaw) {
+      List() => entriesRaw,
+      Map() => entriesRaw.values,
+      _ => const <Object?>[],
+    };
     final out = <StCharacterBookEntry>[];
-    for (final item in entriesRaw) {
+    for (final item in rows) {
       if (item is! Map) continue;
       final row = Map<String, dynamic>.from(item);
-      final content = _stringOf(row['content'])?.trim() ?? '';
+      final content = _textOf(row['content'])?.trim() ?? '';
       if (content.isEmpty) continue;
       final disabled = _boolOf(row['disable']) ?? false;
       final enabled = !disabled && (_boolOf(row['enabled']) ?? true);
       out.add(
         StCharacterBookEntry(
-          name: _stringOf(row['name']) ?? '',
-          comment: _stringOf(row['comment']) ?? '',
+          name: _textOf(row['name']) ?? '',
+          comment: _textOf(row['comment']) ?? '',
           content: content,
-          keys: _stringList(row['keys'] ?? row['key']),
+          keys: _keyList(row['keys'] ?? row['key']),
           constant: _boolOf(row['constant']) ?? false,
           enabled: enabled,
         ),
@@ -202,10 +203,32 @@ class StCharacterCardParser {
     return value.toString();
   }
 
+  /// Card text with SillyTavern legacy placeholders rewritten to macros.
+  static String? _textOf(Object? value) {
+    final text = _stringOf(value);
+    return text == null ? null : normalizeLegacyCardPlaceholders(text);
+  }
+
+  static List<String> _textList(Object? value) {
+    return _stringList(value)
+        .map(normalizeLegacyCardPlaceholders)
+        .toList(growable: false);
+  }
+
   static List<String> _stringList(Object? value) {
     if (value is! List) return const [];
     return value
         .map((e) => e?.toString().trim() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  /// Keys are usually a list; a few cards ship one comma-separated string.
+  static List<String> _keyList(Object? value) {
+    if (value is! String) return _stringList(value);
+    return value
+        .split(RegExp(r'[,，]'))
+        .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList(growable: false);
   }

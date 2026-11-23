@@ -11,6 +11,7 @@ import 'package:anoworld/domain/card_import/card_sanitize_action.dart';
 import 'package:anoworld/domain/card_import/st_card_project_mapper.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/card_import/st_character_card_parser.dart';
+import 'package:anoworld/domain/models/story_card_meta.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
@@ -329,6 +330,20 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
     );
   }
 
+  /// One caption line per non-empty field, so the user sees what comes along.
+  Widget _cardMetaSummary(BuildContext context, StoryCardMeta card) {
+    final strings = context.strings;
+    final lines = <String>[
+      if (card.creator.trim().isNotEmpty)
+        '${strings.cardInfoCreator} · ${card.creator.trim()}',
+      if (card.version.trim().isNotEmpty)
+        '${strings.cardInfoVersion} · ${card.version.trim()}',
+      if (card.tags.isNotEmpty)
+        '${strings.cardInfoTags} · ${card.tags.join(strings.listSeparator)}',
+    ];
+    return AppText(lines.join('\n'), role: AppTextRole.caption);
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
@@ -387,6 +402,10 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
             ),
             const SizedBox(height: AppTheme.spaceMd),
             AppPageGutter(child: _coverPreview(context, draft)),
+            if (!draft.cardMeta.isEmpty) ...[
+              const SizedBox(height: AppTheme.spaceSm),
+              AppPageGutter(child: _cardMetaSummary(context, draft.cardMeta)),
+            ],
             const SizedBox(height: AppTheme.spaceLg),
             AppSectionHeader(
               strings.cardTidySection,

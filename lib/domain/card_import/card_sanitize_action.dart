@@ -90,10 +90,15 @@ class CardSanitizeAction {
       noteChange('卡内 AI 说明', draft.cardAiNote!, note!);
     }
 
+    final cardMeta = draft.cardMeta;
+    final creatorNotes = clean(cardMeta.creatorNotes);
+    noteChange('作者注', cardMeta.creatorNotes, creatorNotes);
+
     final next = draft.copyWith(
       castItems: castItems,
       worldBookItems: worldItems,
       cardAiNote: note,
+      cardMeta: cardMeta.copyWith(creatorNotes: creatorNotes),
     );
 
     return CardSanitizeResult(

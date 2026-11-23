@@ -80,7 +80,7 @@
 
 **用户想要的感觉**：选一个卡 → 看软件读懂了什么 → 勾选留下 → 写入故事再改。
 
-**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。**封面**：PNG 卡直接把卡面图写入故事封面（`assets/cover.png`）；JSON 卡若同目录有同名 `.png`（[`readCardCoverSidecar`](../lib/data/card_import/card_cover_sidecar.dart)）也一并带上；导入页会预览这张封面，没有图则提示可在故事页更换。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
+**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」；确认后「写入故事」进入创作截面（先填素材，不强制立刻开玩 / 生成脉络）。**封面**：PNG 卡直接把卡面图写入故事封面（`assets/cover.png`）；JSON 卡若同目录有同名 `.png`（[`readCardCoverSidecar`](../lib/data/card_import/card_cover_sidecar.dart)）也一并带上；导入页会预览这张封面，没有图则提示可在故事页更换。**卡片信息**：卡上的作者 / 版本 / 标签随卡带进故事（存 `ProjectMeta.card`），导入页在封面预览下用一行小字列出，导入后可在故事详情查看与编辑。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
 
 ### 用户做的事
 
@@ -95,11 +95,14 @@
 | 卡里常见内容 | 填到 |
 | --- | --- |
 | PNG 卡面图（或与 JSON 同名的 PNG） | 故事封面（首张带图的卡；导入页可预览） |
+| 作者（`creator`）/ 版本（`character_version`）/ 标签（`tags`）/ 作者注（`creator_notes`） | 故事卡片信息（`ProjectMeta.card`；故事详情可改） |
 | `scenario` | 世界书 · 常驻「情景」 |
-| `character_book` 启用条目 | 世界书条目（`constant`→常驻，否则带关键词） |
+| `character_book` 全部条目 | 世界书条目（`constant`→常驻，否则带关键词）；卡里本来就关闭的也列出来，只是导入时默认不勾 |
 | `first_mes` | 世界书 · 常驻「开场素材」 |
 | `alternate_greetings` | 备选开场（默认不勾选） |
-| `name` / `description` / `personality` / `mes_example` | 角色 |
+| `name` / `description` / `personality` | 角色 |
+| `mes_example` | 角色例句（最多 50 行，避免撑爆上下文） |
+| `<BOT>` / `<USER>` / `<CHAR>` / `<GROUP>` 等旧式称呼 | 换成角色 / 玩家 / 同场角色称呼，不丢句子 |
 | `system_prompt` / `post_history_instructions` | 不写入故事包；导入后可提示粘贴到设置 → 提示词 |
 | 正则、插件 | 不导入 |
 | 酒馆 preset 文件 | 玩法 → 预设 导入 |
@@ -180,7 +183,7 @@
 
 ## 故事详情（点进一个故事）
 
-从故事库点一个故事进入 [`ProjectHubPage`](../lib/project/project_hub_page.dart)：上方**封面**横向贴边、直角（有 `assets/cover.*` 时显示真实封面，否则首字占位；右上角可换本地图片 / 恢复默认）；下方扁平分区 **世界书**、**角色**、**情节走向**、**剧情元素**（无外卡；改 AI 气质去设置）。每区标题下用一行小字给体量与估算 token（世界书「n 条设定，m 条常驻，x token」、角色「n 个角色，x token」、情节走向「n 个节点，x token」、剧情元素「已选 n 项，x token」；空区不显示这行，由下方空态说明）。剧情元素区展示本故事已勾选的关键词与描述；空态「还没选剧情元素」，点编辑进勾选页。每区标题行带编辑；条目以发丝线分隔（标题、标签、正文，世界书条目对齐酒馆式常驻/关键词标签）。每区默认只先显示前 **8** 条，多出来的用「还有 n 条」一次展开；单条正文默认三行预览（折叠时不把超长全文拿去排版），右侧**展开**与**复制**（复制仍是全文）。右上角 **继续创作**；右下角 **开始游玩** 用 [`AppCircleButton.fab`](../lib/foundation/widgets/app_circle_button.dart)（先选玩法；视觉小说再选**你扮演谁**，本局锁定）。
+从故事库点一个故事进入 [`ProjectHubPage`](../lib/project/project_hub_page.dart)：上方**封面**横向贴边、直角（有 `assets/cover.*` 时显示真实封面，否则首字占位；右上角可换本地图片 / 恢复默认）；下方扁平分区 **世界书**、**角色**、**情节走向**、**剧情元素**（无外卡；改 AI 气质去设置）。每区标题下用一行小字给体量与估算 token（世界书「n 条设定，m 条常驻，x token」、角色「n 个角色，x token」、情节走向「n 个节点，x token」、剧情元素「已选 n 项，x token」；空区不显示这行，由下方空态说明）。剧情元素区展示本故事已勾选的关键词与描述；空态「还没选剧情元素」，点编辑进勾选页。每区标题行带编辑；条目以发丝线分隔（标题、标签、正文，世界书条目对齐酒馆式常驻/关键词标签）。末尾另有 **卡片信息** 分区：展示作者 / 版本 / 标签 / 作者注（来自角色卡，也可手填），点编辑进 [`StoryCardMetaPage`](../lib/project/story_card_meta_page.dart) 逐项修改，空着时给「作者、版本、标签都空着，点这里补上」。每区默认只先显示前 **8** 条，多出来的用「还有 n 条」一次展开；单条正文默认三行预览（折叠时不把超长全文拿去排版），右侧**展开**与**复制**（复制仍是全文）。右上角 **继续创作**；右下角 **开始游玩** 用 [`AppCircleButton.fab`](../lib/foundation/widgets/app_circle_button.dart)（先选玩法；视觉小说再选**你扮演谁**，本局锁定）。
 
 ## 创作截面（故事内）
 

@@ -5,6 +5,7 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/project_asset.dart';
 import 'package:anoworld/domain/models/side.dart';
+import 'package:anoworld/domain/models/story_card_meta.dart';
 
 Map<String, dynamic> _worldBookJson(Map<String, dynamic> json) {
   final legacy = json.optionalMap('background');
@@ -116,6 +117,7 @@ class ProjectMeta {
     required this.updatedAt,
     this.schemaVersion = ProjectManifest.currentSchemaVersion,
     this.coverPath,
+    this.card = StoryCardMeta.empty,
   });
 
   final String id;
@@ -127,6 +129,9 @@ class ProjectMeta {
   /// Relative path under project `assets/` (e.g. `cover.jpg`).
   final String? coverPath;
 
+  /// Author / version / tags / creator notes carried over from a card import.
+  final StoryCardMeta card;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'title': title,
@@ -135,6 +140,7 @@ class ProjectMeta {
         'schemaVersion': schemaVersion,
         if (coverPath != null && coverPath!.trim().isNotEmpty)
           'coverPath': coverPath,
+        if (!card.isEmpty) 'card': card.toJson(),
       };
 
   factory ProjectMeta.fromJson(Map<String, dynamic> json) {
@@ -149,6 +155,7 @@ class ProjectMeta {
                   ProjectManifest.currentSchemaVersion)
               .toInt(),
       coverPath: (cover == null || cover.isEmpty) ? null : cover,
+      card: StoryCardMeta.fromJson(json.optionalMap('card')),
     );
   }
 
@@ -160,6 +167,7 @@ class ProjectMeta {
     int? schemaVersion,
     String? coverPath,
     bool clearCoverPath = false,
+    StoryCardMeta? card,
   }) {
     return ProjectMeta(
       id: id ?? this.id,
@@ -168,6 +176,7 @@ class ProjectMeta {
       updatedAt: updatedAt ?? this.updatedAt,
       schemaVersion: schemaVersion ?? this.schemaVersion,
       coverPath: clearCoverPath ? null : (coverPath ?? this.coverPath),
+      card: card ?? this.card,
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:anoworld/domain/card_import/st_character_card.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/project.dart';
+import 'package:anoworld/domain/models/story_card_meta.dart';
 import 'package:anoworld/domain/project/entity_id.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 
@@ -53,6 +54,7 @@ class StCardImportDraft {
     required this.castItems,
     required this.worldBookItems,
     this.cardAiNote,
+    this.cardMeta = StoryCardMeta.empty,
     this.coverImageBytes,
   });
 
@@ -63,6 +65,9 @@ class StCardImportDraft {
   /// 卡内 system/post-history 提示（不写进故事包，仅导入页说明）。
   final String? cardAiNote;
 
+  /// Author / version / tags / creator notes written to `meta.card`.
+  final StoryCardMeta cardMeta;
+
   /// First PNG card image, written as story cover on confirm.
   final Uint8List? coverImageBytes;
 
@@ -71,6 +76,7 @@ class StCardImportDraft {
     List<StCardImportItem<CastMember>>? castItems,
     List<StCardImportItem<WorldBookEntry>>? worldBookItems,
     String? cardAiNote,
+    StoryCardMeta? cardMeta,
     Uint8List? coverImageBytes,
   }) {
     return StCardImportDraft(
@@ -78,6 +84,7 @@ class StCardImportDraft {
       castItems: castItems ?? this.castItems,
       worldBookItems: worldBookItems ?? this.worldBookItems,
       cardAiNote: cardAiNote ?? this.cardAiNote,
+      cardMeta: cardMeta ?? this.cardMeta,
       coverImageBytes: coverImageBytes ?? this.coverImageBytes,
     );
   }
@@ -103,6 +110,7 @@ class StCardImportDraft {
         .map((item) => item.value)
         .toList(growable: false);
     return blank.copyWith(
+      meta: blank.meta.copyWith(card: cardMeta),
       worldBook: WorldBook(entries: entries),
       cast: cast,
     );
@@ -213,7 +221,7 @@ class StCardProjectMapper {
       }
 
       for (final entry in card.bookEntries) {
-        if (!entry.enabled || entry.content.trim().isEmpty) continue;
+        if (entry.content.trim().isEmpty) continue;
         final id = newEntityId('bg');
         final title = _bookTitle(entry);
         worldBookItems.add(
@@ -229,6 +237,8 @@ class StCardProjectMapper {
               alwaysOn: entry.constant,
               keys: entry.constant ? const <String>[] : entry.keys,
             ),
+            // Entries the card shipped disabled stay visible but unchecked.
+            included: entry.enabled,
           ),
         );
       }
@@ -248,12 +258,22 @@ class StCardProjectMapper {
       castItems: castItems,
       worldBookItems: worldBookItems,
       cardAiNote: _cardAiNote(cards),
+      cardMeta: _cardMeta(primary),
       coverImageBytes: coverBytes,
     );
     if (autoSanitizeOnMap) {
       draft = sanitizeAction.run(draft).draft;
     }
     return draft;
+  }
+
+  static StoryCardMeta _cardMeta(StCharacterCard card) {
+    return StoryCardMeta(
+      creator: card.creator.trim(),
+      version: card.characterVersion.trim(),
+      creatorNotes: card.creatorNotes.trim(),
+      tags: card.tags,
+    );
   }
 
   String? _cardAiNote(List<StCharacterCard> cards) {
@@ -280,6 +300,9 @@ class StCardProjectMapper {
     return '设定条目';
   }
 
+  /// Example dialogue lines kept from `mes_example` (prompt budget guard).
+  static const int maxExampleLines = 50;
+
   static List<String> _exampleLines(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return const [];
@@ -289,8 +312,8 @@ class StCardProjectMapper {
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
         .toList(growable: false);
-    if (chunks.length <= 12) return chunks;
-    return chunks.take(12).toList(growable: false);
+    if (chunks.length <= maxExampleLines) return chunks;
+    return chunks.take(maxExampleLines).toList(growable: false);
   }
 
   static String _preview(String text) {

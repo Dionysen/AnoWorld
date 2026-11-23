@@ -58,6 +58,82 @@ void main() {
     expect(card.firstMes, '……');
   });
 
+  test('reads character_book entries shipped as a uid map', () {
+    final card = parser.parseJsonMap({
+      'spec': 'chara_card_v2',
+      'data': {
+        'name': '店主',
+        'character_book': {
+          'entries': {
+            '0': {
+              'keys': '客栈，雨夜',
+              'content': '只收现银',
+            },
+            '1': {
+              'key': ['灯笼'],
+              'content': '门口挂灯',
+            },
+          },
+        },
+      },
+    });
+
+    expect(card.bookEntries, hasLength(2));
+    expect(card.bookEntries.first.keys, ['客栈', '雨夜']);
+    expect(card.bookEntries.last.keys, ['灯笼']);
+  });
+
+  test('rewrites legacy placeholders instead of dropping them', () {
+    final card = parser.parseJsonMap({
+      'spec': 'chara_card_v2',
+      'data': {
+        'name': '阿福',
+        'description': '<char> 是店小二，<USER> 认识他。',
+        'mes_example': '<CHARIFNOTGROUP>: 来了\n<BOT>: 楼上请',
+        'alternate_greetings': ['<GROUP> 一起坐'],
+        'character_book': {
+          'entries': [
+            {'content': '<CHAR> 怕火'},
+          ],
+        },
+      },
+    });
+
+    expect(card.description, '{{char}} 是店小二，{{user}} 认识他。');
+    expect(card.mesExample, '{{char}}: 来了\n{{char}}: 楼上请');
+    expect(card.alternateGreetings, ['{{group}} 一起坐']);
+    expect(card.bookEntries.single.content, '{{char}} 怕火');
+  });
+
+  test('parses card author, version, tags and creator notes', () {
+    final card = parser.parseJsonMap({
+      'spec': 'chara_card_v3',
+      'data': {
+        'name': '掌柜',
+        'creator': '阿福',
+        'character_version': '1.2',
+        'creator_notes': '<b>请勿转载</b>',
+        'tags': ['古风', '客栈'],
+      },
+    });
+
+    expect(card.creator, '阿福');
+    expect(card.characterVersion, '1.2');
+    expect(card.creatorNotes, '<b>请勿转载</b>');
+    expect(card.tags, ['古风', '客栈']);
+  });
+
+  test('reads legacy creatorcomment and tags', () {
+    final card = parser.parseJsonMap({
+      'name': '旧卡',
+      'creatorcomment': '旧作者注',
+      'tags': ['旧'],
+    });
+
+    expect(card.creatorNotes, '旧作者注');
+    expect(card.tags, ['旧']);
+  });
+
   test('parses png chara chunk', () {
     final json = jsonEncode({
       'spec': 'chara_card_v2',

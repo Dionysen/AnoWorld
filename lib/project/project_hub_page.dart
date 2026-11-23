@@ -34,6 +34,7 @@ import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/start_play.dart';
+import 'package:anoworld/project/story_card_meta_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -368,6 +369,31 @@ class _ProjectHubPageState extends State<ProjectHubPage>
     if (selected == 0) return null;
     return context.strings.plotElementsSize(selected, size.plotElements);
   }
+  /// Card author / version / tags / notes carried over from a card import.
+  List<AppDetailEntry> _cardInfoEntries(Project project) {
+    final strings = context.strings;
+    final card = project.meta.card;
+    return <AppDetailEntry>[
+      if (card.creator.trim().isNotEmpty)
+        AppDetailEntry(
+          title: strings.cardInfoCreator,
+          body: card.creator.trim(),
+        ),
+      if (card.version.trim().isNotEmpty)
+        AppDetailEntry(
+          title: strings.cardInfoVersion,
+          body: card.version.trim(),
+        ),
+      if (card.tags.isNotEmpty)
+        AppDetailEntry(title: strings.cardInfoTags, tags: card.tags, body: ''),
+      if (card.creatorNotes.trim().isNotEmpty)
+        AppDetailEntry(
+          title: strings.cardInfoCreatorNotes,
+          body: card.creatorNotes.trim(),
+        ),
+    ];
+  }
+
   List<AppDetailEntry> _plotElementEntries(Project project) {
     final catalog = AppScope.settingsOf(context).plotElements;
     final rows = catalog.resolveSelected(project.plotElements.selectedIds);
@@ -527,6 +553,16 @@ class _ProjectHubPageState extends State<ProjectHubPage>
               emptyHint: context.strings.plotElementsEmpty,
               onEdit: () => _openEditor(
                 PlotElementsPickPage(projectId: widget.projectId),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            AppDetailSection(
+              title: context.strings.cardInfoTitle,
+              icon: Icons.badge_outlined,
+              entries: _cardInfoEntries(project),
+              emptyHint: context.strings.cardInfoEmpty,
+              onEdit: () => _openEditor(
+                StoryCardMetaPage(projectId: widget.projectId),
               ),
             ),
             const SizedBox(

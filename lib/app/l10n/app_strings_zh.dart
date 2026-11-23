@@ -1537,7 +1537,7 @@ class AppStringsZh extends AppStrings {
   String get cardWorldBookSection => '世界书';
 
   @override
-  String get cardWorldBookSectionHint => '情景、开场素材与角色书条目';
+  String get cardWorldBookSectionHint => '情景、开场素材与角色书条目；卡里关闭的默认不勾';
 
   @override
   String get cardNoWorldBookEntries => '这张卡没有可摘的设定条目';
@@ -1559,6 +1559,36 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get cardCoverMissing => '这张卡没有封面图，可在故事页更换';
+
+  @override
+  String get cardInfoTitle => '卡片信息';
+
+  @override
+  String get cardInfoCreator => '作者';
+
+  @override
+  String get cardInfoVersion => '版本';
+
+  @override
+  String get cardInfoTags => '标签';
+
+  @override
+  String get cardInfoCreatorNotes => '作者注';
+
+  @override
+  String get cardInfoEmpty => '作者、版本、标签都空着，点这里补上';
+
+  @override
+  String get cardInfoEditTitle => '编辑卡片信息';
+
+  @override
+  String get cardInfoTagsHint => '多个标签用逗号分开';
+
+  @override
+  String get cardInfoCreatorNotesHint => '原作者留下的说明';
+
+  @override
+  String cardInfoTagCount(int count) => '$count 个标签';
 
   @override
   String cardReadCount(int count) => '已读入 $count 张卡，可勾选要留下的内容';

@@ -534,6 +534,18 @@ abstract class AppStrings extends AppLocalizations {
   String get cardWriteHint;
   String get cardCoverHint;
   String get cardCoverMissing;
+
+  /// Story-detail block and editor for card provenance.
+  String get cardInfoTitle;
+  String get cardInfoCreator;
+  String get cardInfoVersion;
+  String get cardInfoTags;
+  String get cardInfoCreatorNotes;
+  String get cardInfoEmpty;
+  String get cardInfoEditTitle;
+  String get cardInfoTagsHint;
+  String get cardInfoCreatorNotesHint;
+  String cardInfoTagCount(int count);
   String cardReadCount(int count);
   String get cardSanitizeNoChange;
   String cardSanitizeChanged(int count);
