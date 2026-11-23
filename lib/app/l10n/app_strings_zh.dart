@@ -1327,6 +1327,9 @@ class AppStringsZh extends AppStrings {
   String get mainGraphOverview => '全图';
 
   @override
+  String get mainGraphScene => '场景';
+
+  @override
   String get mainGraphMenuSection => '画布';
 
   @override

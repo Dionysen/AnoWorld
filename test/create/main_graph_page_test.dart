@@ -95,6 +95,12 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(VisualAssetPreview), findsNothing);
     expect(find.byTooltip('加一站'), findsOneWidget);
+
+    // Even with the panel switched on there is no room for it.
+    await tester.tap(find.text('场景'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(VisualAssetPreview), findsNothing);
   });
 
   testWidgets('canvas shows stations and can add a station', (tester) async {    final repo = MemoryProjectRepository(
@@ -135,6 +141,12 @@ void main() {
         home: MainGraphPage(projectId: sample.meta.id),
       ),
     );
+    await tester.pumpAndSettle();
+
+    // Off by default, even with the start station selected.
+    expect(find.byType(VisualAssetPreview), findsNothing);
+
+    await tester.tap(find.text('场景'));
     await tester.pumpAndSettle();
 
     // The start station is selected, so its scene preview is on screen.

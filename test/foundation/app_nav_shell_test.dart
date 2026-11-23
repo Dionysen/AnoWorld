@@ -123,7 +123,7 @@ void main() {
     expect(labelBottom, greaterThan(720 - 120));
   });
 
-  testWidgets('bottomNavExtra renders a second capsule beside the main bar', (
+  testWidgets('bottomNavExtras share one capsule beside the main bar', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 720));
@@ -138,12 +138,21 @@ void main() {
             destinations: _items,
             selectedIndex: 0,
             onDestinationSelected: _noop,
-            bottomNavExtra: AppBottomNavExtraCapsule(
-              icon: Icons.settings_outlined,
-              selectedIcon: Icons.settings,
-              label: '设置',
-              onPressed: () => tapped = true,
-            ),
+            bottomNavExtras: [
+              AppBottomNavExtraCapsule(
+                icon: Icons.image_outlined,
+                selectedIcon: Icons.image,
+                label: '场景',
+                selected: true,
+                onPressed: () {},
+              ),
+              AppBottomNavExtraCapsule(
+                icon: Icons.settings_outlined,
+                selectedIcon: Icons.settings,
+                label: '设置',
+                onPressed: () => tapped = true,
+              ),
+            ],
             body: const SizedBox.expand(),
           ),
         ),
@@ -152,6 +161,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(BackdropFilter), findsNWidgets(2));
+    expect(find.text('场景'), findsOneWidget);
     expect(find.text('设置'), findsOneWidget);
     await tester.tap(find.text('设置'));
     await tester.pump();

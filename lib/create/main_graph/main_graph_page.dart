@@ -79,6 +79,7 @@ class _MainGraphPageState extends State<MainGraphPage>
   bool _loading = true;
   bool _cardMode = false;
   bool _overviewOpen = false;
+  bool _scenePreviewOpen = false;
   bool _showGrid = false;
   String? _selectedId;
   String? _selectedEdgeId;
@@ -838,17 +839,21 @@ class _MainGraphPageState extends State<MainGraphPage>
     final project = _project;
     final selectedNodeId = focusId;
     final wantsScenePreview = project != null &&
+        _scenePreviewOpen &&
         selectedNodeId != null &&
         !_overviewOpen &&
         _selectedEdgeId == null;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Preview band: surface padding, image, gap, action button.
-        const previewBand = AppTheme.spaceSm * 3 +
-            _scenePreviewImageHeight +
+        // Preview band around the picture: outer gap, surface padding, button
+        // gap and the action button. The picture itself takes the rest.
+        const previewChrome = AppTheme.spaceSm * 4 +
+            AppTheme.pagePadding +
             AppTheme.buttonHeight;
-        final showScenePreview = wantsScenePreview &&
-            constraints.maxHeight - previewBand >= _minCanvasHeight;
+        final imageRoom = constraints.maxHeight -
+            previewChrome -
+            _minCanvasHeight;
+        final showScenePreview = wantsScenePreview && imageRoom >= 72;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -897,6 +902,9 @@ class _MainGraphPageState extends State<MainGraphPage>
                   file: _sceneFileFor(project, selectedNodeId),
                   emptyLabel: context.strings.visualNoScene,
                   height: _scenePreviewImageHeight,
+                  fitWidth: true,
+                  maxHeight: imageRoom,
+                  fit: BoxFit.contain,
                   busy: _regenBusyNodeId == selectedNodeId,
                   actionLabel: context.strings.visualRegenScene,
                   onAction: _regenBusyNodeId == selectedNodeId
@@ -923,6 +931,11 @@ class _MainGraphPageState extends State<MainGraphPage>
         _overviewOpen = false;
       }
     });
+  }
+
+  void _toggleScenePreview() {
+    if (_cardMode) return;
+    setState(() => _scenePreviewOpen = !_scenePreviewOpen);
   }
 
   void _toggleOverview() {
@@ -1011,14 +1024,24 @@ class _MainGraphPageState extends State<MainGraphPage>
           onDestinationSelected: (index) => _setViewMode(index, project),
           forceCompact: true,
           railTopInset: 0,
-          bottomNavExtra: AppBottomNavExtraCapsule(
-            icon: Icons.map_outlined,
-            selectedIcon: Icons.map,
-            label: strings.mainGraphOverview,
-            enabled: !_cardMode,
-            selected: _overviewOpen,
-            onPressed: _toggleOverview,
-          ),
+          bottomNavExtras: [
+            AppBottomNavExtraCapsule(
+              icon: Icons.image_outlined,
+              selectedIcon: Icons.image,
+              label: strings.mainGraphScene,
+              enabled: !_cardMode,
+              selected: _scenePreviewOpen,
+              onPressed: _toggleScenePreview,
+            ),
+            AppBottomNavExtraCapsule(
+              icon: Icons.map_outlined,
+              selectedIcon: Icons.map,
+              label: strings.mainGraphOverview,
+              enabled: !_cardMode,
+              selected: _overviewOpen,
+              onPressed: _toggleOverview,
+            ),
+          ],
           bottomPanel: _buildOverviewPanel(project.main),
           onBottomPanelBarrierTap:
               _overviewOpen ? _requestCloseOverview : null,

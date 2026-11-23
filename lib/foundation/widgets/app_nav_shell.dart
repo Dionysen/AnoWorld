@@ -60,7 +60,7 @@ class AppNavShell extends StatelessWidget {
     this.secondaryWidth = AppLayout.secondaryPaneWidth,
     this.railTopInset,
     this.forceCompact = false,
-    this.bottomNavExtra,
+    this.bottomNavExtras = const <AppBottomNavExtraCapsule>[],
     this.bottomPanel,
     this.onBottomPanelBarrierTap,
   });
@@ -83,8 +83,10 @@ class AppNavShell extends StatelessWidget {
   /// 画布/卡片 switch). Ignores width breakpoint / side rail.
   final bool forceCompact;
 
-  /// Optional second capsule to the right of the main bar (compact mode only).
-  final AppBottomNavExtraCapsule? bottomNavExtra;
+  /// Optional extra capsules to the right of the main bar (compact mode only).
+  ///
+  /// They share one glass capsule, one button slot each.
+  final List<AppBottomNavExtraCapsule> bottomNavExtras;
 
   /// Optional panel docked above the bottom nav (compact mode only).
   /// Typically an [AppDockedPanel]; sits under the capsules in z-order.
@@ -155,7 +157,7 @@ class AppNavShell extends StatelessWidget {
                     destinations: destinations,
                     selectedIndex: selectedIndex,
                     onDestinationSelected: onDestinationSelected,
-                    extra: bottomNavExtra,
+                    extras: bottomNavExtras,
                   ),
                 ),
               ),
@@ -173,7 +175,7 @@ class AppNavShell extends StatelessWidget {
               selectedIndex: selectedIndex,
               onDestinationSelected: onDestinationSelected,
               topInset: topInset,
-              extra: bottomNavExtra,
+              extras: bottomNavExtras,
             ),
             VerticalDivider(
               width: AppLayout.paneDividerWidth,
@@ -313,14 +315,14 @@ class _SideRail extends StatelessWidget {
     required this.selectedIndex,
     required this.onDestinationSelected,
     required this.topInset,
-    this.extra,
+    this.extras = const <AppBottomNavExtraCapsule>[],
   });
 
   final List<AppNavItem> destinations;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final double topInset;
-  final AppBottomNavExtraCapsule? extra;
+  final List<AppBottomNavExtraCapsule> extras;
 
   @override
   Widget build(BuildContext context) {
@@ -349,18 +351,24 @@ class _SideRail extends StatelessWidget {
                 },
               ),
             ),
-            if (extra != null)
+            if (extras.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
-                child: _RailButton(
-                  item: AppNavItem(
-                    id: 'extra',
-                    label: extra!.label,
-                    icon: extra!.icon,
-                    selectedIcon: extra!.selectedIcon,
-                  ),
-                  selected: extra!.selected,
-                  onTap: extra!.enabled ? extra!.onPressed : null,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final extra in extras)
+                      _RailButton(
+                        item: AppNavItem(
+                          id: 'extra',
+                          label: extra.label,
+                          icon: extra.icon,
+                          selectedIcon: extra.selectedIcon,
+                        ),
+                        selected: extra.selected,
+                        onTap: extra.enabled ? extra.onPressed : null,
+                      ),
+                  ],
                 ),
               ),
           ],
@@ -443,13 +451,16 @@ class _BottomNav extends StatelessWidget {
     required this.destinations,
     required this.selectedIndex,
     required this.onDestinationSelected,
-    this.extra,
+    this.extras = const <AppBottomNavExtraCapsule>[],
   });
 
   final List<AppNavItem> destinations;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
-  final AppBottomNavExtraCapsule? extra;
+  final List<AppBottomNavExtraCapsule> extras;
+
+  /// Width of one slot inside the extras capsule.
+  static const double _extraSlotWidth = 80;
 
   @override
   Widget build(BuildContext context) {
@@ -482,20 +493,27 @@ class _BottomNav extends StatelessWidget {
               ),
             ),
           ),
-          if (extra != null) ...[
+          if (extras.isNotEmpty) ...[
             const SizedBox(width: AppTheme.spaceSm),
             _BottomNavCapsule(
-              width: 80,
-              child: _BottomNavButton(
-                item: AppNavItem(
-                  id: 'extra',
-                  label: extra!.label,
-                  icon: extra!.icon,
-                  selectedIcon: extra!.selectedIcon,
-                ),
-                selected: extra!.selected,
-                enabled: extra!.enabled,
-                onTap: extra!.enabled ? extra!.onPressed : null,
+              width: _extraSlotWidth * extras.length,
+              child: Row(
+                children: [
+                  for (final extra in extras)
+                    Expanded(
+                      child: _BottomNavButton(
+                        item: AppNavItem(
+                          id: 'extra',
+                          label: extra.label,
+                          icon: extra.icon,
+                          selectedIcon: extra.selectedIcon,
+                        ),
+                        selected: extra.selected,
+                        enabled: extra.enabled,
+                        onTap: extra.enabled ? extra.onPressed : null,
+                      ),
+                    ),
+                ],
               ),
             ),
           ],

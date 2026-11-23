@@ -89,6 +89,68 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.byType(AppImageViewer), findsNothing);
   });
+
+  testWidgets('fitWidth sizes the picture to its own aspect ratio', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        testLocalized(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 300,
+                child: VisualAssetPreview(
+                  file: imageFile,
+                  emptyLabel: '还没有场景图',
+                  height: 64,
+                  fitWidth: true,
+                  maxHeight: 400,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      // Let the file decode so the real ratio arrives.
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      await tester.pump();
+    });
+
+    final rect = tester.getRect(find.byType(Image));
+    // A square source must be as tall as it is wide, not the placeholder 64.
+    expect(rect.height, greaterThan(64));
+    expect(rect.height, closeTo(rect.width, 1));
+  });
+
+  testWidgets('fitWidth never grows past maxHeight', (tester) async {
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        testLocalized(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 300,
+                child: VisualAssetPreview(
+                  file: imageFile,
+                  emptyLabel: '还没有场景图',
+                  height: 64,
+                  fitWidth: true,
+                  maxHeight: 120,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      await tester.pump();
+    });
+
+    expect(tester.getRect(find.byType(Image)).height, closeTo(120, 0.01));
+  });
 }
 
 /// Minimal 1×1 transparent PNG so the preview has a decodable picture.
