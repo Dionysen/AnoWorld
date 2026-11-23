@@ -335,9 +335,14 @@ abstract class AppStrings extends AppLocalizations {
   String dialogueLinesValue(int lines);
   String get dialogueFontSize;
   String dialogueFontSizeValue(double size);
+  String get dialogueColorsSection;
   String get dialogueBackground;
+  String get dialogueFollowTheme;
   String get dialogueBackgroundTheme;
   String get dialogueBackgroundThemeHint;
+  String get dialogueText;
+  String get dialogueTextTheme;
+  String get dialogueTextThemeHint;
   String get dialogueOpacity;
   String dialogueOpacityValue(int percent);
 

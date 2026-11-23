@@ -10,6 +10,8 @@ void main() {
     expect(settings.opacity, AppDialogueChrome.defaultOpacity);
     expect(settings.backgroundHex, isEmpty);
     expect(settings.followsTheme, isTrue);
+    expect(settings.textHex, isEmpty);
+    expect(settings.textFollowsTheme, isTrue);
   });
 
   test('fromJson clamps out-of-range values', () {
@@ -28,10 +30,22 @@ void main() {
       lines: 5,
       fontSize: 20,
       backgroundHex: '#10131B',
+      textHex: '#F2F4F8',
       opacity: 0.5,
     );
     final restored = VnUiSettings.fromJson(original.toJson());
     expect(restored, original);
     expect(restored.followsTheme, isFalse);
+    expect(restored.textFollowsTheme, isFalse);
+  });
+
+  test('each colour follows the theme on its own', () {
+    const settings = VnUiSettings(textHex: '#FFFFFF');
+    expect(settings.followsTheme, isTrue);
+    expect(settings.textFollowsTheme, isFalse);
+
+    final cleared = settings.copyWith(textHex: '');
+    expect(cleared.textFollowsTheme, isTrue);
+    expect(cleared.backgroundHex, isEmpty);
   });
 }

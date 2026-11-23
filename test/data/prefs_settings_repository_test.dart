@@ -87,6 +87,7 @@ void main() {
         lines: 6,
         fontSize: 19,
         backgroundHex: '#10131B',
+        textHex: '#F0F0F0',
         opacity: 0.6,
       ),
     );
@@ -95,6 +96,7 @@ void main() {
     expect(loaded.lines, 6);
     expect(loaded.fontSize, 19);
     expect(loaded.backgroundHex, '#10131B');
+    expect(loaded.textHex, '#F0F0F0');
     expect(loaded.opacity, 0.6);
   });
 }

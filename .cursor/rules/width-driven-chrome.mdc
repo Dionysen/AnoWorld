@@ -17,10 +17,11 @@ alwaysApply: true
 
 | 层 | 桌面 | 移动端 | 内容 |
 | --- | --- | --- | --- |
-| **窗口 / 状态 chrome** | 自定义标题栏（拖动 / 红绿灯 / 窗口钮） | 状态栏 inset | **仅软件背景色**；**禁止**放返回、标题、`actions` 或任何业务控件与文字 |
+| **窗口 / 状态 chrome** | 自定义标题栏（拖动 / 红绿灯 / 窗口钮） | 状态栏 inset | **仅背景**（软件底色，或 `AppPage.background` 的整页背景）；**禁止**放返回、标题、`actions` 或任何业务控件与文字 |
 | **软件标题栏** | chrome **下方** | 状态栏 **下方** | 非主页：返回 + 标题 + 操作；高度 [`AppTheme.pageTitleBarHeight`](mdc:lib/foundation/theme/app_theme.dart) **44** |
 
 - 实现落在 [`AppPage`](mdc:lib/foundation/widgets/app_page.dart)：上层空 `ColoredBox`（`ImmersiveMetrics.barHeight`），下层软件标题行（`showTitle`）。
+- 全屏舞台（如视觉小说）可给 `AppPage.background` 一张整页背景：chrome 带改透明，背景图 / 底色一直铺到窗口顶边与手机状态栏后面；**带高与控件位置不变**，chrome 里仍不放控件与文字。
 - 主页等枢纽：`showTitle: false`，不要软件标题栏；搜索 / 工具在正文顶。
 - 桌面 chrome 高度 [`AppTheme.titleBandHeight`](mdc:lib/foundation/theme/app_theme.dart)（macOS 可抬高）；移动端 chrome 只有 `statusInset`（`titleBarHeight: 0`）。
 

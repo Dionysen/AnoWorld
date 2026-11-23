@@ -27,6 +27,7 @@ class AppPage extends StatelessWidget {
     this.actions = const [],
     this.onBack,
     this.showTitle = true,
+    this.background,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
   });
@@ -44,6 +45,13 @@ class AppPage extends StatelessWidget {
   /// When false, keeps window/status chrome but hides the software title bar
   /// (e.g. home tabs put search + toolbar in [body]).
   final bool showTitle;
+
+  /// Full-bleed backdrop painted behind the window/status chrome and [body].
+  ///
+  /// When set, the chrome band turns transparent so the backdrop runs up into
+  /// the desktop title band / mobile status area (immersive stage). Chrome
+  /// height, window buttons and [body] bounds stay exactly as before.
+  final Widget? background;
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
 
@@ -69,6 +77,7 @@ class AppPage extends StatelessWidget {
     final media = MediaQuery.of(context);
     final barColor =
         theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
+    final backdrop = background;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -77,103 +86,123 @@ class AppPage extends StatelessWidget {
       floatingActionButtonLocation:
           floatingActionButtonLocation ??
               FloatingActionButtonLocation.endFloat,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          // Window/status chrome only — never place app title / back / actions
-          // here (desktop custom title bar is background + OS controls).
-          final chromeHeight =
-              math.min(metrics.barHeight, constraints.maxHeight);
-          final belowChrome =
-              math.max(0.0, constraints.maxHeight - chromeHeight);
-          final titleBarHeight = math.min(
-            AppTheme.pageTitleBarHeight,
-            belowChrome,
-          );
-          final showSoftwareTitle =
-              showTitle && titleBarHeight >= 28 && constraints.maxWidth >= 72;
-          final showBack = showSoftwareTitle &&
-              onBack != null &&
-              constraints.maxWidth >= 72;
-          final showTitleText =
-              showSoftwareTitle && constraints.maxWidth >= (showBack ? 96 : 48);
-          final showActions = showSoftwareTitle &&
-              actions.isNotEmpty &&
-              constraints.maxWidth >= 120;
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          ?backdrop,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Window/status chrome only — never place app title / back /
+              // actions here (desktop custom title bar is background + OS
+              // controls).
+              final chromeHeight = math.min(
+                metrics.barHeight,
+                constraints.maxHeight,
+              );
+              final belowChrome = math.max(
+                0.0,
+                constraints.maxHeight - chromeHeight,
+              );
+              final titleBarHeight = math.min(
+                AppTheme.pageTitleBarHeight,
+                belowChrome,
+              );
+              final showSoftwareTitle =
+                  showTitle &&
+                  titleBarHeight >= 28 &&
+                  constraints.maxWidth >= 72;
+              final showBack =
+                  showSoftwareTitle &&
+                  onBack != null &&
+                  constraints.maxWidth >= 72;
+              final showTitleText =
+                  showSoftwareTitle &&
+                  constraints.maxWidth >= (showBack ? 96 : 48);
+              final showActions =
+                  showSoftwareTitle &&
+                  actions.isNotEmpty &&
+                  constraints.maxWidth >= 120;
 
-          final titleLeftPad = showBack
-              ? AppTheme.titleChromePadding
-              : AppTheme.pagePadding;
-          final titleRightPad = showActions
-              ? AppTheme.titleChromePadding
-              : AppTheme.pagePadding;
+              final titleLeftPad = showBack
+                  ? AppTheme.titleChromePadding
+                  : AppTheme.pagePadding;
+              final titleRightPad = showActions
+                  ? AppTheme.titleChromePadding
+                  : AppTheme.pagePadding;
 
-          return Column(
-            children: [
-              if (chromeHeight > 0)
-                ColoredBox(
-                  color: barColor,
-                  child: SizedBox(
-                    height: chromeHeight,
-                    width: double.infinity,
-                  ),
-                ),
-              if (showSoftwareTitle)
-                ColoredBox(
-                  color: barColor,
-                  child: SizedBox(
-                    height: titleBarHeight,
-                    width: double.infinity,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        left: titleLeftPad,
-                        right: titleRightPad,
-                      ),
-                      child: Row(
-                        children: [
-                          if (showBack)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                right: AppTheme.spaceSm,
-                              ),
-                              child: AppCircleButton(
-                                icon: Icons.arrow_back,
-                                tooltip: context.ui.back,
-                                onPressed: onBack,
-                                size: 32,
-                                iconSize: 18,
-                              ),
-                            ),
-                          if (showTitleText)
-                            Expanded(
-                              child: titleWidget ??
-                                  AppText(
-                                    title,
-                                    role: AppTextRole.subtitle,
-                                    maxLines: 1,
-                                  ),
-                            )
-                          else
-                            const Spacer(),
-                          if (showActions) ...spacedActions(actions),
-                        ],
+              return Column(
+                children: [
+                  if (chromeHeight > 0)
+                    // Transparent when a backdrop is given: the image runs up
+                    // into the title band / status bar, layout is untouched.
+                    ColoredBox(
+                      color: backdrop == null ? barColor : Colors.transparent,
+                      child: SizedBox(
+                        height: chromeHeight,
+                        width: double.infinity,
                       ),
                     ),
+                  if (showSoftwareTitle)
+                    ColoredBox(
+                      color: barColor,
+                      child: SizedBox(
+                        height: titleBarHeight,
+                        width: double.infinity,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: titleLeftPad,
+                            right: titleRightPad,
+                          ),
+                          child: Row(
+                            children: [
+                              if (showBack)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    right: AppTheme.spaceSm,
+                                  ),
+                                  child: AppCircleButton(
+                                    icon: Icons.arrow_back,
+                                    tooltip: context.ui.back,
+                                    onPressed: onBack,
+                                    size: 32,
+                                    iconSize: 18,
+                                  ),
+                                ),
+                              if (showTitleText)
+                                Expanded(
+                                  child:
+                                      titleWidget ??
+                                      AppText(
+                                        title,
+                                        role: AppTextRole.subtitle,
+                                        maxLines: 1,
+                                      ),
+                                )
+                              else
+                                const Spacer(),
+                              if (showActions) ...spacedActions(actions),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Padding(
+                      // Bottom inset stays in MediaQuery so floating chrome
+                      // (capsule nav) can overlay while scroll bodies pad
+                      // themselves.
+                      padding: EdgeInsets.only(
+                        left: media.padding.left,
+                        right: media.padding.right,
+                      ),
+                      child: body,
+                    ),
                   ),
-                ),
-              Expanded(
-                child: Padding(
-                  // Bottom inset stays in MediaQuery so floating chrome
-                  // (capsule nav) can overlay while scroll bodies pad themselves.
-                  padding: EdgeInsets.only(
-                    left: media.padding.left,
-                    right: media.padding.right,
-                  ),
-                  child: body,
-                ),
-              ),
-            ],
-          );
-        },
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }

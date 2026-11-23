@@ -109,8 +109,44 @@ void main() {
     },
   );
 
-  testWidgets('page does not overflow in a tiny viewport', (tester) async {
+  testWidgets('backdrop runs behind the empty window chrome', (tester) async {
+    const bodyKey = Key('body');
+    const backdropKey = Key('backdrop');
+    const chrome = 44.0;
+    await tester.binding.setSurfaceSize(const Size(390, 844));
     await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const ImmersiveScope(
+          metrics: ImmersiveMetrics(active: true, titleBarHeight: chrome),
+          child: AppPage(
+            title: 'Title',
+            showTitle: false,
+            background: SizedBox.expand(key: backdropKey),
+            body: SizedBox.expand(key: bodyKey),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final backdrop = tester.getRect(find.byKey(backdropKey));
+    expect(backdrop.top, 0);
+    expect(backdrop.height, 844);
+    // Chrome still reserves its band, so the body keeps its old position…
+    expect(tester.getTopLeft(find.byKey(bodyKey)).dy, chrome);
+    // …and the band itself paints nothing over the backdrop.
+    expect(
+      tester
+          .widgetList<ColoredBox>(find.byType(ColoredBox))
+          .any((box) => box.color == Colors.transparent),
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('page does not overflow in a tiny viewport', (tester) async {    await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.data,
         home: const ImmersiveScope(

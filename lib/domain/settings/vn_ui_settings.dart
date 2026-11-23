@@ -9,6 +9,7 @@ class VnUiSettings {
     this.lines = AppDialogueChrome.defaultLines,
     this.fontSize = AppDialogueChrome.defaultFontSize,
     this.backgroundHex = '',
+    this.textHex = '',
     this.opacity = AppDialogueChrome.defaultOpacity,
   });
 
@@ -20,21 +21,28 @@ class VnUiSettings {
   /// `#RRGGBB` fill; empty follows the theme surface.
   final String backgroundHex;
 
+  /// `#RRGGBB` body text; empty follows the theme body colour.
+  final String textHex;
+
   /// Glass fill alpha, [AppDialogueChrome.minOpacity]–[maxOpacity].
   final double opacity;
 
   bool get followsTheme => backgroundHex.isEmpty;
 
+  bool get textFollowsTheme => textHex.isEmpty;
+
   VnUiSettings copyWith({
     int? lines,
     double? fontSize,
     String? backgroundHex,
+    String? textHex,
     double? opacity,
   }) {
     return VnUiSettings(
       lines: lines ?? this.lines,
       fontSize: fontSize ?? this.fontSize,
       backgroundHex: backgroundHex ?? this.backgroundHex,
+      textHex: textHex ?? this.textHex,
       opacity: opacity ?? this.opacity,
     );
   }
@@ -43,6 +51,7 @@ class VnUiSettings {
     'lines': lines,
     'fontSize': fontSize,
     'backgroundHex': backgroundHex,
+    'textHex': textHex,
     'opacity': opacity,
   };
 
@@ -61,6 +70,7 @@ class VnUiSettings {
         AppDialogueChrome.maxFontSize,
       ),
       backgroundHex: json.optionalString('backgroundHex') ?? '',
+      textHex: json.optionalString('textHex') ?? '',
       opacity: _clampDouble(
         (json.optionalNum('opacity') ?? AppDialogueChrome.defaultOpacity)
             .toDouble(),
@@ -82,9 +92,11 @@ class VnUiSettings {
         other.lines == lines &&
         other.fontSize == fontSize &&
         other.backgroundHex == backgroundHex &&
+        other.textHex == textHex &&
         other.opacity == opacity;
   }
 
   @override
-  int get hashCode => Object.hash(lines, fontSize, backgroundHex, opacity);
+  int get hashCode =>
+      Object.hash(lines, fontSize, backgroundHex, textHex, opacity);
 }

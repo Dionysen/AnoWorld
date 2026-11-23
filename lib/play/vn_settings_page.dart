@@ -1,7 +1,5 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
-import 'package:anoworld/app/settings_controller.dart';
-import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:anoworld/foundation/theme/app_dialogue_chrome.dart';
 import 'package:anoworld/foundation/theme/app_hex_color.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -80,21 +78,35 @@ class VnSettingsPage extends StatelessWidget {
                     controller.updateVnUi(vnUi.copyWith(opacity: value)),
               ),
               const SizedBox(height: AppTheme.spaceMd),
-              AppSectionHeader(strings.dialogueBackground, gutter: true),
+              AppSectionHeader(strings.dialogueColorsSection, gutter: true),
               AppListTile(
                 title: strings.dialogueBackground,
                 subtitle: vnUi.followsTheme
-                    ? strings.dialogueBackgroundTheme
+                    ? strings.dialogueFollowTheme
                     : vnUi.backgroundHex,
                 icon: Icons.palette_outlined,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _ColorSwatch(settings: vnUi),
+                    _ColorSwatch(
+                      color: AppDialogueChrome.fill(
+                        context,
+                        backgroundHex: vnUi.backgroundHex,
+                        opacity: vnUi.opacity,
+                      ),
+                    ),
                     const AppForwardIcon(),
                   ],
                 ),
-                onTap: () => _pickColor(context, controller, vnUi),
+                onTap: () => _pickColor(
+                  context,
+                  initialHex: vnUi.backgroundHex,
+                  fallback:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  title: strings.dialogueBackground,
+                  apply: (hex) =>
+                      controller.updateVnUi(vnUi.copyWith(backgroundHex: hex)),
+                ),
               ),
               AppListTile(
                 title: strings.dialogueBackgroundTheme,
@@ -111,6 +123,52 @@ class VnSettingsPage extends StatelessWidget {
                     backgroundHex: vnUi.followsTheme ? _themeHex(context) : '',
                   ),
                 ),
+              ),
+              AppListTile(
+                title: strings.dialogueText,
+                subtitle: vnUi.textFollowsTheme
+                    ? strings.dialogueFollowTheme
+                    : vnUi.textHex,
+                icon: Icons.format_color_text,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ColorSwatch(
+                      color:
+                          tryParseHexColor(vnUi.textHex) ??
+                          _themeTextColor(context),
+                    ),
+                    const AppForwardIcon(),
+                  ],
+                ),
+                onTap: () => _pickColor(
+                  context,
+                  initialHex: vnUi.textHex,
+                  fallback: _themeTextColor(context),
+                  title: strings.dialogueText,
+                  apply: (hex) =>
+                      controller.updateVnUi(vnUi.copyWith(textHex: hex)),
+                ),
+              ),
+              AppListTile(
+                title: strings.dialogueTextTheme,
+                subtitle: strings.dialogueTextThemeHint,
+                icon: Icons.format_color_reset_outlined,
+                trailing: AppSwitch(
+                  value: vnUi.textFollowsTheme,
+                  onChanged: (on) => controller.updateVnUi(
+                    vnUi.copyWith(
+                      textHex: on ? '' : hexFromColor(_themeTextColor(context)),
+                    ),
+                  ),
+                ),
+                onTap: () => controller.updateVnUi(
+                  vnUi.copyWith(
+                    textHex: vnUi.textFollowsTheme
+                        ? hexFromColor(_themeTextColor(context))
+                        : '',
+                  ),
+                ),
                 showDivider: false,
               ),
             ],
@@ -123,43 +181,42 @@ class VnSettingsPage extends StatelessWidget {
   static String _themeHex(BuildContext context) =>
       hexFromColor(Theme.of(context).colorScheme.surfaceContainerHighest);
 
+  static Color _themeTextColor(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface;
+  }
+
   Future<void> _pickColor(
-    BuildContext context,
-    SettingsController controller,
-    VnUiSettings vnUi,
-  ) async {
+    BuildContext context, {
+    required String initialHex,
+    required Color fallback,
+    required String title,
+    required Future<void> Function(String hex) apply,
+  }) async {
     final picked = await showAppColorPicker(
       context,
-      initialColor:
-          tryParseHexColor(vnUi.backgroundHex) ??
-          Theme.of(context).colorScheme.surfaceContainerHighest,
-      title: context.strings.dialogueBackground,
+      initialColor: tryParseHexColor(initialHex) ?? fallback,
+      title: title,
     );
     if (picked == null) return;
-    await controller.updateVnUi(
-      vnUi.copyWith(backgroundHex: hexFromColor(picked)),
-    );
+    await apply(hexFromColor(picked));
   }
 }
 
 class _ColorSwatch extends StatelessWidget {
-  const _ColorSwatch({required this.settings});
+  const _ColorSwatch({required this.color});
 
-  final VnUiSettings settings;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final fill =
-        tryParseHexColor(settings.backgroundHex) ??
-        scheme.surfaceContainerHighest;
     return Container(
       width: 22,
       height: 22,
       decoration: BoxDecoration(
-        color: fill.withValues(alpha: settings.opacity),
+        color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: scheme.outline),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
     );
   }

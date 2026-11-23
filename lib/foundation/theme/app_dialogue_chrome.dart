@@ -45,16 +45,20 @@ abstract final class AppDialogueChrome {
   static double textWidth(double panelWidth) => panelWidth - padding.horizontal;
 
   /// Body style for both rendering and pagination.
+  ///
+  /// [color] overrides the theme body colour (the reading pref); null keeps it.
   static TextStyle bodyStyle(
     BuildContext context,
     double fontSize, {
     bool italic = false,
+    Color? color,
   }) {
     final base = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
     return base.copyWith(
       fontSize: fontSize,
       height: lineHeight,
       fontStyle: italic ? FontStyle.italic : null,
+      color: color,
     );
   }
 

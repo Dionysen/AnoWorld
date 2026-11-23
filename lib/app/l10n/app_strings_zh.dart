@@ -988,13 +988,28 @@ class AppStringsZh extends AppStrings {
   String dialogueFontSizeValue(double size) => size.round().toString();
 
   @override
+  String get dialogueColorsSection => '颜色';
+
+  @override
   String get dialogueBackground => '背景颜色';
 
   @override
-  String get dialogueBackgroundTheme => '跟随主题';
+  String get dialogueFollowTheme => '跟随主题';
+
+  @override
+  String get dialogueBackgroundTheme => '背景跟随主题';
 
   @override
   String get dialogueBackgroundThemeHint => '取当前主题的底色，配上半透明与模糊';
+
+  @override
+  String get dialogueText => '文字颜色';
+
+  @override
+  String get dialogueTextTheme => '文字跟随主题';
+
+  @override
+  String get dialogueTextThemeHint => '用主题里的正文颜色';
 
   @override
   String get dialogueOpacity => '不透明度';

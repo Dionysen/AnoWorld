@@ -6,6 +6,7 @@ import 'package:anoworld/domain/models/main_story.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/runtime/play_view_mode.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/foundation/widgets/app_dialogue_panel.dart';
@@ -718,9 +719,53 @@ void main() {
     expect(find.text('行数'), findsOneWidget);
     expect(find.text('字号'), findsOneWidget);
     expect(find.text('不透明度'), findsOneWidget);
+    expect(find.text('背景颜色'), findsOneWidget);
+    expect(find.text('文字颜色'), findsOneWidget);
 
-    await tester.tap(find.byType(AppSwitch));
+    // First switch is the background follow-theme row.
+    await tester.tap(find.byType(AppSwitch).first);
     await tester.pumpAndSettle();
     expect(settings.vnUi.followsTheme, isFalse);
+    expect(settings.vnUi.textFollowsTheme, isTrue);
+  });
+
+  testWidgets('VN backdrop covers the whole page, chrome included', (
+    tester,
+  ) async {
+    tester.view.padding = const FakeViewPadding(top: 44);
+    addTearDown(tester.view.resetPadding);
+
+    await pumpPlay(tester);
+
+    final backdrop = tester.getRect(find.byKey(vnBackdropKey));
+    expect(backdrop.top, 0);
+    expect(
+      backdrop.bottom,
+      tester.view.physicalSize.height / tester.view.devicePixelRatio,
+    );
+    // The reading box still starts below the status band.
+    expect(
+      tester.getTopLeft(find.byType(AppDialoguePanel)).dy,
+      greaterThanOrEqualTo(44),
+    );
+  });
+
+  testWidgets('VN text colour overrides the theme body colour', (tester) async {
+    final settings = testSettingsController();
+    await settings.updateVnUi(const VnUiSettings(textHex: '#FF3366'));
+    await tester.pumpWidget(
+      testScoped(
+        settings: settings,
+        home: PlaySessionPage(
+          project: sample,
+          mode: PlayViewMode.visualNovel,
+          resumeSave: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final body = tester.widget<Text>(find.text('该走了。'));
+    expect(body.style?.color, const Color(0xFFFF3366));
   });
 }

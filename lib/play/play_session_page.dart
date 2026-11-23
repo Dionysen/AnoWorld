@@ -23,6 +23,7 @@ import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/text/text_paginator.dart';
 import 'package:anoworld/foundation/theme/app_dialogue_chrome.dart';
+import 'package:anoworld/foundation/theme/app_hex_color.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
@@ -41,6 +42,9 @@ import 'package:anoworld/settings/ai_model_picker.dart';
 import 'package:flutter/material.dart';
 
 export 'package:anoworld/domain/runtime/play_view_mode.dart' show PlayViewMode;
+
+/// Full-page VN stage art (also painted behind the window / status chrome).
+const Key vnBackdropKey = ValueKey('vn.stage.backdrop');
 
 /// Play session locked to one [mode] (chosen before open; not switchable here).
 ///
@@ -1228,6 +1232,15 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
       title: title,
       // VN plays full-bleed: no software title bar, controls sit under the box.
       showTitle: chatMode,
+      // Stage art runs under the window title band / status bar too.
+      background: chatMode
+          ? null
+          : _VnBackground(
+              key: vnBackdropKey,
+              project: _project,
+              projectDir: _projectDir,
+              backgroundAssetId: _runtime.resolvedBackgroundAssetId,
+            ),
       // Chat keeps a quieter header than other large page titles.
       titleWidget: chatMode
           ? AppText(
@@ -1482,10 +1495,12 @@ class _VnStageState extends State<_VnStage> {
 
         final narration = line != null && widget.isNarration(line);
         final body = line == null ? '' : stripDialogueSpeakerLabel(line.text);
+        final textColor = tryParseHexColor(widget.settings.textHex);
         final bodyStyle = AppDialogueChrome.bodyStyle(
           context,
           widget.settings.fontSize,
           italic: narration,
+          color: textColor,
         );
         final pages = _paginate(
           sourceKey: line?.id ?? (ended ? 'ended' : 'empty'),
@@ -1506,11 +1521,6 @@ class _VnStageState extends State<_VnStage> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              _VnBackground(
-                project: widget.project,
-                projectDir: widget.projectDir,
-                backgroundAssetId: runtime.resolvedBackgroundAssetId,
-              ),
               if (!showChoices)
                 _VnSpeakerSprite(
                   project: widget.project,
@@ -1554,7 +1564,7 @@ class _VnStageState extends State<_VnStage> {
                               : AppText(
                                   speaker,
                                   role: AppTextRole.label,
-                                  color: scheme.primary,
+                                  color: textColor ?? scheme.primary,
                                   fontWeight: FontWeight.w700,
                                   maxLines: 1,
                                 ),
@@ -1571,6 +1581,7 @@ class _VnStageState extends State<_VnStage> {
                               context,
                               widget.settings.fontSize,
                               italic: pageText == null || narration,
+                              color: textColor,
                             ),
                             maxLines: lines,
                             overflow: TextOverflow.clip,
@@ -1699,9 +1710,11 @@ class _VnControlBar extends StatelessWidget {
   }
 }
 
-/// Full-bleed stage backdrop. Missing asset = plain canvas.
+/// Full-bleed stage art, painted by [AppPage] behind the window/status chrome
+/// as well as the body. Missing asset = plain canvas.
 class _VnBackground extends StatelessWidget {
   const _VnBackground({
+    super.key,
     required this.project,
     required this.projectDir,
     required this.backgroundAssetId,
