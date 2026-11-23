@@ -253,17 +253,6 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
     await _export(snapshot);
   }
 
-  Future<void> _restorePromptOrder() async {
-    final strings = context.strings;
-    final controller = AppScope.settingsOf(context);
-    await controller.updatePromptManager(
-      controller.aiPresets.promptManager.restoreDefaultOrder(),
-    );
-    if (!mounted) return;
-    AppLog.instance.info('恢复预设提示词默认顺序', tag: 'ai.preset');
-    _toast(strings.presetOrderRestored);
-  }
-
   Future<void> _import() async {
     final strings = context.strings;
     final picked = await FilePicker.pickFiles(
@@ -425,26 +414,6 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
             AppSectionHeader(strings.samplingSection, gutter: true),
             const AiGenerationSettingsPanel(),
             const SizedBox(height: AppTheme.spaceLg),
-            AppSectionHeader(
-              strings.presetPromptsSection,
-              gutter: true,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppIconButton(
-                    icon: Icons.add,
-                    tooltip: strings.addOne,
-                    onPressed: () => PromptManagerPanel.addSection(context),
-                  ),
-                  const SizedBox(width: AppTheme.spaceXs),
-                  AppIconButton(
-                    icon: Icons.restart_alt_outlined,
-                    tooltip: strings.presetRestoreOrderAction,
-                    onPressed: _restorePromptOrder,
-                  ),
-                ],
-              ),
-            ),
             const PromptManagerPanel(),
           ],
         );

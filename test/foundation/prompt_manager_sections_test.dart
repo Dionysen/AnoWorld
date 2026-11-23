@@ -54,4 +54,46 @@ void main() {
     expect(after.sortedSections.length, before);
     expect(after.sortedSections.first.type, PromptSectionType.systemPrompt);
   });
+
+  test('removeCustomSections drops every selected custom entry', () {
+    final base = PromptManagerConfig.defaultConfig()
+        .addCustomSection(name: '甲', identifier: 'custom_a')
+        .addCustomSection(name: '乙', identifier: 'custom_b')
+        .addCustomSection(name: '丙', identifier: 'custom_c');
+
+    final removed = base.removeCustomSections(['custom_a', 'custom_c']);
+
+    expect(
+      removed.sortedSections.map((s) => s.identifier).whereType<String>(),
+      ['custom_b'],
+    );
+    expect(
+      removed.sortedSections.map((s) => s.order).toList(),
+      List.generate(removed.sortedSections.length, (i) => i),
+    );
+  });
+
+  test('removeCustomSections never touches built-in sections', () {
+    final base = PromptManagerConfig.defaultConfig().addCustomSection(
+      name: '甲',
+      identifier: 'custom_a',
+    );
+    final before = base.sortedSections.length;
+
+    final after = base.removeCustomSections([
+      'custom_a',
+      'main',
+      'chatHistory',
+    ]);
+
+    expect(after.sortedSections.length, before - 1);
+    expect(
+      after.sortedSections.any((s) => s.type == PromptSectionType.systemPrompt),
+      isTrue,
+    );
+    expect(
+      after.sortedSections.any((s) => s.type == PromptSectionType.chatHistory),
+      isTrue,
+    );
+  });
 }

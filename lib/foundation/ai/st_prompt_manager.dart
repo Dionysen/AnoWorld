@@ -651,11 +651,28 @@ class PromptManagerConfig {
       if (_sameSection(s, target)) continue;
       remaining.add(s);
     }
-    final reindexed = <PromptSection>[];
-    for (var i = 0; i < remaining.length; i++) {
-      reindexed.add(remaining[i].copyWith(order: i));
-    }
-    return copyWith(sections: reindexed);
+    return _reindexed(remaining);
+  }
+
+  /// Remove custom sections by identifier. Built-in sections are never touched.
+  PromptManagerConfig removeCustomSections(Iterable<String> identifiers) {
+    final ids = identifiers.toSet();
+    if (ids.isEmpty) return this;
+    final sorted = sortedSections;
+    final remaining = sorted
+        .where((s) => !(s.isCustom && ids.contains(s.identifier)))
+        .toList(growable: false);
+    if (remaining.length == sorted.length) return this;
+    return _reindexed(remaining);
+  }
+
+  PromptManagerConfig _reindexed(List<PromptSection> remaining) {
+    return copyWith(
+      sections: [
+        for (var i = 0; i < remaining.length; i++)
+          remaining[i].copyWith(order: i),
+      ],
+    );
   }
 
   /// Duplicate a section at sorted index into a new custom entry.

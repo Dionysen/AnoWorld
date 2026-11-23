@@ -2333,12 +2333,6 @@ class AppStringsZh extends AppStrings {
   String get promptSectionsTitle => '提示词分段';
 
   @override
-  String get promptOrderSection => '顺序与开关';
-
-  @override
-  String get promptOrderHint => '写故事时按序拼进系统提示';
-
-  @override
   String get contentLabel => '内容';
 
   @override
@@ -2382,6 +2376,9 @@ class AppStringsZh extends AppStrings {
 
   @override
   String get promptDeleteDetail => '删掉后不能恢复';
+
+  @override
+  String get promptDeleteBuiltInHint => '内置提示词不能删除';
 
   @override
   String get promptDeleted => '已删除';

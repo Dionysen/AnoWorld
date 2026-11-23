@@ -795,8 +795,6 @@ abstract class AppStrings extends AppLocalizations {
   // Prompt sections.
 
   String get promptSectionsTitle;
-  String get promptOrderSection;
-  String get promptOrderHint;
   String get contentLabel;
   String get tapToEdit;
   String get tapToView;
@@ -814,6 +812,7 @@ abstract class AppStrings extends AppLocalizations {
   String promptAdded(String name);
   String promptDeleteTitle(String name);
   String get promptDeleteDetail;
+  String get promptDeleteBuiltInHint;
   String get promptDeleted;
 
   /// Display name of a prompt section type.

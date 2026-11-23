@@ -74,6 +74,70 @@ void main() {
     expect(find.text('第二人称'), findsNothing);
   });
 
+  testWidgets('multi-select deletes several custom prompts at once', (
+    tester,
+  ) async {
+    await pumpPresetPage(tester);
+
+    for (final name in const ['甲', '乙']) {
+      await tester.tap(find.byTooltip('加一条'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), name);
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.byTooltip('多选'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('取消多选'), findsOneWidget);
+    expect(find.byTooltip('全选'), findsOneWidget);
+
+    for (final name in const ['甲', '乙']) {
+      final row = find.text(name);
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+    }
+    final count = find.text('已选 2');
+    await tester.ensureVisible(count);
+    await tester.pumpAndSettle();
+    expect(count, findsOneWidget);
+
+    await tester.tap(find.byTooltip('删除'));
+    await tester.pumpAndSettle();
+    expect(find.text('删除这 2 项？'), findsOneWidget);
+    await tester.tap(find.text('删除'));
+    await tester.pumpAndSettle();
+    expect(find.text('已删除'), findsOneWidget);
+    expect(find.text('预设提示词'), findsOneWidget);
+    expect(find.text('甲'), findsNothing);
+    expect(find.text('乙'), findsNothing);
+  });
+
+  testWidgets('built-in prompt rows cannot be selected for deletion', (
+    tester,
+  ) async {
+    await pumpPresetPage(tester);
+
+    await tester.tap(find.byTooltip('加一条'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '甲');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('多选'));
+    await tester.pumpAndSettle();
+
+    final builtIn = find.text('系统提示');
+    await tester.ensureVisible(builtIn);
+    await tester.pumpAndSettle();
+    await tester.tap(builtIn);
+    await tester.pumpAndSettle();
+    expect(find.text('内置提示词不能删除'), findsOneWidget);
+    expect(find.byTooltip('删除'), findsNothing);
+  });
+
   testWidgets('picker has no action buttons and no long-press menu', (
     tester,
   ) async {
@@ -89,6 +153,47 @@ void main() {
     await tester.tapAt(const Offset(8, 200));
     await tester.pumpAndSettle();
     expect(find.text('选择预设'), findsNothing);
+  });
+
+  testWidgets('selection header fits a narrow window', (tester) async {
+    await pumpPresetPage(tester, size: const Size(260, 640));
+
+    final add = find.byTooltip('加一条');
+    await tester.ensureVisible(add);
+    await tester.pumpAndSettle();
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '甲');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    final multi = find.byTooltip('多选');
+    await tester.ensureVisible(multi);
+    await tester.pumpAndSettle();
+    await tester.tap(multi);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final row = find.text('甲');
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final delete = find.byTooltip('删除');
+    await tester.ensureVisible(delete);
+    await tester.pumpAndSettle();
+    expect(delete, findsOneWidget);
+  });
+
+  testWidgets('advances without custom prompts show no multi-select entry', (
+    tester,
+  ) async {
+    await pumpPresetPage(tester);
+
+    expect(find.byTooltip('多选'), findsNothing);
+    expect(find.byTooltip('加一条'), findsOneWidget);
   });
 
   testWidgets('advanced sampling and prompt order shortcuts work', (
