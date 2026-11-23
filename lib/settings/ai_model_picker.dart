@@ -9,7 +9,7 @@ import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
-import 'package:anoworld/settings/settings_page.dart';
+import 'package:anoworld/settings/settings_section_view.dart';
 import 'package:anoworld/settings/settings_sections.dart';
 import 'package:flutter/material.dart';
 
@@ -154,9 +154,7 @@ Future<void> pickAndApplyTextModel(BuildContext context) async {
     } else {
       await pushAppSlide(
         context,
-        const SettingsPage(
-          initialSection: SettingsSection.ai,
-        ),
+        const SettingsSectionView(section: SettingsSection.ai),
       );
       return;
     }

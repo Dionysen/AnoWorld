@@ -1,7 +1,7 @@
 import 'package:anoworld/app/l10n/app_strings.dart';
-import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/settings/about_panel.dart';
-import 'package:anoworld/settings/settings_page.dart';
+import 'package:anoworld/settings/settings_section_view.dart';
+import 'package:anoworld/settings/settings_sections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,51 +15,38 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  Future<void> pumpSettings(WidgetTester tester, Size size) async {
+  Future<void> pumpSection(
+    WidgetTester tester,
+    SettingsSection section, {
+    Size size = const Size(390, 844),
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    await tester.pumpWidget(testScoped(home: const SettingsPage()));
+    await tester.pumpWidget(
+      testScoped(home: SettingsSectionView(section: section)),
+    );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('portrait settings uses bottom section nav', (tester) async {
-    await pumpSettings(tester, const Size(390, 844));
+  testWidgets('general section exposes advanced on its own page', (
+    tester,
+  ) async {
+    await pumpSection(tester, SettingsSection.general);
 
-    expect(find.text('设置'), findsOneWidget);
-    expect(find.text('通用'), findsWidgets);
-    expect(find.text('外观'), findsWidgets);
-    expect(find.text('预设'), findsNothing);
-    expect(find.text('AI'), findsWidgets);
-    expect(find.text('关于'), findsWidgets);
+    expect(find.text('通用'), findsOneWidget);
     // Debug builds expose Advanced; release shows the empty caption instead.
     expect(find.text('高级'), findsOneWidget);
-    expect(find.text('玩家身份'), findsNothing);
-
-    await tester.tap(find.text('AI').last);
-    await tester.pumpAndSettle();
-    expect(find.text('文本 AI'), findsOneWidget);
-    expect(find.text('生图 AI'), findsOneWidget);
-    expect(find.text('当前服务商'), findsWidgets);
-
-    await tester.tap(find.text('关于').last);
-    await tester.pumpAndSettle();
-    expect(
-      find.text(
-        AppStringsSetup.fallback.appVersion(AppAbout.version),
-      ),
-      findsOneWidget,
-    );
-    expect(find.text(AppStringsSetup.fallback.appTagline), findsOneWidget);
+    expect(find.text('关于'), findsNothing);
   });
 
-  testWidgets('appearance can switch preset and ui prefs', (tester) async {
-    await pumpSettings(tester, const Size(390, 844));
-    await tester.tap(find.text('外观').last);
-    await tester.pumpAndSettle();
+  testWidgets('appearance section can switch preset and ui prefs', (
+    tester,
+  ) async {
+    await pumpSection(tester, SettingsSection.appearance);
 
     expect(find.text('主题'), findsOneWidget);
     expect(find.text('主题模式'), findsOneWidget);
@@ -107,20 +94,27 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('landscape settings uses side rail sections', (tester) async {
-    await pumpSettings(
+  testWidgets('ai section lists text and image providers', (tester) async {
+    await pumpSection(
       tester,
-      Size(AppLayout.railBreakpoint + 200, 800),
+      SettingsSection.ai,
+      size: const Size(800, 800),
     );
 
-    await tester.tap(find.text('通用').first);
-    await tester.pumpAndSettle();
-    expect(find.text('高级'), findsOneWidget);
-    await tester.tap(find.text('AI').first);
-    await tester.pumpAndSettle();
+    expect(find.text('AI'), findsOneWidget);
     expect(find.text('当前服务商'), findsWidgets);
     expect(find.text('模型'), findsWidgets);
     expect(find.text('查找模型'), findsWidgets);
     expect(find.text('保存'), findsNothing);
+  });
+
+  testWidgets('about section shows brand facts', (tester) async {
+    await pumpSection(tester, SettingsSection.about);
+
+    expect(
+      find.text(AppStringsSetup.fallback.appVersion(AppAbout.version)),
+      findsOneWidget,
+    );
+    expect(find.text(AppStringsSetup.fallback.appTagline), findsOneWidget);
   });
 }

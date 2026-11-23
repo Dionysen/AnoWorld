@@ -147,7 +147,7 @@ abstract class AppStrings extends AppLocalizations {
   String get aiPresetHubHint;
   String get selectPlayModeHint;
   String get noPersonaYet;
-  String get selectPersonaHint;
+  String get selectMeHint;
 
   // Stories (故事) tab.
 

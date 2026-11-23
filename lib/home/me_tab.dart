@@ -6,26 +6,29 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_detail_pane.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
-import 'package:anoworld/foundation/widgets/app_icon_button.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_master_detail.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_person_avatar.dart';
+import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/home/home_tab_back.dart';
 import 'package:anoworld/settings/persona_delete.dart';
 import 'package:anoworld/settings/persona_editor_page.dart';
 import 'package:anoworld/settings/persona_labels.dart';
 import 'package:anoworld/settings/persona_settings_page.dart';
-import 'package:anoworld/settings/settings_page.dart';
+import 'package:anoworld/settings/settings_display_labels.dart';
+import 'package:anoworld/settings/settings_section_view.dart';
+import 'package:anoworld/settings/settings_sections.dart';
 import 'package:flutter/material.dart';
 
-/// Profile tab: player identities plus the entry to settings.
+/// Profile tab: the settings hub.
 ///
-/// Wide windows show identities in the list column and the selected one in the
-/// detail pane; narrow ones push the identity hub instead.
+/// Identities and every settings section are listed flat in one column; each
+/// opens the same page a narrow window pushes — pushed on narrow windows, in
+/// the detail column on wide ones.
 class MeTab extends StatefulWidget {
   const MeTab({super.key, this.onChromeChanged});
 
@@ -37,10 +40,10 @@ class MeTab extends StatefulWidget {
 }
 
 class MeTabState extends State<MeTab> implements HomeTabBack {
-  /// Identity shown in the wide-window detail pane; null shows the empty hint.
-  String? _selectedPersonaId;
+  /// Page shown in the wide-window detail column; null shows the empty hint.
+  _MePane? _pane;
 
-  /// Stack of the detail column (identity page, then its editor).
+  /// Stack of the detail column (the page, then whatever it opens).
   final _detailPane = AppDetailPaneController();
 
   @override
@@ -64,46 +67,58 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
     widget.onChromeChanged?.call();
   }
 
-  String? _findId(List<UserPersona> personae) {
-    final id = _selectedPersonaId;
-    if (id == null) return null;
-    for (final persona in personae) {
-      if (persona.id == id) return id;
+  /// An identity deleted elsewhere drops out of the pane instead of lingering.
+  _MePane? _resolvedPane(List<UserPersona> personae) {
+    final pane = _pane;
+    if (pane is _PersonaPane && !personae.any((p) => p.id == pane.id)) {
+      return null;
     }
-    return null;
+    return pane;
   }
 
   @override
-  bool get canGoBack => _detailPane.canPop || _selectedPersonaId != null;
+  bool get canGoBack => _detailPane.canPop || _pane != null;
 
   @override
   bool handleSystemBack() {
     if (_detailPane.pop()) return true;
-    if (_selectedPersonaId == null) return false;
-    setState(() => _selectedPersonaId = null);
+    if (_pane == null) return false;
+    setState(() => _pane = null);
     return true;
   }
 
-  Future<void> _openSettings(BuildContext context) {
-    return pushAppSlide(context, const SettingsPage());
+  void _select(_MePane pane) {
+    setState(() => _pane = pane);
+    widget.onChromeChanged?.call();
   }
 
-  Future<void> _addPersona(BuildContext context) async {
-    await pushAppSlide(context, const PersonaEditorPage());
+  Future<void> _addPersona(BuildContext context) {
+    return pushAppSlide(context, const PersonaEditorPage());
   }
 
-  /// Wide windows select in the detail pane; narrow ones push the identity hub.
+  /// Wide windows preview in the detail column; narrow ones push the page.
   void _openPersona(
     BuildContext context,
     UserPersona persona, {
     required bool split,
   }) {
     if (split) {
-      setState(() => _selectedPersonaId = persona.id);
-      widget.onChromeChanged?.call();
+      _select(_PersonaPane(persona.id));
       return;
     }
     pushAppSlide(context, const PersonaSettingsPage());
+  }
+
+  Future<void> _openSection(
+    BuildContext context,
+    SettingsSection section, {
+    required bool split,
+  }) async {
+    if (split) {
+      _select(_SettingsPane(section));
+      return;
+    }
+    await pushAppSlide(context, SettingsSectionView(section: section));
   }
 
   @override
@@ -117,23 +132,17 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
           listenable: controller,
           builder: (context, _) {
             final personae = controller.personas.personas;
-            final selectedId = _findId(personae);
+            final pane = _resolvedPane(personae);
             return AppMasterDetail(
               primary: _masterPane(
                 context,
                 personae: personae,
                 activeId: controller.activePersona?.id,
-                selectedId: selectedId,
+                pane: pane,
                 split: split,
               ),
-              // Same page a narrow window pushes when an identity is tapped:
-              // the identity hub, with its editor opening on top in place.
-              detail: selectedId == null
-                  ? null
-                  : PersonaSettingsPage(
-                      key: ValueKey<String>('persona-pane-$selectedId'),
-                    ),
-              emptyLabel: strings.selectPersonaHint,
+              detail: _detailFor(pane),
+              emptyLabel: strings.selectMeHint,
               paneWidth: AppScope.paneWidthOf(context),
               detailController: _detailPane,
             );
@@ -143,42 +152,33 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
     );
   }
 
+  Widget? _detailFor(_MePane? pane) => switch (pane) {
+    null => null,
+    _PersonaPane(:final id) => PersonaSettingsPage(
+      key: ValueKey<String>('persona-pane-$id'),
+    ),
+    _SettingsPane(:final section) => SettingsSectionView(
+      key: ValueKey<String>('settings-pane-${section.id}'),
+      section: section,
+    ),
+  };
+
   Widget _masterPane(
     BuildContext context, {
     required List<UserPersona> personae,
     required String? activeId,
-    required String? selectedId,
+    required _MePane? pane,
     required bool split,
   }) {
     final strings = context.strings;
     return AppPageBody.list(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            0,
-            AppTheme.pagePadding,
-            AppTheme.spaceXs,
-          ),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: AppIconButton(
-              icon: Icons.settings_outlined,
-              tooltip: strings.settingsTitle,
-              onPressed: () => _openSettings(context),
-            ),
-          ),
-        ),
+        AppSectionHeader(strings.personaTitle, gutter: true),
         if (personae.isEmpty)
           AppPageGutter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppTheme.spaceSm,
-              ),
-              child: AppText(
-                strings.noPersonaYet,
-                role: AppTextRole.caption,
-              ),
+              padding: const EdgeInsets.only(bottom: AppTheme.spaceSm),
+              child: AppText(strings.noPersonaYet, role: AppTextRole.caption),
             ),
           )
         else
@@ -192,7 +192,7 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
                     size: 40,
                     semanticLabel: persona.name,
                   ),
-                  selected: persona.id == selectedId,
+                  selected: pane is _PersonaPane && pane.id == persona.id,
                   trailing: split ? null : const AppForwardIcon(),
                   onTap: () => _openPersona(context, persona, split: split),
                   onLongPress: persona.isDefault
@@ -201,7 +201,7 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
                 ),
             ],
           ),
-        const SizedBox(height: AppTheme.spaceMd),
+        const SizedBox(height: AppTheme.spaceSm),
         AppPageGutter(
           child: AppButton(
             label: strings.addPersona,
@@ -210,7 +210,38 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
             onPressed: () => _addPersona(context),
           ),
         ),
+        const SizedBox(height: AppTheme.spaceLg),
+        AppSectionHeader(strings.settingsTitle, gutter: true),
+        AppListTileStack(
+          tiles: [
+            for (final section in SettingsSection.values)
+              AppListTile(
+                title: settingsSectionLabel(strings, section),
+                icon: section.icon,
+                selected: pane is _SettingsPane && pane.section == section,
+                trailing: split ? null : const AppForwardIcon(),
+                onTap: () => _openSection(context, section, split: split),
+              ),
+          ],
+        ),
       ],
     );
   }
+}
+
+/// What the 「我」detail column shows; the flat list drives it.
+sealed class _MePane {
+  const _MePane();
+}
+
+final class _PersonaPane extends _MePane {
+  const _PersonaPane(this.id);
+
+  final String id;
+}
+
+final class _SettingsPane extends _MePane {
+  const _SettingsPane(this.section);
+
+  final SettingsSection section;
 }

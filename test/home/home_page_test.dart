@@ -1,3 +1,4 @@
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/data/folder/memory_project_folder_repository.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
@@ -13,7 +14,9 @@ import 'package:anoworld/home/save_detail_pane.dart';
 import 'package:anoworld/play/play_session_page.dart';
 import 'package:anoworld/play/plot_elements_library_page.dart';
 import 'package:anoworld/project/project_hub_page.dart';
+import 'package:anoworld/settings/about_panel.dart';
 import 'package:anoworld/settings/persona_settings_page.dart';
+import 'package:anoworld/settings/settings_section_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -125,24 +128,42 @@ void main() {
     expect(find.byTooltip('开始游玩'), findsOneWidget);
   });
 
-  testWidgets('me tab settings opens settings with section nav', (tester) async {
+  testWidgets('me tab lists settings entries that open their own page', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(390, 720));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('设置'), findsNothing);
     await tester.tap(find.text('我').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('设置'));
+
+    // Settings live in the tab itself — no separate gear entry any more.
+    expect(find.byTooltip('设置'), findsNothing);
+    expect(find.text('设置'), findsOneWidget);
+    expect(find.text('通用'), findsOneWidget);
+    expect(find.text('外观'), findsOneWidget);
+    expect(find.text('AI'), findsOneWidget);
+    expect(find.text('关于'), findsOneWidget);
+
+    await tester.tap(find.text('AI'));
     await tester.pumpAndSettle();
 
-    expect(find.text('设置'), findsWidgets);
-    expect(find.text('通用'), findsWidgets);
-    expect(find.text('外观'), findsWidgets);
-    expect(find.text('AI'), findsWidgets);
-    expect(find.text('关于'), findsWidgets);
+    expect(find.text('当前服务商'), findsWidgets);
+    expect(find.text('生图 AI'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('关于'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(AppStringsSetup.fallback.appVersion(AppAbout.version)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('me tab current user opens persona hub', (tester) async {
@@ -597,16 +618,39 @@ void main() {
     await tester.tap(find.text('我').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('选一个身份看详情'), findsOneWidget);
+    expect(find.text('选一个身份或设置看详情'), findsOneWidget);
 
     await tester.tap(find.text('User'));
     await tester.pumpAndSettle();
 
     // Same page a narrow tap pushes: the identity hub, in the third column.
-    expect(find.text('选一个身份看详情'), findsNothing);
+    expect(find.text('选一个身份或设置看详情'), findsNothing);
     expect(find.byType(PersonaSettingsPage), findsOneWidget);
-    expect(find.text('玩家身份'), findsOneWidget);
+    // Section header in the list + the page title in the pane.
+    expect(find.text('玩家身份'), findsNWidgets(2));
     expect(find.text('添加身份'), findsNWidgets(2));
+  });
+
+  testWidgets('wide me tab opens a settings section inside the pane', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('我').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('关于'));
+    await tester.pumpAndSettle();
+
+    // The section page lives in the third column; the list stays visible.
+    expect(find.byType(SettingsSectionView), findsOneWidget);
+    expect(find.text('选一个身份或设置看详情'), findsNothing);
+    expect(find.text('AI'), findsOneWidget);
+    // The pane owns navigation, so the embedded page drops its back arrow.
+    expect(find.byIcon(Icons.arrow_back), findsNothing);
   });
 
   testWidgets('system back deselects the detail pane before leaving', (    tester,

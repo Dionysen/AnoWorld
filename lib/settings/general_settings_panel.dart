@@ -2,7 +2,7 @@ import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
-import 'package:anoworld/foundation/widgets/app_section_header.dart';
+import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/settings/advanced_settings_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -16,28 +16,22 @@ class GeneralSettingsPanel extends StatelessWidget {
     final strings = context.strings;
     if (!kDebugMode) {
       return AppPageGutter(
-        child: AppSectionHeader(
-          strings.settingsSectionGeneral,
-          subtitle: strings.settingsNothingToChange,
+        child: AppText(
+          strings.settingsNothingToChange,
+          role: AppTextRole.caption,
         ),
       );
     }
 
-    return AppPageGutter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppSectionHeader(strings.settingsSectionGeneral),
-          AppListTile(
-            title: strings.advancedTitle,
-            subtitle: strings.advancedHint,
-            icon: Icons.construction_outlined,
-            onTap: () {
-              pushAppSlide(context, const AdvancedSettingsPage());
-            },
-          ),
-        ],
-      ),
+    return AppListTileStack(
+      tiles: [
+        AppListTile(
+          title: strings.advancedTitle,
+          subtitle: strings.advancedHint,
+          icon: Icons.construction_outlined,
+          onTap: () => pushAppSlide(context, const AdvancedSettingsPage()),
+        ),
+      ],
     );
   }
 }

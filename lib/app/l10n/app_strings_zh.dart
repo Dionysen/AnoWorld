@@ -444,7 +444,7 @@ class AppStringsZh extends AppStrings {
   String get noPersonaYet => '还没有身份';
 
   @override
-  String get selectPersonaHint => '选一个身份看详情';
+  String get selectMeHint => '选一个身份或设置看详情';
 
   // Stories tab.
 

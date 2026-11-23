@@ -3,7 +3,6 @@ import 'package:anoworld/foundation/theme/app_shapes.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
-import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/widgets.dart';
 
@@ -25,7 +24,6 @@ class AboutPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppSectionHeader(strings.settingsSectionAbout),
           const SizedBox(height: AppTheme.spaceSm),
           Center(
             child: ClipPath(
