@@ -84,6 +84,17 @@ class _HomePageState extends State<HomePage> {
     _syncAssistantVisibility();
   }
 
+  /// 会话里的「打开故事」：故事页只属于故事分区，切过去并选中那一本。
+  Future<void> _openStoryInStories(String projectId) async {
+    if (_tab != HomeTab.stories) {
+      _savesSelection.exit();
+      _worksSelection.exit();
+      setState(() => _tab = HomeTab.stories);
+      _syncAssistantVisibility();
+    }
+    await _worksKey.currentState?.revealProject(projectId);
+  }
+
   /// The active tab's inner state (selection / folder / detail) owns back.
   HomeTabBack? get _activeTabBack => switch (_tab) {
     HomeTab.sessions => _savesKey.currentState,
@@ -122,6 +133,7 @@ class _HomePageState extends State<HomePage> {
                     key: _savesKey,
                     selection: _savesSelection,
                     onBrowseWorks: () => _selectTab(HomeTab.stories.tabIndex),
+                    onOpenStory: _openStoryInStories,
                     onChromeChanged: _onChromeChanged,
                   ),
                   WorksTab(

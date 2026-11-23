@@ -77,6 +77,10 @@ class WorksTabState extends State<WorksTab> implements HomeTabBack {
   /// Story shown in the wide-window detail pane; null shows the empty hint.
   String? _selectedProjectId;
 
+  /// Whether the last layout rendered list | detail, so taps and
+  /// [revealProject] agree with what is on screen.
+  bool _rendersSplit = false;
+
   /// Stack of the detail column (story page, then whatever it opens).
   final _detailPane = AppDetailPaneController();
 
@@ -146,6 +150,41 @@ class WorksTabState extends State<WorksTab> implements HomeTabBack {
         ? const <String>[]
         : _browsePath.take(index + 1).toList(growable: false);
     await _navigateBrowse(next, forward: false);
+  }
+
+  /// Selects [projectId], entering its folder when needed.
+  ///
+  /// The sessions tab routes 「打开故事」 here, so a story page only ever opens
+  /// in the stories tab: in the detail column when the window is wide, as a
+  /// pushed page when it is narrow.
+  Future<void> revealProject(String projectId) async {
+    widget.selection.exit();
+    final folders = AppScope.foldersOf(context);
+    final folderId = await folders.folderIdForProject(projectId);
+    if (!mounted) return;
+    final crumbs = folderId == null
+        ? const <ProjectFolder>[]
+        : await folders.breadcrumbs(folderId);
+    if (!mounted) return;
+    final next = crumbs.map((folder) => folder.id).toList(growable: false);
+    if (!_samePath(next, _browsePath)) {
+      await _navigateBrowse(next, forward: true);
+      if (!mounted) return;
+    }
+    if (!_rendersSplit) {
+      await _openRoute(ProjectHubPage(projectId: projectId));
+      return;
+    }
+    setState(() => _selectedProjectId = projectId);
+    widget.onChromeChanged?.call();
+  }
+
+  static bool _samePath(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   @override
@@ -1146,6 +1185,7 @@ class WorksTabState extends State<WorksTab> implements HomeTabBack {
         // Same constraints AppMasterDetail measures, so tap behaviour and the
         // rendered column count can never disagree.
         final split = AppLayout.useMasterDetail(constraints.maxWidth);
+        _rendersSplit = split;
         return AppMasterDetail(
           primary: _masterPane(context, split),
           // Same page a narrow window pushes: the third column *is* the story

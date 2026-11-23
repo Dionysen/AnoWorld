@@ -20,9 +20,7 @@ import 'package:anoworld/home/home_tab_back.dart';
 import 'package:anoworld/home/library_selection.dart';
 import 'package:anoworld/home/save_detail_pane.dart';
 import 'package:anoworld/home/save_time_label.dart';
-import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/play_session_page.dart';
-import 'package:anoworld/project/project_hub_page.dart';
 import 'package:flutter/material.dart';
 
 class SavesTab extends StatefulWidget {
@@ -30,11 +28,15 @@ class SavesTab extends StatefulWidget {
     super.key,
     required this.selection,
     required this.onBrowseWorks,
+    required this.onOpenStory,
     this.onChromeChanged,
   });
 
   final LibrarySelectionController selection;
   final VoidCallback onBrowseWorks;
+
+  /// Shows [projectId] in the stories tab — the only place a story page lives.
+  final ValueChanged<String> onOpenStory;
 
   /// Home chrome (back handling / assistant) may need a rebuild.
   final VoidCallback? onChromeChanged;
@@ -156,15 +158,6 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
     return false;
   }
 
-  Future<void> _openRoute(Widget page, {bool storyChrome = false}) async {
-    if (storyChrome) {
-      await pushStoryRoute<void>(context, page);
-    } else {
-      await pushAppSlide(context, page);
-    }
-    if (mounted) await reload();
-  }
-
   Future<void> _resumePlay(_SaveRow row) async {
     widget.selection.exit();
     try {
@@ -191,12 +184,12 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
     }
   }
 
-  Future<void> _openStory(_SaveRow row) {
+  /// A story page belongs to the stories tab, so hand off there instead of
+  /// opening a second copy inside this tab.
+  void _openStory(_SaveRow row) {
     widget.selection.exit();
-    return _openRoute(
-      ProjectHubPage(projectId: row.project.id),
-      storyChrome: true,
-    );
+    AppLog.instance.info('打开故事：${row.project.title}', tag: 'save.open');
+    widget.onOpenStory(row.project.id);
   }
 
   void _toggleSelectAllVisible() {
@@ -508,7 +501,7 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
                                           if (action == 'resume') {
                                             await _resumePlay(row);
                                           } else if (action == 'story') {
-                                            await _openStory(row);
+                                            _openStory(row);
                                           } else if (action == 'delete') {
                                             await _deleteOne(row.slot.id);
                                           }

@@ -1,7 +1,9 @@
 import 'package:anoworld/create/world_book_editor_page.dart';
+import 'package:anoworld/data/folder/memory_project_folder_repository.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/data/save/memory_save_repository.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/project_folder.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/foundation/layout/app_layout.dart';
@@ -427,6 +429,141 @@ void main() {
       tester.getSize(find.byType(PlaySessionPage)),
       const Size(1200, 800),
     );
+  });
+
+  testWidgets('wide sessions tab opens the story in the stories tab', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final sample = const ProjectFactory().createRainNightSample(
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final projects = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    final saves = MemorySaveRepository(
+      seed: {
+        'slot_a': SaveSlot(
+          id: 'slot_a',
+          projectId: sample.meta.id,
+          pointer: const MainSavePointer(nodeId: 'n1', beatId: 'b1'),
+          savedAt: DateTime.now().toUtc(),
+          mode: PlayViewMode.visualNovel,
+        ),
+      },
+    );
+
+    await tester.pumpWidget(testApp(projects: projects, saves: saves));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('雨夜投宿'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('打开故事'));
+    await tester.pumpAndSettle();
+
+    // Handed off to the stories tab, already selected: one page, one home.
+    expect(find.byType(ProjectHubPage), findsOneWidget);
+    expect(find.text('选一个故事看详情'), findsNothing);
+    expect(find.byType(SaveDetailPane), findsNothing);
+    expect(find.text('世界书'), findsOneWidget);
+    // The rail now marks 故事 as the active destination.
+    expect(
+      tester.getTopLeft(find.byType(ProjectHubPage)).dx,
+      greaterThan(AppLayout.railWidth),
+    );
+  });
+
+  testWidgets('narrow sessions menu opens the story in the stories tab', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(420, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final sample = const ProjectFactory().createRainNightSample(
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final projects = MemoryProjectRepository(
+      seed: {sample.meta.id: sample},
+    );
+    final saves = MemorySaveRepository(
+      seed: {
+        'slot_a': SaveSlot(
+          id: 'slot_a',
+          projectId: sample.meta.id,
+          pointer: const MainSavePointer(nodeId: 'n1', beatId: 'b1'),
+          savedAt: DateTime.now().toUtc(),
+          mode: PlayViewMode.visualNovel,
+        ),
+      },
+    );
+
+    await tester.pumpWidget(testApp(projects: projects, saves: saves));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('更多'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('打开故事'));
+    await tester.pumpAndSettle();
+
+    // No pushed copy of the story page: the shell switched to 故事 instead.
+    expect(find.byType(ProjectHubPage), findsOneWidget);
+    expect(find.text('世界书'), findsOneWidget);
+    expect(find.byTooltip('游玩设置'), findsNothing);
+  });
+
+  testWidgets('opening a save story enters its folder in the stories tab', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final sample = const ProjectFactory().createRainNightSample(
+      now: DateTime.utc(2026, 1, 1),
+    );
+    final now = DateTime.utc(2026, 1, 1);
+    final folders = MemoryProjectFolderRepository(
+      folders: [
+        ProjectFolder(id: 'f_volume', name: '第一卷', createdAt: now),
+        ProjectFolder(
+          id: 'f_rain',
+          name: '雨夜',
+          parentId: 'f_volume',
+          createdAt: now,
+        ),
+      ],
+      memberships: {sample.meta.id: 'f_rain'},
+    );
+    final saves = MemorySaveRepository(
+      seed: {
+        'slot_a': SaveSlot(
+          id: 'slot_a',
+          projectId: sample.meta.id,
+          pointer: const MainSavePointer(nodeId: 'n1', beatId: 'b1'),
+          savedAt: DateTime.now().toUtc(),
+          mode: PlayViewMode.visualNovel,
+        ),
+      },
+    );
+
+    await tester.pumpWidget(
+      testApp(
+        projects: MemoryProjectRepository(seed: {sample.meta.id: sample}),
+        saves: saves,
+        folders: folders,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('雨夜投宿'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('打开故事'));
+    await tester.pumpAndSettle();
+
+    // The stories tab opened the folder that holds it, so the list beside the
+    // pane shows where the story actually lives.
+    expect(find.byType(ProjectHubPage), findsOneWidget);
+    expect(find.text('第一卷'), findsOneWidget);
+    expect(find.text('雨夜'), findsOneWidget);
+    expect(find.text('选一个故事看详情'), findsNothing);
   });
 
   testWidgets('wide play tab opens the chosen entry inside the pane', (

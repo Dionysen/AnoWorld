@@ -56,6 +56,8 @@
 
 详情列放进去的是**该条目在单栏里点开的那一页**（不是另写的摘要卡），由 [`AppDetailPane`](../lib/foundation/widgets/app_detail_pane.dart) 承载：它给详情列一个独立的导航栈，第三栏第一层就是选中项的整页，页里再打开的编辑页 / 游玩页也 push 在**同一列**，列表列不被遮住。切到另一个条目时整列重挂（宿主用 `detail` 的 key 做 `AppDetailPane` 的 key），上一项留下的页面栈随之消失。各分区：故事 → [`ProjectHubPage`](../lib/project/project_hub_page.dart)（封面 / 世界书 / 角色 / 情节走向 / 角色卡信息 / 开始游玩）；会话 → [`SaveDetailPane`](../lib/home/save_detail_pane.dart)（封面 / 故事名 / 玩法与上次游玩 / 继续游玩·打开故事 / 删除）；玩法 → [`PlotElementsLibraryPage`](../lib/play/plot_elements_library_page.dart) 或 [`AiPresetPage`](../lib/settings/ai_preset_page.dart)；我 → [`PersonaSettingsPage`](../lib/settings/persona_settings_page.dart)（身份列表 / 添加身份 / 编辑入口）。
 
+**一个页面只有一个家**：故事详情页只属于故事分区。会话第三栏的「打开故事」交给 [`HomePage`](../lib/home/home_page.dart) 切到故事分区，再由 [`WorksTabState.revealProject`](../lib/home/works_tab.dart) 选中那本（故事在文件夹里时先进入所在文件夹）；窄窗同一入口推整页，也在故事分区内。
+
 **游玩不进列**：视觉小说舞台与聊天都是整窗体验，从会话「继续游玩」或故事页「开始游玩」进入时用 `pushAppSlide(fullscreen: true)` 推到根导航器（覆盖左侧栏），所以会话列里放的是存档小结而不是游玩页。
 
 [`PaneDetailScope`](../lib/foundation/layout/pane_detail_scope.dart) 标记「这段在详情列里」：`AppPage` 在此不再画窗口 chrome 带（外层壳已消耗）、不再加左右安全区内边距；**栈底那一页**也不画返回箭头（左边的列表就是回去的路），`AppPage` 用 `ModalRoute.isFirst` 区分，上面再 push 的页照常带返回。
