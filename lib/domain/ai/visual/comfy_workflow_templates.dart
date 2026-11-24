@@ -39,18 +39,28 @@ abstract final class ComfyWorkflowTemplates {
   /// Shared portrait framing (white studio BG for edge flood-fill alpha).
   ///
   /// Character sprites are waist-up: [portraitFramingTag] is forced into every
-  /// portrait prompt, while [portraitNegative] suppresses full-body shots.
+  /// portrait prompt, [portraitCompletenessTags] keep the torso fully in frame,
+  /// and [portraitNegative] suppresses full-body / crop shots.
   static const String portraitCompositionBase =
-      'solo, $portraitFramingTag, '
+      'solo, $portraitFramingTag, $portraitCompletenessTags, '
       'simple background, white background, plain background, '
       'character focus, $portraitOutlineTags';
 
   /// Waist-up tag every character portrait must carry.
   static const String portraitFramingTag = 'upper body';
 
-  /// Portrait-only negatives that keep the sprite upper body.
+  /// Keeps head / arms / torso fully drawn — no amputated or edge-cropped sprite.
+  static const String portraitCompletenessTags =
+      'entire upper body in frame, head fully visible, arms fully visible, '
+      'torso fully visible';
+
+  /// Portrait-only negatives that keep the sprite upper body and fully in frame.
   static const String portraitNegativeTags =
-      'full body, full-length, wide shot, long shot';
+      'full body, full-length, wide shot, long shot, '
+      'cropped, out of frame, cut off, truncated, '
+      'cropped head, cropped arms, cropped torso, '
+      'head out of frame, arms out of frame, '
+      'close-up, closeup, extreme close-up, headshot, face focus, portrait cut-off';
 
   /// Portrait-only negatives that keep a crisp dark rim for matting.
   static const String portraitOutlineNegativeTags =
@@ -64,8 +74,21 @@ abstract final class ComfyWorkflowTemplates {
     caseSensitive: false,
   );
 
+  /// Tags that crop the upper body (close-ups / cut-offs).
+  static final RegExp _cropFraming = RegExp(
+    r'\b(?:close[\s_-]?up|extreme close[\s_-]?up|headshot|face focus|'
+    r'portrait cut[\s_-]?off|cropped(?:\s+(?:head|arms|torso|legs))?|'
+    r'out of frame|cut off|truncated|head out of frame|arms out of frame)\b,?\s*',
+    caseSensitive: false,
+  );
+
   static final RegExp _waistUpFraming = RegExp(
     r'\b(?:upper[\s_-]?body|half[\s_-]?body|cowboy shot|bust shot)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _portraitCompleteness = RegExp(
+    r'\bentire upper body in frame\b',
     caseSensitive: false,
   );
 
@@ -76,31 +99,30 @@ abstract final class ComfyWorkflowTemplates {
 
   /// Ensures [portraitOutlineTags] are present (idempotent via anchor tag).
   static String enforcePortraitOutline(String prompt) {
-    var cleaned = prompt
-        .replaceAll(RegExp(r',\s*,+'), ',')
-        .replaceAll(RegExp(r'^\s*,\s*'), '')
-        .trim();
-    if (cleaned.endsWith(',')) {
-      cleaned = cleaned.substring(0, cleaned.length - 1).trim();
-    }
+    var cleaned = _tidyPromptCsv(prompt);
     if (cleaned.isEmpty) return portraitCompositionBase;
     if (_strongPortraitOutline.hasMatch(cleaned)) return cleaned;
     return '$cleaned, $portraitOutlineTags';
   }
 
-  /// Forces [prompt] into a waist-up portrait: drops full-body framing tags and
+  /// Ensures head / arms / torso stay fully in frame (idempotent via anchor).
+  static String enforcePortraitCompleteness(String prompt) {
+    var cleaned = _tidyPromptCsv(prompt);
+    if (cleaned.isEmpty) return portraitCompositionBase;
+    if (_portraitCompleteness.hasMatch(cleaned)) return cleaned;
+    return '$cleaned, $portraitCompletenessTags';
+  }
+
+  /// Forces [prompt] into a waist-up portrait: drops full-body / crop tags and
   /// injects [portraitFramingTag] when the prompt has no waist-up tag yet.
   ///
+  /// Also ensures the upper body is fully drawn (not cut at the frame edge).
   /// Idempotent, so callers can apply it on every save and again before draw.
   static String enforcePortraitFraming(String prompt) {
     var cleaned = prompt
         .replaceAll(_fullBodyFraming, '')
-        .replaceAll(RegExp(r',\s*,+'), ',')
-        .replaceAll(RegExp(r'^\s*,\s*'), '')
-        .trim();
-    if (cleaned.endsWith(',')) {
-      cleaned = cleaned.substring(0, cleaned.length - 1).trim();
-    }
+        .replaceAll(_cropFraming, '');
+    cleaned = _tidyPromptCsv(cleaned);
     if (cleaned.isEmpty) return portraitCompositionBase;
     final String framed;
     if (_waistUpFraming.hasMatch(cleaned)) {
@@ -121,7 +143,18 @@ abstract final class ComfyWorkflowTemplates {
             : '$headClean, $portraitFramingTag, $tail';
       }
     }
-    return enforcePortraitOutline(framed);
+    return enforcePortraitOutline(enforcePortraitCompleteness(framed));
+  }
+
+  static String _tidyPromptCsv(String prompt) {
+    var cleaned = prompt
+        .replaceAll(RegExp(r',\s*,+'), ',')
+        .replaceAll(RegExp(r'^\s*,\s*'), '')
+        .trim();
+    if (cleaned.endsWith(',')) {
+      cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+    }
+    return cleaned;
   }
 
   /// Appends portrait-only negatives without touching scene negatives.
@@ -133,6 +166,12 @@ abstract final class ComfyWorkflowTemplates {
     var next = base;
     if (!base.toLowerCase().contains('full body')) {
       next = '$next, $portraitNegativeTags';
+    } else if (!base.toLowerCase().contains('cropped')) {
+      // Framing negatives already present; still ensure crop suppressions.
+      next = '$next, cropped, out of frame, cut off, truncated, '
+          'cropped head, cropped arms, cropped torso, '
+          'head out of frame, arms out of frame, '
+          'close-up, closeup, extreme close-up, headshot, face focus';
     }
     if (!base.toLowerCase().contains('thin outline')) {
       next = '$next, $portraitOutlineNegativeTags';

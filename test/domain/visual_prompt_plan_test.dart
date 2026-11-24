@@ -63,13 +63,18 @@ void main() {
 
   test('portrait prompts are forced waist-up and drop full-body tags', () {
     final enforced = ComfyWorkflowTemplates.enforcePortraitFraming(
-      'masterpiece, 1girl, full body, wide shot, black_hair, white background',
+      'masterpiece, 1girl, full body, wide shot, close-up, cropped arms, '
+      'black_hair, white background',
     );
     expect(enforced, contains('upper body'));
+    expect(enforced, contains('entire upper body in frame'));
+    expect(enforced, contains('arms fully visible'));
     expect(enforced, contains('white background'));
     expect(enforced, contains('very thick black outline'));
     expect(enforced, isNot(contains('full body')));
     expect(enforced, isNot(contains('wide shot')));
+    expect(enforced, isNot(contains('close-up')));
+    expect(enforced, isNot(contains('cropped arms')));
     // Idempotent: saving twice does not duplicate the framing tag.
     expect(
       ComfyWorkflowTemplates.enforcePortraitFraming(enforced),
@@ -81,10 +86,13 @@ void main() {
     final portrait = ComfyWorkflowTemplates.portraitNegative('low quality');
     expect(portrait, contains('low quality'));
     expect(portrait, contains('full body'));
+    expect(portrait, contains('cropped'));
+    expect(portrait, contains('out of frame'));
     expect(portrait, contains('thin outline'));
 
     final wf = ComfyWorkflowTemplates.scene(prompt: 'night, city');
     expect(wf['5']?['inputs']?['text'], isNot(contains('full body')));
+    expect(wf['5']?['inputs']?['text'], isNot(contains('cropped')));
   });
 
   test('planFromRaw normalizes model portraits to upper body', () {
