@@ -202,11 +202,16 @@ class CreateAssistantBloomShell extends StatelessWidget {
     );
   }
 
-  /// Fades the body in after the column can lay out, and is fully visible
-  /// once the panel reaches its open height.
+  /// Fades the body in after a thin strip appears, and is fully visible once
+  /// the panel reaches its open height — including short windows whose open
+  /// height is below the old absolute 380 gate.
   static double _contentOpacity(double panelH, double targetH) {
-    const minH = CreateAssistantPanel.minLayoutHeight;
-    if (panelH <= minH || targetH <= minH) return 0;
+    const minH = CreateAssistantPanel.revealMinHeight;
+    if (panelH <= 0 || targetH <= 0) return 0;
+    if (targetH <= minH) {
+      return Curves.easeOut.transform((panelH / targetH).clamp(0.0, 1.0));
+    }
+    if (panelH <= minH) return 0;
     final t = ((panelH - minH) / (targetH - minH)).clamp(0.0, 1.0);
     return Curves.easeOut.transform(t);
   }

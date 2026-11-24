@@ -46,8 +46,14 @@ class CreateAssistantPanel extends StatefulWidget {
   /// page is open until the user picks another one by hand.
   final CreateAssistantController? controller;
 
-  /// Minimum panel height before layout chrome + composer can fit.
-  static const minLayoutHeight = 380;
+  /// Bloom fade-in floor: keep the body offstage only while the column is still
+  /// a thin strip mid-animation. Open height on short windows may be well below
+  /// the old 380 gate; content still lays out (picker may hide when tight).
+  static const revealMinHeight = 72;
+
+  /// Hide the story picker when the open column cannot fit picker + composer
+  /// plus a small message strip (prefer composer + scroll over a blank shell).
+  static const _storyPickerMinHeight = 220;
 
   @override
   State<CreateAssistantPanel> createState() => CreateAssistantPanelState();
@@ -893,33 +899,41 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxHeight < CreateAssistantPanel.minLayoutHeight) {
-          return const SizedBox.shrink();
-        }
-        return _buildBody(context, storyLabel);
+        final showStoryPicker =
+            constraints.maxHeight >= CreateAssistantPanel._storyPickerMinHeight;
+        return _buildBody(
+          context,
+          storyLabel,
+          showStoryPicker: showStoryPicker,
+        );
       },
     );
   }
 
-  Widget _buildBody(BuildContext context, String storyLabel) {
+  Widget _buildBody(
+    BuildContext context,
+    String storyLabel, {
+    required bool showStoryPicker,
+  }) {
     final strings = context.strings;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            AppTheme.spaceSm,
-            AppTheme.pagePadding,
-            AppTheme.spaceXs,
+        if (showStoryPicker)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceSm,
+              AppTheme.pagePadding,
+              AppTheme.spaceXs,
+            ),
+            child: AppSelectField(
+              label: strings.currentStory,
+              value: storyLabel,
+              hint: strings.pickStoryHint,
+              onTap: _loadingStories ? null : _pickStory,
+            ),
           ),
-          child: AppSelectField(
-            label: strings.currentStory,
-            value: storyLabel,
-            hint: strings.pickStoryHint,
-            onTap: _loadingStories ? null : _pickStory,
-          ),
-        ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {

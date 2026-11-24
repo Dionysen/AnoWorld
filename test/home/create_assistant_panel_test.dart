@@ -200,6 +200,85 @@ void main() {
     expect(find.byTooltip('发送'), findsOneWidget);
   });
 
+  testWidgets('short panel still shows body instead of a blank shell', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final store = CreateAssistantDraftStore();
+    await _seedDraft(
+      store,
+      const CreateAssistantDraft(
+        projectId: 'proj_rain_night',
+        projectTitle: '雨夜投宿',
+        composer: '',
+        lines: [],
+      ),
+    );
+
+    // Open height on a ~560px window at 0.54 factor is under the old 380 gate.
+    await tester.pumpWidget(
+      testScoped(
+        textClient: _ScriptedTextClient(const []),
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            height: 300,
+            child: CreateAssistantPanel(draftStore: store),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('当前故事'), findsOneWidget);
+    expect(find.byType(AppChatComposer), findsOneWidget);
+    expect(find.text('先选改哪一块，再说想怎么改'), findsOneWidget);
+  });
+
+  testWidgets('very short panel hides story picker and keeps composer', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final store = CreateAssistantDraftStore();
+    await _seedDraft(
+      store,
+      const CreateAssistantDraft(
+        projectId: 'proj_rain_night',
+        projectTitle: '雨夜投宿',
+        composer: '',
+        lines: [CreateAssistantDraftLine(role: 'user', text: '改冷一点')],
+      ),
+    );
+
+    await tester.pumpWidget(
+      testScoped(
+        textClient: _ScriptedTextClient(const []),
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            height: 180,
+            child: CreateAssistantPanel(draftStore: store),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('当前故事'), findsNothing);
+    expect(find.byType(AppChatComposer), findsOneWidget);
+    expect(find.text('改冷一点'), findsOneWidget);
+  });
+
   testWidgets('writes a generated plot graph into the selected story', (
     tester,
   ) async {
