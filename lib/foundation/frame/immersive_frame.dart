@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import 'system_bars.dart';
 import 'window_channel.dart';
 import 'window_controls.dart';
 import 'window_geometry.dart';
@@ -25,6 +26,9 @@ void installImmersiveSystemUi() {
       systemNavigationBarContrastEnforced: false,
     ),
   );
+  // Edge-to-edge above leaves the gesture bar drawn; hide it so it neither
+  // covers the page nor takes layout space.
+  unawaited(SystemBars.hideBottomBar());
 }
 
 /// Layout numbers the page shell reads. Platform checks stay in [ImmersiveFrame].
@@ -163,6 +167,10 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
   void initState() {
     super.initState();
     if (!_desktop) {
+      // Mobile: the navigation bar hides itself again after a transient swipe.
+      _lifecycle = AppLifecycleListener(
+        onResume: () => unawaited(SystemBars.hideBottomBar()),
+      );
       return;
     }
     WindowChannel.setHandler(_onMethodCall);
@@ -397,7 +405,7 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
       );
     }
 
-    return ImmersiveScope(
+    Widget content = ImmersiveScope(
       metrics: metrics,
       child: Stack(
         fit: StackFit.expand,
@@ -418,5 +426,19 @@ class _ImmersiveFrameState extends State<ImmersiveFrame> {
         ],
       ),
     );
+
+    if (SystemBars.hidesBottomBar) {
+      // The navigation bar is hidden, so its inset is stale on OEM runners that
+      // still report it: templates must never reserve that space.
+      final media = MediaQuery.of(context);
+      content = MediaQuery(
+        data: media.copyWith(
+          padding: media.padding.copyWith(bottom: 0),
+          viewPadding: media.viewPadding.copyWith(bottom: 0),
+        ),
+        child: content,
+      );
+    }
+    return content;
   }
 }

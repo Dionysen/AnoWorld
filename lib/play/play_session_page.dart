@@ -1897,7 +1897,7 @@ class _VnStageState extends State<_VnStage> {
         // Very short viewports: keep the dialogue readable, drop the controls.
         final showControls = constraints.maxHeight >= 260;
         final controlsHeight = showControls
-            ? AppIconButton.hitTarget + AppTheme.spaceSm
+            ? AppTheme.vnControlSize + AppTheme.vnControlGap
             : 0.0;
         final statusHeight = widget.status == null
             ? 0.0
@@ -1908,7 +1908,7 @@ class _VnStageState extends State<_VnStage> {
         );
         final available =
             constraints.maxHeight -
-            AppTheme.pagePadding -
+            AppTheme.vnStageBottomGap -
             bottomInset -
             controlsHeight -
             statusHeight;
@@ -1947,8 +1947,8 @@ class _VnStageState extends State<_VnStage> {
         final pageText = pages.isEmpty ? null : pages[pageIndex];
         final speaker = line == null ? null : widget.speakerLabel(line);
         // Everything the portrait must stand on: the reading box, the control
-        // bar under it, and the page bottom padding.
-        final stageFloor = AppTheme.pagePadding +
+        // bar under it, and the gap below the controls.
+        final stageFloor = AppTheme.vnStageBottomGap +
             bottomInset +
             controlsHeight +
             statusHeight +
@@ -1990,7 +1990,7 @@ class _VnStageState extends State<_VnStage> {
                       AppTheme.pagePadding,
                       0,
                       AppTheme.pagePadding,
-                      AppTheme.pagePadding + bottomInset,
+                      AppTheme.vnStageBottomGap + bottomInset,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -2059,7 +2059,7 @@ class _VnStageState extends State<_VnStage> {
                                 ),
                         ),
                         if (showControls) ...[
-                          const SizedBox(height: AppTheme.spaceSm),
+                          const SizedBox(height: AppTheme.vnControlGap),
                           _VnControlBar(
                             canBack: widget.canBack,
                             canForward: widget.canForward,
@@ -2127,27 +2127,39 @@ class _VnControlBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
+    Widget button({
+      required IconData icon,
+      required String tooltip,
+      required VoidCallback? onPressed,
+    }) => AppIconButton(
+      icon: icon,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      size: AppTheme.vnControlSize,
+      iconSize: AppTheme.vnControlIconSize,
+    );
+
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: AppTheme.spaceXs,
       runSpacing: AppTheme.spaceXs,
       children: [
-        AppIconButton(
+        button(
           icon: Icons.arrow_back,
           tooltip: context.ui.back,
           onPressed: onExit,
         ),
-        AppIconButton(
+        button(
           icon: Icons.skip_previous_rounded,
           tooltip: strings.historyBack,
           onPressed: canBack ? onBack : null,
         ),
-        AppIconButton(
+        button(
           icon: Icons.skip_next_rounded,
           tooltip: strings.historyForward,
           onPressed: canForward ? onForward : null,
         ),
-        AppIconButton(
+        button(
           icon: fastForwarding
               ? Icons.pause_rounded
               : Icons.fast_forward_rounded,
@@ -2156,8 +2168,8 @@ class _VnControlBar extends StatelessWidget {
         ),
         if (generating)
           SizedBox(
-            width: AppIconButton.hitTarget,
-            height: AppIconButton.hitTarget,
+            width: AppTheme.vnControlSize,
+            height: AppTheme.vnControlSize,
             child: Center(
               child: AppBusyIndicator(
                 padding: EdgeInsets.zero,
@@ -2166,12 +2178,12 @@ class _VnControlBar extends StatelessWidget {
             ),
           )
         else
-          AppIconButton(
+          button(
             icon: Icons.refresh_rounded,
             tooltip: strings.regenerateSegment,
             onPressed: canRegenerate ? onRegenerate : null,
           ),
-        AppIconButton(
+        button(
           icon: Icons.settings_outlined,
           tooltip: strings.vnSettingsTitle,
           onPressed: onSettings,

@@ -78,6 +78,17 @@
 
 通道没有实现时（测试、还没接上的窗口）仍显示页面顶栏，不画窗口按钮。
 
+### 移动端底部系统条（全面屏手势条）
+
+- **Android**：隐藏导航条（手势横条 / 三个键），行为为「滑动临时出现、随后自动隐藏」，状态栏保持可见。实现：[`SystemBars`](../lib/foundation/frame/system_bars.dart) + `MainActivity.hideNavigationBar`（`app/system_bars` 通道，`WindowInsetsControllerCompat`）。`SystemBars.hidesBottomBar` 为真时，[`ImmersiveFrame`](../lib/foundation/frame/immersive_frame.dart) 把 `MediaQuery` 的 `padding.bottom` / `viewPadding.bottom` 归零——**手势条不占布局空间**，页面按真实底边排版。
+- **iOS**：Home 指示条不能由应用强制隐藏，仍保留底部安全区（`hidesBottomBar` 为假）。这是能力差异，不是第二套布局。
+- 底部浮动 chrome（胶囊底栏）与滚动页底部留白都读这份 MediaQuery，因此不需要各自做平台判断。
+
+### 视觉小说舞台
+
+- 对白框整块贴近窗口下沿：框 → [`vnControlGap`](../lib/foundation/theme/app_theme.dart)（**4**）→ 控制按钮行（[`vnControlSize`](../lib/foundation/theme/app_theme.dart) **32** / 图标 **18**）→ [`vnStageBottomGap`](../lib/foundation/theme/app_theme.dart)（**8**）。立绘脚底仍贴框上沿，`stageFloor` 用同一组 token 计算。
+- 舞台控制按钮比通用 chrome（40）小，仍是正圆 ghost；窄屏放不下时 `Wrap` 换行而不是溢出。
+
 ## 图片显示
 
 本地图片一律走 [`AppImage`](../lib/foundation/widgets/app_image.dart)：按布局宽度换算解码宽度（`ResizeImage`），源缺失或解码失败回退 `fallback`。

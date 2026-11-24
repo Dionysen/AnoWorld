@@ -71,6 +71,12 @@ kotlin {
     }
 }
 
+dependencies {
+    // WindowInsetsControllerCompat: hide the navigation bar while keeping the
+    // status bar (SystemChrome only offers all-or-nothing immersive modes).
+    implementation("androidx.core:core-ktx:1.15.0")
+}
+
 flutter {
     source = "../.."
 }

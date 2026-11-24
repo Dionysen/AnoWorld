@@ -15,6 +15,7 @@ import 'package:anoworld/domain/runtime/bridge_session.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/foundation/widgets/app_dialogue_panel.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
@@ -699,6 +700,30 @@ void main() {
     expect(find.byTooltip('返回'), findsOneWidget);
     expect(find.byTooltip('游玩设置'), findsOneWidget);
     expect(find.byTooltip('重新生成'), findsOneWidget);
+  });
+
+  testWidgets('VN box and controls hug the window bottom edge', (tester) async {
+    await pumpPlay(tester);
+
+    final height =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    // Compact stage buttons, not page chrome.
+    expect(
+      tester.getSize(find.byTooltip('游玩设置')).height,
+      AppTheme.vnControlSize,
+    );
+
+    // Box → gap → control row → bottom gap, with nothing else pushing it up.
+    final panelBottom = tester.getBottomLeft(find.byType(AppDialoguePanel)).dy;
+    expect(
+      height - panelBottom,
+      moreOrLessEquals(
+        AppTheme.vnControlGap +
+            AppTheme.vnControlSize +
+            AppTheme.vnStageBottomGap,
+        epsilon: 0.5,
+      ),
+    );
   });
 
   testWidgets('VN pages a long line before advancing', (tester) async {

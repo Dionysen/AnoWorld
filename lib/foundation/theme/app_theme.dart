@@ -86,6 +86,19 @@ abstract final class AppTheme {
   static const double titleChromePadding = spaceSm;
   static const double buttonHeight = 36;
 
+  /// Round controls under the VN dialogue box: smaller than page chrome so the
+  /// reading box can sit low in the window.
+  static const double vnControlSize = 32;
+  static const double vnControlIconSize = 18;
+
+  /// Gap between the dialogue box and its control row.
+  static const double vnControlGap = spaceXs;
+
+  /// Distance from the VN block to the window bottom edge. Covers the whole
+  /// stage floor math (box + gap + controls), so the sprite still lands on the
+  /// box's top edge.
+  static const double vnStageBottomGap = spaceSm;
+
   /// Press-in scale for tappable chrome ([AppPressScale], bottom nav, rail).
   static const double pressScale = 0.92;
 

@@ -192,6 +192,55 @@ void main() {
   });
 
   testWidgets(
+    'mobile shell drops the navigation-bar inset on Android only',
+    (tester) async {
+      const barHeight = 24.0;
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(bottom: barHeight);
+      tester.view.viewPadding = const FakeViewPadding(bottom: barHeight);
+
+      Map<String, EdgeInsets>? seen;
+      Future<void> pumpShell() async {
+        seen = <String, EdgeInsets>{};
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.data,
+            builder: (context, child) => ImmersiveFrame(child: child!),
+            home: Builder(
+              builder: (context) {
+                final media = MediaQuery.of(context);
+                seen!['padding'] = media.padding;
+                seen!['viewPadding'] = media.viewPadding;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        );
+        await tester.pump();
+      }
+
+      try {
+        // Android hides the gesture bar, so nothing may reserve its space.
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        await pumpShell();
+        expect(seen!['padding']!.bottom, 0);
+        expect(seen!['viewPadding']!.bottom, 0);
+
+        // iOS keeps the home indicator safe area (apps cannot hide it).
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        await pumpShell();
+        expect(seen!['padding']!.bottom, barHeight);
+        expect(seen!['viewPadding']!.bottom, barHeight);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPadding();
+        tester.view.resetViewPadding();
+        tester.view.resetDevicePixelRatio();
+      }
+    },
+  );
+
+  testWidgets(
     'window buttons sit at the top-right when the runner enables them',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
@@ -238,8 +287,7 @@ void main() {
 
 void _noop() {}
 
-final class _MemoryGeometryStore implements WindowGeometryStore {
-  WindowGeometry? value;
+final class _MemoryGeometryStore implements WindowGeometryStore {  WindowGeometry? value;
 
   @override
   Future<WindowGeometry?> load() async => value;
