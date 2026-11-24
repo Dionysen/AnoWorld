@@ -247,7 +247,7 @@ class _CastEditorPageState extends State<CastEditorPage>
       onBack: () => Navigator.of(context).maybePop(),
       actions: [
         AppCircleButton(
-          icon: Icons.auto_awesome_outlined,
+          icon: Icons.person_search_outlined,
           tooltip: strings.castExtractEntry,
           onPressed: _loading || _error != null ? null : _openExtract,
         ),

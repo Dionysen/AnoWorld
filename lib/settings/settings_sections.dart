@@ -9,7 +9,7 @@ extension SettingsSectionX on SettingsSection {
   IconData get icon => switch (this) {
     SettingsSection.general => Icons.tune_outlined,
     SettingsSection.appearance => Icons.palette_outlined,
-    SettingsSection.ai => Icons.auto_awesome_outlined,
+    SettingsSection.ai => Icons.smart_toy_outlined,
     SettingsSection.generation => Icons.movie_filter_outlined,
     SettingsSection.about => Icons.info_outline,
   };

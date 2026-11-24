@@ -1161,7 +1161,7 @@ class _MainGraphPageState extends State<MainGraphPage>
           )
         else
           AppCircleButton(
-            icon: Icons.auto_awesome,
+            icon: Icons.account_tree_outlined,
             tooltip: strings.mainGraphGenerate,
             onPressed: editorReady ? _generatePlot : null,
           ),

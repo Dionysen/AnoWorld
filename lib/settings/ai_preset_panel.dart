@@ -407,7 +407,7 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
             AppListTile(
               title: presetName,
               subtitle: strings.presetRowHint,
-              icon: Icons.auto_awesome_outlined,
+              icon: Icons.style_outlined,
               onTap: _openPresetPicker,
             ),
             const SizedBox(height: AppTheme.spaceLg),

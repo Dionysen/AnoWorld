@@ -122,7 +122,7 @@ class PlayModesTabState extends State<PlayModesTab> implements HomeTabBack {
             AppListTile(
               title: strings.aiPresetTitle,
               subtitle: strings.aiPresetHubHint,
-              icon: Icons.auto_awesome_outlined,
+              icon: Icons.style_outlined,
               trailing: split ? null : const AppForwardIcon(),
               selected: selected == _PlayEntry.aiPreset,
               onTap: () => _open(context, _PlayEntry.aiPreset, split: split),
