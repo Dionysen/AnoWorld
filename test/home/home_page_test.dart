@@ -144,9 +144,13 @@ void main() {
     expect(find.byTooltip('设置'), findsNothing);
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('通用'), findsOneWidget);
+    expect(find.text('其它选项'), findsOneWidget);
     expect(find.text('外观'), findsOneWidget);
+    expect(find.text('主题、字体与圆角'), findsOneWidget);
     expect(find.text('AI'), findsOneWidget);
+    expect(find.text('写故事与出图'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
+    expect(find.text('版本与说明'), findsOneWidget);
 
     await tester.tap(find.text('AI'));
     await tester.pumpAndSettle();

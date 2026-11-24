@@ -683,6 +683,10 @@ abstract class AppStrings extends AppLocalizations {
   String get settingsSectionAppearance;
   String get settingsSectionAi;
   String get settingsSectionAbout;
+  String get settingsSectionGeneralHint;
+  String get settingsSectionAppearanceHint;
+  String get settingsSectionAiHint;
+  String get settingsSectionAboutHint;
   String get settingsNothingToChange;
   String get advancedTitle;
   String get advancedHint;

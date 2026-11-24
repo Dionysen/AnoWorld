@@ -1986,6 +1986,18 @@ class AppStringsZh extends AppStrings {
   String get settingsSectionAbout => '关于';
 
   @override
+  String get settingsSectionGeneralHint => '其它选项';
+
+  @override
+  String get settingsSectionAppearanceHint => '主题、字体与圆角';
+
+  @override
+  String get settingsSectionAiHint => '写故事与出图';
+
+  @override
+  String get settingsSectionAboutHint => '版本与说明';
+
+  @override
   String get settingsNothingToChange => '这里还没有可改的选项';
 
   @override

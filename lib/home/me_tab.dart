@@ -199,6 +199,7 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
             for (final section in SettingsSection.values)
               AppListTile(
                 title: settingsSectionLabel(strings, section),
+                subtitle: settingsSectionHint(strings, section),
                 icon: section.icon,
                 selected: pane is _SettingsPane && pane.section == section,
                 trailing: split ? null : const AppForwardIcon(),

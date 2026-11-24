@@ -10,3 +10,13 @@ String settingsSectionLabel(AppStrings strings, SettingsSection section) {
     SettingsSection.about => strings.settingsSectionAbout,
   };
 }
+
+/// One-line hint under the section title on the settings hub list.
+String settingsSectionHint(AppStrings strings, SettingsSection section) {
+  return switch (section) {
+    SettingsSection.general => strings.settingsSectionGeneralHint,
+    SettingsSection.appearance => strings.settingsSectionAppearanceHint,
+    SettingsSection.ai => strings.settingsSectionAiHint,
+    SettingsSection.about => strings.settingsSectionAboutHint,
+  };
+}
