@@ -16,7 +16,7 @@ import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
-import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
+import 'package:anoworld/foundation/widgets/app_underline_tab_pager.dart';
 import 'package:anoworld/play/plot_element_category_page.dart';
 import 'package:anoworld/play/plot_element_category_ui.dart';
 import 'package:anoworld/play/plot_element_editor.dart';
@@ -215,94 +215,116 @@ class _PlotElementsLibraryPageState extends State<PlotElementsLibraryPage> {
     List<PlotElement> rows,
   ) {
     final strings = context.strings;
-    final header = <Widget>[
-      AppUnderlineTabs<_LibraryTab>(
-        value: _tab,
-        onChanged: (value) => setState(() => _tab = value),
-        options: [
-          AppSegmentOption(value: _LibraryTab.all, label: strings.tabAll),
-          AppSegmentOption(
-            value: _LibraryTab.categorized,
-            label: strings.tabCategorized,
-          ),
-          AppSegmentOption(value: _LibraryTab.packs, label: strings.tabPacks),
-        ],
+    final options = [
+      AppSegmentOption(value: _LibraryTab.all, label: strings.tabAll),
+      AppSegmentOption(
+        value: _LibraryTab.categorized,
+        label: strings.tabCategorized,
       ),
-      if (rows.isEmpty)
-        AppPageGutter(
-          child: AppEmptyState(
-            message: strings.libraryEmptyMessage,
-            detail: strings.libraryEmptyDetail,
-            action: AppButton(
-              label: strings.addOne,
-              onPressed: () => _edit(),
-              variant: AppButtonVariant.secondary,
-            ),
-          ),
-        )
-      else if (_tab == _LibraryTab.packs && catalog.packs.isEmpty)
-        AppPageGutter(
-          child: AppEmptyState(
-            message: strings.packsEmptyMessage,
-            detail: strings.packsEmptyDetail,
-            action: AppButton(
-              label: strings.newPack,
-              onPressed: _createPack,
-              variant: AppButtonVariant.secondary,
-            ),
-          ),
-        ),
+      AppSegmentOption(value: _LibraryTab.packs, label: strings.tabPacks),
     ];
+    final libraryEmpty = AppPageGutter(
+      child: AppEmptyState(
+        message: strings.libraryEmptyMessage,
+        detail: strings.libraryEmptyDetail,
+        action: AppButton(
+          label: strings.addOne,
+          onPressed: () => _edit(),
+          variant: AppButtonVariant.secondary,
+        ),
+      ),
+    );
     final categoryRows = _categoryEntries(context, catalog);
     final packRows = catalog.packs;
-    final itemCount = rows.isEmpty
-        ? 0
-        : switch (_tab) {
-            _LibraryTab.all => rows.length,
-            _LibraryTab.categorized => categoryRows.length,
-            _LibraryTab.packs => packRows.length,
-          };
-    return AppPageLazyList(
-      header: header,
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        switch (_tab) {
-          case _LibraryTab.all:
-            final row = rows[index];
-            return AppListTile(
-              key: ValueKey(row.id),
-              title: row.keyword.isEmpty ? strings.unnamed : row.keyword,
-              subtitle: _rowSubtitle(context, catalog, row),
-              icon: Icons.theater_comedy_outlined,
-              trailing: const AppForwardIcon(),
-              showDivider: index < itemCount - 1,
-              onTap: () => _edit(existing: row),
-            );
-          case _LibraryTab.categorized:
-            final entry = categoryRows[index];
-            return AppListTile(
-              title: entry.name,
-              subtitle: strings.countLabel(entry.count),
-              icon: entry.id.isEmpty
-                  ? Icons.label_outline
-                  : Icons.folder_outlined,
-              trailing: const AppForwardIcon(),
-              showDivider: index < itemCount - 1,
-              onTap: () => _openCategory(entry.id),
-            );
-          case _LibraryTab.packs:
-            final pack = packRows[index];
-            return AppListTile(
-              key: ValueKey(pack.id),
-              title: pack.name,
-              subtitle: describePlotElementPack(context, catalog, pack),
-              icon: Icons.inventory_2_outlined,
-              trailing: const AppForwardIcon(),
-              showDivider: index < itemCount - 1,
-              onTap: () => _openPack(pack.id),
-            );
-        }
-      },
+    const pagePadding = EdgeInsets.only(bottom: AppTheme.pagePadding);
+
+    Widget emptyPage(Widget empty) => AppPageLazyList(
+          padding: pagePadding,
+          header: [empty],
+          itemCount: 0,
+          itemBuilder: (context, index) => const SizedBox.shrink(),
+        );
+
+    final allPage = rows.isEmpty
+        ? emptyPage(libraryEmpty)
+        : AppPageLazyList(
+            padding: pagePadding,
+            itemCount: rows.length,
+            itemBuilder: (context, index) {
+              final row = rows[index];
+              return AppListTile(
+                key: ValueKey(row.id),
+                title: row.keyword.isEmpty ? strings.unnamed : row.keyword,
+                subtitle: _rowSubtitle(context, catalog, row),
+                icon: Icons.theater_comedy_outlined,
+                trailing: const AppForwardIcon(),
+                showDivider: index < rows.length - 1,
+                onTap: () => _edit(existing: row),
+              );
+            },
+          );
+
+    final categorizedPage = rows.isEmpty
+        ? emptyPage(libraryEmpty)
+        : AppPageLazyList(
+            padding: pagePadding,
+            itemCount: categoryRows.length,
+            itemBuilder: (context, index) {
+              final entry = categoryRows[index];
+              return AppListTile(
+                title: entry.name,
+                subtitle: strings.countLabel(entry.count),
+                icon: entry.id.isEmpty
+                    ? Icons.label_outline
+                    : Icons.folder_outlined,
+                trailing: const AppForwardIcon(),
+                showDivider: index < categoryRows.length - 1,
+                onTap: () => _openCategory(entry.id),
+              );
+            },
+          );
+
+    final packsPage = rows.isEmpty
+        ? emptyPage(libraryEmpty)
+        : packRows.isEmpty
+            ? emptyPage(
+                AppPageGutter(
+                  child: AppEmptyState(
+                    message: strings.packsEmptyMessage,
+                    detail: strings.packsEmptyDetail,
+                    action: AppButton(
+                      label: strings.newPack,
+                      onPressed: _createPack,
+                      variant: AppButtonVariant.secondary,
+                    ),
+                  ),
+                ),
+              )
+            : AppPageLazyList(
+                padding: pagePadding,
+                itemCount: packRows.length,
+                itemBuilder: (context, index) {
+                  final pack = packRows[index];
+                  return AppListTile(
+                    key: ValueKey(pack.id),
+                    title: pack.name,
+                    subtitle: describePlotElementPack(context, catalog, pack),
+                    icon: Icons.inventory_2_outlined,
+                    trailing: const AppForwardIcon(),
+                    showDivider: index < packRows.length - 1,
+                    onTap: () => _openPack(pack.id),
+                  );
+                },
+              );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.pagePadding),
+      child: AppUnderlineTabPager<_LibraryTab>(
+        options: options,
+        value: _tab,
+        onChanged: (value) => setState(() => _tab = value),
+        pages: [allPage, categorizedPage, packsPage],
+      ),
     );
   }
 }

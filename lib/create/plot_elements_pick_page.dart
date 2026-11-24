@@ -19,7 +19,8 @@ import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
-import 'package:anoworld/foundation/widgets/app_underline_tabs.dart';
+import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_underline_tab_pager.dart';
 import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/plot_elements_library_page.dart';
@@ -326,111 +327,137 @@ class _PlotElementsPickPageState extends State<PlotElementsPickPage>
   ) {
     final strings = context.strings;
     final selectedIds = selection.selectedIds;
-    final header = <Widget>[
-      AppUnderlineTabs<_PickTab>(
-        value: _tab,
-        onChanged: (value) => setState(() => _tab = value),
-        options: [
-          AppSegmentOption(value: _PickTab.all, label: strings.tabAll),
-          AppSegmentOption(
-            value: _PickTab.categorized,
-            label: strings.tabCategorized,
-          ),
-          AppSegmentOption(value: _PickTab.packs, label: strings.tabPacks),
-        ],
+    final options = [
+      AppSegmentOption(value: _PickTab.all, label: strings.tabAll),
+      AppSegmentOption(
+        value: _PickTab.categorized,
+        label: strings.tabCategorized,
       ),
-      if (_loading)
-        AppPageGutter(
-          child: AppText(strings.loading, role: AppTextRole.caption),
-        )
-      else if (_error != null)
-        AppPageGutter(
-          child: AppEmptyState(
-            message: strings.openStoryFailed,
-            detail: _error.toString(),
-            action: AppButton(
-              label: strings.retry,
-              onPressed: _load,
-              variant: AppButtonVariant.secondary,
-            ),
-          ),
-        )
-      else if (project != null && rows.isEmpty)
-        AppPageGutter(
-          child: AppEmptyState(
-            message: strings.libraryEmptyMessage,
-            detail: strings.libraryEmptyPickDetail,
-            action: AppButton(
-              label: strings.goManageLibrary,
-              onPressed: _openLibrary,
-              variant: AppButtonVariant.secondary,
-            ),
+      AppSegmentOption(value: _PickTab.packs, label: strings.tabPacks),
+    ];
+    const pagePadding = EdgeInsets.only(bottom: AppTheme.pagePadding);
+
+    Widget emptyPage(Widget empty) => AppPageLazyList(
+          padding: pagePadding,
+          header: [empty],
+          itemCount: 0,
+          itemBuilder: (context, index) => const SizedBox.shrink(),
+        );
+
+    final Widget status;
+    if (_loading) {
+      status = AppPageGutter(
+        child: AppText(strings.loading, role: AppTextRole.caption),
+      );
+    } else if (_error != null) {
+      status = AppPageGutter(
+        child: AppEmptyState(
+          message: strings.openStoryFailed,
+          detail: _error.toString(),
+          action: AppButton(
+            label: strings.retry,
+            onPressed: _load,
+            variant: AppButtonVariant.secondary,
           ),
         ),
-    ];
+      );
+    } else if (project != null && rows.isEmpty) {
+      status = AppPageGutter(
+        child: AppEmptyState(
+          message: strings.libraryEmptyMessage,
+          detail: strings.libraryEmptyPickDetail,
+          action: AppButton(
+            label: strings.goManageLibrary,
+            onPressed: _openLibrary,
+            variant: AppButtonVariant.secondary,
+          ),
+        ),
+      );
+    } else {
+      status = const SizedBox.shrink();
+    }
+
     final idle = _loading || _error != null || project == null || rows.isEmpty;
     if (idle) {
-      return AppPageLazyList(
-        header: header,
-        itemCount: 0,
-        itemBuilder: (context, index) => const SizedBox.shrink(),
-      );
-    }
-    if (_tab == _PickTab.all) {
-      return AppPageLazyList(
-        header: header,
-        itemCount: rows.length,
-        itemBuilder: (context, index) => _elementRow(
-          context,
-          rows[index],
-          selectedIds,
-          showDivider: index < rows.length - 1,
+      return Padding(
+        padding: const EdgeInsets.only(top: AppTheme.pagePadding),
+        child: AppUnderlineTabPager<_PickTab>(
+          options: options,
+          value: _tab,
+          onChanged: (value) => setState(() => _tab = value),
+          pages: [
+            emptyPage(status),
+            emptyPage(status),
+            emptyPage(status),
+          ],
         ),
       );
     }
-    if (_tab == _PickTab.packs) {
-      final packs = catalog.packs;
-      return AppPageLazyList(
-        header: [
-          ...header,
-          if (packs.isEmpty)
-            AppPageGutter(
-              child: AppEmptyState(
-                message: strings.packsEmptyMessage,
-                detail: strings.packsEmptyPickDetail,
-                action: AppButton(
-                  label: strings.goManageLibrary,
-                  onPressed: _openLibrary,
-                  variant: AppButtonVariant.secondary,
-                ),
-              ),
-            ),
-        ],
-        itemCount: packs.length,
-        itemBuilder: (context, index) => _packRow(
-          context,
-          catalog,
-          packs[index],
-          selection,
-          showDivider: index < packs.length - 1,
-        ),
-      );
-    }
+
+    final packs = catalog.packs;
     final entries = _categoryEntries(context, catalog);
-    return AppPageLazyList(
-      header: header,
-      itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        return AppListTile(
-          title: entry.name,
-          subtitle: strings.countLabel(entry.count),
-          icon: entry.id.isEmpty ? Icons.label_outline : Icons.folder_outlined,
-          trailing: const AppForwardIcon(),
-          showDivider: index < entries.length - 1,
-          onTap: () => _openCategory(catalog, entry.id),
-        );
-      },
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.pagePadding),
+      child: AppUnderlineTabPager<_PickTab>(
+        options: options,
+        value: _tab,
+        onChanged: (value) => setState(() => _tab = value),
+        pages: [
+          AppPageLazyList(
+            padding: pagePadding,
+            itemCount: rows.length,
+            itemBuilder: (context, index) => _elementRow(
+              context,
+              rows[index],
+              selectedIds,
+              showDivider: index < rows.length - 1,
+            ),
+          ),
+          AppPageLazyList(
+            padding: pagePadding,
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return AppListTile(
+                title: entry.name,
+                subtitle: strings.countLabel(entry.count),
+                icon: entry.id.isEmpty
+                    ? Icons.label_outline
+                    : Icons.folder_outlined,
+                trailing: const AppForwardIcon(),
+                showDivider: index < entries.length - 1,
+                onTap: () => _openCategory(catalog, entry.id),
+              );
+            },
+          ),
+          packs.isEmpty
+              ? emptyPage(
+                  AppPageGutter(
+                    child: AppEmptyState(
+                      message: strings.packsEmptyMessage,
+                      detail: strings.packsEmptyPickDetail,
+                      action: AppButton(
+                        label: strings.goManageLibrary,
+                        onPressed: _openLibrary,
+                        variant: AppButtonVariant.secondary,
+                      ),
+                    ),
+                  ),
+                )
+              : AppPageLazyList(
+                  padding: pagePadding,
+                  itemCount: packs.length,
+                  itemBuilder: (context, index) => _packRow(
+                    context,
+                    catalog,
+                    packs[index],
+                    selection,
+                    showDivider: index < packs.length - 1,
+                  ),
+                ),
+        ],
+      ),
     );
   }
 }
