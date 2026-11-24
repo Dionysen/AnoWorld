@@ -408,7 +408,7 @@ class AppStringsZh extends AppStrings {
   String get tabPlayModes => '玩法';
 
   @override
-  String get tabMe => '我';
+  String get tabMe => '设置';
 
   @override
   String get settingsTitle => '设置';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Settings entries listed in the 「我」tab, each opening its own page.
+/// Settings entries listed in the settings tab, each opening its own page.
 enum SettingsSection { general, appearance, ai, about }
 
 extension SettingsSectionX on SettingsSection {

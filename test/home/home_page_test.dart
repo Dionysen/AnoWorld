@@ -37,7 +37,7 @@ void main() {
     expect(find.text('会话'), findsWidgets);
     expect(find.text('故事'), findsWidgets);
     expect(find.text('玩法'), findsWidgets);
-    expect(find.text('我'), findsWidgets);
+    expect(find.text('设置'), findsWidgets);
     expect(find.text('还没有进行中的会话'), findsOneWidget);
   });
 
@@ -137,7 +137,7 @@ void main() {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('我').last);
+    await tester.tap(find.text('设置').last);
     await tester.pumpAndSettle();
 
     // Settings live in the tab itself — no separate gear entry any more.
@@ -173,7 +173,7 @@ void main() {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('我').last);
+    await tester.tap(find.text('设置').last);
     await tester.pumpAndSettle();
 
     expect(find.text('User'), findsOneWidget);
@@ -615,7 +615,7 @@ void main() {
 
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('我').last);
+    await tester.tap(find.text('设置').last);
     await tester.pumpAndSettle();
 
     expect(find.text('选一个身份或设置看详情'), findsOneWidget);
@@ -626,9 +626,9 @@ void main() {
     // Same page a narrow tap pushes: the identity hub, in the third column.
     expect(find.text('选一个身份或设置看详情'), findsNothing);
     expect(find.byType(PersonaSettingsPage), findsOneWidget);
-    // Section header in the list + the page title in the pane.
-    expect(find.text('玩家身份'), findsNWidgets(2));
-    expect(find.text('添加身份'), findsNWidgets(2));
+    // Page title + add action live on the identity hub, not the settings list.
+    expect(find.text('玩家身份'), findsOneWidget);
+    expect(find.text('添加身份'), findsOneWidget);
   });
 
   testWidgets('wide me tab opens a settings section inside the pane', (
@@ -639,7 +639,7 @@ void main() {
 
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('我').last);
+    await tester.tap(find.text('设置').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('关于'));

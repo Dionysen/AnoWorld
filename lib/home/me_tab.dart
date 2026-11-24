@@ -3,7 +3,6 @@ import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/layout/app_layout.dart';
 import 'package:anoworld/foundation/persona/user_persona.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
-import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_detail_pane.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
@@ -12,11 +11,9 @@ import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_person_avatar.dart';
-import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/home/home_tab_back.dart';
 import 'package:anoworld/settings/persona_delete.dart';
-import 'package:anoworld/settings/persona_editor_page.dart';
 import 'package:anoworld/settings/persona_labels.dart';
 import 'package:anoworld/settings/persona_settings_page.dart';
 import 'package:anoworld/settings/settings_display_labels.dart';
@@ -90,10 +87,6 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
   void _select(_MePane pane) {
     setState(() => _pane = pane);
     widget.onChromeChanged?.call();
-  }
-
-  Future<void> _addPersona(BuildContext context) {
-    return pushAppSlide(context, const PersonaEditorPage());
   }
 
   /// Wide windows preview in the detail column; narrow ones push the page.
@@ -173,7 +166,6 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
     final strings = context.strings;
     return AppPageBody.list(
       children: [
-        AppSectionHeader(strings.personaTitle, gutter: true),
         if (personae.isEmpty)
           AppPageGutter(
             child: Padding(
@@ -201,17 +193,7 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
                 ),
             ],
           ),
-        const SizedBox(height: AppTheme.spaceSm),
-        AppPageGutter(
-          child: AppButton(
-            label: strings.addPersona,
-            variant: AppButtonVariant.secondary,
-            expanded: true,
-            onPressed: () => _addPersona(context),
-          ),
-        ),
         const SizedBox(height: AppTheme.spaceLg),
-        AppSectionHeader(strings.settingsTitle, gutter: true),
         AppListTileStack(
           tiles: [
             for (final section in SettingsSection.values)
@@ -229,7 +211,7 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
   }
 }
 
-/// What the 「我」detail column shows; the flat list drives it.
+/// What the settings-tab detail column shows; the flat list drives it.
 sealed class _MePane {
   const _MePane();
 }

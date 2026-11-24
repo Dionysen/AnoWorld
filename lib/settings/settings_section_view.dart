@@ -10,7 +10,7 @@ import 'package:flutter/widgets.dart';
 
 /// One settings section as a page of its own (no section rail).
 ///
-/// The 「我」tab lists the sections flat and opens them here: pushed on narrow
+/// The settings tab lists the sections flat and opens them here: pushed on narrow
 /// windows, hosted in the detail column on wide ones.
 class SettingsSectionView extends StatelessWidget {
   const SettingsSectionView({super.key, required this.section});
