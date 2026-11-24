@@ -256,11 +256,19 @@ class LibraryBrowseViews extends StatelessWidget {
     final size = compact ? 40.0 : 56.0;
     final height = geometry.heightFor(size);
     final radius = geometry.radiusFor(size);
+    final side = BorderSide(color: scheme.outline);
     final ShapeBorder border = switch (geometry) {
-      AppAvatarGeometry.circle => const CircleBorder(),
+      AppAvatarGeometry.circle => CircleBorder(side: side),
       AppAvatarGeometry.square || AppAvatarGeometry.rectangle =>
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius),
+          side: side,
+        ),
     };
+    final fill = Color.alphaBlend(
+      scheme.onSurface.withValues(alpha: 0.04),
+      scheme.surfaceContainerHighest,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.pagePadding,
@@ -273,7 +281,7 @@ class LibraryBrowseViews extends StatelessWidget {
           child: AppPressScale(
             child: Material(
               key: createControlKey,
-              color: scheme.surfaceContainerHighest,
+              color: fill,
               shape: border,
               clipBehavior: Clip.antiAlias,
               child: InkWell(

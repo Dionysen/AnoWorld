@@ -53,13 +53,24 @@ class AppCoverTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final shape = AppUiTokens.of(context).shape();
+    final pad = compact ? AppTheme.spaceSm : AppTheme.spaceSm + 2;
+    final showFooter = title != null;
+    // Add-only tiles (no footer) sit on the page surface — draw an outline so
+    // light themes still read a clear control edge (same as [AppSurface]).
+    final shape = AppUiTokens.of(context).shape(
+      side: showFooter
+          ? BorderSide.none
+          : BorderSide(color: scheme.outline),
+    );
     final base = scheme.surfaceContainerHighest;
     final color = selected
         ? Color.alphaBlend(scheme.primary.withValues(alpha: 0.12), base)
-        : base;
-    final pad = compact ? AppTheme.spaceSm : AppTheme.spaceSm + 2;
-    final showFooter = title != null;
+        : showFooter
+            ? base
+            : Color.alphaBlend(
+                scheme.onSurface.withValues(alpha: 0.04),
+                base,
+              );
 
     final Widget body;
     if (showFooter) {

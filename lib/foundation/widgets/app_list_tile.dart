@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'app_list_hairline.dart';
+import 'app_press_scale.dart';
 import 'app_text.dart';
 
 /// Full-width tappable row (X-style): flat, no island card, hairline under the row.
@@ -85,55 +86,58 @@ class AppListTile extends StatelessWidget {
 
     final row = Material(
       color: selected ? selectedFill : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            left,
-            AppTheme.spaceInline,
-            AppTheme.spaceMd,
-            AppTheme.spaceInline,
-          ),
-          child: Row(
-            children: [
-              if (leading != null) ...[
-                leading!,
-                const SizedBox(width: AppTheme.spaceInline),
-              ] else if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: iconSize,
-                  color: emphasis ?? scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppTheme.spaceInline),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AppText(
-                      title,
-                      role: AppTextRole.subtitle,
-                      color: emphasis,
-                      maxLines: 1,
-                    ),
-                    if (subtitle != null && subtitle!.isNotEmpty) ...[
-                      const SizedBox(height: AppTheme.spaceXs),
+      child: AppPressScale(
+        enabled: onTap != null || onLongPress != null,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              left,
+              AppTheme.spaceInline,
+              AppTheme.spaceMd,
+              AppTheme.spaceInline,
+            ),
+            child: Row(
+              children: [
+                if (leading != null) ...[
+                  leading!,
+                  const SizedBox(width: AppTheme.spaceInline),
+                ] else if (icon != null) ...[
+                  Icon(
+                    icon,
+                    size: iconSize,
+                    color: emphasis ?? scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppTheme.spaceInline),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       AppText(
-                        subtitle!,
-                        role: AppTextRole.caption,
-                        maxLines: 2,
+                        title,
+                        role: AppTextRole.subtitle,
+                        color: emphasis,
+                        maxLines: 1,
                       ),
+                      if (subtitle != null && subtitle!.isNotEmpty) ...[
+                        const SizedBox(height: AppTheme.spaceXs),
+                        AppText(
+                          subtitle!,
+                          role: AppTextRole.caption,
+                          maxLines: 2,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: AppTheme.spaceSm),
-                trailing!,
+                if (trailing != null) ...[
+                  const SizedBox(width: AppTheme.spaceSm),
+                  trailing!,
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
