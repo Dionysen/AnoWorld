@@ -6,6 +6,11 @@ import 'package:anoworld/domain/models/main_story.dart';
 abstract final class ComfyWorkflowTemplates {
   static const String defaultCheckpoint = 'NoobAI-XL-Vpred-v1.0.safetensors';
   static const String defaultUpscaleModel = 'RealESRGAN_x4plus_anime_6B.pth';
+
+  /// Style LoRA on the ComfyUI host (`models/loras/`).
+  static const String defaultLoraName = 'RLI(noobai)0.1v.safetensors';
+  static const double defaultLoraStrength = 0.85;
+
   static const String defaultNegative =
       'worst quality, low quality, lowres, bad hands, mutated hands, '
       'extra digits, bad anatomy, signature, username, watermark, '
@@ -13,9 +18,12 @@ abstract final class ComfyWorkflowTemplates {
       'photo background, gradient background, patterned background, '
       'busy background';
 
+  /// Quality / aesthetic tags aligned with Illustrious·Noob **RLI** style LoRA.
+  ///
+  /// Brushwork comes from [defaultLoraName]; keep outline tags for sprite alpha.
   static const String defaultStylePrefix =
-      'masterpiece, best quality, very awa, absurdres, anime style, '
-      'detailed face, sharp focus, thick outline, anime outline, cel shading';
+      'masterpiece, best quality, amazing quality, very aesthetic, absurdres, '
+      'detailed face, sharp focus, thick outline, anime outline';
 
   /// Shared portrait framing (white studio BG for edge flood-fill alpha).
   ///
@@ -142,20 +150,36 @@ abstract final class ComfyWorkflowTemplates {
     double cfg = 4.5,
     int? seed,
     String checkpoint = defaultCheckpoint,
+    String? loraName = defaultLoraName,
+    double loraStrength = defaultLoraStrength,
     bool upscale = true,
     String upscaleModel = defaultUpscaleModel,
     String filenamePrefix = 'anoworld',
   }) {
     final resolvedSeed = seed ?? Random().nextInt(1 << 31);
+    final useLora = loraName != null && loraName.trim().isNotEmpty;
+    final modelSrc = useLora ? <dynamic>['30', 0] : <dynamic>['1', 0];
+    final clipSrc = useLora ? <dynamic>['30', 1] : <dynamic>['1', 1];
     final workflow = <String, dynamic>{
       '1': {
         'class_type': 'CheckpointLoaderSimple',
         'inputs': {'ckpt_name': checkpoint},
       },
+      if (useLora)
+        '30': {
+          'class_type': 'LoraLoader',
+          'inputs': {
+            'model': ['1', 0],
+            'clip': ['1', 1],
+            'lora_name': loraName.trim(),
+            'strength_model': loraStrength,
+            'strength_clip': loraStrength,
+          },
+        },
       '2': {
         'class_type': 'ModelSamplingDiscrete',
         'inputs': {
-          'model': ['1', 0],
+          'model': modelSrc,
           'sampling': 'v_prediction',
           'zsnr': true,
         },
@@ -170,14 +194,14 @@ abstract final class ComfyWorkflowTemplates {
       '4': {
         'class_type': 'CLIPTextEncode',
         'inputs': {
-          'clip': ['1', 1],
+          'clip': clipSrc,
           'text': positive,
         },
       },
       '5': {
         'class_type': 'CLIPTextEncode',
         'inputs': {
-          'clip': ['1', 1],
+          'clip': clipSrc,
           'text': negative,
         },
       },

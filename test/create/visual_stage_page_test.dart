@@ -68,6 +68,7 @@ void main() {
     await pumpPage(tester);
 
     // Style prefix / negative ship with defaults from the template.
+    expect(find.textContaining('very aesthetic'), findsOneWidget);
     expect(find.textContaining('thick outline'), findsOneWidget);
     expect(find.textContaining('worst quality'), findsOneWidget);
     expect(find.text('还没有立绘'), findsNWidgets(2));

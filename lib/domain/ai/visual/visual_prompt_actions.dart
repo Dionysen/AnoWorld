@@ -174,7 +174,7 @@ $castLines
 $nodeLines
 
 要求：
-1. stylePrefix 全剧相同，偏日系动漫视觉小说立绘/场景。
+1. stylePrefix 全剧相同：质量/审美标签对齐 Illustrious·Noob **RLI** 画风（masterpiece / best quality / amazing quality / very aesthetic / absurdres）；笔触由工作流里的 RLI LoRA 负责，不要写画家名、不要 invent 冲突画风词。立绘侧仍保留 thick outline / anime outline（去背需要）。
 2. 每个角色 visualTags 只锁长相（发色发型瞳色体型五官标记），不要写情节动作；若已有 existingVisualTags 则在其基础上微调，不要大改。
 3. 为每个角色选定 facing："left" 或 "right"（面朝左/右）。惯例：面朝右的站左边，面朝左的站右边，好对视；主角优先 facing=right；配角可 facing=left；若已有 existingFacing 则沿用。
 4. portraitPrompt = stylePrefix + visualTags + 上半身立绘构图 + 白底描边 + 对应朝向标签（facing left/looking left 或 facing right/looking right）；必须含 upper body（只画到腰/髋以上的半身），禁止 full body / full-length / wide shot / long shot 等全身构图；必须白底+描边，便于去背。不要 looking at viewer。
@@ -190,7 +190,8 @@ $nodeLines
         VisualPromptTarget.stylePrefix => '''
 你只负责视觉小说的统一画风前缀。只输出一行英文 Danbooru 标签串（逗号分隔），
 不要 JSON、不要 markdown、不要解释。
-- 全剧立绘与场景共用这一条，含质量标签与 thick outline / anime outline / cel shading。
+- 对齐 Illustrious·Noob RLI：含 masterpiece, best quality, amazing quality, very aesthetic, absurdres。
+- 立绘去背需要 thick outline / anime outline；不要写画家名或其它风格 LoRA 触发词。
 - 不写具体角色长相，不写地点。
 ''',
         VisualPromptTarget.negativePrompt => '''
@@ -298,7 +299,7 @@ $nodeLines
 
 Schema:
 {
-  "stylePrefix": "string — 全剧统一画风前缀，含 thick outline / anime outline",
+  "stylePrefix": "string — RLI 兼容质量前缀（amazing quality / very aesthetic / absurdres）+ thick outline",
   "negativePrompt": "string — 立绘侧应压掉 complex background / scenery",
   "characters": [
     {
