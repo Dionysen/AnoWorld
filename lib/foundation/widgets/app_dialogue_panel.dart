@@ -54,7 +54,7 @@ class AppDialoguePanel extends StatelessWidget {
             opacity: opacity,
           ),
           child: Padding(
-            padding: AppDialogueChrome.padding,
+            padding: AppDialogueChrome.paddingFor(fontSize),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,

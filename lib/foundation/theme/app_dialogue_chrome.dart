@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'app_hex_color.dart';
-import 'app_theme.dart';
 
 /// Fixed-size frosted dialogue box metrics.
 ///
@@ -24,7 +23,17 @@ abstract final class AppDialogueChrome {
   /// Reserved speaker row (kept even for narration so height stays constant).
   static const double headerHeight = 24;
 
-  static const EdgeInsets padding = EdgeInsets.all(AppTheme.spaceMd);
+  /// Panel inset and stage gutter scale with [fontSize] (half the body size).
+  static const double insetFontRatio = 0.5;
+
+  static double insetForFontSize(double fontSize) =>
+      fontSize * insetFontRatio;
+
+  static EdgeInsets paddingFor(double fontSize) =>
+      EdgeInsets.all(insetForFontSize(fontSize));
+
+  /// Horizontal inset from the stage edge to the dialogue panel.
+  static double stageMarginFor(double fontSize) => insetForFontSize(fontSize);
 
   /// Semi-transparent glass fill; the panel blurs whatever sits behind it.
   static const double defaultOpacity = 0.72;
@@ -45,10 +54,11 @@ abstract final class AppDialogueChrome {
       lines * fontSize * lineHeight;
 
   static double panelHeight({required int lines, required double fontSize}) =>
-      headerHeight + bodyHeight(lines, fontSize) + padding.vertical;
+      headerHeight + bodyHeight(lines, fontSize) + paddingFor(fontSize).vertical;
 
   /// Text width available inside a panel of [panelWidth].
-  static double textWidth(double panelWidth) => panelWidth - padding.horizontal;
+  static double textWidth(double panelWidth, double fontSize) =>
+      panelWidth - paddingFor(fontSize).horizontal;
 
   /// Body style for both rendering and pagination.
   ///
