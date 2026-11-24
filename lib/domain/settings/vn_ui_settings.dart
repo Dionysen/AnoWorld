@@ -14,6 +14,9 @@ class VnUiSettings {
     this.opacity = AppDialogueChrome.defaultOpacity,
     this.innerInsetRatio = AppDialogueChrome.defaultInnerInsetRatio,
     this.outerInsetRatio = AppDialogueChrome.defaultOuterInsetRatio,
+    this.controlSizeRatio = AppDialogueChrome.defaultControlSizeRatio,
+    this.controlTopGapRatio = AppDialogueChrome.defaultControlTopGapRatio,
+    this.controlBottomGapRatio = AppDialogueChrome.defaultControlBottomGapRatio,
   });
 
   /// Fixed body lines per dialogue page; longer text pages on.
@@ -36,8 +39,17 @@ class VnUiSettings {
   /// Text-to-panel rim inset as a multiple of [fontSize].
   final double innerInsetRatio;
 
-  /// Panel-to-stage rim inset as a multiple of [fontSize].
+  /// Dialogue panel inset from the left and right screen edges (× [fontSize]).
   final double outerInsetRatio;
+
+  /// Bottom control button diameter as a multiple of [fontSize].
+  final double controlSizeRatio;
+
+  /// Gap between the dialogue panel and the control row (× [fontSize]).
+  final double controlTopGapRatio;
+
+  /// Gap between the control row and the screen bottom (× [fontSize]).
+  final double controlBottomGapRatio;
 
   bool get followsTheme => backgroundHex.isEmpty;
 
@@ -45,37 +57,63 @@ class VnUiSettings {
 
   bool get typewriterEnabled => textSpeed > 0;
 
-  /// Fills inset defaults when prefs predate them or after a hot reload.
+  /// Fills defaults when prefs predate a field or after a hot reload.
   static VnUiSettings resolved(VnUiSettings raw) {
-    double inner;
-    double outer;
-    try {
-      inner = raw.innerInsetRatio;
-      outer = raw.outerInsetRatio;
-    } on TypeError {
-      return VnUiSettings(
-        lines: raw.lines,
-        fontSize: raw.fontSize,
-        textSpeed: raw.textSpeed,
-        backgroundHex: raw.backgroundHex,
-        textHex: raw.textHex,
-        opacity: raw.opacity,
-      );
+    double readRatio(double Function(VnUiSettings s) pick, double fallback) {
+      try {
+        return pick(raw);
+      } on TypeError {
+        return fallback;
+      }
     }
-    final clampedInner = _clampDouble(
-      inner,
+
+    final inner = _clampDouble(
+      readRatio((s) => s.innerInsetRatio, AppDialogueChrome.defaultInnerInsetRatio),
       AppDialogueChrome.minInsetRatio,
       AppDialogueChrome.maxInsetRatio,
     );
-    final clampedOuter = _clampDouble(
-      outer,
+    final outer = _clampDouble(
+      readRatio((s) => s.outerInsetRatio, AppDialogueChrome.defaultOuterInsetRatio),
       AppDialogueChrome.minInsetRatio,
       AppDialogueChrome.maxInsetRatio,
     );
-    if (clampedInner == inner && clampedOuter == outer) return raw;
-    return raw.copyWith(
-      innerInsetRatio: clampedInner,
-      outerInsetRatio: clampedOuter,
+    final control = _clampDouble(
+      readRatio(
+        (s) => s.controlSizeRatio,
+        AppDialogueChrome.defaultControlSizeRatio,
+      ),
+      AppDialogueChrome.minControlSizeRatio,
+      AppDialogueChrome.maxControlSizeRatio,
+    );
+    final topGap = _clampDouble(
+      readRatio(
+        (s) => s.controlTopGapRatio,
+        AppDialogueChrome.defaultControlTopGapRatio,
+      ),
+      AppDialogueChrome.minControlVerticalGapRatio,
+      AppDialogueChrome.maxControlVerticalGapRatio,
+    );
+    final bottomGap = _clampDouble(
+      readRatio(
+        (s) => s.controlBottomGapRatio,
+        AppDialogueChrome.defaultControlBottomGapRatio,
+      ),
+      AppDialogueChrome.minControlVerticalGapRatio,
+      AppDialogueChrome.maxControlVerticalGapRatio,
+    );
+
+    return VnUiSettings(
+      lines: raw.lines,
+      fontSize: raw.fontSize,
+      textSpeed: raw.textSpeed,
+      backgroundHex: raw.backgroundHex,
+      textHex: raw.textHex,
+      opacity: raw.opacity,
+      innerInsetRatio: inner,
+      outerInsetRatio: outer,
+      controlSizeRatio: control,
+      controlTopGapRatio: topGap,
+      controlBottomGapRatio: bottomGap,
     );
   }
 
@@ -88,6 +126,9 @@ class VnUiSettings {
     double? opacity,
     double? innerInsetRatio,
     double? outerInsetRatio,
+    double? controlSizeRatio,
+    double? controlTopGapRatio,
+    double? controlBottomGapRatio,
   }) {
     return VnUiSettings(
       lines: lines ?? this.lines,
@@ -98,6 +139,10 @@ class VnUiSettings {
       opacity: opacity ?? this.opacity,
       innerInsetRatio: innerInsetRatio ?? this.innerInsetRatio,
       outerInsetRatio: outerInsetRatio ?? this.outerInsetRatio,
+      controlSizeRatio: controlSizeRatio ?? this.controlSizeRatio,
+      controlTopGapRatio: controlTopGapRatio ?? this.controlTopGapRatio,
+      controlBottomGapRatio:
+          controlBottomGapRatio ?? this.controlBottomGapRatio,
     );
   }
 
@@ -110,10 +155,24 @@ class VnUiSettings {
         'opacity': opacity,
         'innerInsetRatio': innerInsetRatio,
         'outerInsetRatio': outerInsetRatio,
+        'controlSizeRatio': controlSizeRatio,
+        'controlTopGapRatio': controlTopGapRatio,
+        'controlBottomGapRatio': controlBottomGapRatio,
       };
 
   factory VnUiSettings.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const VnUiSettings();
+    final outerLegacy = _clampDouble(
+      (json.optionalNum('outerInsetRatio') ??
+              AppDialogueChrome.defaultOuterInsetRatio)
+          .toDouble(),
+      AppDialogueChrome.minInsetRatio,
+      AppDialogueChrome.maxInsetRatio,
+    );
+    final verticalFallback = json.containsKey('controlTopGapRatio') ||
+            json.containsKey('controlBottomGapRatio')
+        ? null
+        : outerLegacy;
     return VnUiSettings(
       lines: _clampInt(
         (json.optionalNum('lines') ?? AppDialogueChrome.defaultLines).round(),
@@ -147,12 +206,30 @@ class VnUiSettings {
         AppDialogueChrome.minInsetRatio,
         AppDialogueChrome.maxInsetRatio,
       ),
-      outerInsetRatio: _clampDouble(
-        (json.optionalNum('outerInsetRatio') ??
-                AppDialogueChrome.defaultOuterInsetRatio)
+      outerInsetRatio: outerLegacy,
+      controlSizeRatio: _clampDouble(
+        (json.optionalNum('controlSizeRatio') ??
+                AppDialogueChrome.defaultControlSizeRatio)
             .toDouble(),
-        AppDialogueChrome.minInsetRatio,
-        AppDialogueChrome.maxInsetRatio,
+        AppDialogueChrome.minControlSizeRatio,
+        AppDialogueChrome.maxControlSizeRatio,
+      ),
+      controlTopGapRatio: _clampDouble(
+        (json.optionalNum('controlTopGapRatio') ??
+                json.optionalNum('controlButtonGapRatio') ??
+                verticalFallback ??
+                AppDialogueChrome.defaultControlTopGapRatio)
+            .toDouble(),
+        AppDialogueChrome.minControlVerticalGapRatio,
+        AppDialogueChrome.maxControlVerticalGapRatio,
+      ),
+      controlBottomGapRatio: _clampDouble(
+        (json.optionalNum('controlBottomGapRatio') ??
+                verticalFallback ??
+                AppDialogueChrome.defaultControlBottomGapRatio)
+            .toDouble(),
+        AppDialogueChrome.minControlVerticalGapRatio,
+        AppDialogueChrome.maxControlVerticalGapRatio,
       ),
     );
   }
@@ -173,7 +250,10 @@ class VnUiSettings {
         other.textHex == textHex &&
         other.opacity == opacity &&
         other.innerInsetRatio == innerInsetRatio &&
-        other.outerInsetRatio == outerInsetRatio;
+        other.outerInsetRatio == outerInsetRatio &&
+        other.controlSizeRatio == controlSizeRatio &&
+        other.controlTopGapRatio == controlTopGapRatio &&
+        other.controlBottomGapRatio == controlBottomGapRatio;
   }
 
   @override
@@ -186,5 +266,8 @@ class VnUiSettings {
         opacity,
         innerInsetRatio,
         outerInsetRatio,
+        controlSizeRatio,
+        controlTopGapRatio,
+        controlBottomGapRatio,
       );
 }

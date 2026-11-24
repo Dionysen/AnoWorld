@@ -1898,25 +1898,34 @@ class _VnStageState extends State<_VnStage> {
         final fontSize = widget.settings.fontSize;
         final innerRatio = widget.settings.innerInsetRatio;
         final outerRatio = widget.settings.outerInsetRatio;
-        final stageMargin = AppDialogueChrome.stageMarginFor(
+        final stageMarginH = AppDialogueChrome.stageMarginFor(
           fontSize,
           outerInsetRatio: outerRatio,
         );
-        final controlGap = AppDialogueChrome.insetPixels(fontSize, outerRatio);
+        final controlTopGap = AppDialogueChrome.controlVerticalGap(
+          fontSize,
+          widget.settings.controlTopGapRatio,
+        );
+        final controlBottomGap = AppDialogueChrome.controlVerticalGap(
+          fontSize,
+          widget.settings.controlBottomGapRatio,
+        );
+        final controlSize = AppDialogueChrome.controlDiameter(
+          fontSize,
+          widget.settings.controlSizeRatio,
+        );
         final showControls = constraints.maxHeight >= 260;
         final controlsHeight = showControls
-            ? AppTheme.vnControlSize + controlGap
+            ? controlSize + controlTopGap + controlBottomGap
             : 0.0;
         final statusHeight = widget.status == null
             ? 0.0
             : AppTheme.spaceSm + 20;
         final panelWidth = math.max(
           0.0,
-          constraints.maxWidth - stageMargin * 2,
+          constraints.maxWidth - stageMarginH * 2,
         );
-        final available =
-            constraints.maxHeight -
-            stageMargin -
+        final available = constraints.maxHeight -
             bottomInset -
             controlsHeight -
             statusHeight;
@@ -1963,8 +1972,7 @@ class _VnStageState extends State<_VnStage> {
         final speaker = line == null ? null : widget.speakerLabel(line);
         // Everything the portrait must stand on: the reading box, the control
         // bar under it, and the gap below the controls.
-        final stageFloor = stageMargin +
-            bottomInset +
+        final stageFloor = bottomInset +
             controlsHeight +
             statusHeight +
             AppDialogueChrome.panelHeight(
@@ -2003,10 +2011,10 @@ class _VnStageState extends State<_VnStage> {
                   ),
                   Padding(
                     padding: EdgeInsets.fromLTRB(
-                      stageMargin,
+                      stageMarginH,
                       0,
-                      stageMargin,
-                      stageMargin + bottomInset,
+                      stageMarginH,
+                      controlBottomGap + bottomInset,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -2076,8 +2084,9 @@ class _VnStageState extends State<_VnStage> {
                                 ),
                         ),
                         if (showControls) ...[
-                          SizedBox(height: controlGap),
+                          SizedBox(height: controlTopGap),
                           _VnControlBar(
+                            controlSize: controlSize,
                             canBack: widget.canBack,
                             canForward: widget.canForward,
                             canFastForward: widget.canFastForward,
@@ -2108,6 +2117,7 @@ class _VnStageState extends State<_VnStage> {
 /// Stage control bar: exit, history, regenerate, reading settings.
 class _VnControlBar extends StatelessWidget {
   const _VnControlBar({
+    required this.controlSize,
     required this.canBack,
     required this.canForward,
     required this.canFastForward,
@@ -2121,6 +2131,8 @@ class _VnControlBar extends StatelessWidget {
     required this.onRegenerate,
     required this.onSettings,
   });
+
+  final double controlSize;
 
   final bool canBack;
 
@@ -2144,6 +2156,7 @@ class _VnControlBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
+    final iconSize = AppDialogueChrome.controlIconSize(controlSize);
     Widget button({
       required IconData icon,
       required String tooltip,
@@ -2152,8 +2165,8 @@ class _VnControlBar extends StatelessWidget {
       icon: icon,
       tooltip: tooltip,
       onPressed: onPressed,
-      size: AppTheme.vnControlSize,
-      iconSize: AppTheme.vnControlIconSize,
+      size: controlSize,
+      iconSize: iconSize,
     );
 
     return Wrap(
@@ -2185,8 +2198,8 @@ class _VnControlBar extends StatelessWidget {
         ),
         if (generating)
           SizedBox(
-            width: AppTheme.vnControlSize,
-            height: AppTheme.vnControlSize,
+            width: controlSize,
+            height: controlSize,
             child: Center(
               child: AppBusyIndicator(
                 padding: EdgeInsets.zero,

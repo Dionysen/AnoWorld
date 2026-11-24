@@ -1057,11 +1057,29 @@ class AppStringsZh extends AppStrings {
   String get dialogueOuterInset => '对话框边距';
 
   @override
-  String get dialogueOuterInsetHint => '框与屏幕边的距离，随字号变大变小';
+  String get dialogueOuterInsetHint => '框与屏幕左右的距离，随字号变大变小';
 
   @override
   String dialogueInsetRatioValue(double ratio) =>
       '${(ratio * 100).round()}% 字号';
+
+  @override
+  String get dialogueControlSize => '控制按钮';
+
+  @override
+  String get dialogueControlSizeHint => '对白框下方圆钮大小，随字号变大变小';
+
+  @override
+  String get dialogueControlTopGap => '按钮上间距';
+
+  @override
+  String get dialogueControlTopGapHint => '对话框与圆钮之间，随字号变大变小';
+
+  @override
+  String get dialogueControlBottomGap => '按钮下间距';
+
+  @override
+  String get dialogueControlBottomGapHint => '圆钮与屏幕底边之间，随字号变大变小';
 
   @override
   String get dialogueColorsSection => '颜色';

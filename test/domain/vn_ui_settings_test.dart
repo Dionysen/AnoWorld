@@ -16,6 +16,15 @@ void main() {
     expect(settings.textFollowsTheme, isTrue);
     expect(settings.innerInsetRatio, AppDialogueChrome.defaultInnerInsetRatio);
     expect(settings.outerInsetRatio, AppDialogueChrome.defaultOuterInsetRatio);
+    expect(settings.controlSizeRatio, AppDialogueChrome.defaultControlSizeRatio);
+    expect(
+      settings.controlTopGapRatio,
+      AppDialogueChrome.defaultControlTopGapRatio,
+    );
+    expect(
+      settings.controlBottomGapRatio,
+      AppDialogueChrome.defaultControlBottomGapRatio,
+    );
   });
 
   test('fromJson clamps out-of-range values', () {
@@ -47,6 +56,9 @@ void main() {
       opacity: 0.5,
       innerInsetRatio: 0.6,
       outerInsetRatio: 0.4,
+      controlSizeRatio: 1.2,
+      controlTopGapRatio: 0.25,
+      controlBottomGapRatio: 0.35,
     );
     final restored = VnUiSettings.fromJson(original.toJson());
     expect(restored, original);
@@ -70,6 +82,7 @@ void main() {
     });
     expect(settings.innerInsetRatio, AppDialogueChrome.defaultInnerInsetRatio);
     expect(settings.outerInsetRatio, AppDialogueChrome.defaultOuterInsetRatio);
+    expect(settings.controlSizeRatio, AppDialogueChrome.defaultControlSizeRatio);
   });
 
   test('each colour follows the theme on its own', () {

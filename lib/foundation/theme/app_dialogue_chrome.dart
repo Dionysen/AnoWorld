@@ -30,6 +30,33 @@ abstract final class AppDialogueChrome {
   static const double maxInsetRatio = 2;
   static const double insetRatioStep = 0.05;
 
+  /// Control buttons under the dialogue box: diameter = [fontSize] × ratio.
+  static const double defaultControlSizeRatio = 2;
+  static const double minControlSizeRatio = 0.5;
+  static const double maxControlSizeRatio = 4;
+  static const double controlSizeRatioStep = 0.05;
+
+  /// Vertical gaps around the control row (× [fontSize]).
+  static const double defaultControlTopGapRatio = 0;
+  static const double defaultControlBottomGapRatio = 0;
+  static const double minControlVerticalGapRatio = 0;
+  static const double maxControlVerticalGapRatio = 2;
+  static const double controlVerticalGapRatioStep = 0.05;
+
+  static double controlVerticalGap(double fontSize, double ratio) =>
+      fontSize *
+      ratio.clamp(minControlVerticalGapRatio, maxControlVerticalGapRatio);
+
+  /// Icon size inside the round VN controls (legacy 32 / 18 proportion).
+  static const double controlIconScale = 18 / 32;
+
+  static double controlDiameter(double fontSize, double ratio) =>
+      fontSize *
+      ratio.clamp(minControlSizeRatio, maxControlSizeRatio);
+
+  static double controlIconSize(double diameter) =>
+      diameter * controlIconScale;
+
   static double insetPixels(double fontSize, double ratio) =>
       fontSize * ratio.clamp(minInsetRatio, maxInsetRatio);
 

@@ -27,4 +27,20 @@ void main() {
           20,
     );
   });
+
+  test('control diameter follows font size and ratio', () {
+    expect(
+      AppDialogueChrome.controlDiameter(16, 2),
+      32,
+    );
+    expect(
+      AppDialogueChrome.controlDiameter(20, 4),
+      80,
+    );
+    expect(AppDialogueChrome.controlVerticalGap(16, 0.5), 8);
+    expect(
+      AppDialogueChrome.controlIconSize(32),
+      closeTo(18, 0.01),
+    );
+  });
 }

@@ -361,6 +361,12 @@ abstract class AppStrings extends AppLocalizations {
   String get dialogueOuterInset;
   String get dialogueOuterInsetHint;
   String dialogueInsetRatioValue(double ratio);
+  String get dialogueControlSize;
+  String get dialogueControlSizeHint;
+  String get dialogueControlTopGap;
+  String get dialogueControlTopGapHint;
+  String get dialogueControlBottomGap;
+  String get dialogueControlBottomGapHint;
   String get dialogueColorsSection;
   String get dialogueBackground;
   String get dialogueFollowTheme;
