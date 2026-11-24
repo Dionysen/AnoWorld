@@ -147,12 +147,14 @@ void main() {
     expect(find.text('其它选项'), findsOneWidget);
     expect(find.text('外观'), findsOneWidget);
     expect(find.text('主题、字体与圆角'), findsOneWidget);
-    expect(find.text('AI'), findsOneWidget);
-    expect(find.text('写故事与出图'), findsOneWidget);
+    expect(find.text('AI 配置'), findsOneWidget);
+    expect(find.text('服务地址、密钥与模型'), findsOneWidget);
+    expect(find.text('生成设置'), findsOneWidget);
+    expect(find.text('出图质量与演出'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
     expect(find.text('版本与说明'), findsOneWidget);
 
-    await tester.tap(find.text('AI'));
+    await tester.tap(find.text('AI 配置'));
     await tester.pumpAndSettle();
 
     expect(find.text('当前服务商'), findsWidgets);

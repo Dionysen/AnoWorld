@@ -1980,7 +1980,10 @@ class AppStringsZh extends AppStrings {
   String get settingsSectionAppearance => '外观';
 
   @override
-  String get settingsSectionAi => 'AI';
+  String get settingsSectionAi => 'AI 配置';
+
+  @override
+  String get settingsSectionGeneration => '生成设置';
 
   @override
   String get settingsSectionAbout => '关于';
@@ -1992,7 +1995,10 @@ class AppStringsZh extends AppStrings {
   String get settingsSectionAppearanceHint => '主题、字体与圆角';
 
   @override
-  String get settingsSectionAiHint => '写故事与出图';
+  String get settingsSectionAiHint => '服务地址、密钥与模型';
+
+  @override
+  String get settingsSectionGenerationHint => '出图质量与演出';
 
   @override
   String get settingsSectionAboutHint => '版本与说明';

@@ -101,11 +101,27 @@ void main() {
       size: const Size(800, 800),
     );
 
-    expect(find.text('AI'), findsOneWidget);
+    expect(find.text('AI 配置'), findsOneWidget);
     expect(find.text('当前服务商'), findsWidgets);
     expect(find.text('模型'), findsWidgets);
     expect(find.text('查找模型'), findsWidgets);
     expect(find.text('保存'), findsNothing);
+    expect(find.text('生图质量'), findsNothing);
+  });
+
+  testWidgets('generation section lists image quality and vn direction', (
+    tester,
+  ) async {
+    await pumpSection(
+      tester,
+      SettingsSection.generation,
+      size: const Size(800, 1200),
+    );
+
+    expect(find.text('生成设置'), findsOneWidget);
+    expect(find.text('生图质量'), findsOneWidget);
+    expect(find.text('视觉小说演出'), findsOneWidget);
+    expect(find.text('当前服务商'), findsNothing);
   });
 
   testWidgets('about section shows brand facts', (tester) async {

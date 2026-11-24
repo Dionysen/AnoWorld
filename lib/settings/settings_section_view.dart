@@ -4,6 +4,7 @@ import 'package:anoworld/settings/about_panel.dart';
 import 'package:anoworld/settings/ai_settings_panel.dart';
 import 'package:anoworld/settings/appearance_settings_panel.dart';
 import 'package:anoworld/settings/general_settings_panel.dart';
+import 'package:anoworld/settings/generation_settings_panel.dart';
 import 'package:anoworld/settings/settings_display_labels.dart';
 import 'package:anoworld/settings/settings_sections.dart';
 import 'package:flutter/widgets.dart';
@@ -32,6 +33,7 @@ Widget _bodyFor(SettingsSection section) {
     SettingsSection.general => const GeneralSettingsPanel(),
     SettingsSection.appearance => const AppearanceSettingsPanel(),
     SettingsSection.ai => const AiSettingsPanel(),
+    SettingsSection.generation => const GenerationSettingsPanel(),
     SettingsSection.about => const AboutPanel(),
   };
 }
