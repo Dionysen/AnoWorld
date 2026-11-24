@@ -10,11 +10,11 @@ abstract final class AppDialogueChrome {
   /// Visible body lines per page.
   static const int minLines = 2;
   static const int maxLines = 8;
-  static const int defaultLines = 4;
+  static const int defaultLines = 3;
 
   static const double minFontSize = 13;
   static const double maxFontSize = 26;
-  static const double defaultFontSize = 16;
+  static const double defaultFontSize = 14;
   static const double fontSizeStep = 1;
 
   /// Body line-height multiplier; the pager measures with the same value.
@@ -24,7 +24,7 @@ abstract final class AppDialogueChrome {
   static const double headerHeight = 24;
 
   /// Default inset multipliers (× body [fontSize]); overridden in [VnUiSettings].
-  static const double defaultInnerInsetRatio = 0.5;
+  static const double defaultInnerInsetRatio = 0.85;
   static const double defaultOuterInsetRatio = 0.5;
   static const double minInsetRatio = 0;
   static const double maxInsetRatio = 2;
@@ -37,8 +37,8 @@ abstract final class AppDialogueChrome {
   static const double controlSizeRatioStep = 0.05;
 
   /// Vertical gaps around the control row (× [fontSize]).
-  static const double defaultControlTopGapRatio = 0;
-  static const double defaultControlBottomGapRatio = 0;
+  static const double defaultControlTopGapRatio = 0.2;
+  static const double defaultControlBottomGapRatio = 0.2;
   static const double minControlVerticalGapRatio = 0;
   static const double maxControlVerticalGapRatio = 2;
   static const double controlVerticalGapRatioStep = 0.05;
@@ -74,7 +74,7 @@ abstract final class AppDialogueChrome {
       insetPixels(fontSize, outerInsetRatio);
 
   /// Semi-transparent glass fill; the panel blurs whatever sits behind it.
-  static const double defaultOpacity = 0.72;
+  static const double defaultOpacity = 0.4;
   static const double minOpacity = 0.2;
   static const double maxOpacity = 1;
   static const double opacityStep = 0.02;
