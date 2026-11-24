@@ -36,4 +36,22 @@ void main() {
     expect(wf.containsKey('30'), isFalse);
     expect((wf['2'] as Map)['inputs']['model'], ['1', 0]);
   });
+
+  test('portrait/scene accept custom lora', () {
+    final portrait = ComfyWorkflowTemplates.portrait(
+      prompt: '1girl',
+      loraName: 'Nicole.safetensors',
+      loraStrength: 0.6,
+    );
+    final inputs =
+        (portrait['30'] as Map)['inputs'] as Map<String, dynamic>;
+    expect(inputs['lora_name'], 'Nicole.safetensors');
+    expect(inputs['strength_model'], 0.6);
+
+    final scene = ComfyWorkflowTemplates.scene(
+      prompt: 'street',
+      loraName: null,
+    );
+    expect(scene.containsKey('30'), isFalse);
+  });
 }

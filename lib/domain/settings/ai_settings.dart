@@ -315,6 +315,8 @@ class AiImageEndpoint {
     this.baseUrl = '',
     this.apiKey = '',
     this.model = '',
+    this.lora = defaultLora,
+    this.loraStrength = defaultLoraStrength,
     this.steps = defaultSteps,
     this.upscale = defaultUpscale,
     this.portraitWidth = defaultPortraitWidth,
@@ -329,6 +331,12 @@ class AiImageEndpoint {
   static const int stepsUpperBound = 40;
   static const bool defaultUpscale = false;
 
+  /// Default style LoRA filename under ComfyUI `models/loras/`.
+  static const String defaultLora = 'RLI(noobai)0.1v.safetensors';
+  static const double defaultLoraStrength = 0.85;
+  static const double loraStrengthLowerBound = 0.0;
+  static const double loraStrengthUpperBound = 1.5;
+
   static const int defaultPortraitWidth = 768;
   static const int defaultPortraitHeight = 1152;
   static const int defaultSceneWidth = 1216;
@@ -340,6 +348,9 @@ class AiImageEndpoint {
 
   static int clampSteps(int value) =>
       value.clamp(stepsLowerBound, stepsUpperBound);
+
+  static double clampLoraStrength(double value) =>
+      value.clamp(loraStrengthLowerBound, loraStrengthUpperBound);
 
   /// Snap to [sizeStep] within [sizeLowerBound]…[sizeUpperBound].
   static int clampSize(int value) {
@@ -353,6 +364,11 @@ class AiImageEndpoint {
   final String apiKey;
   final String model;
 
+  /// ComfyUI LoRA filename; empty = do not load a LoRA.
+  final String lora;
+
+  final double loraStrength;
+
   /// Sampling steps for ComfyUI workflows.
   final int steps;
 
@@ -363,6 +379,12 @@ class AiImageEndpoint {
   final int portraitHeight;
   final int sceneWidth;
   final int sceneHeight;
+
+  /// Non-empty LoRA name for workflows, or null to omit the loader node.
+  String? get resolvedLoraName {
+    final name = lora.trim();
+    return name.isEmpty ? null : name;
+  }
 
   /// ComfyUI only needs a reachable base URL (checkpoint lives in workflow).
   bool get isConfigured {
@@ -379,6 +401,9 @@ class AiImageEndpoint {
     String? baseUrl,
     String? apiKey,
     String? model,
+    String? lora,
+    bool clearLora = false,
+    double? loraStrength,
     int? steps,
     bool? upscale,
     int? portraitWidth,
@@ -391,6 +416,8 @@ class AiImageEndpoint {
       baseUrl: baseUrl ?? this.baseUrl,
       apiKey: apiKey ?? this.apiKey,
       model: model ?? this.model,
+      lora: clearLora ? '' : (lora ?? this.lora),
+      loraStrength: clampLoraStrength(loraStrength ?? this.loraStrength),
       steps: clampSteps(steps ?? this.steps),
       upscale: upscale ?? this.upscale,
       portraitWidth: clampSize(portraitWidth ?? this.portraitWidth),
@@ -410,6 +437,8 @@ class AiImageEndpoint {
       baseUrl: next.defaultBaseUrl,
       apiKey: '',
       model: next.defaultModel,
+      lora: next == AiImageProviderKind.comfyui ? defaultLora : '',
+      loraStrength: loraStrength,
       steps: steps,
       upscale: upscale,
       portraitWidth: portraitWidth,
@@ -424,6 +453,8 @@ class AiImageEndpoint {
         'baseUrl': baseUrl,
         'apiKey': apiKey,
         'model': model,
+        'lora': lora,
+        'loraStrength': loraStrength,
         'steps': steps,
         'upscale': upscale,
         'portraitWidth': portraitWidth,
@@ -438,11 +469,19 @@ class AiImageEndpoint {
       return AiImageEndpoint.fromJson(_activeFromProviders(json));
     }
     final legacy = _legacyResolutionSizes(json.optionalString('resolution'));
+    final kind = AiImageProviderKindX.parse(json.optionalString('kind'));
+    final rawLora = json.optionalString('lora');
     return AiImageEndpoint(
-      kind: AiImageProviderKindX.parse(json.optionalString('kind')),
+      kind: kind,
       baseUrl: json.optionalString('baseUrl') ?? '',
       apiKey: json.optionalString('apiKey') ?? '',
       model: json.optionalString('model') ?? '',
+      // Missing key → keep RLI default for Comfy; explicit "" stays off.
+      lora: rawLora ??
+          (kind == AiImageProviderKind.comfyui ? defaultLora : ''),
+      loraStrength: clampLoraStrength(
+        (json.optionalNum('loraStrength') ?? defaultLoraStrength).toDouble(),
+      ),
       steps: clampSteps(
         (json.optionalNum('steps') ?? defaultSteps).toInt(),
       ),

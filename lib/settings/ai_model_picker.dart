@@ -69,6 +69,81 @@ Future<String?> showAiModelSheet(
   );
 }
 
+/// Half-sheet for ComfyUI LoRA filenames.
+///
+/// Returns `null` if dismissed; empty string means「不用 LoRA」; otherwise the
+/// selected filename under `models/loras/`.
+Future<String?> showAiLoraSheet(
+  BuildContext context, {
+  required List<String> loras,
+  required String current,
+}) {
+  return showAppSheet<String>(
+    context: context,
+    size: AppSheetSize.half,
+    builder: (context) {
+      final strings = context.strings;
+      final noneSelected = current.trim().isEmpty;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.spaceXs,
+              AppTheme.pagePadding,
+              AppTheme.spaceXs,
+            ),
+            child: AppSectionHeader(
+              strings.chooseLora,
+              subtitle: strings.chooseLoraHint,
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(
+                0,
+                AppTheme.spaceGroup,
+                0,
+                AppTheme.spaceMd,
+              ),
+              itemCount: loras.length + 1,
+              separatorBuilder: (_, _) => const SizedBox.shrink(),
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return AppListTile(
+                    title: strings.loraNone,
+                    icon: Icons.block_outlined,
+                    onTap: () => Navigator.of(context).pop(''),
+                    trailing: noneSelected
+                        ? AppText(
+                            strings.currentTag,
+                            role: AppTextRole.caption,
+                          )
+                        : null,
+                  );
+                }
+                final id = loras[index - 1];
+                return AppListTile(
+                  title: id,
+                  icon: Icons.auto_awesome_outlined,
+                  onTap: () => Navigator.of(context).pop(id),
+                  trailing: id == current
+                      ? AppText(
+                          strings.currentTag,
+                          role: AppTextRole.caption,
+                        )
+                      : null,
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 /// Half-sheet to pick thinking / reasoning effort.
 Future<AiReasoningEffort?> showAiReasoningEffortSheet(
   BuildContext context, {

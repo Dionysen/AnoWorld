@@ -2340,6 +2340,28 @@ class AppStringsZh extends AppStrings {
   String foundModelsShort(int count) => '已找到 $count 个';
 
   @override
+  String get loraLabel => '风格 LoRA';
+
+  @override
+  String get loraNone => '不使用';
+
+  @override
+  String get chooseLora => '选择 LoRA';
+
+  @override
+  String get chooseLoraHint => '来自本机 ComfyUI 的风格或角色微调';
+
+  @override
+  String get loraStrengthLabel => 'LoRA 强度';
+
+  @override
+  String get loraStrengthHint => '越大越像该风格，过大可能失真';
+
+  @override
+  String loraStrengthValue(double strength) =>
+      strength.toStringAsFixed(2);
+
+  @override
   String get reasoningLabel => '思考程度';
 
   @override

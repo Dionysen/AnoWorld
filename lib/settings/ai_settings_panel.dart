@@ -5,11 +5,13 @@ import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/ai/ai_model_catalog.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
+import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_text_edit_tile.dart';
 import 'package:anoworld/settings/ai_model_picker.dart';
@@ -346,6 +348,7 @@ class _ImageChannelEditor extends StatefulWidget {
 class _ImageChannelEditorState extends State<_ImageChannelEditor> {
   AiImageProviderKind? _boundKind;
   List<String> _models = const [];
+  List<String> _loras = const [];
   bool _probing = false;
   String? _probeStatus;
   Timer? _probeDebounce;
@@ -368,6 +371,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     if (widget.endpoint.kind != _boundKind) {
       _boundKind = widget.endpoint.kind;
       _models = const [];
+      _loras = const [];
       _probeStatus = null;
       _lastProbedSignature = null;
       _scheduleAutoProbe(immediate: true);
@@ -384,6 +388,9 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
   }
 
   AiImageEndpoint get _endpoint => widget.endpoint;
+
+  bool get _supportsLora =>
+      widget.endpoint.kind == AiImageProviderKind.comfyui;
 
   String get _probeSignature {
     final d = _endpoint;
@@ -434,9 +441,17 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     });
     try {
       List<String> models;
+      var loras = const <String>[];
+      final config = AiEndpointConfig.fromImage(_endpoint);
       if (widget.endpoint.supportsModelProbe) {
-        models = await widget.catalog
-            .listModels(AiEndpointConfig.fromImage(_endpoint));
+        models = await widget.catalog.listModels(config);
+        if (_supportsLora) {
+          loras = await widget.catalog.listLoras(config);
+          AppLog.instance.info(
+            '查到 LoRA ${loras.length} 个',
+            tag: 'ai.image.lora',
+          );
+        }
       } else {
         models = List<String>.from(widget.endpoint.kind.fallbackModels);
       }
@@ -445,6 +460,7 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
           widget.endpoint.model.trim().isEmpty && models.isNotEmpty;
       setState(() {
         _models = models;
+        _loras = loras;
         _probing = false;
         _lastProbedSignature = signature;
         _probeStatus = context.strings.foundModels(models.length);
@@ -452,8 +468,14 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
       if (shouldPickDefault) {
         widget.onChanged(_endpoint.copyWith(model: models.first));
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (!mounted) return;
+      AppLog.instance.error(
+        '查找生图模型失败',
+        tag: 'ai.image.probe',
+        error: error,
+        stackTrace: stack,
+      );
       final fallback = widget.endpoint.kind.fallbackModels;
       if (fallback.isNotEmpty) {
         setState(() {
@@ -487,6 +509,31 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
     widget.onChanged(_endpoint.copyWith(model: selected));
   }
 
+  Future<void> _pickLora() async {
+    if (_loras.isEmpty && !_probing) {
+      await _probeModels(force: true);
+    }
+    if (!mounted) return;
+    final current = widget.endpoint.lora.trim();
+    final options = List<String>.from(_loras);
+    if (current.isNotEmpty && !options.contains(current)) {
+      options.insert(0, current);
+    }
+    final selected = await showAiLoraSheet(
+      context,
+      loras: options,
+      current: current,
+    );
+    if (selected == null || !mounted) return;
+    if (selected.isEmpty) {
+      widget.onChanged(_endpoint.copyWith(clearLora: true));
+      AppLog.instance.info('已关闭风格 LoRA', tag: 'ai.image.lora');
+    } else {
+      widget.onChanged(_endpoint.copyWith(lora: selected));
+      AppLog.instance.info('选用 LoRA $selected', tag: 'ai.image.lora');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
@@ -508,6 +555,8 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
       ),
       probing: _probing,
       probeStatus: _probeStatus,
+      lora: _supportsLora ? widget.endpoint.lora : null,
+      loraStrength: _supportsLora ? widget.endpoint.loraStrength : null,
       onBaseSubmitted: (value) {
         widget.onChanged(_endpoint.copyWith(baseUrl: value));
       },
@@ -515,6 +564,12 @@ class _ImageChannelEditorState extends State<_ImageChannelEditor> {
         widget.onChanged(_endpoint.copyWith(apiKey: value));
       },
       onPickModel: _probing ? null : _pickModel,
+      onPickLora: _supportsLora && !_probing ? _pickLora : null,
+      onLoraStrength: _supportsLora
+          ? (value) => widget.onChanged(
+                _endpoint.copyWith(loraStrength: value),
+              )
+          : null,
       onProbe: _probing ? null : () => _probeModels(force: true),
     );
   }
@@ -538,6 +593,10 @@ class _ChannelScaffold extends StatelessWidget {
     required this.onKeySubmitted,
     required this.onPickModel,
     required this.onProbe,
+    this.lora,
+    this.loraStrength,
+    this.onPickLora,
+    this.onLoraStrength,
     this.reasoningEffortLabel,
     this.onPickReasoningEffort,
   });
@@ -558,6 +617,12 @@ class _ChannelScaffold extends StatelessWidget {
   final ValueChanged<String> onKeySubmitted;
   final VoidCallback? onPickModel;
   final VoidCallback? onProbe;
+
+  /// Non-null only for ComfyUI image channel (shows LoRA picker).
+  final String? lora;
+  final double? loraStrength;
+  final VoidCallback? onPickLora;
+  final ValueChanged<double>? onLoraStrength;
   final String? reasoningEffortLabel;
   final VoidCallback? onPickReasoningEffort;
 
@@ -568,6 +633,11 @@ class _ChannelScaffold extends StatelessWidget {
         ? (modelHint ?? strings.modelNotChosen)
         : model.trim();
     final showEffort = onPickReasoningEffort != null;
+    final showLora = onPickLora != null;
+    final loraTrailing = (lora == null || lora!.trim().isEmpty)
+        ? strings.loraNone
+        : lora!.trim();
+    final hasLora = lora != null && lora!.trim().isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -631,6 +701,43 @@ class _ChannelScaffold extends StatelessWidget {
             ],
           ),
         ),
+        if (showLora) ...[
+          AppListTile(
+            title: strings.loraLabel,
+            subtitle: probing ? strings.probingShort : strings.tapToChoose,
+            icon: Icons.auto_awesome_outlined,
+            onTap: onPickLora,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 120),
+                  child: AppText(
+                    loraTrailing,
+                    role: AppTextRole.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spaceXs),
+                const AppForwardIcon(),
+              ],
+            ),
+          ),
+          if (hasLora && onLoraStrength != null && loraStrength != null)
+            AppSlider(
+              label: strings.loraStrengthLabel,
+              subtitle: strings.loraStrengthHint,
+              icon: Icons.tune_outlined,
+              value: loraStrength!,
+              min: AiImageEndpoint.loraStrengthLowerBound,
+              max: AiImageEndpoint.loraStrengthUpperBound,
+              step: 0.05,
+              valueText: strings.loraStrengthValue,
+              onChanged: onLoraStrength!,
+            ),
+        ],
         if (showEffort)
           AppListTile(
             title: strings.reasoningLabel,

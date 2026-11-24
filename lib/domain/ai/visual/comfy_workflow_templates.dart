@@ -331,6 +331,8 @@ abstract final class ComfyWorkflowTemplates {
     int steps = 12,
     bool upscale = false,
     String checkpoint = defaultCheckpoint,
+    String? loraName = defaultLoraName,
+    double loraStrength = defaultLoraStrength,
   }) {
     return noobaiTxt2Img(
       positive: enforcePortraitFraming(prompt),
@@ -341,6 +343,8 @@ abstract final class ComfyWorkflowTemplates {
       cfg: 4.5,
       upscale: upscale,
       checkpoint: checkpoint,
+      loraName: loraName,
+      loraStrength: loraStrength,
       filenamePrefix: 'anoworld_avatar',
     );
   }
@@ -353,6 +357,8 @@ abstract final class ComfyWorkflowTemplates {
     int steps = 12,
     bool upscale = false,
     String checkpoint = defaultCheckpoint,
+    String? loraName = defaultLoraName,
+    double loraStrength = defaultLoraStrength,
   }) {
     return noobaiTxt2Img(
       positive: prompt,
@@ -363,6 +369,8 @@ abstract final class ComfyWorkflowTemplates {
       cfg: 4.5,
       upscale: upscale,
       checkpoint: checkpoint,
+      loraName: loraName,
+      loraStrength: loraStrength,
       filenamePrefix: 'anoworld_scene',
     );
   }

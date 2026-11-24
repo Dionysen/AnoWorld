@@ -131,6 +131,8 @@ void main() {
     expect(restored.sceneWidth, 1280);
     expect(restored.sceneHeight, 704);
     expect(restored.toJson()['sceneWidth'], 1280);
+    expect(restored.lora, AiImageEndpoint.defaultLora);
+    expect(restored.loraStrength, AiImageEndpoint.defaultLoraStrength);
 
     final legacy = AiImageEndpoint.fromJson(<String, dynamic>{
       'resolution': 'small',
@@ -143,6 +145,34 @@ void main() {
       AiImageEndpoint.stepsUpperBound,
     );
     expect(AiImageEndpoint.clampSize(700), 704);
+  });
+
+  test('ComfyUI lora round-trips and can be cleared', () {
+    const endpoint = AiImageEndpoint(
+      kind: AiImageProviderKind.comfyui,
+      baseUrl: 'http://127.0.0.1:8188',
+      lora: 'Nicole.safetensors',
+      loraStrength: 0.7,
+    );
+    final restored = AiImageEndpoint.fromJson(endpoint.toJson());
+    expect(restored.lora, 'Nicole.safetensors');
+    expect(restored.loraStrength, 0.7);
+    expect(restored.resolvedLoraName, 'Nicole.safetensors');
+
+    final cleared = endpoint.copyWith(clearLora: true);
+    expect(cleared.lora, isEmpty);
+    expect(cleared.resolvedLoraName, isNull);
+
+    final off = AiImageEndpoint.fromJson(<String, dynamic>{
+      'kind': 'comfyui',
+      'lora': '',
+    });
+    expect(off.lora, isEmpty);
+
+    final switched = const AiImageEndpoint().switchKind(
+      AiImageProviderKind.comfyui,
+    );
+    expect(switched.lora, AiImageEndpoint.defaultLora);
   });
 
   test('minGraphStations defaults, clamps and round-trips', () {

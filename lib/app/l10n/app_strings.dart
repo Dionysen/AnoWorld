@@ -798,6 +798,13 @@ abstract class AppStrings extends AppLocalizations {
   String get modelNotChosen;
   String get modelHintNone;
   String foundModelsShort(int count);
+  String get loraLabel;
+  String get loraNone;
+  String get chooseLora;
+  String get chooseLoraHint;
+  String get loraStrengthLabel;
+  String get loraStrengthHint;
+  String loraStrengthValue(double strength);
   String get reasoningLabel;
   String get reasoningHint;
   String get probeModels;

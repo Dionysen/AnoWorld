@@ -79,4 +79,51 @@ void main() {
       throwsA(isA<AiModelCatalogException>()),
     );
   });
+
+  test('lists ComfyUI loras from /models/loras', () async {
+    final client = MockClient((request) async {
+      expect(
+        request.url.toString(),
+        'http://127.0.0.1:8188/models/loras',
+      );
+      return http.Response(
+        '["RLI(noobai)0.1v.safetensors","Nicole.safetensors"]',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final catalog = HttpOpenAiModelCatalog(client: client);
+    final loras = await catalog.listLoras(
+      const AiEndpointConfig(
+        baseUrl: 'http://127.0.0.1:8188',
+        apiKey: '',
+        model: '',
+        needsApiKey: false,
+        defaultBaseUrl: 'http://127.0.0.1:8188',
+        imageKind: AiImageProviderKind.comfyui,
+      ),
+    );
+
+    expect(loras, [
+      'Nicole.safetensors',
+      'RLI(noobai)0.1v.safetensors',
+    ]);
+  });
+
+  test('listLoras is empty for non-Comfy providers', () async {
+    final catalog = HttpOpenAiModelCatalog(client: MockClient((_) async {
+      fail('should not call network');
+    }));
+    final loras = await catalog.listLoras(
+      const AiEndpointConfig(
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk',
+        model: 'dall-e-3',
+        needsApiKey: true,
+        imageKind: AiImageProviderKind.openai,
+      ),
+    );
+    expect(loras, isEmpty);
+  });
 }

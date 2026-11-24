@@ -89,6 +89,8 @@ class VisualImagePipeline {
             steps: resolvedSteps,
             upscale: resolvedUpscale,
             checkpoint: _checkpoint(image),
+            loraName: image.resolvedLoraName,
+            loraStrength: image.loraStrength,
           ),
           clientId: 'anoworld-avatar-${row.characterId}',
         );
@@ -148,6 +150,8 @@ class VisualImagePipeline {
             steps: resolvedSteps,
             upscale: resolvedUpscale,
             checkpoint: _checkpoint(image),
+            loraName: image.resolvedLoraName,
+            loraStrength: image.loraStrength,
           ),
           clientId: 'anoworld-scene-${row.nodeId}',
         );
@@ -233,6 +237,8 @@ class VisualImagePipeline {
         steps: image.steps,
         upscale: image.upscale,
         checkpoint: _checkpoint(image),
+        loraName: image.resolvedLoraName,
+        loraStrength: image.loraStrength,
       ),
       clientId: 'anoworld-avatar-regen-$characterId',
     );
@@ -299,6 +305,8 @@ class VisualImagePipeline {
         steps: image.steps,
         upscale: image.upscale,
         checkpoint: _checkpoint(image),
+        loraName: image.resolvedLoraName,
+        loraStrength: image.loraStrength,
       ),
       clientId: 'anoworld-scene-regen-$nodeId',
     );
