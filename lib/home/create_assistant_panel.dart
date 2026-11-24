@@ -33,6 +33,7 @@ import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/create_assistant_draft.dart';
 import 'package:anoworld/home/create_assistant_draft_store.dart';
 import 'package:anoworld/home/patch_review_sheet.dart';
+import 'package:anoworld/home/whole_graph_review.dart';
 import 'package:flutter/material.dart';
 
 /// Create-assistant conversation body (inside [CreateAssistantBloomShell]).
@@ -622,37 +623,14 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
           Map<String, dynamic>.from(raw),
         );
         plan.wholeGraph = next;
-        final branches = next.edges
-            .where((e) => e.kind == EdgeKind.branch)
-            .length;
-        final bits = <String>[strings.stopCount(next.nodes.length)];
-        if (branches > 0) bits.add(strings.branchCount(branches));
-        final note = <String>[bits.join(' · ')];
-        if (project.main.hasAuthoredNodes) {
-          note.add(
-            project.main.beats.isNotEmpty
-                ? strings.replaceStopsWithBeats(
-                    project.main.nodes.length,
-                    project.main.beats.length,
-                  )
-                : strings.replaceStops(project.main.nodes.length),
-          );
-        }
-        if (next.summary.trim().isNotEmpty) note.add(next.summary.trim());
         plan.groups.add(
-          PatchReviewGroup(
-            title: strings.assistantTargetGraph,
-            rows: [
-              PatchReviewRow(
-                id: 'replace',
-                title: strings.generatedPlotTitle,
-                note: note.join('\n'),
-                details: [for (final node in next.nodes) _nodeLine(node)],
-              ),
-            ],
+          WholeGraphReview.group(
+            strings: strings,
+            project: project,
+            next: next,
           ),
         );
-        plan.defaultSelection.add('replace');
+        plan.defaultSelection.addAll(WholeGraphReview.defaultSelection);
       }
     } else if (graph != null) {
       final ops = _previewOps(graph.preview);
@@ -677,15 +655,6 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     }
 
     return plan.isEmpty ? null : plan;
-  }
-
-  /// One station line in the whole-graph review row.
-  static String _nodeLine(StoryNode node) {
-    final synopsis = node.synopsis?.trim() ?? '';
-    final ending = node.tags.contains('ending') ? ' · 终局' : '';
-    return synopsis.isEmpty
-        ? '· ${node.title}$ending'
-        : '· ${node.title}$ending — $synopsis';
   }
 
   void _addOpsGroup<T>(
@@ -759,7 +728,9 @@ class CreateAssistantPanelState extends State<CreateAssistantPanel> {
     }
 
     if (plan.wholeGraph != null) {
-      if (picked.contains('replace')) graph = plan.wholeGraph;
+      if (picked.contains(WholeGraphReview.replaceRowId)) {
+        graph = plan.wholeGraph;
+      }
     } else if (plan.graph != null) {
       final indices = _pickedIndices(picked, 'main');
       if (indices.isNotEmpty) {

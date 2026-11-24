@@ -5,8 +5,10 @@ import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _ScriptedTextClient implements AiTextClient {
@@ -114,6 +116,57 @@ void main() {
     expect(main.beats, isEmpty);
     expect(main.nodes.length, greaterThanOrEqualTo(4));
     expect(main.edges, isNotEmpty);
+  });
+
+  test('generateMain includes selected plot elements in the user prompt',
+      () async {
+    final client = _ScriptedTextClient([
+      '''
+{"summary":"短主线","stations":[
+{"title":"城门","synopsis":"离开","exits":[{"to":"客栈","kind":"default"}]},
+{"title":"客栈","synopsis":"投宿","exits":[{"to":"巷口","kind":"default"}]},
+{"title":"荒野","synopsis":"独行","exits":[{"to":"巷口","kind":"default"}]},
+{"title":"巷口","synopsis":"汇合","exits":[{"to":"end","kind":"default"}]}
+]}
+''',
+    ]);
+    final actions = StagedCreateActions(
+      textClient: client,
+      minGraphStations: 4,
+    );
+    final catalog = PlotElementCatalog(
+      custom: const [
+        PlotElement(
+          id: 'pe_rain',
+          keyword: '雨夜相遇',
+          description: '在雨里撞见对方',
+          categoryId: 'cat_emotion',
+        ),
+      ],
+    );
+    await actions.generateMain(
+      ctx: ctx(),
+      prompt: StagedCreateActions.autoGeneratePlotPrompt,
+      worldBook: const WorldBook(
+        entries: [
+          WorldBookEntry(
+            id: 'bg',
+            title: '世界',
+            body: '边城',
+            alwaysOn: true,
+          ),
+        ],
+      ),
+      cast: const [CastMember(id: 'c_0', name: '少年')],
+      plotCatalog: catalog,
+      plotSelection: const PlotElementSelection(selectedIds: ['pe_rain']),
+    );
+    expect(client.users.single, contains('雨夜相遇'));
+    expect(client.users.single, contains('在雨里撞见对方'));
+    expect(
+      client.users.single,
+      contains(StagedCreateActions.autoGeneratePlotPrompt),
+    );
   });
 
   test('applyCast does not wipe main', () {

@@ -514,6 +514,8 @@ abstract class AppStrings extends AppLocalizations {
   String get mainGraphOverviewTitle;
   String get mainGraphOverviewHint;
   String get mainGraphOpenFailed;
+  String get mainGraphGenerate;
+  String get mainGraphGenerateFailed;
   String get noStory;
 
   String get cardImportSection;

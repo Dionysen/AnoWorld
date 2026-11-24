@@ -1501,6 +1501,12 @@ class AppStringsZh extends AppStrings {
   String get mainGraphOpenFailed => '打不开情节图';
 
   @override
+  String get mainGraphGenerate => '一键生成情节';
+
+  @override
+  String get mainGraphGenerateFailed => '没生成出来，稍后再试';
+
+  @override
   String get noStory => '没有故事';
 
   @override

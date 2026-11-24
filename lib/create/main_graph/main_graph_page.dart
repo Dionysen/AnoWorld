@@ -13,7 +13,12 @@ import 'package:anoworld/create/main_graph/story_node_kind_labels.dart';
 import 'package:anoworld/create/main_graph/story_node_kind_style.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
 import 'package:anoworld/domain/ai/expand_edge_detail_action.dart';
+import 'package:anoworld/domain/ai/staged_create_actions.dart';
 import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
+import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
+import 'package:anoworld/home/patch_review_sheet.dart';
+import 'package:anoworld/home/whole_graph_review.dart';
 import 'package:anoworld/domain/main/main_graph_layout.dart';
 import 'package:anoworld/domain/main/main_graph_ops.dart';
 import 'package:anoworld/domain/models/main_story.dart';
@@ -84,6 +89,7 @@ class _MainGraphPageState extends State<MainGraphPage>
   String? _selectedId;
   String? _selectedEdgeId;
   String? _regenBusyNodeId;
+  bool _generatingPlot = false;
   final Map<String, Uint8List> _nodeThumbnails = {};
   final _viewportCamera = GraphViewportController();
   final _overviewPanelKey = GlobalKey<AppDockedPanelState>();
@@ -598,6 +604,85 @@ class _MainGraphPageState extends State<MainGraphPage>
     );
   }
 
+  Future<void> _generatePlot() async {
+    final project = _project;
+    if (project == null || _generatingPlot) return;
+    final strings = context.strings;
+    final settings = AppScope.settingsOf(context);
+    final endpoint = settings.ai.text;
+    if (!endpoint.isConfigured ||
+        (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
+      showAppToast(context, strings.assistantNeedsService);
+      return;
+    }
+    setState(() => _generatingPlot = true);
+    AppLog.instance.info('情节图一键生成开始', tag: 'main.generate');
+    try {
+      final actions = StagedCreateActions(
+        textClient: AppScope.textClientOf(context),
+        minGraphStations: settings.ai.minGraphStations,
+      );
+      final next = await actions.generateMain(
+        ctx: settings.textPromptContext(),
+        prompt: StagedCreateActions.autoGeneratePlotPrompt,
+        worldBook: project.worldBook,
+        cast: project.cast,
+        plotCatalog: settings.plotElements,
+        plotSelection: project.plotElements,
+      );
+      if (!mounted) return;
+      setState(() => _generatingPlot = false);
+      final group = WholeGraphReview.group(
+        strings: strings,
+        project: project,
+        next: next,
+      );
+      final picked = await showPatchReviewSheet(
+        context: context,
+        groups: [group],
+        initialSelection: WholeGraphReview.defaultSelection,
+      );
+      if (!mounted) return;
+      if (picked == null) {
+        AppLog.instance.info('情节图一键生成放弃', tag: 'main.generate');
+        return;
+      }
+      if (!picked.contains(WholeGraphReview.replaceRowId)) {
+        AppLog.instance.info('情节图一键生成未勾选写入', tag: 'main.generate');
+        return;
+      }
+      await _persist(next);
+      if (!mounted) return;
+      AppScope.projectChangesOf(context).markChanged(widget.projectId);
+      _focusStation(next.startNodeId);
+      AppLog.instance.info(
+        '情节图一键生成已写入 ${next.nodes.length} 站',
+        tag: 'main.generate',
+      );
+      showAppToast(context, strings.assistantGraphSaved);
+    } on AiTextException catch (error, stack) {
+      AppLog.instance.error(
+        '情节图一键生成失败',
+        tag: 'main.generate',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() => _generatingPlot = false);
+      showAppToast(context, error.message);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '情节图一键生成失败',
+        tag: 'main.generate',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() => _generatingPlot = false);
+      showAppToast(context, strings.mainGraphGenerateFailed);
+    }
+  }
+
   Future<void> _regenerateScene(String nodeId) async {
     final project = _project;
     final dir = _projectDir;
@@ -1069,20 +1154,39 @@ class _MainGraphPageState extends State<MainGraphPage>
       title: strings.mainTitle,
       onBack: () => Navigator.of(context).maybePop(),
       actions: [
+        if (_generatingPlot)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppTheme.spaceXs),
+            child: AppBusyIndicator(size: 22, padding: EdgeInsets.zero),
+          )
+        else
+          AppCircleButton(
+            icon: Icons.auto_awesome,
+            tooltip: strings.mainGraphGenerate,
+            onPressed: editorReady ? _generatePlot : null,
+          ),
         AppCircleButton(
           icon: Icons.undo,
           tooltip: strings.undoAction,
-          onPressed: editorReady && _history.canUndo ? _undo : null,
+          onPressed: editorReady &&
+                  !_generatingPlot &&
+                  _history.canUndo
+              ? _undo
+              : null,
         ),
         AppCircleButton(
           icon: Icons.redo,
           tooltip: strings.redoAction,
-          onPressed: editorReady && _history.canRedo ? _redo : null,
+          onPressed: editorReady &&
+                  !_generatingPlot &&
+                  _history.canRedo
+              ? _redo
+              : null,
         ),
         AppCircleButton(
           icon: Icons.more_horiz,
           tooltip: ui.more,
-          onPressed: editorReady ? _openMoreMenu : null,
+          onPressed: editorReady && !_generatingPlot ? _openMoreMenu : null,
         ),
       ],
       body: _loading

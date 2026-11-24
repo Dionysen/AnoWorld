@@ -26,6 +26,7 @@
 ## 创作助手（通用 Agent）
 
 - UI：[`CreateAssistantPanel`](../lib/home/create_assistant_panel.dart) 顶部只放「当前故事」选择（取代原来的「创作助手」标题），并自动跟随当前打开的编辑页：进入某个故事的故事页 / 情节图 / 世界书 / 角色 / 剧情元素选择页时切到该故事（[`CreateAssistantStoryScope`](../lib/home/create_assistant_story_scope.dart) → `CreateAssistantController.storyContext`，子页盖在父页之上、返回后落回父页的故事），用户仍可手动改选。矮窗展开后仍画对话与输入（[`CreateAssistantBloomShell`](../lib/home/create_assistant_bloom_shell.dart) 不再用绝对高度门槛整块隐藏）；高度再紧时藏故事选择，保住 composer。没有编辑范围开关：一次回合永远是全层可读可写，由模型自己判断改哪一层。
+- 情节图页标题栏「一键生成情节」：不经助手对话，走 [`StagedCreateActions.generateMain`](../lib/domain/ai/staged_create_actions.dart)（世界书 + 角色 + 已选剧情元素 + 设置偏好 / 最少站数；内部固定 `autoGeneratePlotPrompt`），整图审查行与助手共用 [`WholeGraphReview`](../lib/home/whole_graph_review.dart) → `showPatchReviewSheet`，确认后才写入。
 - 回合：`runTurn(prompt)` 走 [`CreateAgentLoop`](../lib/domain/ai/create/create_agent_loop.dart)——注入五层 L1 目录（含预设段名与启用状态，预设只读）与全部工具，模型自己读（`*.read_*` / `main.read_graph`）、自己写（`main.replace` / `main.patch` / `*.patch`），最多 10 步。选工具不再靠关键词，读工具真正会被调用。
 - 白名单：[`CreateToolRegistry.assistantTools`](../lib/domain/ai/create/create_tool_registry.dart) 是所有读工具 + 五个写工具（`main.replace` / `main.patch` / `world.patch` / `cast.patch` / `plot.select`）。卡片导入工具（`card.*`）不参与聊天回合。
 - 工具名：内部与日志用带点的规范名（`world.patch`），发给模型时换成下划线（`world_patch`）——OpenAI 兼容网关要求 `tools[].function.name` 匹配 `^[a-zA-Z0-9_-]+$`，带点会直接 400。注册表两种叫法都认，回放 `tool_calls` 时也写成下划线。

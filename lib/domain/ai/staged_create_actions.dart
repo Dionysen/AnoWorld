@@ -5,8 +5,10 @@ import 'package:anoworld/domain/ai/stage_result_mapper.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
+import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/domain/validation/project_validator.dart';
 
 /// Structured AI actions for UX path 3 (world → cast → short main).
@@ -55,11 +57,19 @@ class StagedCreateActions {
     );
   }
 
+  /// Fixed brief for one-click plot generation on the main-graph page
+  /// (model-facing; not shown in the UI).
+  static const autoGeneratePlotPrompt =
+      '根据当前世界书、角色与已选剧情元素，生成完整情节骨架。'
+      '把剧情元素按分类织入不同分叉，角色与设定保持一致；不要输出对白。';
+
   Future<MainStory> generateMain({
     required AiPromptContext ctx,
     required String prompt,
     required WorldBook worldBook,
     required List<CastMember> cast,
+    PlotElementCatalog? plotCatalog,
+    PlotElementSelection plotSelection = const PlotElementSelection(),
   }) async {
     final castLines = cast
         .map((c) => '- ${c.name}：${c.summary}')
@@ -73,6 +83,7 @@ class StagedCreateActions {
       ),
       worldBook: worldBook,
       cast: cast,
+      plotElements: plotSelection,
       main: const MainStory(
         summary: '',
         startNodeId: '',
@@ -84,13 +95,32 @@ class StagedCreateActions {
     final floor = AiSettings.clampMinGraphStations(minGraphStations);
     final system = ctx.assembleSystem(
       project: stub,
+      plotCatalog: plotCatalog,
       taskSuffix: _mainSchema(floor),
     );
+    final plotBlock = plotCatalog?.promptBlockForSelected(
+          plotSelection.selectedIds,
+        ) ??
+        '';
+    final user = StringBuffer()
+      ..writeln('已有设定：')
+      ..writeln(worldBook.combinedText)
+      ..writeln()
+      ..writeln('角色：')
+      ..writeln(castLines);
+    if (plotBlock.isNotEmpty) {
+      user
+        ..writeln()
+        ..writeln(plotBlock);
+    }
+    user
+      ..writeln()
+      ..writeln('用户提示：')
+      ..writeln(prompt.trim());
     final main = await _completeMapped(
       ctx: ctx,
       system: system,
-      user: '已有设定：\n${worldBook.combinedText}\n\n'
-          '角色：\n$castLines\n\n用户提示：\n${prompt.trim()}',
+      user: user.toString(),
       map: (raw) => mapper.mainFromRaw(
         raw,
         cast: cast,
