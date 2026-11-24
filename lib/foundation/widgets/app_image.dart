@@ -25,11 +25,29 @@ class AppImage extends StatelessWidget {
 
   ImageProvider? _provider(int? cacheWidth) {
     final data = bytes;
-    final ImageProvider? base = data != null
-        ? MemoryImage(data)
-        : (path == null || path!.isEmpty ? null : FileImage(File(path!)));
+    final ImageProvider? base;
+    if (data != null) {
+      base = MemoryImage(data);
+    } else if (path == null || path!.isEmpty) {
+      base = null;
+    } else {
+      final file = File(path!);
+      base = _StampedFileImage(file, stamp: _modifiedMicros(file));
+    }
     if (base == null) return null;
     return ResizeImage.resizeIfNeeded(cacheWidth, null, base);
+  }
+
+  /// File mtime in microseconds (0 when unreadable).
+  ///
+  /// Regenerated pictures are written over the same path, so the plain
+  /// `FileImage` key would keep serving the old frame from the image cache.
+  static int _modifiedMicros(File file) {
+    try {
+      return file.lastModifiedSync().microsecondsSinceEpoch;
+    } on FileSystemException {
+      return 0;
+    }
   }
 
   @override
@@ -54,4 +72,24 @@ class AppImage extends StatelessWidget {
       },
     );
   }
+}
+
+/// [FileImage] whose cache identity also carries the file's mtime.
+///
+/// Same path, new pixels (a regenerated portrait) must decode again rather than
+/// reuse the cached frame the previous file produced.
+class _StampedFileImage extends FileImage {
+  const _StampedFileImage(super.file, {required this.stamp});
+
+  final int stamp;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _StampedFileImage &&
+      other.file.path == file.path &&
+      other.scale == scale &&
+      other.stamp == stamp;
+
+  @override
+  int get hashCode => Object.hash(file.path, scale, stamp);
 }

@@ -6,6 +6,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/app/settings_controller.dart';
+import 'package:anoworld/app/visual_image_job_controller.dart';
 import 'package:anoworld/data/folder/memory_project_folder_repository.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/data/save/memory_save_repository.dart';
@@ -92,18 +93,24 @@ Widget testScoped({
   AppPaneWidthController? paneWidth,
   AiTextClient? textClient,
   ProjectChangeNotifier? projectChanges,
+  VisualImageJobController? visualJobs,
   List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
 }) {
   final controller = settings ?? testSettingsController();
+  final projectsRepo = projects ?? MemoryProjectRepository();
+  final changes = projectChanges ?? ProjectChangeNotifier();
   return AppScope(
-    projects: projects ?? MemoryProjectRepository(),
+    projects: projectsRepo,
     saves: saves ?? MemorySaveRepository(),
     folders: folders ?? MemoryProjectFolderRepository(),
     settings: controller,
     libraryDisplay: libraryDisplay ?? LibraryDisplayController(),
     paneWidth: paneWidth ?? AppPaneWidthController(),
     createAssistant: CreateAssistantController(),
-    projectChanges: projectChanges ?? ProjectChangeNotifier(),
+    projectChanges: changes,
+    visualJobs:
+        visualJobs ??
+        VisualImageJobController(projects: projectsRepo, changes: changes),
     textClient: textClient,
     child: ListenableBuilder(
       listenable: controller,

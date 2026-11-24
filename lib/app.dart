@@ -5,6 +5,7 @@ import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/app/settings_controller.dart';
+import 'package:anoworld/app/visual_image_job_controller.dart';
 import 'package:anoworld/data/folder/file_project_folder_repository.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
 import 'package:anoworld/data/save/file_save_repository.dart';
@@ -72,6 +73,16 @@ class _AppState extends State<App> with WidgetsBindingObserver {
   late final CreateAssistantController _createAssistant =
       widget.createAssistant ?? CreateAssistantController();
   final ProjectChangeNotifier _projectChanges = ProjectChangeNotifier();
+
+  /// One repository instance for the whole app: the picture jobs keep the same
+  /// object the pages write through, so a job's save is never split across
+  /// two repositories.
+  late final ProjectRepository _projects =
+      widget.projects ?? FolderProjectRepository();
+  late final VisualImageJobController _visualJobs = VisualImageJobController(
+    projects: _projects,
+    changes: _projectChanges,
+  );
   final GlobalKey<CreateAssistantOverlayScopeState> _assistantOverlayKey =
       GlobalKey<CreateAssistantOverlayScopeState>();
   late final CreateAssistantNavigatorObserver _assistantObserver =
@@ -115,6 +126,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     if (widget.createAssistant == null) {
       _createAssistant.dispose();
     }
+    _visualJobs.dispose();
     _projectChanges.dispose();
     super.dispose();
   }
@@ -129,7 +141,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return AppScope(
-      projects: widget.projects ?? FolderProjectRepository(),
+      projects: _projects,
       saves: widget.saves ?? FileSaveRepository(),
       folders: widget.folders ?? FileProjectFolderRepository(),
       settings: _settings,
@@ -137,6 +149,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       paneWidth: _paneWidth,
       createAssistant: _createAssistant,
       projectChanges: _projectChanges,
+      visualJobs: _visualJobs,
       textClient: widget.textClient,
       child: ListenableBuilder(
         listenable: _settings,

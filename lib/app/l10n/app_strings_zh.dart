@@ -829,6 +829,9 @@ class AppStringsZh extends AppStrings {
   String get visualStageBusyImages => '正在出图…';
 
   @override
+  String get visualJobAlreadyRunning => '还有图片在画，画完再来';
+
+  @override
   String get visualRegenPortrait => '重新画立绘';
 
   @override

@@ -1,5 +1,6 @@
 import 'package:anoworld/app/project_change_notifier.dart';
 import 'package:anoworld/app/settings_controller.dart';
+import 'package:anoworld/app/visual_image_job_controller.dart';
 import 'package:anoworld/data/ai/http_openai_model_catalog.dart';
 import 'package:anoworld/domain/ai/ai_model_catalog.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
@@ -23,6 +24,7 @@ class AppScope extends InheritedWidget {
     required this.paneWidth,
     required this.createAssistant,
     required this.projectChanges,
+    required this.visualJobs,
     this.modelCatalog,
     this.textClient,
     required super.child,
@@ -36,6 +38,7 @@ class AppScope extends InheritedWidget {
   final AppPaneWidthController paneWidth;
   final CreateAssistantController createAssistant;
   final ProjectChangeNotifier projectChanges;
+  final VisualImageJobController visualJobs;
   final AiModelCatalog? modelCatalog;
   final AiTextClient? textClient;
 
@@ -69,6 +72,10 @@ class AppScope extends InheritedWidget {
   static ProjectChangeNotifier projectChangesOf(BuildContext context) =>
       of(context).projectChanges;
 
+  /// Picture runs that outlive the visuals page (progress + results).
+  static VisualImageJobController visualJobsOf(BuildContext context) =>
+      of(context).visualJobs;
+
   static AiModelCatalog modelCatalogOf(BuildContext context) =>
       of(context).modelCatalog ?? HttpOpenAiModelCatalog();
 
@@ -85,6 +92,7 @@ class AppScope extends InheritedWidget {
       paneWidth != oldWidget.paneWidth ||
       createAssistant != oldWidget.createAssistant ||
       projectChanges != oldWidget.projectChanges ||
+      visualJobs != oldWidget.visualJobs ||
       modelCatalog != oldWidget.modelCatalog ||
       textClient != oldWidget.textClient;
 }

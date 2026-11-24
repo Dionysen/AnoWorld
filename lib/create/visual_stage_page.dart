@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/app/visual_image_job_controller.dart';
 import 'package:anoworld/create/visual_asset_preview.dart';
 import 'package:anoworld/data/project/project_asset_files.dart';
 import 'package:anoworld/domain/ai/visual/comfy_workflow_templates.dart';
-import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_actions.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_models.dart';
 import 'package:anoworld/domain/models/main_story.dart';
@@ -48,31 +48,65 @@ class _VisualStagePageState extends State<VisualStagePage> {
   VisualPromptPlan? _plan;
   Object? _error;
   String? _status;
-  double? _progress;
   bool _loading = true;
   bool _loadScheduled = false;
   bool _busyPrompts = false;
-  bool _busyImages = false;
+
+  /// Picture runs live app-wide, so this page only mirrors the progress.
+  VisualImageJobController? _jobs;
+  bool _jobRunning = false;
+
+  /// Bumped per load so a slow open cannot overwrite a newer one.
+  int _loadEpoch = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _attachJobs();
     // AppScope is an inherited widget: reading it in initState throws.
     if (_loadScheduled) return;
     _loadScheduled = true;
     unawaited(_load());
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _jobs?.removeListener(_onJobChanged);
+    super.dispose();
+  }
+
+  void _attachJobs() {
+    final jobs = AppScope.visualJobsOf(context);
+    if (identical(jobs, _jobs)) return;
+    _jobs?.removeListener(_onJobChanged);
+    _jobs = jobs;
+    _jobRunning = jobs.isRunning(widget.projectId);
+    jobs.addListener(_onJobChanged);
+  }
+
+  /// A run started, ticked or finished. Finishing refreshes the pictures (and
+  /// announces the result); a tick just repaints the busy line.
+  void _onJobChanged() {
+    if (!mounted) return;
+    final running = _jobs?.isRunning(widget.projectId) ?? false;
+    final finished = _jobRunning && !running;
+    setState(() => _jobRunning = running);
+    if (finished) unawaited(_load(quiet: true));
+  }
+
+  Future<void> _load({bool quiet = false}) async {
+    final epoch = ++_loadEpoch;
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final projects = AppScope.projectsOf(context);
       final project = await projects.open(widget.projectId);
       final dir = await projects.directoryFor(widget.projectId);
-      if (!mounted) return;
+      if (!mounted || epoch != _loadEpoch) return;
       setState(() {
         _project = project;
         _projectDir = dir;
@@ -86,12 +120,16 @@ class _VisualStagePageState extends State<VisualStagePage> {
         error: error,
         stackTrace: stack,
       );
-      if (!mounted) return;
+      if (!mounted || epoch != _loadEpoch) return;
       setState(() {
         _error = error;
         _loading = false;
       });
+      return;
     }
+    // A run may have ended while this page was closed.
+    final notice = _jobs?.takeNotice(widget.projectId);
+    if (notice != null && mounted) showAppToast(context, notice);
   }
 
   Future<void> _generatePrompts() async {
@@ -108,7 +146,6 @@ class _VisualStagePageState extends State<VisualStagePage> {
     }
     setState(() {
       _busyPrompts = true;
-      _progress = null;
       _status = strings.visualStageBusyPrompts;
     });
     AppLog.instance.info('生成画面提示词', tag: 'visual.prompts');
@@ -147,11 +184,12 @@ class _VisualStagePageState extends State<VisualStagePage> {
     }
   }
 
-  Future<void> _generateImages() async {
+  void _generateImages() {
     final project = _project;
     final plan = _plan;
+    final jobs = _jobs;
     final strings = context.strings;
-    if (project == null || plan == null) return;
+    if (project == null || plan == null || jobs == null) return;
     if (project.cast.isEmpty) {
       showAppToast(context, strings.visualStageNeedCast);
       return;
@@ -169,68 +207,17 @@ class _VisualStagePageState extends State<VisualStagePage> {
       showAppToast(context, strings.visualStageNeedComfy);
       return;
     }
-    final projects = AppScope.projectsOf(context);
-    final changes = AppScope.projectChangesOf(context);
-    setState(() {
-      _busyImages = true;
-      _progress = 0;
-      _status = strings.visualStageBusyImages;
-    });
     AppLog.instance.info('开始生成画面图片', tag: 'visual.images');
-    try {
-      final dir = _projectDir ?? await projects.directoryFor(widget.projectId);
-      if (dir == null || dir.isEmpty) {
-        throw const VisualImageException('找不到故事文件夹');
-      }
-      final next = await VisualImagePipeline().run(
-        project: project,
-        projectDir: dir,
-        image: image,
-        plan: plan,
-        skipExisting: true,
-        onProgress: (message, progress) {
-          if (!mounted) return;
-          setState(() {
-            _status = message;
-            _progress = progress;
-          });
-        },
-      );
-      final saved = await saveProjectMerged(
-        projects,
-        widget.projectId,
-        (latest) => latest.copyWith(
-          cast: next.cast,
-          assets: next.assets,
-          main: next.main,
-        ),
-      );
-      if (!mounted) return;
-      changes.markChanged(widget.projectId);
-      setState(() {
-        _project = saved;
-        _plan = draftPlanFromProjectFields(saved);
-        _busyImages = false;
-        _status = null;
-        _progress = null;
-      });
-      AppLog.instance.info('画面图片已写入', tag: 'visual.images');
-      showAppToast(context, strings.visualStageImagesDone);
-    } catch (error, stack) {
-      AppLog.instance.error(
-        '生成画面图片失败',
-        tag: 'visual.images',
-        error: error,
-        stackTrace: stack,
-      );
-      if (!mounted) return;
-      setState(() {
-        _busyImages = false;
-        _status = null;
-        _progress = null;
-      });
-      showAppToast(context, error.toString());
-    }
+    // The run belongs to the app, not this page: leaving keeps it drawing.
+    final started = jobs.startBatch(
+      projectId: widget.projectId,
+      project: project,
+      image: image,
+      plan: plan,
+      busyLabel: strings.visualStageBusyImages,
+      doneLabel: strings.visualStageImagesDone,
+    );
+    if (!started) showAppToast(context, strings.visualJobAlreadyRunning);
   }
 
   /// Auto-save: prompts are the layer this page owns.
@@ -341,8 +328,7 @@ class _VisualStagePageState extends State<VisualStagePage> {
   }
 
   Future<void> _editRow(_VisualRow row) async {
-    final plan = _plan;
-    if (plan == null) return;
+    if (_plan == null) return;
     final edit = await showAppSheet<_PromptEdit>(
       context: context,
       size: AppSheetSize.full,
@@ -353,8 +339,11 @@ class _VisualStagePageState extends State<VisualStagePage> {
             row.showsImage ? (prompt) => _regenerateImage(row, prompt) : null,
       ),
     );
-    if (edit == null || !mounted) return;
-    final next = row.apply(plan, edit.prompt, edit.facing);
+    final base = _plan;
+    if (edit == null || !mounted || base == null) return;
+    // Apply onto the plan as it is now: a picture run may have refreshed it
+    // while the sheet was open.
+    final next = row.apply(base, edit.prompt, edit.facing);
     setState(() => _plan = next);
     AppLog.instance.info('改画面提示词：${row.title}', tag: 'visual.stage');
     try {
@@ -408,13 +397,14 @@ class _VisualStagePageState extends State<VisualStagePage> {
   }
 
   /// Redraws one picture with [prompt] after saving that prompt.
+  ///
+  /// Runs through the app-wide job: closing the sheet or the page keeps the
+  /// picture coming, and the page-level busy line still shows it.
   Future<File?> _regenerateImage(_VisualRow row, String prompt) async {
-    final project = _project;
     final plan = _plan;
-    final characterId = row.characterId;
-    final nodeId = row.nodeId;
-    if (project == null || plan == null) return null;
+    final jobs = _jobs;
     final strings = context.strings;
+    if (plan == null || jobs == null) return null;
     if (prompt.trim().isEmpty) {
       showAppToast(context, strings.visualStageNeedPrompts);
       return null;
@@ -424,73 +414,18 @@ class _VisualStagePageState extends State<VisualStagePage> {
       showAppToast(context, strings.visualStageNeedComfy);
       return null;
     }
-    final projects = AppScope.projectsOf(context);
-    final changes = AppScope.projectChangesOf(context);
-    try {
-      final dir = _projectDir ?? await projects.directoryFor(widget.projectId);
-      if (dir == null || dir.isEmpty) {
-        throw const VisualImageException('找不到故事文件夹');
-      }
-      final nextPlan = row.apply(plan, prompt, row.facing);
-      final latest = await saveProjectMerged(
-        projects,
-        widget.projectId,
-        (stored) => applyVisualPromptPlan(stored, nextPlan),
-      );
-      AppLog.instance.info('重画${row.title}', tag: 'visual.regen');
-      final pipeline = VisualImagePipeline();
-      final redrawn = switch (row.target) {
-        VisualPromptTarget.portrait => await pipeline.regenerateAvatar(
-            project: latest,
-            projectDir: dir,
-            image: image,
-            characterId: characterId!,
-            prompt: prompt,
-          ),
-        VisualPromptTarget.scene => await pipeline.regenerateScene(
-            project: latest,
-            projectDir: dir,
-            image: image,
-            nodeId: nodeId!,
-            prompt: prompt,
-          ),
-        VisualPromptTarget.stylePrefix ||
-        VisualPromptTarget.negativePrompt =>
-          throw const VisualImageException('这一行没有图片'),
-      };
-      final saved = await saveProjectMerged(
-        projects,
-        widget.projectId,
-        (stored) => stored.copyWith(
-          cast: redrawn.cast,
-          assets: redrawn.assets,
-          main: redrawn.main,
-        ),
-      );
-      if (!mounted) return null;
-      changes.markChanged(widget.projectId);
-      setState(() {
-        _project = saved;
-        _plan = row.apply(plan, prompt, row.facing);
-      });
-      showAppToast(context, strings.visualImageRegenDone);
-      return _assetFile(
-        saved,
-        row.target == VisualPromptTarget.portrait
-            ? saved.castById(characterId!)?.avatarAssetId
-            : saved.main.nodeById(nodeId!)?.backgroundAssetId,
-      );
-    } catch (error, stack) {
-      AppLog.instance.error(
-        '重画失败：${row.title}',
-        tag: 'visual.regen',
-        error: error,
-        stackTrace: stack,
-      );
-      if (!mounted) return null;
-      showAppToast(context, error.toString());
-      return null;
-    }
+    AppLog.instance.info('重画${row.title}', tag: 'visual.regen');
+    return jobs.redrawOne(
+      projectId: widget.projectId,
+      image: image,
+      plan: row.apply(plan, prompt, row.facing),
+      prompt: prompt,
+      target: row.target,
+      characterId: row.characterId,
+      nodeId: row.nodeId,
+      busyLabel: strings.visualRegenBusy,
+      doneLabel: strings.visualImageRegenDone,
+    );
   }
 
   @override
@@ -498,7 +433,10 @@ class _VisualStagePageState extends State<VisualStagePage> {
     final strings = context.strings;
     final project = _project;
     final plan = _plan;
-    final busy = _busyPrompts || _busyImages;
+    // A run started from this page (or before re-entering it) keeps the page
+    // busy until it ends, whatever happened to the widget meanwhile.
+    final job = _jobs?.jobOf(widget.projectId);
+    final busy = _busyPrompts || job != null;
     return AppPage(
       title: strings.visualStageTitle,
       onBack: () => Navigator.of(context).maybePop(),
@@ -551,7 +489,7 @@ class _VisualStagePageState extends State<VisualStagePage> {
                       const SizedBox(width: AppTheme.spaceSm),
                       Expanded(
                         child: AppText(
-                          _busyLabel(_status),
+                          _busyLabel(job?.status ?? _status, job?.progress),
                           role: AppTextRole.caption,
                           maxLines: 2,
                         ),
@@ -567,9 +505,8 @@ class _VisualStagePageState extends State<VisualStagePage> {
     );
   }
 
-  String _busyLabel(String? status) {
+  String _busyLabel(String? status, double? progress) {
     final text = status?.trim() ?? '';
-    final progress = _progress;
     if (progress == null) return text;
     final pct = '${(progress * 100).round()}%';
     return text.isEmpty ? pct : '$text · $pct';
@@ -826,7 +763,7 @@ class _PromptSheetState extends State<_PromptSheet> {
                   Expanded(
                     child: AppText(
                       _imageBusy
-                          ? strings.visualStageBusyImages
+                          ? strings.visualRegenBusy
                           : strings.visualStageBusyPrompts,
                       role: AppTextRole.caption,
                     ),

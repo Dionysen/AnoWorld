@@ -1,12 +1,19 @@
+import 'dart:async';
+
+import 'package:anoworld/app/project_change_notifier.dart';import 'package:anoworld/app/visual_image_job_controller.dart';
 import 'package:anoworld/create/visual_stage_page.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_actions.dart';
+import 'package:anoworld/domain/ai/visual/visual_prompt_models.dart';
 import 'package:anoworld/domain/models/cast.dart';
 import 'package:anoworld/domain/models/main_story.dart';
+import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
+import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -303,6 +310,128 @@ void main() {
     );
     expect(normalizeVisualPrompt('   '), '');
   });
+
+  testWidgets('a picture run keeps going after leaving the page', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final staged = _drawableStory();
+    final repo = MemoryProjectRepository(seed: {staged.meta.id: staged});
+    final changes = ProjectChangeNotifier();
+    final pipeline = _SlowPipeline();
+    final jobs = VisualImageJobController(
+      projects: repo,
+      changes: changes,
+      pipeline: () => pipeline,
+    );
+    addTearDown(jobs.dispose);
+    final settings = testSettingsController();
+    await settings.updateAi(
+      settings.ai.copyWith(
+        image: const AiImageEndpoint(
+          kind: AiImageProviderKind.comfyui,
+          baseUrl: 'http://localhost:8188',
+        ),
+      ),
+    );
+    Widget scope(Widget home) => testScoped(
+      settings: settings,
+      projects: repo,
+      projectChanges: changes,
+      visualJobs: jobs,
+      home: home,
+    );
+
+    await tester.pumpWidget(scope(VisualStagePage(projectId: staged.meta.id)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('一键生成图片'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('正在出图'), findsOneWidget);
+
+    pipeline.emit('正在画立绘：少年', 0.5);
+    await tester.pump();
+    expect(find.text('正在画立绘：少年 · 50%'), findsOneWidget);
+
+    // Leaving the page must not stop the run.
+    await tester.pumpWidget(scope(const SizedBox.shrink()));
+    await tester.pump();
+    expect(jobs.isRunning(staged.meta.id), isTrue);
+
+    // Coming back shows the same run and its live progress.
+    await tester.pumpWidget(scope(VisualStagePage(projectId: staged.meta.id)));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('正在画立绘：少年 · 50%'), findsOneWidget);
+
+    pipeline.finish(
+      staged.copyWith(
+        cast: [
+          staged.cast.first.copyWith(avatarAssetId: 'avatar_c_hero'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBusyIndicator), findsNothing);
+    expect(find.text('图片已写入故事'), findsOneWidget);
+  });
+}
+
+/// One character + one scene, both already carrying prompts to draw.
+Project _drawableStory() {
+  final sample = const ProjectFactory().createRainNightSample(
+    now: DateTime.utc(2026, 1, 1),
+  );
+  return sample.copyWith(
+    cast: const [
+      CastMember(id: 'c_hero', name: '少年', portraitPrompt: 'kept portrait'),
+    ],
+    main: MainStory(
+      summary: sample.main.summary,
+      startNodeId: 'n1',
+      nodes: const [
+        StoryNode(
+          id: 'n1',
+          title: '城门',
+          beatIds: <String>[],
+          imagePrompt: 'kept scene',
+        ),
+      ],
+      edges: const [],
+      beats: const [],
+    ),
+  );
+}
+
+/// Pipeline stand-in whose run only ends when the test says so.
+class _SlowPipeline extends VisualImagePipeline {
+  Completer<Project>? _run;
+  VisualProgress? _progress;
+
+  @override
+  Future<Project> run({
+    required Project project,
+    required String projectDir,
+    required AiImageEndpoint image,
+    required VisualPromptPlan plan,
+    bool generateAvatars = true,
+    bool generateScenes = true,
+    bool? upscale,
+    int? steps,
+    bool skipExisting = true,
+    VisualProgress? onProgress,
+  }) {
+    _progress = onProgress;
+    return (_run = Completer<Project>()).future;
+  }
+
+  void emit(String message, double? progress) =>
+      _progress?.call(message, progress);
+
+  void finish(Project project) => _run?.complete(project);
 }
 
 class _FakePromptClient implements AiTextClient {
