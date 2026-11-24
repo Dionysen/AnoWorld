@@ -44,6 +44,16 @@ class AppListTile extends StatelessWidget {
 
   static const double iconSize = 20;
 
+  /// Soft estimate for a custom [leading] (cover / avatar) when deciding what
+  /// to drop under tight width.
+  static const double _leadingEstimate = 56;
+
+  /// Soft estimate for [trailing] (more / chevron / checkbox).
+  static const double _trailingEstimate = 40;
+
+  /// Keep at least this much for the title column before hiding chrome.
+  static const double _minTitleWidth = 48;
+
   AppListTile copyWith({
     String? title,
     String? subtitle,
@@ -88,6 +98,7 @@ class AppListTile extends StatelessWidget {
       color: selected ? selectedFill : Colors.transparent,
       child: AppPressScale(
         enabled: onTap != null || onLongPress != null,
+        scaleX: AppTheme.pressScaleWideX,
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
@@ -98,45 +109,65 @@ class AppListTile extends StatelessWidget {
               AppTheme.spaceMd,
               AppTheme.spaceInline,
             ),
-            child: Row(
-              children: [
-                if (leading != null) ...[
-                  leading!,
-                  const SizedBox(width: AppTheme.spaceInline),
-                ] else if (icon != null) ...[
-                  Icon(
-                    icon,
-                    size: iconSize,
-                    color: emphasis ?? scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: AppTheme.spaceInline),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AppText(
-                        title,
-                        role: AppTextRole.subtitle,
-                        color: emphasis,
-                        maxLines: 1,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final maxW = constraints.maxWidth;
+                final leadingReserve = leading != null
+                    ? _leadingEstimate + AppTheme.spaceInline
+                    : icon != null
+                        ? iconSize + AppTheme.spaceInline
+                        : 0.0;
+                final trailingReserve = trailing != null
+                    ? AppTheme.spaceSm + _trailingEstimate
+                    : 0.0;
+                // Prefer title; drop trailing first, then leading.
+                final showTrailing = trailing != null &&
+                    maxW >=
+                        leadingReserve + _minTitleWidth + trailingReserve;
+                final showLeading = (leading != null || icon != null) &&
+                    maxW >= leadingReserve + _minTitleWidth;
+
+                return Row(
+                  children: [
+                    if (showLeading && leading != null) ...[
+                      leading!,
+                      const SizedBox(width: AppTheme.spaceInline),
+                    ] else if (showLeading && icon != null) ...[
+                      Icon(
+                        icon,
+                        size: iconSize,
+                        color: emphasis ?? scheme.onSurfaceVariant,
                       ),
-                      if (subtitle != null && subtitle!.isNotEmpty) ...[
-                        const SizedBox(height: AppTheme.spaceXs),
-                        AppText(
-                          subtitle!,
-                          role: AppTextRole.caption,
-                          maxLines: 2,
-                        ),
-                      ],
+                      const SizedBox(width: AppTheme.spaceInline),
                     ],
-                  ),
-                ),
-                if (trailing != null) ...[
-                  const SizedBox(width: AppTheme.spaceSm),
-                  trailing!,
-                ],
-              ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppText(
+                            title,
+                            role: AppTextRole.subtitle,
+                            color: emphasis,
+                            maxLines: 1,
+                          ),
+                          if (subtitle != null && subtitle!.isNotEmpty) ...[
+                            const SizedBox(height: AppTheme.spaceXs),
+                            AppText(
+                              subtitle!,
+                              role: AppTextRole.caption,
+                              maxLines: 2,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (showTrailing) ...[
+                      const SizedBox(width: AppTheme.spaceSm),
+                      trailing!,
+                    ],
+                  ],
+                );
+              },
             ),
           ),
         ),

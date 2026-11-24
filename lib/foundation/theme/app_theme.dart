@@ -102,6 +102,10 @@ abstract final class AppTheme {
   /// Press-in scale for tappable chrome ([AppPressScale], bottom nav, rail).
   static const double pressScale = 0.92;
 
+  /// Gentler X scale for wide list rows ([AppListTile]) so side gaps stay only
+  /// a little larger than top/bottom under [pressScale] on Y.
+  static const double pressScaleWideX = 0.985;
+
   /// Duration of the press-in / release scale animation.
   static const Duration pressScaleDuration = Duration(milliseconds: 120);
 
