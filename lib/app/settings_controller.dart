@@ -72,7 +72,7 @@ class SettingsController extends ChangeNotifier {
     personas = (await repository.loadPersonas()).ensureDefault();
     aiPresets = await repository.loadAiPresets();
     chatUi = await repository.loadChatUi();
-    vnUi = await repository.loadVnUi();
+    vnUi = VnUiSettings.resolved(await repository.loadVnUi());
     plotElements = await repository.loadPlotElements();
     if (aiPresets.activePresetId == null) {
       await applyAiPreset(BuiltInAIPresets.defaultPreset);
@@ -90,7 +90,7 @@ class SettingsController extends ChangeNotifier {
   }
 
   Future<void> updateVnUi(VnUiSettings next) async {
-    vnUi = next;
+    vnUi = VnUiSettings.resolved(next);
     notifyListeners();
     await repository.saveVnUi(next);
   }

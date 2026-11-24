@@ -14,6 +14,8 @@ void main() {
     expect(settings.followsTheme, isTrue);
     expect(settings.textHex, isEmpty);
     expect(settings.textFollowsTheme, isTrue);
+    expect(settings.innerInsetRatio, AppDialogueChrome.defaultInnerInsetRatio);
+    expect(settings.outerInsetRatio, AppDialogueChrome.defaultOuterInsetRatio);
   });
 
   test('fromJson clamps out-of-range values', () {
@@ -43,11 +45,31 @@ void main() {
       backgroundHex: '#10131B',
       textHex: '#F2F4F8',
       opacity: 0.5,
+      innerInsetRatio: 0.6,
+      outerInsetRatio: 0.4,
     );
     final restored = VnUiSettings.fromJson(original.toJson());
     expect(restored, original);
     expect(restored.followsTheme, isFalse);
     expect(restored.textFollowsTheme, isFalse);
+  });
+
+  test('resolved fills missing inset fields after legacy load', () {
+    const legacy = VnUiSettings(fontSize: 18, lines: 3);
+    final fixed = VnUiSettings.resolved(legacy);
+    expect(fixed.innerInsetRatio, AppDialogueChrome.defaultInnerInsetRatio);
+    expect(fixed.outerInsetRatio, AppDialogueChrome.defaultOuterInsetRatio);
+    expect(fixed.lines, 3);
+    expect(fixed.fontSize, 18);
+  });
+
+  test('fromJson without inset keys uses defaults', () {
+    final settings = VnUiSettings.fromJson(<String, dynamic>{
+      'lines': 4,
+      'fontSize': 16,
+    });
+    expect(settings.innerInsetRatio, AppDialogueChrome.defaultInnerInsetRatio);
+    expect(settings.outerInsetRatio, AppDialogueChrome.defaultOuterInsetRatio);
   });
 
   test('each colour follows the theme on its own', () {

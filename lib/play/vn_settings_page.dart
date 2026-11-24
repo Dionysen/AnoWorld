@@ -1,5 +1,6 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:anoworld/foundation/theme/app_dialogue_chrome.dart';
 import 'package:anoworld/foundation/theme/app_hex_color.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
@@ -30,7 +31,7 @@ class VnSettingsPage extends StatelessWidget {
       body: ListenableBuilder(
         listenable: controller,
         builder: (context, _) {
-          final vnUi = controller.vnUi;
+          final vnUi = VnUiSettings.resolved(controller.vnUi);
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: AppTheme.pagePadding),
             children: [
@@ -63,6 +64,32 @@ class VnSettingsPage extends StatelessWidget {
                 valueText: strings.dialogueFontSizeValue,
                 onChanged: (value) =>
                     controller.updateVnUi(vnUi.copyWith(fontSize: value)),
+              ),
+              AppSlider(
+                label: strings.dialogueInnerInset,
+                subtitle: strings.dialogueInnerInsetHint,
+                icon: Icons.format_indent_increase,
+                value: vnUi.innerInsetRatio,
+                min: AppDialogueChrome.minInsetRatio,
+                max: AppDialogueChrome.maxInsetRatio,
+                step: AppDialogueChrome.insetRatioStep,
+                valueText: strings.dialogueInsetRatioValue,
+                onChanged: (value) => controller.updateVnUi(
+                  vnUi.copyWith(innerInsetRatio: value),
+                ),
+              ),
+              AppSlider(
+                label: strings.dialogueOuterInset,
+                subtitle: strings.dialogueOuterInsetHint,
+                icon: Icons.crop_free,
+                value: vnUi.outerInsetRatio,
+                min: AppDialogueChrome.minInsetRatio,
+                max: AppDialogueChrome.maxInsetRatio,
+                step: AppDialogueChrome.insetRatioStep,
+                valueText: strings.dialogueInsetRatioValue,
+                onChanged: (value) => controller.updateVnUi(
+                  vnUi.copyWith(outerInsetRatio: value),
+                ),
               ),
               AppSlider(
                 label: strings.dialogueTextSpeed,

@@ -1698,7 +1698,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
                 runtime: _runtime,
                 project: _project,
                 projectDir: _projectDir,
-                settings: settings.vnUi,
+                settings: VnUiSettings.resolved(settings.vnUi),
                 speakerLabel: _speakerLabel,
                 isNarration: _isNarration,
                 // Errors / soft notices only — never the writing placeholder.
@@ -1896,8 +1896,13 @@ class _VnStageState extends State<_VnStage> {
       builder: (context, constraints) {
         // Very short viewports: keep the dialogue readable, drop the controls.
         final fontSize = widget.settings.fontSize;
-        final stageMargin = AppDialogueChrome.stageMarginFor(fontSize);
-        final controlGap = AppDialogueChrome.insetForFontSize(fontSize);
+        final innerRatio = widget.settings.innerInsetRatio;
+        final outerRatio = widget.settings.outerInsetRatio;
+        final stageMargin = AppDialogueChrome.stageMarginFor(
+          fontSize,
+          outerInsetRatio: outerRatio,
+        );
+        final controlGap = AppDialogueChrome.insetPixels(fontSize, outerRatio);
         final showControls = constraints.maxHeight >= 260;
         final controlsHeight = showControls
             ? AppTheme.vnControlSize + controlGap
@@ -1919,7 +1924,10 @@ class _VnStageState extends State<_VnStage> {
         final bodyRoom =
             available -
             AppDialogueChrome.headerHeight -
-            AppDialogueChrome.paddingFor(fontSize).vertical;
+            AppDialogueChrome.paddingFor(
+              fontSize,
+              innerInsetRatio: innerRatio,
+            ).vertical;
         final fitLines = bodyRoom <= 0 ? 1 : (bodyRoom / linePx).floor();
         final lines = fitLines.clamp(1, widget.settings.lines);
 
@@ -1941,7 +1949,11 @@ class _VnStageState extends State<_VnStage> {
           sourceKey: line?.id ?? (ended ? 'ended' : 'empty'),
           text: body,
           style: bodyStyle,
-          width: AppDialogueChrome.textWidth(panelWidth, fontSize),
+          width: AppDialogueChrome.textWidth(
+            panelWidth,
+            fontSize,
+            innerInsetRatio: innerRatio,
+          ),
           lines: lines,
           fontSize: widget.settings.fontSize,
           scaler: MediaQuery.textScalerOf(context),
@@ -1958,6 +1970,7 @@ class _VnStageState extends State<_VnStage> {
             AppDialogueChrome.panelHeight(
               lines: lines,
               fontSize: fontSize,
+              innerInsetRatio: innerRatio,
             );
 
         return GestureDetector(
@@ -2009,7 +2022,8 @@ class _VnStageState extends State<_VnStage> {
                         ],
                         AppDialoguePanel(
                           lines: lines,
-                          fontSize: widget.settings.fontSize,
+                          fontSize: fontSize,
+                          innerInsetRatio: innerRatio,
                           backgroundHex: widget.settings.backgroundHex,
                           opacity: widget.settings.opacity,
                           header: speaker == null

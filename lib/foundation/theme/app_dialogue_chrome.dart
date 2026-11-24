@@ -23,17 +23,28 @@ abstract final class AppDialogueChrome {
   /// Reserved speaker row (kept even for narration so height stays constant).
   static const double headerHeight = 24;
 
-  /// Panel inset and stage gutter scale with [fontSize] (half the body size).
-  static const double insetFontRatio = 0.5;
+  /// Default inset multipliers (× body [fontSize]); overridden in [VnUiSettings].
+  static const double defaultInnerInsetRatio = 0.5;
+  static const double defaultOuterInsetRatio = 0.5;
+  static const double minInsetRatio = 0;
+  static const double maxInsetRatio = 2;
+  static const double insetRatioStep = 0.05;
 
-  static double insetForFontSize(double fontSize) =>
-      fontSize * insetFontRatio;
+  static double insetPixels(double fontSize, double ratio) =>
+      fontSize * ratio.clamp(minInsetRatio, maxInsetRatio);
 
-  static EdgeInsets paddingFor(double fontSize) =>
-      EdgeInsets.all(insetForFontSize(fontSize));
+  static EdgeInsets paddingFor(
+    double fontSize, {
+    double innerInsetRatio = defaultInnerInsetRatio,
+  }) =>
+      EdgeInsets.all(insetPixels(fontSize, innerInsetRatio));
 
-  /// Horizontal inset from the stage edge to the dialogue panel.
-  static double stageMarginFor(double fontSize) => insetForFontSize(fontSize);
+  /// Inset from the stage edge to the dialogue panel.
+  static double stageMarginFor(
+    double fontSize, {
+    double outerInsetRatio = defaultOuterInsetRatio,
+  }) =>
+      insetPixels(fontSize, outerInsetRatio);
 
   /// Semi-transparent glass fill; the panel blurs whatever sits behind it.
   static const double defaultOpacity = 0.72;
@@ -53,12 +64,23 @@ abstract final class AppDialogueChrome {
   static double bodyHeight(int lines, double fontSize) =>
       lines * fontSize * lineHeight;
 
-  static double panelHeight({required int lines, required double fontSize}) =>
-      headerHeight + bodyHeight(lines, fontSize) + paddingFor(fontSize).vertical;
+  static double panelHeight({
+    required int lines,
+    required double fontSize,
+    double innerInsetRatio = defaultInnerInsetRatio,
+  }) =>
+      headerHeight +
+      bodyHeight(lines, fontSize) +
+      paddingFor(fontSize, innerInsetRatio: innerInsetRatio).vertical;
 
   /// Text width available inside a panel of [panelWidth].
-  static double textWidth(double panelWidth, double fontSize) =>
-      panelWidth - paddingFor(fontSize).horizontal;
+  static double textWidth(
+    double panelWidth,
+    double fontSize, {
+    double innerInsetRatio = defaultInnerInsetRatio,
+  }) =>
+      panelWidth -
+      paddingFor(fontSize, innerInsetRatio: innerInsetRatio).horizontal;
 
   /// Body style for both rendering and pagination.
   ///

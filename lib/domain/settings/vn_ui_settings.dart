@@ -12,6 +12,8 @@ class VnUiSettings {
     this.backgroundHex = '',
     this.textHex = '',
     this.opacity = AppDialogueChrome.defaultOpacity,
+    this.innerInsetRatio = AppDialogueChrome.defaultInnerInsetRatio,
+    this.outerInsetRatio = AppDialogueChrome.defaultOuterInsetRatio,
   });
 
   /// Fixed body lines per dialogue page; longer text pages on.
@@ -31,11 +33,51 @@ class VnUiSettings {
   /// Glass fill alpha, [AppDialogueChrome.minOpacity]–[maxOpacity].
   final double opacity;
 
+  /// Text-to-panel rim inset as a multiple of [fontSize].
+  final double innerInsetRatio;
+
+  /// Panel-to-stage rim inset as a multiple of [fontSize].
+  final double outerInsetRatio;
+
   bool get followsTheme => backgroundHex.isEmpty;
 
   bool get textFollowsTheme => textHex.isEmpty;
 
   bool get typewriterEnabled => textSpeed > 0;
+
+  /// Fills inset defaults when prefs predate them or after a hot reload.
+  static VnUiSettings resolved(VnUiSettings raw) {
+    double inner;
+    double outer;
+    try {
+      inner = raw.innerInsetRatio;
+      outer = raw.outerInsetRatio;
+    } on TypeError {
+      return VnUiSettings(
+        lines: raw.lines,
+        fontSize: raw.fontSize,
+        textSpeed: raw.textSpeed,
+        backgroundHex: raw.backgroundHex,
+        textHex: raw.textHex,
+        opacity: raw.opacity,
+      );
+    }
+    final clampedInner = _clampDouble(
+      inner,
+      AppDialogueChrome.minInsetRatio,
+      AppDialogueChrome.maxInsetRatio,
+    );
+    final clampedOuter = _clampDouble(
+      outer,
+      AppDialogueChrome.minInsetRatio,
+      AppDialogueChrome.maxInsetRatio,
+    );
+    if (clampedInner == inner && clampedOuter == outer) return raw;
+    return raw.copyWith(
+      innerInsetRatio: clampedInner,
+      outerInsetRatio: clampedOuter,
+    );
+  }
 
   VnUiSettings copyWith({
     int? lines,
@@ -44,6 +86,8 @@ class VnUiSettings {
     String? backgroundHex,
     String? textHex,
     double? opacity,
+    double? innerInsetRatio,
+    double? outerInsetRatio,
   }) {
     return VnUiSettings(
       lines: lines ?? this.lines,
@@ -52,17 +96,21 @@ class VnUiSettings {
       backgroundHex: backgroundHex ?? this.backgroundHex,
       textHex: textHex ?? this.textHex,
       opacity: opacity ?? this.opacity,
+      innerInsetRatio: innerInsetRatio ?? this.innerInsetRatio,
+      outerInsetRatio: outerInsetRatio ?? this.outerInsetRatio,
     );
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'lines': lines,
-    'fontSize': fontSize,
-    'textSpeed': textSpeed,
-    'backgroundHex': backgroundHex,
-    'textHex': textHex,
-    'opacity': opacity,
-  };
+        'lines': lines,
+        'fontSize': fontSize,
+        'textSpeed': textSpeed,
+        'backgroundHex': backgroundHex,
+        'textHex': textHex,
+        'opacity': opacity,
+        'innerInsetRatio': innerInsetRatio,
+        'outerInsetRatio': outerInsetRatio,
+      };
 
   factory VnUiSettings.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const VnUiSettings();
@@ -92,6 +140,20 @@ class VnUiSettings {
         AppDialogueChrome.minOpacity,
         AppDialogueChrome.maxOpacity,
       ),
+      innerInsetRatio: _clampDouble(
+        (json.optionalNum('innerInsetRatio') ??
+                AppDialogueChrome.defaultInnerInsetRatio)
+            .toDouble(),
+        AppDialogueChrome.minInsetRatio,
+        AppDialogueChrome.maxInsetRatio,
+      ),
+      outerInsetRatio: _clampDouble(
+        (json.optionalNum('outerInsetRatio') ??
+                AppDialogueChrome.defaultOuterInsetRatio)
+            .toDouble(),
+        AppDialogueChrome.minInsetRatio,
+        AppDialogueChrome.maxInsetRatio,
+      ),
     );
   }
 
@@ -109,10 +171,20 @@ class VnUiSettings {
         other.textSpeed == textSpeed &&
         other.backgroundHex == backgroundHex &&
         other.textHex == textHex &&
-        other.opacity == opacity;
+        other.opacity == opacity &&
+        other.innerInsetRatio == innerInsetRatio &&
+        other.outerInsetRatio == outerInsetRatio;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(lines, fontSize, textSpeed, backgroundHex, textHex, opacity);
+  int get hashCode => Object.hash(
+        lines,
+        fontSize,
+        textSpeed,
+        backgroundHex,
+        textHex,
+        opacity,
+        innerInsetRatio,
+        outerInsetRatio,
+      );
 }

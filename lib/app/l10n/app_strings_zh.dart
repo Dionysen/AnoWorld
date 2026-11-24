@@ -1048,6 +1048,22 @@ class AppStringsZh extends AppStrings {
   String dialogueFontSizeValue(double size) => size.round().toString();
 
   @override
+  String get dialogueInnerInset => '文字边距';
+
+  @override
+  String get dialogueInnerInsetHint => '字与框边的距离，随字号变大变小';
+
+  @override
+  String get dialogueOuterInset => '对话框边距';
+
+  @override
+  String get dialogueOuterInsetHint => '框与屏幕边的距离，随字号变大变小';
+
+  @override
+  String dialogueInsetRatioValue(double ratio) =>
+      '${(ratio * 100).round()}% 字号';
+
+  @override
   String get dialogueColorsSection => '颜色';
 
   @override

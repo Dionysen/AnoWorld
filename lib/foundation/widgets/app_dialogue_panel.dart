@@ -16,6 +16,7 @@ class AppDialoguePanel extends StatelessWidget {
     required this.child,
     required this.lines,
     required this.fontSize,
+    this.innerInsetRatio = AppDialogueChrome.defaultInnerInsetRatio,
     this.header,
     this.trailing,
     this.backgroundHex = '',
@@ -26,6 +27,9 @@ class AppDialoguePanel extends StatelessWidget {
   final Widget child;
   final int lines;
   final double fontSize;
+
+  /// Multiplier of [fontSize] for padding between text and the panel rim.
+  final double innerInsetRatio;
 
   /// Speaker name; the row stays reserved when null.
   final Widget? header;
@@ -54,7 +58,10 @@ class AppDialoguePanel extends StatelessWidget {
             opacity: opacity,
           ),
           child: Padding(
-            padding: AppDialogueChrome.paddingFor(fontSize),
+            padding: AppDialogueChrome.paddingFor(
+              fontSize,
+              innerInsetRatio: innerInsetRatio,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,

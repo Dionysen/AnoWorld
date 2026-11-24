@@ -356,6 +356,11 @@ abstract class AppStrings extends AppLocalizations {
   String dialogueTextSpeedValue(int charsPerSecond);
   String get dialogueFontSize;
   String dialogueFontSizeValue(double size);
+  String get dialogueInnerInset;
+  String get dialogueInnerInsetHint;
+  String get dialogueOuterInset;
+  String get dialogueOuterInsetHint;
+  String dialogueInsetRatioValue(double ratio);
   String get dialogueColorsSection;
   String get dialogueBackground;
   String get dialogueFollowTheme;
