@@ -2625,12 +2625,6 @@ class AppStringsZh extends AppStrings {
   String get personasEmptyHint => '添加一套，写故事和游玩时会用到';
 
   @override
-  String get personaInUse => '正在使用';
-
-  @override
-  String personaInUseWith(String summary) => '正在使用 · $summary';
-
-  @override
   String deletePersonaTitle(String name) => '删除「$name」？';
 
   @override

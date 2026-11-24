@@ -56,7 +56,7 @@ class PersonaSettingsPanel extends StatelessWidget {
               for (final persona in list)
                 AppListTile(
                   title: persona.name,
-                  subtitle: personaSubtitle(strings, persona, active?.id),
+                  subtitle: personaSubtitle(persona),
                   leading: AppPersonAvatar(
                     size: 40,
                     semanticLabel: persona.name,

@@ -902,8 +902,6 @@ abstract class AppStrings extends AppLocalizations {
   String get addPersona;
   String get personasEmpty;
   String get personasEmptyHint;
-  String get personaInUse;
-  String personaInUseWith(String summary);
   String deletePersonaTitle(String name);
   String get deletePersonaHint;
   String get editPersona;

@@ -130,7 +130,6 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
               primary: _masterPane(
                 context,
                 personae: personae,
-                activeId: controller.activePersona?.id,
                 pane: pane,
                 split: split,
               ),
@@ -159,7 +158,6 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
   Widget _masterPane(
     BuildContext context, {
     required List<UserPersona> personae,
-    required String? activeId,
     required _MePane? pane,
     required bool split,
   }) {
@@ -179,7 +177,7 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
               for (final persona in personae)
                 AppListTile(
                   title: persona.name,
-                  subtitle: personaSubtitle(strings, persona, activeId),
+                  subtitle: personaSubtitle(persona),
                   leading: AppPersonAvatar(
                     size: 40,
                     semanticLabel: persona.name,
