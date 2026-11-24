@@ -67,6 +67,7 @@ void main() {
     );
     expect(enforced, contains('upper body'));
     expect(enforced, contains('white background'));
+    expect(enforced, contains('very thick black outline'));
     expect(enforced, isNot(contains('full body')));
     expect(enforced, isNot(contains('wide shot')));
     // Idempotent: saving twice does not duplicate the framing tag.
@@ -80,6 +81,7 @@ void main() {
     final portrait = ComfyWorkflowTemplates.portraitNegative('low quality');
     expect(portrait, contains('low quality'));
     expect(portrait, contains('full body'));
+    expect(portrait, contains('thin outline'));
 
     final wf = ComfyWorkflowTemplates.scene(prompt: 'night, city');
     expect(wf['5']?['inputs']?['text'], isNot(contains('full body')));

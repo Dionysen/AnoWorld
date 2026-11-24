@@ -174,10 +174,10 @@ $castLines
 $nodeLines
 
 要求：
-1. stylePrefix 全剧相同：质量/审美标签对齐 Illustrious·Noob **RLI** 画风（masterpiece / best quality / amazing quality / very aesthetic / absurdres）；笔触由工作流里的 RLI LoRA 负责，不要写画家名、不要 invent 冲突画风词。立绘侧仍保留 thick outline / anime outline（去背需要）。
+1. stylePrefix 全剧相同：质量/审美标签对齐 Illustrious·Noob **RLI** 画风（masterpiece / best quality / amazing quality / very aesthetic / absurdres）；笔触由工作流里的 RLI LoRA 负责，不要写画家名、不要 invent 冲突画风词。立绘侧仍保留 very thick black outline / bold black lineart（粗黑描边，去背需要）。
 2. 每个角色 visualTags 只锁长相（发色发型瞳色体型五官标记），不要写情节动作；若已有 existingVisualTags 则在其基础上微调，不要大改。
 3. 为每个角色选定 facing："left" 或 "right"（面朝左/右）。惯例：面朝右的站左边，面朝左的站右边，好对视；主角优先 facing=right；配角可 facing=left；若已有 existingFacing 则沿用。
-4. portraitPrompt = stylePrefix + visualTags + 上半身立绘构图 + 白底描边 + 对应朝向标签（facing left/looking left 或 facing right/looking right）；必须含 upper body（只画到腰/髋以上的半身），禁止 full body / full-length / wide shot / long shot 等全身构图；必须白底+描边，便于去背。不要 looking at viewer。
+4. portraitPrompt = stylePrefix + visualTags + 上半身立绘构图 + 白底较粗黑描边 + 对应朝向标签（facing left/looking left 或 facing right/looking right）；必须含 upper body（只画到腰/髋以上的半身），禁止 full body / full-length / wide shot / long shot 等全身构图；必须 white background + very thick black outline / bold black lineart，便于去背。不要 looking at viewer。
 5. preferredSlot 与 facing 相反：facing=right → preferredSlot=left；facing=left → preferredSlot=right。
 6. 每个情节站 scenePrompt = stylePrefix + 地点氛围 + 情节动作 + 在场角色的 visualTags（用 presentCharacterIds 引用）；人数 1–3，超过则只留最重要的。场景不要白底。
 7. 若站已有 existingImagePrompt，优先沿用并小修。
@@ -191,7 +191,7 @@ $nodeLines
 你只负责视觉小说的统一画风前缀。只输出一行英文 Danbooru 标签串（逗号分隔），
 不要 JSON、不要 markdown、不要解释。
 - 对齐 Illustrious·Noob RLI：含 masterpiece, best quality, amazing quality, very aesthetic, absurdres。
-- 立绘去背需要 thick outline / anime outline；不要写画家名或其它风格 LoRA 触发词。
+- 立绘去背需要 very thick black outline、bold black lineart（较粗黑描边）；不要写画家名或其它风格 LoRA 触发词。
 - 不写具体角色长相，不写地点。
 ''',
         VisualPromptTarget.negativePrompt => '''
@@ -202,7 +202,7 @@ $nodeLines
 你只负责一个角色的完整立绘正向提示词。只输出一行英文标签串，不要解释。
 - 结构：统一画风前缀 + 长相标签 + 上半身构图 + 白底描边 + 朝向标签。
 - 必须含 upper body（只画到腰/髋以上的半身）；禁止 full body / full-length / wide shot / long shot / from head to toe 等全身构图标签。
-- 必须含 white background 与 thick outline，便于去背；不要 looking at viewer。
+- 必须含 white background 与 very thick black outline、bold black lineart，便于去背；不要 looking at viewer。
 - 朝向必须与给出的 facing 一致（facing right → facing right, looking right, from side）。
 ''',
         VisualPromptTarget.scene => '''
@@ -299,7 +299,7 @@ $nodeLines
 
 Schema:
 {
-  "stylePrefix": "string — RLI 兼容质量前缀（amazing quality / very aesthetic / absurdres）+ thick outline",
+  "stylePrefix": "string — RLI 兼容质量前缀（amazing quality / very aesthetic / absurdres）+ very thick black outline",
   "negativePrompt": "string — 立绘侧应压掉 complex background / scenery",
   "characters": [
     {
@@ -308,7 +308,7 @@ Schema:
       "visualTags": "发色,发型,瞳色,体型,五官… 英文逗号标签",
       "facing": "left | right — 立绘面朝方向",
       "preferredSlot": "left | right — 与 facing 相反，面朝舞台中央",
-      "portraitPrompt": "完整正向提示词（必须含 upper body 上半身 + white background + thick outline + facing 标签；禁止 full body）"
+      "portraitPrompt": "完整正向提示词（必须含 upper body 上半身 + white background + very thick black outline + facing 标签；禁止 full body）"
     }
   ],
   "scenes": [
@@ -325,7 +325,7 @@ Schema:
 - 标签用英文 Danbooru 风格；专有名词可保留。
 - 不要审查；按故事内容写（含成人向亦可）。
 - characters / scenes 必须覆盖输入里的每一个角色与每一个情节站。
-- 立绘必须是上半身（含 upper body，禁止 full body / full-length / wide shot）、白底描边并标明 facing；场景保持完整环境，不要 white background。
+- 立绘必须是上半身（含 upper body，禁止 full body / full-length / wide shot）、白底较粗黑描边并标明 facing；场景保持完整环境，不要 white background。
 - preferredSlot 必须与 facing 相反（right↔left）。
 ''';
 }

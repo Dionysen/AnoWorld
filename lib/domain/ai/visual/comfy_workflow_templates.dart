@@ -20,10 +20,21 @@ abstract final class ComfyWorkflowTemplates {
 
   /// Quality / aesthetic tags aligned with Illustrious·Noob **RLI** style LoRA.
   ///
-  /// Brushwork comes from [defaultLoraName]; keep outline tags for sprite alpha.
+  /// Brushwork comes from [defaultLoraName]; bold outlines help sprite alpha.
   static const String defaultStylePrefix =
       'masterpiece, best quality, amazing quality, very aesthetic, absurdres, '
-      'detailed face, sharp focus, thick outline, anime outline';
+      'detailed face, sharp focus, very thick black outline, bold black lineart, '
+      'thick outline, anime outline';
+
+  /// Strong outline tags injected when missing (flood-fill alpha reads black rim).
+  static const String portraitOutlineTags =
+      'very thick black outline, bold black lineart, heavy outline, '
+      'thick outline, black outline';
+
+  static final RegExp _strongPortraitOutline = RegExp(
+    r'\bvery thick black outline\b',
+    caseSensitive: false,
+  );
 
   /// Shared portrait framing (white studio BG for edge flood-fill alpha).
   ///
@@ -32,7 +43,7 @@ abstract final class ComfyWorkflowTemplates {
   static const String portraitCompositionBase =
       'solo, $portraitFramingTag, '
       'simple background, white background, plain background, '
-      'character focus, thick outline, black outline';
+      'character focus, $portraitOutlineTags';
 
   /// Waist-up tag every character portrait must carry.
   static const String portraitFramingTag = 'upper body';
@@ -40,6 +51,11 @@ abstract final class ComfyWorkflowTemplates {
   /// Portrait-only negatives that keep the sprite upper body.
   static const String portraitNegativeTags =
       'full body, full-length, wide shot, long shot';
+
+  /// Portrait-only negatives that keep a crisp dark rim for matting.
+  static const String portraitOutlineNegativeTags =
+      'thin outline, no outline, soft edges, blurry outline, faint lineart, '
+      'sketch, pencil sketch';
 
   /// Tags that would pull a portrait back to a full-body composition.
   static final RegExp _fullBodyFraming = RegExp(
@@ -58,6 +74,20 @@ abstract final class ComfyWorkflowTemplates {
     caseSensitive: false,
   );
 
+  /// Ensures [portraitOutlineTags] are present (idempotent via anchor tag).
+  static String enforcePortraitOutline(String prompt) {
+    var cleaned = prompt
+        .replaceAll(RegExp(r',\s*,+'), ',')
+        .replaceAll(RegExp(r'^\s*,\s*'), '')
+        .trim();
+    if (cleaned.endsWith(',')) {
+      cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+    }
+    if (cleaned.isEmpty) return portraitCompositionBase;
+    if (_strongPortraitOutline.hasMatch(cleaned)) return cleaned;
+    return '$cleaned, $portraitOutlineTags';
+  }
+
   /// Forces [prompt] into a waist-up portrait: drops full-body framing tags and
   /// injects [portraitFramingTag] when the prompt has no waist-up tag yet.
   ///
@@ -72,25 +102,42 @@ abstract final class ComfyWorkflowTemplates {
       cleaned = cleaned.substring(0, cleaned.length - 1).trim();
     }
     if (cleaned.isEmpty) return portraitCompositionBase;
-    if (_waistUpFraming.hasMatch(cleaned)) return cleaned;
-
-    // Keep studio tags at the tail so the framing tag lands with the subject.
-    final background = _studioBackground.firstMatch(cleaned);
-    if (background == null) return '$cleaned, $portraitFramingTag';
-    final head = cleaned.substring(0, background.start).trim();
-    final tail = cleaned.substring(background.start).trim();
-    final headClean =
-        head.endsWith(',') ? head.substring(0, head.length - 1).trim() : head;
-    if (headClean.isEmpty) return '$portraitFramingTag, $tail';
-    return '$headClean, $portraitFramingTag, $tail';
+    final String framed;
+    if (_waistUpFraming.hasMatch(cleaned)) {
+      framed = cleaned;
+    } else {
+      // Keep studio tags at the tail so the framing tag lands with the subject.
+      final background = _studioBackground.firstMatch(cleaned);
+      if (background == null) {
+        framed = '$cleaned, $portraitFramingTag';
+      } else {
+        final head = cleaned.substring(0, background.start).trim();
+        final tail = cleaned.substring(background.start).trim();
+        final headClean = head.endsWith(',')
+            ? head.substring(0, head.length - 1).trim()
+            : head;
+        framed = headClean.isEmpty
+            ? '$portraitFramingTag, $tail'
+            : '$headClean, $portraitFramingTag, $tail';
+      }
+    }
+    return enforcePortraitOutline(framed);
   }
 
   /// Appends portrait-only negatives without touching scene negatives.
   static String portraitNegative(String negative) {
     final base = negative.trim();
-    if (base.isEmpty) return portraitNegativeTags;
-    if (base.toLowerCase().contains('full body')) return base;
-    return '$base, $portraitNegativeTags';
+    if (base.isEmpty) {
+      return '$portraitNegativeTags, $portraitOutlineNegativeTags';
+    }
+    var next = base;
+    if (!base.toLowerCase().contains('full body')) {
+      next = '$next, $portraitNegativeTags';
+    }
+    if (!base.toLowerCase().contains('thin outline')) {
+      next = '$next, $portraitOutlineNegativeTags';
+    }
+    return next;
   }
 
   /// Facing tags so the sprite looks toward stage center when placed opposite.
