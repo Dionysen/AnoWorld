@@ -6,14 +6,13 @@ import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
-import 'package:anoworld/foundation/widgets/app_segmented.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
 import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:flutter/material.dart';
 
-/// Generation preferences: image quality and visual-novel direction.
+/// Generation preferences: image output and visual-novel direction.
 ///
 /// API endpoints stay on [AiSettingsPanel]; sampling for presets lives under
 /// the play-modes preset page.
@@ -28,6 +27,49 @@ class GenerationSettingsPanel extends StatefulWidget {
 class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
   Future<void> _persist(AiSettings next) async {
     await AppScope.settingsOf(context).updateAi(next);
+  }
+
+  Future<void> _openInStationChoiceSheet(AiSettings ai) async {
+    await showAppSheet<void>(
+      context: context,
+      size: AppSheetSize.compact,
+      builder: (sheetContext) {
+        final strings = context.strings;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                AppTheme.spaceSm,
+              ),
+              child: AppSectionHeader(strings.vnInStationChoicesLabel),
+            ),
+            for (final freq in InStationChoiceFrequency.values)
+              AppListTile(
+                title: strings.vnInStationChoiceFrequencyName(freq),
+                selected: freq == ai.inStationChoiceFrequency,
+                trailing: freq == ai.inStationChoiceFrequency
+                    ? AppText(
+                        strings.currentTag,
+                        role: AppTextRole.caption,
+                      )
+                    : null,
+                onTap: () async {
+                  await _persist(ai.copyWith(inStationChoiceFrequency: freq));
+                  if (sheetContext.mounted) {
+                    Navigator.pop(sheetContext);
+                  }
+                },
+              ),
+            const SizedBox(height: AppTheme.spaceMd),
+          ],
+        );
+      },
+    );
   }
 
   Future<ImageGenSizePreset?> _pickSizePreset({
@@ -87,6 +129,64 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
     );
   }
 
+  List<Widget> _sizeSection({
+    required AppStrings strings,
+    required String title,
+    required String hint,
+    required int width,
+    required int height,
+    required List<ImageGenSizePreset> presets,
+    required ValueChanged<ImageGenSizePreset> onPreset,
+    required ValueChanged<int> onWidth,
+    required ValueChanged<int> onHeight,
+  }) {
+    return [
+      AppSectionHeader(title, gutter: true),
+      AppPageGutter(
+        child: AppText(hint, role: AppTextRole.caption),
+      ),
+      const SizedBox(height: AppTheme.spaceSm),
+      AppListTile(
+        title: strings.imageGenSizePresetLabel,
+        subtitle: strings.imageGenSizeValue(width, height),
+        icon: Icons.aspect_ratio_outlined,
+        trailing: const AppForwardIcon(),
+        onTap: () async {
+          final picked = await _pickSizePreset(
+            presets: presets,
+            currentWidth: width,
+            currentHeight: height,
+          );
+          if (picked == null || !mounted) return;
+          onPreset(picked);
+        },
+      ),
+      AppSlider(
+        label: strings.imageGenWidthLabel,
+        subtitle: strings.imageGenWidthHint,
+        icon: Icons.swap_horiz_outlined,
+        value: width.toDouble(),
+        min: AiImageEndpoint.sizeLowerBound.toDouble(),
+        max: AiImageEndpoint.sizeUpperBound.toDouble(),
+        step: AiImageEndpoint.sizeStep.toDouble(),
+        valueText: (v) => '${v.round()}',
+        onChanged: (value) => onWidth(value.round()),
+      ),
+      AppSlider(
+        label: strings.imageGenHeightLabel,
+        subtitle: strings.imageGenHeightHint,
+        icon: Icons.swap_vert_outlined,
+        value: height.toDouble(),
+        min: AiImageEndpoint.sizeLowerBound.toDouble(),
+        max: AiImageEndpoint.sizeUpperBound.toDouble(),
+        step: AiImageEndpoint.sizeStep.toDouble(),
+        valueText: (v) => '${v.round()}',
+        showDivider: false,
+        onChanged: (value) => onHeight(value.round()),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.settingsOf(context);
@@ -111,6 +211,7 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
             const SizedBox(height: AppTheme.spaceSm),
             AppSlider(
               label: strings.imageGenStepsLabel,
+              subtitle: strings.imageGenStepsHint,
               icon: Icons.tune_outlined,
               value: ai.image.steps.toDouble(),
               min: AiImageEndpoint.stepsLowerBound.toDouble(),
@@ -121,122 +222,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
                 ai.withImage(ai.image.copyWith(steps: value.round())),
               ),
             ),
-            AppPageGutter(
-              child: AppText(
-                strings.imageGenPortraitSizeLabel,
-                role: AppTextRole.label,
-              ),
-            ),
-            AppListTile(
-              title: strings.imageGenSizePresetLabel,
-              subtitle: strings.imageGenSizeValue(
-                ai.image.portraitWidth,
-                ai.image.portraitHeight,
-              ),
-              icon: Icons.aspect_ratio_outlined,
-              trailing: const AppForwardIcon(),
-              onTap: () async {
-                final picked = await _pickSizePreset(
-                  presets: ImageGenSizePresets.portrait,
-                  currentWidth: ai.image.portraitWidth,
-                  currentHeight: ai.image.portraitHeight,
-                );
-                if (picked == null || !mounted) return;
-                await _persist(
-                  ai.withImage(
-                    ai.image.copyWith(
-                      portraitWidth: picked.width,
-                      portraitHeight: picked.height,
-                    ),
-                  ),
-                );
-              },
-            ),
-            AppSlider(
-              label: strings.imageGenWidthLabel,
-              icon: Icons.swap_horiz_outlined,
-              value: ai.image.portraitWidth.toDouble(),
-              min: AiImageEndpoint.sizeLowerBound.toDouble(),
-              max: AiImageEndpoint.sizeUpperBound.toDouble(),
-              step: AiImageEndpoint.sizeStep.toDouble(),
-              valueText: (v) => '${v.round()}',
-              onChanged: (value) => _persist(
-                ai.withImage(
-                  ai.image.copyWith(portraitWidth: value.round()),
-                ),
-              ),
-            ),
-            AppSlider(
-              label: strings.imageGenHeightLabel,
-              icon: Icons.swap_vert_outlined,
-              value: ai.image.portraitHeight.toDouble(),
-              min: AiImageEndpoint.sizeLowerBound.toDouble(),
-              max: AiImageEndpoint.sizeUpperBound.toDouble(),
-              step: AiImageEndpoint.sizeStep.toDouble(),
-              valueText: (v) => '${v.round()}',
-              onChanged: (value) => _persist(
-                ai.withImage(
-                  ai.image.copyWith(portraitHeight: value.round()),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceMd),
-            AppPageGutter(
-              child: AppText(
-                strings.imageGenSceneSizeLabel,
-                role: AppTextRole.label,
-              ),
-            ),
-            AppListTile(
-              title: strings.imageGenSizePresetLabel,
-              subtitle: strings.imageGenSizeValue(
-                ai.image.sceneWidth,
-                ai.image.sceneHeight,
-              ),
-              icon: Icons.aspect_ratio_outlined,
-              trailing: const AppForwardIcon(),
-              onTap: () async {
-                final picked = await _pickSizePreset(
-                  presets: ImageGenSizePresets.scene,
-                  currentWidth: ai.image.sceneWidth,
-                  currentHeight: ai.image.sceneHeight,
-                );
-                if (picked == null || !mounted) return;
-                await _persist(
-                  ai.withImage(
-                    ai.image.copyWith(
-                      sceneWidth: picked.width,
-                      sceneHeight: picked.height,
-                    ),
-                  ),
-                );
-              },
-            ),
-            AppSlider(
-              label: strings.imageGenWidthLabel,
-              icon: Icons.swap_horiz_outlined,
-              value: ai.image.sceneWidth.toDouble(),
-              min: AiImageEndpoint.sizeLowerBound.toDouble(),
-              max: AiImageEndpoint.sizeUpperBound.toDouble(),
-              step: AiImageEndpoint.sizeStep.toDouble(),
-              valueText: (v) => '${v.round()}',
-              onChanged: (value) => _persist(
-                ai.withImage(ai.image.copyWith(sceneWidth: value.round())),
-              ),
-            ),
-            AppSlider(
-              label: strings.imageGenHeightLabel,
-              icon: Icons.swap_vert_outlined,
-              value: ai.image.sceneHeight.toDouble(),
-              min: AiImageEndpoint.sizeLowerBound.toDouble(),
-              max: AiImageEndpoint.sizeUpperBound.toDouble(),
-              step: AiImageEndpoint.sizeStep.toDouble(),
-              valueText: (v) => '${v.round()}',
-              onChanged: (value) => _persist(
-                ai.withImage(ai.image.copyWith(sceneHeight: value.round())),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceMd),
             AppListTile(
               title: strings.imageGenUpscaleLabel,
               subtitle: strings.imageGenUpscaleHint,
@@ -252,6 +237,52 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
               showDivider: false,
             ),
             const SizedBox(height: AppTheme.spaceLg),
+            ..._sizeSection(
+              strings: strings,
+              title: strings.imageGenPortraitSizeLabel,
+              hint: strings.imageGenPortraitSizeHint,
+              width: ai.image.portraitWidth,
+              height: ai.image.portraitHeight,
+              presets: ImageGenSizePresets.portrait,
+              onPreset: (picked) => _persist(
+                ai.withImage(
+                  ai.image.copyWith(
+                    portraitWidth: picked.width,
+                    portraitHeight: picked.height,
+                  ),
+                ),
+              ),
+              onWidth: (w) => _persist(
+                ai.withImage(ai.image.copyWith(portraitWidth: w)),
+              ),
+              onHeight: (h) => _persist(
+                ai.withImage(ai.image.copyWith(portraitHeight: h)),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
+            ..._sizeSection(
+              strings: strings,
+              title: strings.imageGenSceneSizeLabel,
+              hint: strings.imageGenSceneSizeHint,
+              width: ai.image.sceneWidth,
+              height: ai.image.sceneHeight,
+              presets: ImageGenSizePresets.scene,
+              onPreset: (picked) => _persist(
+                ai.withImage(
+                  ai.image.copyWith(
+                    sceneWidth: picked.width,
+                    sceneHeight: picked.height,
+                  ),
+                ),
+              ),
+              onWidth: (w) => _persist(
+                ai.withImage(ai.image.copyWith(sceneWidth: w)),
+              ),
+              onHeight: (h) => _persist(
+                ai.withImage(ai.image.copyWith(sceneHeight: h)),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spaceLg),
             AppSectionHeader(
               strings.vnDirectionSection,
               gutter: true,
@@ -265,6 +296,7 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
             const SizedBox(height: AppTheme.spaceSm),
             AppSlider(
               label: strings.vnMinLinesLabel,
+              subtitle: strings.vnMinLinesHint,
               icon: Icons.movie_filter_outlined,
               value: ai.minBridgeLines.toDouble(),
               min: AiSettings.minBridgeLinesLowerBound.toDouble(),
@@ -276,42 +308,32 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
             ),
             AppSlider(
               label: strings.minGraphStationsLabel,
+              subtitle: strings.minGraphStationsHint,
               icon: Icons.account_tree_outlined,
               value: ai.minGraphStations.toDouble(),
               min: AiSettings.minGraphStationsLowerBound.toDouble(),
               max: AiSettings.minGraphStationsUpperBound.toDouble(),
               step: 1,
               valueText: (v) => strings.minGraphStationsValue(v.round()),
-              showDivider: false,
               onChanged: (value) =>
                   _persist(ai.copyWith(minGraphStations: value.round())),
             ),
-            const SizedBox(height: AppTheme.spaceMd),
-            AppPageGutter(
-              child: AppText(
-                strings.vnInStationChoicesLabel,
-                role: AppTextRole.label,
-              ),
-            ),
-            AppPageGutter(
-              child: AppText(
-                strings.vnInStationChoicesHint,
-                role: AppTextRole.caption,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
-            AppPageGutter(
-              child: AppSegmented<InStationChoiceFrequency>(
-                value: ai.inStationChoiceFrequency,
-                options: [
-                  for (final freq in InStationChoiceFrequency.values)
-                    AppSegmentOption(
-                      value: freq,
-                      label: strings.vnInStationChoiceFrequencyName(freq),
-                    ),
-                ],
-                onChanged: (freq) => _persist(
-                  ai.copyWith(inStationChoiceFrequency: freq),
+            AppListTile(
+              title: strings.vnInStationChoicesLabel,
+              subtitle: strings.vnInStationChoicesHint,
+              icon: Icons.alt_route_outlined,
+              showDivider: false,
+              onTap: () => _openInStationChoiceSheet(ai),
+              trailing: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: AppText(
+                  strings.vnInStationChoiceFrequencyName(
+                    ai.inStationChoiceFrequency,
+                  ),
+                  role: AppTextRole.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
                 ),
               ),
             ),

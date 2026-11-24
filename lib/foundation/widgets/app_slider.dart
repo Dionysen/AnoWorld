@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import 'app_list_hairline.dart';
 import 'app_list_tile.dart';
+import 'app_sheet.dart';
 import 'app_text.dart';
 
-/// Labeled stepped slider. Business code must not use [Slider] directly.
+/// Settings-style value row that opens a compact sheet with a stepped slider.
 ///
-/// [step] snaps the value on change; the track stays continuous (no tick marks).
-/// Full-width flat row (same language as [AppListTile]), not an island card.
+/// Business code must not use [Slider] directly. [step] snaps on change; the
+/// track stays continuous (no tick marks). Row chrome matches [AppListTile].
 class AppSlider extends StatelessWidget {
   const AppSlider({
     super.key,
@@ -18,6 +18,7 @@ class AppSlider extends StatelessWidget {
     required this.max,
     required this.step,
     required this.onChanged,
+    this.subtitle,
     this.icon,
     this.valueText,
     this.nested = false,
@@ -26,6 +27,9 @@ class AppSlider extends StatelessWidget {
        assert(max >= min);
 
   final String label;
+
+  /// Short row / sheet caption (no trailing period).
+  final String? subtitle;
   final IconData? icon;
   final double value;
   final double min;
@@ -60,87 +64,97 @@ class AppSlider extends StatelessWidget {
     return v.toStringAsFixed(places);
   }
 
+  String _readout(double v) {
+    final display = snap(value: v, min: min, max: max, step: step);
+    return valueText?.call(display) ?? _defaultValueText(display);
+  }
+
+  Future<void> _openSheet(BuildContext context) async {
+    var current = snap(value: value, min: min, max: max, step: step);
+    await showAppSheet<void>(
+      context: context,
+      size: AppSheetSize.compact,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            final scheme = Theme.of(context).colorScheme;
+            final readout = _readout(current);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePadding,
+                AppTheme.spaceXs,
+                AppTheme.pagePadding,
+                AppTheme.pagePadding,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppText(label, role: AppTextRole.subtitle, maxLines: 2),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: AppTheme.spaceXs),
+                    AppText(
+                      subtitle!,
+                      role: AppTextRole.caption,
+                      maxLines: 3,
+                    ),
+                  ],
+                  const SizedBox(height: AppTheme.spaceMd),
+                  AppText(
+                    readout,
+                    role: AppTextRole.title,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppTheme.spaceSm),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      activeTrackColor: scheme.primary,
+                      inactiveTrackColor: scheme.outline,
+                      thumbColor: scheme.primary,
+                      overlayColor: scheme.primary.withValues(alpha: 0.12),
+                      valueIndicatorColor: scheme.primary,
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: Slider(
+                      value: current,
+                      min: min,
+                      max: max,
+                      label: readout,
+                      onChanged: (next) {
+                        final snapped = snap(
+                          value: next,
+                          min: min,
+                          max: max,
+                          step: step,
+                        );
+                        setLocal(() => current = snapped);
+                        onChanged(snapped);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spaceSm),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final display = snap(value: value, min: min, max: max, step: step);
     final readout = valueText?.call(display) ?? _defaultValueText(display);
-    final left = AppTheme.spaceMd + (nested ? AppTheme.spaceMd : 0);
-
-    final body = Padding(
-      padding: EdgeInsets.fromLTRB(
-        left,
-        AppTheme.spaceInline,
-        AppTheme.spaceMd,
-        AppTheme.spaceSm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: AppListTile.iconSize,
-                  color: scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppTheme.spaceInline),
-              ],
-              Expanded(
-                child: AppText(
-                  label,
-                  role: AppTextRole.subtitle,
-                  maxLines: 1,
-                ),
-              ),
-              const SizedBox(width: AppTheme.spaceSm),
-              AppText(readout, role: AppTextRole.caption),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spaceSm),
-          // Same inset both sides; with icon, align under the title text.
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: icon != null
-                  ? AppListTile.iconSize + AppTheme.spaceInline
-                  : AppTheme.spaceInline,
-            ),
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 3,
-                activeTrackColor: scheme.primary,
-                inactiveTrackColor: scheme.outline,
-                thumbColor: scheme.primary,
-                overlayColor: scheme.primary.withValues(alpha: 0.12),
-                valueIndicatorColor: scheme.primary,
-                padding: EdgeInsets.zero,
-              ),
-              child: Slider(
-                value: display,
-                min: min,
-                max: max,
-                label: readout,
-                onChanged: (next) {
-                  onChanged(snap(value: next, min: min, max: max, step: step));
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (!showDivider) return body;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        body,
-        const AppListHairline(),
-      ],
+    return AppListTile(
+      title: label,
+      subtitle: subtitle,
+      icon: icon,
+      nested: nested,
+      showDivider: showDivider,
+      trailing: AppText(readout, role: AppTextRole.caption),
+      onTap: () => _openSheet(context),
     );
   }
 }

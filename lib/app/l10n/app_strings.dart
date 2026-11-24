@@ -366,11 +366,16 @@ abstract class AppStrings extends AppLocalizations {
   String get imageGenQualitySection;
   String get imageGenQualityHint;
   String get imageGenStepsLabel;
+  String get imageGenStepsHint;
   String imageGenStepsValue(int steps);
   String get imageGenPortraitSizeLabel;
+  String get imageGenPortraitSizeHint;
   String get imageGenSceneSizeLabel;
+  String get imageGenSceneSizeHint;
   String get imageGenWidthLabel;
+  String get imageGenWidthHint;
   String get imageGenHeightLabel;
+  String get imageGenHeightHint;
   String get imageGenSizePresetLabel;
   String imageGenSizePresetValue(ImageGenSizePreset preset);
   String imageGenSizeValue(int width, int height);
@@ -380,8 +385,10 @@ abstract class AppStrings extends AppLocalizations {
   String get vnDirectionSection;
   String get vnDirectionHint;
   String get vnMinLinesLabel;
+  String get vnMinLinesHint;
   String vnMinLinesValue(int lines);
   String get minGraphStationsLabel;
+  String get minGraphStationsHint;
   String minGraphStationsValue(int stations);
   String get vnInStationChoicesLabel;
   String get vnInStationChoicesHint;
@@ -723,7 +730,9 @@ abstract class AppStrings extends AppLocalizations {
   String get fontLabel;
   String get fontHint;
   String get fontSizeLabel;
+  String get fontSizeHint;
   String get cornerRadiusLabel;
+  String get cornerRadiusHint;
   String get currentTag;
   String get inUseTag;
   String get lightSlotTag;
@@ -852,8 +861,13 @@ abstract class AppStrings extends AppLocalizations {
   // Sampling.
 
   String get maxOutputLabel;
+  String get maxOutputHint;
   String get contextLengthLabel;
+  String get contextLengthHint;
   String get temperatureLabel;
+  String get temperatureHint;
+  String get topPLabel;
+  String get topPHint;
   String get streamOutput;
   String get streamOutputHint;
   String get advancedSampling;

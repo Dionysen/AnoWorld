@@ -19,7 +19,9 @@ void main() {
     );
   });
 
-  testWidgets('AppSlider reports snapped values', (tester) async {
+  testWidgets('AppSlider opens a sheet slider and reports snapped values', (
+    tester,
+  ) async {
     final values = <double>[];
     await tester.pumpWidget(
       MaterialApp(
@@ -27,6 +29,7 @@ void main() {
         home: Scaffold(
           body: AppSlider(
             label: '圆角大小',
+            subtitle: '按钮和卡片的圆角',
             value: 10,
             min: 0,
             max: 24,
@@ -37,6 +40,14 @@ void main() {
       ),
     );
 
+    expect(find.byType(Slider), findsNothing);
+    expect(find.text('按钮和卡片的圆角'), findsOneWidget);
+    expect(find.text('10'), findsOneWidget);
+
+    await tester.tap(find.text('圆角大小'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Slider), findsOneWidget);
     await tester.drag(find.byType(Slider), const Offset(80, 0));
     await tester.pumpAndSettle();
     expect(values, isNotEmpty);
@@ -44,9 +55,7 @@ void main() {
     expect(values.last, equals(values.last.roundToDouble()));
   });
 
-  testWidgets('AppSlider keeps label and value inside the surface block', (
-    tester,
-  ) async {
+  testWidgets('AppSlider row shows label, subtitle and value', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.data,
@@ -55,6 +64,7 @@ void main() {
             padding: EdgeInsets.all(16),
             child: AppSlider(
               label: '字体大小',
+              subtitle: '界面里的字有多大',
               value: 15,
               min: 12,
               max: 20,
@@ -67,16 +77,10 @@ void main() {
       ),
     );
 
-    final block = tester.getRect(find.byType(Material).last);
-    final label = tester.getRect(find.text('字体大小'));
-    final value = tester.getRect(find.text('15 px'));
-    final track = tester.getRect(find.byType(Slider));
-
-    expect(block.contains(label.topLeft), isTrue);
-    expect(block.contains(label.bottomRight), isTrue);
-    expect(block.contains(value.topLeft), isTrue);
-    expect(block.contains(value.bottomRight), isTrue);
-    expect(block.contains(track.center), isTrue);
+    expect(find.text('字体大小'), findsOneWidget);
+    expect(find.text('界面里的字有多大'), findsOneWidget);
+    expect(find.text('15 px'), findsOneWidget);
+    expect(find.byType(Slider), findsNothing);
   });
 }
 
@@ -84,4 +88,3 @@ String _px(double v) =>
     '${v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1)} px';
 
 void _noop(double _) {}
-

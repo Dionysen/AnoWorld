@@ -1066,14 +1066,16 @@ class AppStringsZh extends AppStrings {
   String dialogueOpacityValue(int percent) => '$percent%';
 
   @override
-  String get imageGenQualitySection => '生图质量';
+  String get imageGenQualitySection => '出图';
 
   @override
-  String get imageGenQualityHint =>
-      '可选手动宽高或预设（含 16:9）；越小越快，超分更清晰但更慢';
+  String get imageGenQualityHint => '步数影响细腻度；超分更清晰，也更慢';
 
   @override
   String get imageGenStepsLabel => '采样步数';
+
+  @override
+  String get imageGenStepsHint => '越多越细，也越慢';
 
   @override
   String imageGenStepsValue(int steps) => '$steps 步';
@@ -1082,13 +1084,25 @@ class AppStringsZh extends AppStrings {
   String get imageGenPortraitSizeLabel => '立绘尺寸';
 
   @override
+  String get imageGenPortraitSizeHint => '角色立绘的预设或手动宽高';
+
+  @override
   String get imageGenSceneSizeLabel => '场景尺寸';
+
+  @override
+  String get imageGenSceneSizeHint => '场景图的预设或手动宽高，含 16:9';
 
   @override
   String get imageGenWidthLabel => '宽度';
 
   @override
+  String get imageGenWidthHint => '图片有多宽';
+
+  @override
   String get imageGenHeightLabel => '高度';
+
+  @override
+  String get imageGenHeightHint => '图片有多高';
 
   @override
   String get imageGenSizePresetLabel => '尺寸预设';
@@ -1116,10 +1130,16 @@ class AppStringsZh extends AppStrings {
   String get vnMinLinesLabel => '每段最少句数';
 
   @override
+  String get vnMinLinesHint => '每一拍对白至少写几句';
+
+  @override
   String vnMinLinesValue(int lines) => '$lines 句';
 
   @override
   String get minGraphStationsLabel => '情节图最少站数';
+
+  @override
+  String get minGraphStationsHint => '一键生成情节时至少几站';
 
   @override
   String minGraphStationsValue(int stations) => '$stations 站';
@@ -2092,7 +2112,13 @@ class AppStringsZh extends AppStrings {
   String get fontSizeLabel => '字体大小';
 
   @override
+  String get fontSizeHint => '界面里的字有多大';
+
+  @override
   String get cornerRadiusLabel => '圆角大小';
+
+  @override
+  String get cornerRadiusHint => '按钮和卡片的圆角';
 
   @override
   String get currentTag => '当前';
@@ -2486,10 +2512,25 @@ class AppStringsZh extends AppStrings {
   String get maxOutputLabel => '单次最长输出';
 
   @override
+  String get maxOutputHint => '一次最多写多少字';
+
+  @override
   String get contextLengthLabel => '上下文长度';
 
   @override
+  String get contextLengthHint => '记得住多少前文';
+
+  @override
   String get temperatureLabel => '温度';
+
+  @override
+  String get temperatureHint => '越高越跳，越低越稳';
+
+  @override
+  String get topPLabel => 'Top P';
+
+  @override
+  String get topPHint => '收窄随机时的候选范围';
 
   @override
   String get streamOutput => '流式输出';

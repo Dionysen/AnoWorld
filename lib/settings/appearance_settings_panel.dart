@@ -514,6 +514,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             ),
             AppSlider(
               label: strings.fontSizeLabel,
+              subtitle: strings.fontSizeHint,
               icon: Icons.format_size,
               value: current.fontSize,
               min: AppearanceUiRange.fontSizeMin,
@@ -529,6 +530,7 @@ class _AppearanceSettingsPanelState extends State<AppearanceSettingsPanel> {
             ),
             AppSlider(
               label: strings.cornerRadiusLabel,
+              subtitle: strings.cornerRadiusHint,
               icon: Icons.rounded_corner,
               value: current.cornerRadius,
               min: AppearanceUiRange.cornerRadiusMin,

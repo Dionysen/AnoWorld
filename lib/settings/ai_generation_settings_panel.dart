@@ -37,6 +37,7 @@ class AiGenerationSettingsPanel extends StatelessWidget {
           children: [
             AppSlider(
               label: strings.maxOutputLabel,
+              subtitle: strings.maxOutputHint,
               icon: Icons.output_outlined,
               value: g.maxTokens.toDouble().clamp(_outputMin, _outputMax),
               min: _outputMin,
@@ -48,6 +49,7 @@ class AiGenerationSettingsPanel extends StatelessWidget {
             ),
             AppSlider(
               label: strings.contextLengthLabel,
+              subtitle: strings.contextLengthHint,
               icon: Icons.memory_outlined,
               value: _contextSlider(g.contextLength),
               min: 0,
@@ -61,6 +63,7 @@ class AiGenerationSettingsPanel extends StatelessWidget {
             ),
             AppSlider(
               label: strings.temperatureLabel,
+              subtitle: strings.temperatureHint,
               icon: Icons.thermostat_outlined,
               value: g.temperature,
               min: 0,
@@ -71,7 +74,8 @@ class AiGenerationSettingsPanel extends StatelessWidget {
                   _patch(context, (prev) => prev.copyWith(temperature: v)),
             ),
             AppSlider(
-              label: 'Top P',
+              label: strings.topPLabel,
+              subtitle: strings.topPHint,
               icon: Icons.pie_chart_outline,
               value: g.topP,
               min: 0,
