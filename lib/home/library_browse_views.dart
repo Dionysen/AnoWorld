@@ -94,13 +94,8 @@ class LibraryBrowseViews extends StatelessWidget {
     return parts.isEmpty ? strings.emptyFolder : parts.join(' · ');
   }
 
-  Widget _selectionOrAvatar(
-    BuildContext context, {
-    required bool selectionMode,
-    required bool selected,
-    required Widget avatar,
-  }) {
-    if (!selectionMode) return avatar;
+  /// List multi-select reuses the trailing slot (more / chevron → checkbox).
+  Widget _selectionCheck(BuildContext context, {required bool selected}) {
     final scheme = Theme.of(context).colorScheme;
     return Icon(
       selected ? Icons.check_circle : Icons.circle_outlined,
@@ -328,14 +323,9 @@ class LibraryBrowseViews extends StatelessWidget {
             title: folder.name,
             subtitle: _folderSubtitle(context, folder),
             selected: _isActiveRow(folder.id, selected),
-            leading: _selectionOrAvatar(
-              context,
-              selectionMode: selectionMode,
-              selected: selected,
-              avatar: _folderAvatar(context, compact: false),
-            ),
+            leading: _folderAvatar(context, compact: false),
             trailing: selectionMode
-                ? null
+                ? _selectionCheck(context, selected: selected)
                 : AppIconButton(
                     icon: Icons.more_vert,
                     tooltip: context.strings.more,
@@ -351,14 +341,9 @@ class LibraryBrowseViews extends StatelessWidget {
           title: project.title,
           subtitle: formatUpdated(project.updatedAt),
           selected: _isActiveRow(project.id, selected),
-          leading: _selectionOrAvatar(
-            context,
-            selectionMode: selectionMode,
-            selected: selected,
-            avatar: _projectAvatar(context, project, compact: false),
-          ),
+          leading: _projectAvatar(context, project, compact: false),
           trailing: selectionMode
-              ? null
+              ? _selectionCheck(context, selected: selected)
               : AppIconButton(
                   icon: Icons.more_vert,
                   tooltip: context.strings.more,
@@ -386,14 +371,9 @@ class LibraryBrowseViews extends StatelessWidget {
           return AppListTile(
             title: folder.name,
             selected: _isActiveRow(folder.id, selected),
-            leading: _selectionOrAvatar(
-              context,
-              selectionMode: selectionMode,
-              selected: selected,
-              avatar: _folderAvatar(context, compact: true),
-            ),
+            leading: _folderAvatar(context, compact: true),
             trailing: selectionMode
-                ? null
+                ? _selectionCheck(context, selected: selected)
                 : Icon(
                     Icons.chevron_right,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -407,14 +387,9 @@ class LibraryBrowseViews extends StatelessWidget {
         return AppListTile(
           title: project.title,
           selected: _isActiveRow(project.id, selected),
-          leading: _selectionOrAvatar(
-            context,
-            selectionMode: selectionMode,
-            selected: selected,
-            avatar: _projectAvatar(context, project, compact: true),
-          ),
+          leading: _projectAvatar(context, project, compact: true),
           trailing: selectionMode
-              ? null
+              ? _selectionCheck(context, selected: selected)
               : AppIconButton(
                   icon: Icons.more_vert,
                   tooltip: context.strings.more,

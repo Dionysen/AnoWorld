@@ -63,6 +63,44 @@ void main() {
     expect(find.byType(AppImage), findsNothing);
     expect(find.text('雨'), findsOneWidget);
   });
+
+  testWidgets('list multi-select swaps more for a trailing checkbox', (
+    tester,
+  ) async {
+    final selection = LibrarySelectionController()..enter(null);
+    await tester.pumpWidget(
+      testLocalized(
+        home: _browse(mode: LibraryViewMode.list, selection: selection),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(AppShapedAvatar), findsOneWidget);
+    expect(find.byIcon(Icons.more_vert), findsNothing);
+    expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
+
+    await tester.tap(find.text('雨夜'));
+    await tester.pump();
+
+    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    expect(find.byType(AppShapedAvatar), findsOneWidget);
+  });
+
+  testWidgets('simple list multi-select swaps trailing for a checkbox', (
+    tester,
+  ) async {
+    final selection = LibrarySelectionController()..enter(null);
+    await tester.pumpWidget(
+      testLocalized(
+        home: _browse(mode: LibraryViewMode.simpleList, selection: selection),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(AppShapedAvatar), findsOneWidget);
+    expect(find.byIcon(Icons.more_vert), findsNothing);
+    expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
+  });
 }
 
 Future<File> _writeCover() async {
@@ -78,27 +116,32 @@ Future<File> _writeCover() async {
 Widget _browse({
   required LibraryViewMode mode,
   Map<String, String> covers = const {},
+  LibrarySelectionController? selection,
 }) {
+  final controller = selection ?? LibrarySelectionController();
   return Scaffold(
-    body: LibraryBrowseViews(
-      viewMode: mode,
-      avatarShape: LibraryAvatarShape.circle,
-      folders: const [],
-      projects: [
-        ProjectSummary(
-          id: 'p1',
-          title: '雨夜',
-          updatedAt: DateTime.utc(2026, 1, 1),
-          directoryPath: '/tmp/p1',
-        ),
-      ],
-      covers: covers,
-      selection: LibrarySelectionController(),
-      onOpenFolder: (_) {},
-      onOpenProject: (_) {},
-      onFolderMenu: (_) {},
-      onProjectMenu: (_) {},
-      formatUpdated: (_) => '',
+    body: ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => LibraryBrowseViews(
+        viewMode: mode,
+        avatarShape: LibraryAvatarShape.circle,
+        folders: const [],
+        projects: [
+          ProjectSummary(
+            id: 'p1',
+            title: '雨夜',
+            updatedAt: DateTime.utc(2026, 1, 1),
+            directoryPath: '/tmp/p1',
+          ),
+        ],
+        covers: covers,
+        selection: controller,
+        onOpenFolder: (_) {},
+        onOpenProject: (_) {},
+        onFolderMenu: (_) {},
+        onProjectMenu: (_) {},
+        formatUpdated: (_) => '',
+      ),
     ),
   );
 }

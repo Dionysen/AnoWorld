@@ -1,5 +1,6 @@
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
+import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
@@ -9,10 +10,12 @@ import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_detail_pane.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_icon_button.dart';
+import 'package:anoworld/foundation/widgets/app_image.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_master_detail.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
 import 'package:anoworld/foundation/widgets/app_search_field.dart';
+import 'package:anoworld/foundation/widgets/app_shaped_avatar.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
 import 'package:anoworld/foundation/widgets/app_toast.dart';
@@ -51,6 +54,9 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
   bool _loading = true;
   String? _error;
   List<_SaveRow> _rows = const [];
+
+  /// Project id → absolute cover path (same resolution as the stories list).
+  Map<String, String> _covers = const {};
 
   /// Save shown in the wide-window detail pane; null shows the empty hint.
   String? _selectedSlotId;
@@ -99,6 +105,16 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
       final slots = await saves.listAll();
       final summaries = await projects.listProjects();
       final byId = {for (final s in summaries) s.id: s};
+      final covers = <String, String>{};
+      for (final summary in summaries) {
+        final relative = summary.coverPath;
+        if (relative != null && relative.isNotEmpty) {
+          covers[summary.id] = ProjectCoverFiles.absolutePath(
+            summary.directoryPath,
+            relative,
+          );
+        }
+      }
       final rows = <_SaveRow>[];
       for (final slot in slots) {
         final summary = byId[slot.projectId];
@@ -108,14 +124,25 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
       if (!mounted) return;
       setState(() {
         _rows = rows;
+        _covers = covers;
         _loading = false;
         if (_selectedSlotId != null &&
             !rows.any((row) => row.slot.id == _selectedSlotId)) {
           _selectedSlotId = null;
         }
       });
-    } catch (error) {
+      AppLog.instance.info(
+        '会话列表 ${rows.length} 条',
+        tag: 'saves.list',
+      );
+    } catch (error, stack) {
       if (!mounted) return;
+      AppLog.instance.error(
+        '会话列表加载失败',
+        tag: 'saves.list',
+        error: error,
+        stackTrace: stack,
+      );
       setState(() {
         _loading = false;
         _error = '$error';
@@ -271,17 +298,35 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
     return strings.lastPlayed(kind, saveTimeLabel(context, row.slot.savedAt));
   }
 
-  Widget _leading({required bool selected, required bool selectionMode}) {
+  Widget _coverAvatar(_SaveRow row) {
     final scheme = Theme.of(context).colorScheme;
-    if (selectionMode) {
-      return Icon(
-        selected ? Icons.check_circle : Icons.circle_outlined,
-        color: selected ? scheme.primary : scheme.outline,
-      );
-    }
-    return CircleAvatar(
+    final title = row.project.title;
+    final letter = title.isEmpty ? '?' : title.characters.first;
+    final cover = _covers[row.project.id];
+    return AppShapedAvatar.fromGeometry(
+      width: 56,
+      geometry: AppAvatarGeometry.circle,
       backgroundColor: scheme.primary.withValues(alpha: 0.18),
-      child: Icon(Icons.menu_book_outlined, color: scheme.primary, size: 20),
+      background: cover == null ? null : AppImage(path: cover),
+      child: cover != null
+          ? null
+          : Text(
+              letter,
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+            ),
+    );
+  }
+
+  /// Multi-select reuses the trailing more slot → checkbox (leading stays).
+  Widget _selectionCheck({required bool selected}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Icon(
+      selected ? Icons.check_circle : Icons.circle_outlined,
+      color: selected ? scheme.primary : scheme.outline,
     );
   }
 
@@ -444,12 +489,9 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
                                 title: row.project.title,
                                 subtitle: _subtitle(context, row),
                                 selected: selectionMode ? selected : active,
-                                leading: _leading(
-                                  selected: selected,
-                                  selectionMode: selectionMode,
-                                ),
+                                leading: _coverAvatar(row),
                                 trailing: selectionMode
-                                    ? null
+                                    ? _selectionCheck(selected: selected)
                                     : AppIconButton(
                                         icon: Icons.more_vert,
                                         tooltip: strings.more,
