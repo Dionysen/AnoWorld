@@ -32,7 +32,7 @@ class AppImage extends StatelessWidget {
       base = null;
     } else {
       final file = File(path!);
-      base = _StampedFileImage(file, stamp: _modifiedMicros(file));
+      base = stampedFileImage(file);
     }
     if (base == null) return null;
     return ResizeImage.resizeIfNeeded(cacheWidth, null, base);
@@ -42,7 +42,8 @@ class AppImage extends StatelessWidget {
   ///
   /// Regenerated pictures are written over the same path, so the plain
   /// `FileImage` key would keep serving the old frame from the image cache.
-  static int _modifiedMicros(File file) {
+  /// Microseconds since epoch from [file]'s modification time (0 when unreadable).
+  static int fileModifiedMicros(File file) {
     try {
       return file.lastModifiedSync().microsecondsSinceEpoch;
     } on FileSystemException {
@@ -78,14 +79,18 @@ class AppImage extends StatelessWidget {
 ///
 /// Same path, new pixels (a regenerated portrait) must decode again rather than
 /// reuse the cached frame the previous file produced.
-class _StampedFileImage extends FileImage {
-  const _StampedFileImage(super.file, {required this.stamp});
+ImageProvider stampedFileImage(File file, {double scale = 1.0}) {
+  return StampedFileImage(file, scale: scale, stamp: AppImage.fileModifiedMicros(file));
+}
+
+class StampedFileImage extends FileImage {
+  const StampedFileImage(super.file, {super.scale = 1.0, required this.stamp});
 
   final int stamp;
 
   @override
   bool operator ==(Object other) =>
-      other is _StampedFileImage &&
+      other is StampedFileImage &&
       other.file.path == file.path &&
       other.scale == scale &&
       other.stamp == stamp;

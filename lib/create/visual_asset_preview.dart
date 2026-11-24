@@ -5,6 +5,7 @@ import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_image.dart';
 import 'package:anoworld/foundation/widgets/app_image_viewer.dart';
 import 'package:anoworld/foundation/widgets/app_surface.dart';
 import 'package:anoworld/foundation/widgets/app_text.dart';
@@ -24,6 +25,8 @@ class VisualAssetPreview extends StatelessWidget {
     this.busy = false,
     this.actionLabel,
     this.onAction,
+    this.deleteLabel,
+    this.onDelete,
     this.fit = BoxFit.cover,
     this.zoomable = true,
     this.fitWidth = false,
@@ -39,6 +42,8 @@ class VisualAssetPreview extends StatelessWidget {
   final bool busy;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? deleteLabel;
+  final VoidCallback? onDelete;
   final BoxFit fit;
 
   /// Whether tapping the picture opens the zoomable full-screen viewer.
@@ -62,17 +67,15 @@ class VisualAssetPreview extends StatelessWidget {
     final stamp = imageFile == null
         ? null
         : ValueKey(
-            '${imageFile.path}-'
-            '${imageFile.lastModifiedSync().millisecondsSinceEpoch}',
+            '${imageFile.path}-${AppImage.fileModifiedMicros(imageFile)}',
           );
     final picture = imageFile == null
         ? _Empty(label: emptyLabel)
-        : Image.file(
-            imageFile,
+        : AppImage(
             key: stamp,
+            path: imageFile.path,
             fit: fit,
-            alignment: Alignment.center,
-            errorBuilder: (_, _, _) => _Empty(label: emptyLabel),
+            fallback: _Empty(label: emptyLabel),
           );
     final tappable = path != null && zoomable
         ? MouseRegion(
@@ -130,6 +133,15 @@ class VisualAssetPreview extends StatelessWidget {
                 variant: AppButtonVariant.secondary,
                 expanded: true,
               ),
+          ],
+          if (file != null && deleteLabel != null && onDelete != null) ...[
+            const SizedBox(height: AppTheme.spaceSm),
+            AppButton(
+              label: deleteLabel!,
+              onPressed: busy ? null : onDelete,
+              variant: AppButtonVariant.danger,
+              expanded: true,
+            ),
           ],
         ],
       ),
@@ -197,7 +209,10 @@ class _FitWidthImageState extends State<_FitWidthImage> {
   @override
   void didUpdateWidget(_FitWidthImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.file.path != widget.file.path) {
+    final pathChanged = oldWidget.file.path != widget.file.path;
+    final stampChanged = AppImage.fileModifiedMicros(oldWidget.file) !=
+        AppImage.fileModifiedMicros(widget.file);
+    if (pathChanged || stampChanged) {
       _detach();
       _ratio = null;
       _resolve();
@@ -211,7 +226,8 @@ class _FitWidthImageState extends State<_FitWidthImage> {
   }
 
   void _resolve() {
-    final stream = FileImage(widget.file).resolve(ImageConfiguration.empty);
+    final stream =
+        stampedFileImage(widget.file).resolve(ImageConfiguration.empty);
     _stream = stream..addListener(_listener);
   }
 

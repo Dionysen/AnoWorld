@@ -34,6 +34,7 @@ import 'package:anoworld/foundation/history/undo_stack.dart';
 import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
@@ -723,6 +724,56 @@ class _MainGraphPageState extends State<MainGraphPage>
     }
   }
 
+  Future<void> _deleteScene(String nodeId) async {
+    final project = _project;
+    final dir = _projectDir;
+    final strings = context.strings;
+    if (project == null || dir == null || dir.isEmpty) return;
+    if (_sceneFileFor(project, nodeId) == null) return;
+    final confirmed = await showAppConfirmSheet(
+      context,
+      title: strings.visualImageDeleteConfirmTitle,
+      detail: strings.visualImageDeleteConfirmDetail,
+      confirmLabel: strings.visualImageDelete,
+      danger: true,
+    );
+    if (!confirmed || !mounted) return;
+    final projects = AppScope.projectsOf(context);
+    final changes = AppScope.projectChangesOf(context);
+    setState(() => _regenBusyNodeId = nodeId);
+    try {
+      final latest = await projects.open(widget.projectId);
+      final pipeline = VisualImagePipeline();
+      final next = await pipeline.clearScene(
+        project: latest,
+        projectDir: dir,
+        nodeId: nodeId,
+      );
+      await projects.save(next);
+      changes.markChanged(widget.projectId);
+      if (!mounted) return;
+      setState(() {
+        _project = next;
+        _regenBusyNodeId = null;
+      });
+      showAppToast(context, strings.visualImageDeleteDone);
+    } on VisualImageException catch (error) {
+      if (!mounted) return;
+      setState(() => _regenBusyNodeId = null);
+      showAppToast(context, error.message);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '删除场景图失败',
+        tag: 'visual.delete',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() => _regenBusyNodeId = null);
+      showAppToast(context, error.toString());
+    }
+  }
+
   Future<void> _openNodeEditor(String nodeId) async {
     final project = _project;
     if (project == null) return;
@@ -762,6 +813,13 @@ class _MainGraphPageState extends State<MainGraphPage>
                         ? null
                         : () async {
                             await _regenerateScene(nodeId);
+                            if (ctx.mounted) setSheetState(() {});
+                          },
+                    deleteLabel: strings.visualImageDelete,
+                    onDelete: busy
+                        ? null
+                        : () async {
+                            await _deleteScene(nodeId);
                             if (ctx.mounted) setSheetState(() {});
                           },
                   ),

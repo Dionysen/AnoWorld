@@ -44,4 +44,18 @@ abstract final class ProjectAssetFiles {
 
   static String spriteRelativePath(String castId) =>
       ProjectPaths.normalizeRelativeAssetPath('sprites/$castId.png');
+
+  /// Removes the on-disk PNG for [asset] when it exists.
+  static Future<void> deleteIfPresent({
+    required String projectDir,
+    required ProjectAsset asset,
+  }) async {
+    final file = File(absolutePath(projectDir, asset.relativePath));
+    if (!file.existsSync()) return;
+    try {
+      await file.delete();
+    } on FileSystemException {
+      // Missing or locked file: treat as gone.
+    }
+  }
 }

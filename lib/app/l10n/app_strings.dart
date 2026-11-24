@@ -274,6 +274,10 @@ abstract class AppStrings extends AppLocalizations {
   String get visualPromptRegenDone;
   String get visualImageRegen;
   String get visualImageRegenDone;
+  String get visualImageDelete;
+  String get visualImageDeleteDone;
+  String get visualImageDeleteConfirmTitle;
+  String get visualImageDeleteConfirmDetail;
   String get visualStageBusyPrompts;
   String get visualStageBusyImages;
   /// A picture run for this story is already going.

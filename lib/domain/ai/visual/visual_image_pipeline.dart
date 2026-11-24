@@ -346,6 +346,91 @@ class VisualImagePipeline {
     );
   }
 
+  /// Deletes one cast portrait file and clears links in the story.
+  Future<Project> clearAvatar({
+    required Project project,
+    required String projectDir,
+    required String characterId,
+  }) async {
+    final member = project.castById(characterId);
+    if (member == null) {
+      throw const VisualImageException('找不到这个角色');
+    }
+    final assetId = member.avatarAssetId;
+    if (assetId == null) {
+      throw const VisualImageException('这个角色还没有立绘');
+    }
+    final asset = project.assetById(assetId);
+    if (asset != null) {
+      await ProjectAssetFiles.deleteIfPresent(projectDir: projectDir, asset: asset);
+    }
+    final assets = [
+      for (final a in project.assets)
+        if (a.id != assetId) a,
+    ];
+    final cast = project.cast
+        .map(
+          (m) => m.id == characterId
+              ? m.copyWith(clearAvatarAssetId: true)
+              : m,
+        )
+        .toList(growable: false);
+    AppLog.instance.info('已删除立绘 ${member.name}', tag: 'visual.delete');
+    return project.copyWith(
+      cast: cast,
+      assets: assets,
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+  }
+
+  /// Deletes one node background file and clears links in the story.
+  Future<Project> clearScene({
+    required Project project,
+    required String projectDir,
+    required String nodeId,
+  }) async {
+    final node = project.main.nodeById(nodeId);
+    if (node == null) {
+      throw const VisualImageException('找不到这一站');
+    }
+    final assetId = node.backgroundAssetId;
+    if (assetId == null) {
+      throw const VisualImageException('这一站还没有场景图');
+    }
+    final asset = project.assetById(assetId);
+    if (asset != null) {
+      await ProjectAssetFiles.deleteIfPresent(projectDir: projectDir, asset: asset);
+    }
+    final assets = [
+      for (final a in project.assets)
+        if (a.id != assetId) a,
+    ];
+    final beatsOut = List<Beat>.from(project.main.beats);
+    if (node.beatIds.isNotEmpty) {
+      final firstId = node.beatIds.first;
+      final bi = beatsOut.indexWhere((b) => b.id == firstId);
+      if (bi >= 0) {
+        final beat = beatsOut[bi];
+        beatsOut[bi] = beat.copyWith(
+          scene: beat.scene.copyWith(clearBackgroundAssetId: true),
+        );
+      }
+    }
+    final nodes = project.main.nodes
+        .map(
+          (n) => n.id == nodeId
+              ? n.copyWith(clearBackgroundAssetId: true)
+              : n,
+        )
+        .toList(growable: false);
+    AppLog.instance.info('已删除场景 ${node.title}', tag: 'visual.delete');
+    return project.copyWith(
+      assets: assets,
+      main: project.main.copyWith(nodes: nodes, beats: beatsOut),
+      meta: project.meta.copyWith(updatedAt: DateTime.now().toUtc()),
+    );
+  }
+
   /// Default portrait prompt from the kept prompt, else locked tags / facing.
   static String defaultPortraitPrompt(CastMember member) {
     final stored = member.portraitPrompt.trim();

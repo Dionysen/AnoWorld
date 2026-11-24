@@ -15,7 +15,9 @@ import 'package:anoworld/domain/project/entity_id.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/l10n/app_localizations.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
@@ -498,6 +500,58 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
     }
   }
 
+  Future<void> _deletePortrait() async {
+    if (_avatarFile == null) return;
+    final strings = context.strings;
+    final dir = widget.projectDir;
+    if (dir == null || dir.isEmpty) return;
+    final confirmed = await showAppConfirmSheet(
+      context,
+      title: strings.visualImageDeleteConfirmTitle,
+      detail: strings.visualImageDeleteConfirmDetail,
+      confirmLabel: strings.visualImageDelete,
+      danger: true,
+    );
+    if (!confirmed || !mounted) return;
+    final projects = AppScope.projectsOf(context);
+    final changes = AppScope.projectChangesOf(context);
+    setState(() => _regenBusy = true);
+    try {
+      final project = await projects.open(widget.projectId);
+      final pipeline = VisualImagePipeline();
+      final next = await pipeline.clearAvatar(
+        project: project,
+        projectDir: dir,
+        characterId: widget.draft.id,
+      );
+      await projects.save(next);
+      changes.markChanged(widget.projectId);
+      if (!mounted) return;
+      widget.onProjectUpdated(next);
+      setState(() {
+        _avatarAssetId = null;
+        _avatarFile = null;
+        _regenBusy = false;
+      });
+      showAppToast(context, strings.visualImageDeleteDone);
+    } on VisualImageException catch (error) {
+      AppLog.instance.warning('删除立绘失败', tag: 'visual.delete');
+      if (!mounted) return;
+      setState(() => _regenBusy = false);
+      showAppToast(context, error.message);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '删除立绘失败',
+        tag: 'visual.delete',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      setState(() => _regenBusy = false);
+      showAppToast(context, error.toString());
+    }
+  }
+
   void _save() {
     final next = _snapshot();
     Navigator.of(context).pop(
@@ -538,6 +592,8 @@ class _CastMemberSheetState extends State<_CastMemberSheet> {
               busy: _regenBusy,
               actionLabel: strings.visualRegenPortrait,
               onAction: _regenBusy ? null : _regenPortrait,
+              deleteLabel: strings.visualImageDelete,
+              onDelete: _regenBusy ? null : _deletePortrait,
             ),
             const SizedBox(height: AppTheme.spaceMd),
           ],

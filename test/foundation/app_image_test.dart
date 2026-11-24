@@ -70,6 +70,18 @@ void main() {
     await pumpFile();
     expect(shown(), isNot(first));
   });
+
+  test('stampedFileImage cache key follows mtime', () {
+    final dir = Directory.systemTemp.createTempSync('aw_stamped');
+    addTearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+    final file = File('${dir.path}/pic.png')..writeAsBytesSync(_onePixelPng);
+    final a = stampedFileImage(file);
+    file.setLastModifiedSync(DateTime.now().add(const Duration(seconds: 1)));
+    final b = stampedFileImage(file);
+    expect(a, isNot(equals(b)));
+  });
 }
 
 final Uint8List _onePixelPng = base64Decode(

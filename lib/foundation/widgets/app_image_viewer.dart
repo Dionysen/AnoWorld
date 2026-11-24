@@ -7,6 +7,7 @@ import '../frame/immersive_frame.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_circle_button.dart';
+import 'app_image.dart';
 import 'app_text.dart';
 
 /// Opens a full-screen lightbox for a local image.
@@ -126,7 +127,7 @@ class _AppImageViewerState extends State<AppImageViewer>
     if (bytes != null) return MemoryImage(bytes);
     final path = widget.path;
     if (path == null || path.isEmpty) return null;
-    return FileImage(File(path));
+    return stampedFileImage(File(path));
   }
 
   @override

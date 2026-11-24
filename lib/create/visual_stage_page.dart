@@ -7,6 +7,7 @@ import 'package:anoworld/app/visual_image_job_controller.dart';
 import 'package:anoworld/create/visual_asset_preview.dart';
 import 'package:anoworld/data/project/project_asset_files.dart';
 import 'package:anoworld/domain/ai/visual/comfy_workflow_templates.dart';
+import 'package:anoworld/domain/ai/visual/visual_image_pipeline.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_actions.dart';
 import 'package:anoworld/domain/ai/visual/visual_prompt_models.dart';
 import 'package:anoworld/domain/models/main_story.dart';
@@ -17,6 +18,7 @@ import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/theme/app_ui_tokens.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
+import 'package:anoworld/foundation/widgets/app_confirm_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_busy_indicator.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
@@ -337,6 +339,10 @@ class _VisualStagePageState extends State<VisualStagePage> {
         onRegeneratePrompt: (current) => _regeneratePrompt(row, current),
         onRegenerateImage:
             row.showsImage ? (prompt) => _regenerateImage(row, prompt) : null,
+        onDeleteImage:
+            row.showsImage && row.file != null
+                ? () => _deleteGeneratedImage(row)
+                : null,
       ),
     );
     final base = _plan;
@@ -426,6 +432,64 @@ class _VisualStagePageState extends State<VisualStagePage> {
       busyLabel: strings.visualRegenBusy,
       doneLabel: strings.visualImageRegenDone,
     );
+  }
+
+  /// Drops one generated picture from disk and clears story links.
+  Future<bool> _deleteGeneratedImage(_VisualRow row) async {
+    final strings = context.strings;
+    final confirmed = await showAppConfirmSheet(
+      context,
+      title: strings.visualImageDeleteConfirmTitle,
+      detail: strings.visualImageDeleteConfirmDetail,
+      confirmLabel: strings.visualImageDelete,
+      danger: true,
+    );
+    if (!confirmed || !mounted) return false;
+    if (_jobs?.isRunning(widget.projectId) ?? false) {
+      showAppToast(context, strings.visualJobAlreadyRunning);
+      return false;
+    }
+    final dir = _projectDir;
+    if (dir == null || dir.isEmpty) return false;
+    try {
+      AppLog.instance.info('删除画面图：${row.title}', tag: 'visual.delete');
+      final projects = AppScope.projectsOf(context);
+      final pipeline = VisualImagePipeline();
+      final latest = await projects.open(widget.projectId);
+      final next = switch (row.target) {
+        VisualPromptTarget.portrait => await pipeline.clearAvatar(
+          project: latest,
+          projectDir: dir,
+          characterId: row.characterId!,
+        ),
+        VisualPromptTarget.scene => await pipeline.clearScene(
+          project: latest,
+          projectDir: dir,
+          nodeId: row.nodeId!,
+        ),
+        VisualPromptTarget.stylePrefix ||
+        VisualPromptTarget.negativePrompt => latest,
+      };
+      await projects.save(next);
+      if (!mounted) return false;
+      AppScope.projectChangesOf(context).markChanged(widget.projectId);
+      setState(() {
+        _project = next;
+        _plan = draftPlanFromProjectFields(next);
+      });
+      showAppToast(context, strings.visualImageDeleteDone);
+      return true;
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '删除画面图失败：${row.title}',
+        tag: 'visual.delete',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return false;
+      showAppToast(context, error.toString());
+      return false;
+    }
   }
 
   @override
@@ -627,6 +691,7 @@ class _PromptSheet extends StatefulWidget {
     required this.row,
     required this.onRegeneratePrompt,
     this.onRegenerateImage,
+    this.onDeleteImage,
   });
 
   final _VisualRow row;
@@ -636,6 +701,9 @@ class _PromptSheet extends StatefulWidget {
 
   /// Redraws this row's picture with [prompt]; null when the row has none.
   final Future<File?> Function(String prompt)? onRegenerateImage;
+
+  /// Removes this row's picture from disk; null when there is none.
+  final Future<bool> Function()? onDeleteImage;
 
   @override
   State<_PromptSheet> createState() => _PromptSheetState();
@@ -706,6 +774,18 @@ class _PromptSheetState extends State<_PromptSheet> {
     });
   }
 
+  Future<void> _deleteImage() async {
+    final remove = widget.onDeleteImage;
+    if (remove == null || _file == null) return;
+    setState(() => _imageBusy = true);
+    final removed = await remove();
+    if (!mounted) return;
+    setState(() {
+      _imageBusy = false;
+      if (removed) _file = null;
+    });
+  }
+
   void _save() {
     Navigator.of(context).pop(
       _PromptEdit(prompt: _controller.text.trim(), facing: _facing),
@@ -753,6 +833,15 @@ class _PromptSheetState extends State<_PromptSheet> {
               ],
             ],
           ),
+          if (widget.onDeleteImage != null && _file != null) ...[
+            const SizedBox(height: AppTheme.spaceSm),
+            AppButton(
+              label: strings.visualImageDelete,
+              variant: AppButtonVariant.danger,
+              expanded: true,
+              onPressed: _busy ? null : _deleteImage,
+            ),
+          ],
           if (_busy)
             Padding(
               padding: const EdgeInsets.only(top: AppTheme.spaceInline),

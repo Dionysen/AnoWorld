@@ -823,6 +823,18 @@ class AppStringsZh extends AppStrings {
   String get visualImageRegenDone => '图片已更新';
 
   @override
+  String get visualImageDelete => '删除图片';
+
+  @override
+  String get visualImageDeleteDone => '图片已删除';
+
+  @override
+  String get visualImageDeleteConfirmTitle => '删除这张图片？';
+
+  @override
+  String get visualImageDeleteConfirmDetail => '删掉后要重新生成才能再看到';
+
+  @override
   String get visualStageBusyPrompts => '正在写提示词…';
 
   @override
