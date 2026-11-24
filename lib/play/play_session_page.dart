@@ -1946,6 +1946,16 @@ class _VnStageState extends State<_VnStage> {
         final pageIndex = pages.isEmpty ? 0 : _page.clamp(0, pages.length - 1);
         final pageText = pages.isEmpty ? null : pages[pageIndex];
         final speaker = line == null ? null : widget.speakerLabel(line);
+        // Everything the portrait must stand on: the reading box, the control
+        // bar under it, and the page bottom padding.
+        final stageFloor = AppTheme.pagePadding +
+            bottomInset +
+            controlsHeight +
+            statusHeight +
+            AppDialogueChrome.panelHeight(
+              lines: lines,
+              fontSize: widget.settings.fontSize,
+            );
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -1953,12 +1963,20 @@ class _VnStageState extends State<_VnStage> {
           child: Stack(
             fit: StackFit.expand,
             children: [
+              // Portrait stops at the box's top edge, so its feet meet the
+              // frosted glass instead of standing behind it.
               if (!showChoices)
-                _VnSpeakerSprite(
-                  project: widget.project,
-                  projectDir: widget.projectDir,
-                  line: line,
-                  appearances: runtime.appearances,
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: stageFloor,
+                  child: _VnSpeakerSprite(
+                    project: widget.project,
+                    projectDir: widget.projectDir,
+                    line: line,
+                    appearances: runtime.appearances,
+                  ),
                 ),
               Column(
                 children: [
@@ -2269,7 +2287,7 @@ class _VnSpeakerSprite extends StatelessWidget {
         child: Align(
           alignment: align,
           child: FractionallySizedBox(
-            heightFactor: 0.78,
+            heightFactor: 1,
             widthFactor: slot == AppearanceSlot.center ? 0.72 : 0.52,
             alignment: align,
             child: Image.file(

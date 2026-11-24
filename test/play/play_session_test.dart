@@ -958,6 +958,11 @@ void main() {
     expect(find.text('该走了。'), findsOneWidget);
     // The stage draws the player's own member, not only other characters.
     expect(find.byType(Image), findsOneWidget);
+    // …and it stands on the reading box: the portrait's feet meet the panel's
+    // top edge instead of disappearing behind the frosted glass.
+    final spriteBottom = tester.getBottomLeft(find.byType(Image)).dy;
+    final panelTop = tester.getTopLeft(find.byType(AppDialoguePanel)).dy;
+    expect(spriteBottom, moreOrLessEquals(panelTop, epsilon: 0.5));
   });
 
   testWidgets('unknown speaker ids never surface as a name', (tester) async {
