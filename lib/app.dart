@@ -24,6 +24,7 @@ import 'package:anoworld/home/create_assistant_controller.dart';
 import 'package:anoworld/home/create_assistant_overlay.dart';
 import 'package:anoworld/home/home_page.dart';
 import 'package:anoworld/home/library_display_prefs.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class App extends StatefulWidget {
@@ -166,7 +167,15 @@ class _AppState extends State<App> with WidgetsBindingObserver {
             themeMode: appearance.mode.material,
             navigatorObservers: [_assistantObserver],
             builder: (context, child) {
-              return ImmersiveFrame(child: child ?? const SizedBox.shrink());
+              Widget framed =
+                  ImmersiveFrame(child: child ?? const SizedBox.shrink());
+              // Windows Flutter AX bridge can desync on list/overlay updates
+              // (flutter/flutter#182444) and spam / crash. Empty semantics is a
+              // backstop if WM_GETOBJECT still reaches the engine somehow.
+              if (defaultTargetPlatform == TargetPlatform.windows) {
+                framed = ExcludeSemantics(child: framed);
+              }
+              return framed;
             },
             home: CreateAssistantOverlayScope(
               key: _assistantOverlayKey,

@@ -22,6 +22,13 @@ constexpr DWORD kRoundedCorners = 2;  // DWMWCP_ROUND
 
 LRESULT CALLBACK CaptionChildProc(HWND hwnd, UINT message, WPARAM wparam,
                                   LPARAM lparam) {
+  // Keep the Flutter accessibility bridge from activating on the view HWND.
+  // Cursor / IDE probes via MSAA trigger WM_GETOBJECT; once the bridge is
+  // live, overlay/list semantics can desync and spam AXTree errors (or crash
+  // release builds). Upstream: flutter/flutter#182444.
+  if (message == WM_GETOBJECT) {
+    return 0;
+  }
   if (message == WM_NCHITTEST && g_caption_window != nullptr) {
     // The top-level window owns resize borders so snap layouts still work.
     if (g_caption_window->CaptionHitTest(lparam) != HTCLIENT) {
@@ -381,6 +388,11 @@ void FlutterWindow::HandleWindowMethod(
 LRESULT FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                                       WPARAM const wparam,
                                       LPARAM const lparam) noexcept {
+  // Swallow before HandleTopLevelWindowProc — the engine also answers
+  // WM_GETOBJECT on the top-level HWND and would still build the bridge.
+  if (message == WM_GETOBJECT) {
+    return 0;
+  }
   if (message == WM_GETMINMAXINFO) {
     auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
     const UINT dpi = GetDpiForWindow(hwnd);
