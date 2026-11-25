@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Prompt section types that can be ordered and toggled
 enum PromptSectionType {
   systemPrompt,
@@ -220,15 +222,35 @@ class PromptManagerConfig {
     required this.sections,
   });
 
-  /// Get default configuration
+  /// Bound by seed loader to `assets/seed/prompt_default.json` content.
+  static PromptManagerConfig? _seedDefault;
+
+  /// Called once after seed JSON is loaded (app / tests).
+  static void bindSeedDefault(PromptManagerConfig config) {
+    _seedDefault = config;
+  }
+
+  @visibleForTesting
+  static void clearSeedDefaultForTest() {
+    _seedDefault = null;
+  }
+
+  /// Default prompt order/content (seed JSON when bound, else built-in fallback).
   factory PromptManagerConfig.defaultConfig() {
+    return _seedDefault ?? PromptManagerConfig._fallbackDefault();
+  }
+
+  /// Last-resort layout when seed assets are unavailable.
+  factory PromptManagerConfig._fallbackDefault() {
     return PromptManagerConfig(
       sections: [
         PromptSection(
           type: PromptSectionType.systemPrompt,
           name: PromptSection.getDisplayName(PromptSectionType.systemPrompt),
           order: 0,
-          content: PromptSection.getDefaultContent(PromptSectionType.systemPrompt),
+          content: PromptSection.getDefaultContent(
+            PromptSectionType.systemPrompt,
+          ),
         ),
         PromptSection(
           type: PromptSectionType.persona,
@@ -237,22 +259,30 @@ class PromptManagerConfig {
         ),
         PromptSection(
           type: PromptSectionType.characterDescription,
-          name: PromptSection.getDisplayName(PromptSectionType.characterDescription),
+          name: PromptSection.getDisplayName(
+            PromptSectionType.characterDescription,
+          ),
           order: 2,
         ),
         PromptSection(
           type: PromptSectionType.characterPersonality,
-          name: PromptSection.getDisplayName(PromptSectionType.characterPersonality),
+          name: PromptSection.getDisplayName(
+            PromptSectionType.characterPersonality,
+          ),
           order: 3,
         ),
         PromptSection(
           type: PromptSectionType.characterScenario,
-          name: PromptSection.getDisplayName(PromptSectionType.characterScenario),
+          name: PromptSection.getDisplayName(
+            PromptSectionType.characterScenario,
+          ),
           order: 4,
         ),
         PromptSection(
           type: PromptSectionType.exampleMessages,
-          name: PromptSection.getDisplayName(PromptSectionType.exampleMessages),
+          name: PromptSection.getDisplayName(
+            PromptSectionType.exampleMessages,
+          ),
           order: 5,
         ),
         PromptSection(
@@ -272,14 +302,20 @@ class PromptManagerConfig {
         ),
         PromptSection(
           type: PromptSectionType.worldInfoAfter,
-          name: PromptSection.getDisplayName(PromptSectionType.worldInfoAfter),
+          name: PromptSection.getDisplayName(
+            PromptSectionType.worldInfoAfter,
+          ),
           order: 9,
         ),
         PromptSection(
           type: PromptSectionType.postHistoryInstructions,
-          name: PromptSection.getDisplayName(PromptSectionType.postHistoryInstructions),
+          name: PromptSection.getDisplayName(
+            PromptSectionType.postHistoryInstructions,
+          ),
           order: 10,
-          content: PromptSection.getDefaultContent(PromptSectionType.postHistoryInstructions),
+          content: PromptSection.getDefaultContent(
+            PromptSectionType.postHistoryInstructions,
+          ),
         ),
       ],
     );

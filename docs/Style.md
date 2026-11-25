@@ -106,7 +106,7 @@
 - 布局枚举的用户可读名（布局模式、头像形状）由 [`library_display_labels.dart`](../lib/home/library_display_labels.dart) 从 `AppStrings` 取，枚举本身只留 `icon` / `next` 等无文案成员。
 - 文案风格仍按 `ui-copy`：面向用户、副标题不加句号、无实现腔。
 
-**不迁入文案表的内容**（属于数据或标识，不是界面 chrome）：内置剧情元素与分类种子、AI 提示词模板与工具描述、`AppLog` 日志、主题 token / 内置预设名称、系统字体名。这些若要本地化，另按「数据本地化」处理，不要塞进 `AppStrings`。
+**不迁入文案表的内容**（属于数据或标识，不是界面 chrome）：内置剧情元素与分类种子、AI 提示词模板与工具描述、`AppLog` 日志、主题 token / 内置预设名称、系统字体名。出厂剧情元素 / 内置 AI 预设 / 默认提示词分段放在 [`assets/seed/`](../assets/seed/) JSON（非 `AppStrings`）。这些若要本地化，另按「数据本地化」处理，不要塞进 `AppStrings`。
 
 **已迁移**：首页会话 / 故事分支、故事详情、创作入口与创作助手、剧情元素库 / 分类 / 包 / 编辑器、游玩模式选择、聊天设置、视觉小说游玩设置、游玩会话页与聊天视图、设置各面板与子页（含诊断日志）、世界书 / 角色编辑器（列表与编辑抽屉展示立绘、可单张重画）、画面页（首行两个一键按钮 + 画风 / 角色立绘 / 场景图条目：左侧 56px 缩略图或图标、右侧标题与两行提示词预览；点条目进全屏抽屉改图与提示词）、情节走向编辑器（画布选中站底部场景预览、站抽屉可重画场景、连线抽屉、全览）、角色卡导入、分阶段创作；枚举显示名（主题 token 与预设、AI 供应商与思考程度、情节站种类、设置分区）改由 `AppStrings` 方法 / 同层 helper 解析，枚举本身只留 id 与 icon。 **图标语义**：[Icons.auto_awesome](https://api.flutter.dev/flutter/material/Icons/auto_awesome-constant.html) / uto_awesome_outlined **只用于创作助手**锚点；设置「AI 配置」用 smart_toy_outlined，设置「预设」与预设行用 style_outlined，设置「剧情元素」用 theater_comedy_outlined，角色「从世界书提取」用 person_search_outlined，情节图「一键生成」用 ccount_tree_outlined，设置「生成设置」用 movie_filter_outlined。
 **待迁移**（仍为字面量）：分阶段创作的预览拼接文本（`_formatWorldBook` / `_formatCast` / `_formatMain`，属写入数据而非界面 chrome）；角色卡解析 / 整理等领域异常文案。
@@ -219,7 +219,7 @@
 - 布局枚举的用户可读名（布局模式、头像形状）由 [`library_display_labels.dart`](../lib/home/library_display_labels.dart) 从 `AppStrings` 取，枚举本身只留 `icon` / `next` 等无文案成员。
 - 文案风格仍按 `ui-copy`：面向用户、副标题不加句号、无实现腔。
 
-**不迁入文案表的内容**（属于数据或标识，不是界面 chrome）：内置剧情元素与分类种子、AI 提示词模板与工具描述、`AppLog` 日志、主题 token / 内置预设名称、系统字体名。这些若要本地化，另按「数据本地化」处理，不要塞进 `AppStrings`。
+**不迁入文案表的内容**（属于数据或标识，不是界面 chrome）：内置剧情元素与分类种子、AI 提示词模板与工具描述、`AppLog` 日志、主题 token / 内置预设名称、系统字体名。出厂剧情元素 / 内置 AI 预设 / 默认提示词分段放在 [`assets/seed/`](../assets/seed/) JSON（非 `AppStrings`）。这些若要本地化，另按「数据本地化」处理，不要塞进 `AppStrings`。
 
 **已迁移**：首页会话 / 故事分支、故事详情、创作入口与创作助手、剧情元素库 / 分类 / 包 / 编辑器、游玩模式选择、聊天设置、视觉小说游玩设置、游玩会话页与聊天视图、设置各面板与子页（含诊断日志）、世界书 / 角色编辑器（列表与编辑抽屉展示立绘、可单张重画）、画面页（首行两个一键按钮 + 画风 / 角色立绘 / 场景图条目：左侧 56px 缩略图或图标、右侧标题与两行提示词预览；点条目进全屏抽屉改图与提示词）、情节走向编辑器（画布选中站底部场景预览、站抽屉可重画场景、连线抽屉、全览）、角色卡导入、分阶段创作；枚举显示名（主题 token 与预设、AI 供应商与思考程度、情节站种类、设置分区）改由 `AppStrings` 方法 / 同层 helper 解析，枚举本身只留 id 与 icon。 **图标语义**：[Icons.auto_awesome](https://api.flutter.dev/flutter/material/Icons/auto_awesome-constant.html) / uto_awesome_outlined **只用于创作助手**锚点；设置「AI 配置」用 smart_toy_outlined，设置「预设」与预设行用 style_outlined，设置「剧情元素」用 theater_comedy_outlined，角色「从世界书提取」用 person_search_outlined，情节图「一键生成」用 ccount_tree_outlined，设置「生成设置」用 movie_filter_outlined。
 **待迁移**（仍为字面量）：分阶段创作的预览拼接文本（`_formatWorldBook` / `_formatCast` / `_formatMain`，属写入数据而非界面 chrome）；角色卡解析 / 整理等领域异常文案。

@@ -66,6 +66,9 @@ flutter:
 
   assets:
     - assets/branding/app_icon.png
+    - assets/seed/plot_elements.json
+    - assets/seed/ai_presets.json
+    - assets/seed/prompt_default.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

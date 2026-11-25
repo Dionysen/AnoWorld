@@ -5,6 +5,7 @@ import 'package:anoworld/domain/repositories/settings_repository.dart';
 import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
 import 'package:anoworld/domain/settings/ai_preset_state.dart';
+import 'package:anoworld/domain/settings/built_in_ai_presets.dart';
 import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/models/plot_element_category.dart';
 import 'package:anoworld/domain/models/plot_element_pack.dart';

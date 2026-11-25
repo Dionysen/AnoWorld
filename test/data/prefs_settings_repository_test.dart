@@ -8,8 +8,11 @@ import 'package:anoworld/domain/settings/vn_ui_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/test_app.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(ensureTestSeedsLoaded);
 
   test('prefs settings repository round-trips ai and appearance', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});

@@ -7,7 +7,11 @@ import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/test_app.dart';
+
 void main() {
+  setUpAll(ensureTestSeedsLoaded);
+
   const index = CreateContextIndex();
   final project = const ProjectFactory().createRainNightSample();
 

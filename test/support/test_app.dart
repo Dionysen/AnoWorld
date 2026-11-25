@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -16,7 +17,9 @@ import 'package:anoworld/domain/repositories/project_folder_repository.dart';
 import 'package:anoworld/domain/repositories/project_repository.dart';
 import 'package:anoworld/domain/repositories/save_repository.dart';
 import 'package:anoworld/domain/settings/appearance_settings.dart';
-import 'package:anoworld/foundation/fonts/file_system_font_repository.dart';import 'package:anoworld/foundation/fonts/system_font.dart';
+import 'package:anoworld/domain/settings/seed_catalog.dart';
+import 'package:anoworld/foundation/fonts/file_system_font_repository.dart';
+import 'package:anoworld/foundation/fonts/system_font.dart';
 import 'package:anoworld/foundation/fonts/system_font_catalog.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/layout/app_pane_width.dart';
@@ -26,7 +29,24 @@ import 'package:anoworld/home/library_display_prefs.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Load `assets/seed/*.json` from the repo for unit/widget tests (sync).
+void ensureTestSeedsLoaded() {
+  if (SeedCatalog.isLoaded) return;
+  SeedCatalog.applyParsed(
+    plotJson: jsonDecode(
+      File(SeedCatalog.plotElementsAsset).readAsStringSync(),
+    ),
+    presetsJson: jsonDecode(
+      File(SeedCatalog.aiPresetsAsset).readAsStringSync(),
+    ),
+    promptJson: jsonDecode(
+      File(SeedCatalog.promptDefaultAsset).readAsStringSync(),
+    ),
+  );
+}
+
 SettingsController testSettingsController() {
+  ensureTestSeedsLoaded();
   return SettingsController(
     repository: MemorySettingsRepository(),
     fonts: FileSystemFontRepository(
@@ -69,6 +89,7 @@ App testApp({
   Future<String?> Function()? pickImportDirectory,
   Future<Uint8List?> Function()? pickImportPackage,
 }) {
+  ensureTestSeedsLoaded();
   final controller = settings ?? testSettingsController();
   return App(
     projects: projects ?? MemoryProjectRepository(),
@@ -96,6 +117,7 @@ Widget testScoped({
   VisualImageJobController? visualJobs,
   List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
 }) {
+  ensureTestSeedsLoaded();
   final controller = settings ?? testSettingsController();
   final projectsRepo = projects ?? MemoryProjectRepository();
   final changes = projectChanges ?? ProjectChangeNotifier();

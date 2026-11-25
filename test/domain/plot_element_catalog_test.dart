@@ -5,7 +5,11 @@ import 'package:anoworld/domain/settings/built_in_plot_elements.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/test_app.dart';
+
 void main() {
+  setUpAll(ensureTestSeedsLoaded);
+
   test('effectiveList starts with all built-ins', () {
     final catalog = PlotElementCatalog();
     expect(catalog.effectiveList.length, BuiltInPlotElements.all.length);

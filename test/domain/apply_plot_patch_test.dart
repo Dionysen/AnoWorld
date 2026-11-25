@@ -3,6 +3,8 @@ import 'package:anoworld/domain/models/plot_element.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/test_app.dart';
+
 PlotElementCatalog _catalog() => PlotElementCatalog(
       custom: <PlotElement>[
         PlotElement(id: 'pe_rain', keyword: '暴雨封路', description: '出城的桥被冲断'),
@@ -25,6 +27,8 @@ PlotPatchState _state({
 }
 
 void main() {
+  setUpAll(ensureTestSeedsLoaded);
+
   const applier = ApplyPlotPatch();
 
   test('select adds ids without touching the library', () {

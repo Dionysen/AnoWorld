@@ -5,7 +5,11 @@ import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/st_prompt_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/test_app.dart';
+
 void main() {
+  setUpAll(ensureTestSeedsLoaded);
+
   group('SillyTavern preset import', () {
     test('imports default OpenAI preset fixture', () {
       final raw = File('test/fixtures/st_preset_default.json').readAsStringSync();

@@ -1,13 +1,15 @@
 import 'package:anoworld/app.dart';
+import 'package:anoworld/domain/settings/seed_catalog.dart';
 import 'package:anoworld/foundation/frame/immersive_frame.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _installGlobalErrorLogging();
   installImmersiveSystemUi();
+  await SeedCatalog.load();
   AppLog.instance.info('应用启动', tag: 'lifecycle');
   runApp(const App());
 }
