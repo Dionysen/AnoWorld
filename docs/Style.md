@@ -80,7 +80,7 @@
 
 ### 移动端底部系统条（全面屏手势条）
 
-- **Android**：隐藏导航条（手势横条 / 三个键），行为为「滑动临时出现、随后自动隐藏」，状态栏保持可见。实现：[`SystemBars`](../lib/foundation/frame/system_bars.dart) + `MainActivity.hideNavigationBar`（`app/system_bars` 通道，`WindowInsetsControllerCompat`）。`SystemBars.hidesBottomBar` 为真时，[`ImmersiveFrame`](../lib/foundation/frame/immersive_frame.dart) 把 `MediaQuery` 的 `padding.bottom` / `viewPadding.bottom` 归零——**手势条不占布局空间**，页面按真实底边排版。
+- **Android**：隐藏导航条（手势横条 / 三个键），从底边滑出可再显示；使用 `BEHAVIOR_DEFAULT`（**不要** `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`，后者会带半透明遮罩）。导航栏透明且关闭 `isNavigationBarContrastEnforced`。状态栏保持可见。实现：[`SystemBars`](../lib/foundation/frame/system_bars.dart) + `MainActivity.hideNavigationBar`（`app/system_bars` 通道）。`SystemBars.hidesBottomBar` 为真时，[`ImmersiveFrame`](../lib/foundation/frame/immersive_frame.dart) 把 `MediaQuery` 的 `padding.bottom` / `viewPadding.bottom` 归零——**手势条不占布局空间**，页面按真实底边排版。
 - **iOS**：Home 指示条不能由应用强制隐藏，仍保留底部安全区（`hidesBottomBar` 为假）。这是能力差异，不是第二套布局。
 - 底部浮动 chrome（胶囊底栏）与滚动页底部留白都读这份 MediaQuery，因此不需要各自做平台判断。
 
@@ -193,7 +193,7 @@
 
 ### 移动端底部系统条（全面屏手势条）
 
-- **Android**：隐藏导航条（手势横条 / 三个键），行为为「滑动临时出现、随后自动隐藏」，状态栏保持可见。实现：[`SystemBars`](../lib/foundation/frame/system_bars.dart) + `MainActivity.hideNavigationBar`（`app/system_bars` 通道，`WindowInsetsControllerCompat`）。`SystemBars.hidesBottomBar` 为真时，[`ImmersiveFrame`](../lib/foundation/frame/immersive_frame.dart) 把 `MediaQuery` 的 `padding.bottom` / `viewPadding.bottom` 归零——**手势条不占布局空间**，页面按真实底边排版。
+- **Android**：隐藏导航条（手势横条 / 三个键），从底边滑出可再显示；使用 `BEHAVIOR_DEFAULT`（**不要** `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`，后者会带半透明遮罩）。导航栏透明且关闭 `isNavigationBarContrastEnforced`。状态栏保持可见。实现：[`SystemBars`](../lib/foundation/frame/system_bars.dart) + `MainActivity.hideNavigationBar`（`app/system_bars` 通道）。`SystemBars.hidesBottomBar` 为真时，[`ImmersiveFrame`](../lib/foundation/frame/immersive_frame.dart) 把 `MediaQuery` 的 `padding.bottom` / `viewPadding.bottom` 归零——**手势条不占布局空间**，页面按真实底边排版。
 - **iOS**：Home 指示条不能由应用强制隐藏，仍保留底部安全区（`hidesBottomBar` 为假）。这是能力差异，不是第二套布局。
 - 底部浮动 chrome（胶囊底栏）与滚动页底部留白都读这份 MediaQuery，因此不需要各自做平台判断。
 

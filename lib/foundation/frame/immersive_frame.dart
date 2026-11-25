@@ -26,8 +26,8 @@ void installImmersiveSystemUi() {
       systemNavigationBarContrastEnforced: false,
     ),
   );
-  // Edge-to-edge above leaves the gesture bar drawn; hide it so it neither
-  // covers the page nor takes layout space.
+  // Edge-to-edge leaves the gesture bar drawn; hide it so it neither covers
+  // the page nor takes layout space (swipe reveals without a dim scrim).
   unawaited(SystemBars.hideBottomBar());
 }
 

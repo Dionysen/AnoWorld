@@ -1,5 +1,7 @@
 package com.anoworld.anoworld
 
+import android.graphics.Color
+import android.os.Build
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -10,10 +12,10 @@ import io.flutter.plugin.common.MethodChannel
 /**
  * Edge-to-edge host.
  *
- * The navigation bar (full-screen gesture handle, or the three buttons) is
- * hidden with transient-bars-by-swipe behaviour: it never takes layout space,
- * swiping from the edge brings it back for a moment, and it hides itself again.
- * The status bar keeps its place — the app draws below it.
+ * The navigation bar (gesture handle / three buttons) is hidden so it never
+ * takes layout space. A swipe from the bottom edge reveals it again without
+ * the dimming scrim that [BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE] paints —
+ * that matches common full-bleed apps. The status bar stays visible.
  */
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -43,10 +45,15 @@ class MainActivity : FlutterActivity() {
 
     private fun hideNavigationBar() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // No forced translucent pad behind a transparent nav bar.
+            window.isNavigationBarContrastEnforced = false
+        }
         WindowCompat.getInsetsController(window, window.decorView).apply {
             hide(WindowInsetsCompat.Type.navigationBars())
-            systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            // DEFAULT: swipe reveals bars without the transient dim overlay.
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
         }
     }
 

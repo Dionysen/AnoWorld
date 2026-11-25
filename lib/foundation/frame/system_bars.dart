@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 
 /// Mobile system bars the app shell can influence.
 ///
-/// Android: the navigation bar (the full-screen gesture handle / the three
-/// buttons) is hidden with *transient bars by swipe* behaviour — swiping from
-/// the edge brings it back for a moment and it hides itself again. The status
-/// bar stays visible. [hidesBottomBar] is true there, so layouts must not
-/// reserve the bottom system inset: the bar never occupies space.
+/// Android: the navigation bar (gesture handle / three buttons) is hidden so it
+/// never takes layout space. A bottom-edge swipe reveals it again **without**
+/// the dimming scrim used by transient-bars-by-swipe. The status bar stays
+/// visible. [hidesBottomBar] is true there, so layouts must not reserve the
+/// bottom system inset.
 ///
 /// iOS: the home indicator cannot be hidden by an app, so the bottom safe area
 /// stays part of the layout ([hidesBottomBar] is false).
