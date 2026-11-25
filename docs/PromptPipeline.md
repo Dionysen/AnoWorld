@@ -248,4 +248,4 @@ flowchart LR
 - [Core.md](./Core.md) — 预设、Persona、宏与故事包分工  
 - [UX.md](./UX.md) — 设置里预设与提示词管理 UI  
 - [MainBeat.md](./MainBeat.md) — 区间上下文与收敛  
-- [prompts/PRD.md](../prompts/PRD.md) — 产品范围与非目标  
+- [PRD.md](./PRD.md) — 产品范围与非目标  

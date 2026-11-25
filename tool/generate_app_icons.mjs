@@ -1,8 +1,8 @@
 // One command from the repo root:
 //   node tool/generate_app_icons.mjs
 //
-// Rasterizes design/app_icon.svg into the Android, iOS, macOS, Windows, and
-// Linux icon files. The first run installs the rasterizer under tool/.
+// Rasterizes assets/branding/app_icon.svg into the Android, iOS, macOS, Windows,
+// and Linux icon files. The first run installs the rasterizer under tool/.
 
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -105,7 +105,10 @@ function ico(images) {
 }
 
 const { Resvg } = await loadResvg()
-const svg = readFileSync(join(root, 'design', 'app_icon.svg'), 'utf8')
+const svg = readFileSync(
+  join(root, 'assets', 'branding', 'app_icon.svg'),
+  'utf8',
+)
 const cache = new Map()
 
 function pngAt(size) {
@@ -142,4 +145,6 @@ writePng(
   pngAt(256),
 )
 
-console.log(`Wrote icons from design/app_icon.svg (${cache.size} sizes).`)
+console.log(
+  `Wrote icons from assets/branding/app_icon.svg (${cache.size} sizes).`,
+)
