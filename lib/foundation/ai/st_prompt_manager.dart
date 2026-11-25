@@ -137,6 +137,13 @@ class PromptSection {
   /// Check if this is a custom prompt (not a built-in type)
   bool get isCustom => type == PromptSectionType.custom;
 
+  /// Added via the prompt manager 「加一条」 flow (`custom_<timestamp>`).
+  bool get isUserAdded {
+    if (!isCustom) return false;
+    final id = identifier?.trim() ?? '';
+    return id.startsWith('custom_');
+  }
+
   /// Content is supplied by the active character card at chat time.
   bool get isCharacterOwned => isTypeCharacterOwned(type);
 

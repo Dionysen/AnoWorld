@@ -113,9 +113,26 @@ void main() {
       final added = config.sortedSections.last;
       expect(added.identifier, 'custom_uncat');
       expect(added.categoryId, isNull);
+      expect(added.isUserAdded, isTrue);
       expect(
         config.sectionsInCategory(null).any((s) => s.identifier == 'custom_uncat'),
         isTrue,
+      );
+    });
+
+    test('seed crafts are custom; only ST slots are built-in types', () {
+      final config = PromptManagerConfig.defaultConfig();
+      final craft = config.sections
+          .where((s) => s.identifier == 'aw_anti_collapse')
+          .single;
+      expect(craft.isCustom, isTrue);
+      expect(craft.isUserAdded, isFalse);
+      expect(
+        config.sections
+            .where((s) => s.type == PromptSectionType.systemPrompt)
+            .single
+            .isCustom,
+        isFalse,
       );
     });
 

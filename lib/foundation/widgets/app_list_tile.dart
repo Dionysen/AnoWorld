@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_ui_tokens.dart';
 import 'app_icon_button.dart';
 import 'app_list_hairline.dart';
 import 'app_press_scale.dart';
@@ -16,6 +17,7 @@ class AppListTile extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.tags = const <String>[],
     this.icon,
     this.leading,
     this.onTap,
@@ -30,6 +32,9 @@ class AppListTile extends StatelessWidget {
 
   final String title;
   final String? subtitle;
+
+  /// Compact chips drawn after [title] on the same wrap run.
+  final List<String> tags;
   final IconData? icon;
 
   /// When set, replaces [icon].
@@ -69,6 +74,7 @@ class AppListTile extends StatelessWidget {
   AppListTile copyWith({
     String? title,
     String? subtitle,
+    List<String>? tags,
     IconData? icon,
     Widget? leading,
     VoidCallback? onTap,
@@ -84,6 +90,7 @@ class AppListTile extends StatelessWidget {
       key: key,
       title: title ?? this.title,
       subtitle: subtitle ?? this.subtitle,
+      tags: tags ?? this.tags,
       icon: icon ?? this.icon,
       leading: leading ?? this.leading,
       onTap: onTap ?? this.onTap,
@@ -191,11 +198,10 @@ class AppListTile extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          AppText(
-                            title,
-                            role: AppTextRole.subtitle,
-                            color: emphasis,
-                            maxLines: 1,
+                          _TitleWithTags(
+                            title: title,
+                            tags: tags,
+                            titleColor: emphasis,
                           ),
                           if (subtitle != null && subtitle!.isNotEmpty) ...[
                             const SizedBox(height: AppTheme.spaceXs),
@@ -230,6 +236,81 @@ class AppListTile extends StatelessWidget {
         row,
         const AppListHairline(),
       ],
+    );
+  }
+}
+
+class _TitleWithTags extends StatelessWidget {
+  const _TitleWithTags({
+    required this.title,
+    required this.tags,
+    this.titleColor,
+  });
+
+  final String title;
+  final List<String> tags;
+  final Color? titleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = <Widget>[
+      for (final tag in tags)
+        if (tag.trim().isNotEmpty) _ListTileTagChip(label: tag.trim()),
+    ];
+    if (chips.isEmpty) {
+      return AppText(
+        title,
+        role: AppTextRole.subtitle,
+        color: titleColor,
+        maxLines: 1,
+      );
+    }
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppTheme.spaceSm,
+      runSpacing: AppTheme.spaceXs,
+      children: [
+        AppText(
+          title,
+          role: AppTextRole.subtitle,
+          color: titleColor,
+          maxLines: 1,
+        ),
+        ...chips,
+      ],
+    );
+  }
+}
+
+class _ListTileTagChip extends StatelessWidget {
+  const _ListTileTagChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tagFill = Color.alphaBlend(
+      scheme.primary.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.1 : 0.07,
+      ),
+      scheme.surface,
+    );
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: tagFill,
+        shape: AppUiTokens.of(context).shape(
+          side: BorderSide(color: scheme.primary.withValues(alpha: 0.16)),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spaceSm,
+          vertical: AppTheme.spaceXs,
+        ),
+        child: AppText(label, role: AppTextRole.compactTag),
+      ),
     );
   }
 }

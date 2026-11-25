@@ -911,6 +911,7 @@ class _CategoryBlock extends StatelessWidget {
                 selectionActive: selectionActive,
                 selected: selection.isSelected(key),
                 enableCrossDrag: enableCrossDrag,
+                nested: true,
                 onTap: () => onRowTap(globalIndex, section, key),
               );
             },
@@ -932,6 +933,7 @@ class _SectionRow extends StatelessWidget {
     required this.selected,
     required this.enableCrossDrag,
     required this.onTap,
+    this.nested = false,
   });
 
   final int index;
@@ -942,6 +944,7 @@ class _SectionRow extends StatelessWidget {
   final bool selectionActive;
   final bool selected;
   final bool enableCrossDrag;
+  final bool nested;
   final VoidCallback onTap;
 
   @override
@@ -980,7 +983,13 @@ class _SectionRow extends StatelessWidget {
       subtitle: section.isCharacterOwned
           ? strings.filledByCast
           : (editable ? strings.tapToEdit : strings.tapToView),
+      // Only ST built-in slots (main / persona / worldInfo…); seed craft
+      // customs like 象牙塔摘录 are still custom prompts.
+      tags: section.isCustom
+          ? const <String>[]
+          : <String>[strings.presetBuiltInGroup],
       leading: leading,
+      nested: nested,
       selected: selectionActive && selected,
       trailing: selectionActive
           ? null
