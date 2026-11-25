@@ -32,6 +32,33 @@ void main() {
       prompt.sections.any((s) => s.type == PromptSectionType.systemPrompt),
       isTrue,
     );
+    expect(
+      prompt.sections.any((s) => s.identifier == 'aw_anti_collapse' && s.enabled),
+      isTrue,
+    );
+    expect(
+      prompt.sections.any((s) => s.identifier == 'aw_writing_craft' && s.enabled),
+      isTrue,
+    );
+    expect(
+      prompt.sections.any((s) => s.identifier == 'aw_word_alchemy' && s.enabled),
+      isTrue,
+    );
+    expect(
+      prompt.sections.any(
+        (s) => s.identifier == 'aw_style_slice_of_life' && !s.enabled,
+      ),
+      isTrue,
+    );
+    expect(
+      prompt.sections.where((s) => s.type == PromptSectionType.custom).length,
+      greaterThanOrEqualTo(20),
+    );
+    expect(BuiltInAIPresets.defaultPreset.generationSettings.topP, 0.88);
+    expect(
+      BuiltInAIPresets.defaultPreset.generationSettings.frequencyPenalty,
+      0.3,
+    );
   });
 
   test('asset JSON round-trips through applyParsed', () {

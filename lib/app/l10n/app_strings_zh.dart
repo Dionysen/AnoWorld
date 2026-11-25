@@ -2524,7 +2524,7 @@ class AppStringsZh extends AppStrings {
   String get presetPromptsSection => '预设提示词';
 
   @override
-  String get presetDefaultName => '均衡';
+  String get presetDefaultName => '默认';
 
   @override
   String get presetCreativeName => '更发散';
@@ -2542,7 +2542,7 @@ class AppStringsZh extends AppStrings {
   String get presetMirostatName => 'Mirostat 采样';
 
   @override
-  String get presetDefaultHint => '日常写故事';
+  String get presetDefaultHint => '中文叙事约束，少油腻少升华';
 
   @override
   String get presetCreativeHint => '想象力更大胆';

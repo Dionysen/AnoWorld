@@ -64,8 +64,16 @@ void main() {
     final removed = base.removeCustomSections(['custom_a', 'custom_c']);
 
     expect(
-      removed.sortedSections.map((s) => s.identifier).whereType<String>(),
-      ['custom_b'],
+      removed.sortedSections.any((s) => s.identifier == 'custom_b'),
+      isTrue,
+    );
+    expect(
+      removed.sortedSections.any((s) => s.identifier == 'custom_a'),
+      isFalse,
+    );
+    expect(
+      removed.sortedSections.any((s) => s.identifier == 'custom_c'),
+      isFalse,
     );
     expect(
       removed.sortedSections.map((s) => s.order).toList(),

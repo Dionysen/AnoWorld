@@ -123,10 +123,18 @@ class AppPage extends StatelessWidget {
             builder: (context, constraints) {
               // Window/status chrome only — never place app title / back /
               // actions here (desktop custom title bar is background + OS
-              // controls).
+              // controls). Shrink chrome before starving the body — a 1px
+              // body makes hub Columns (search + tool row) overflow.
+              const minBodySliver = 64.0;
               final chromeHeight = inDetailPane
                   ? 0.0
-                  : math.min(metrics.barHeight, constraints.maxHeight);
+                  : math.min(
+                      metrics.barHeight,
+                      math.max(
+                        0.0,
+                        constraints.maxHeight - minBodySliver,
+                      ),
+                    );
               final belowChrome = math.max(
                 0.0,
                 constraints.maxHeight - chromeHeight,

@@ -24,9 +24,16 @@ void main() {
   });
 
   test('restoreDefaultOrder keeps custom sections in their slots', () {
-    final config = PromptManagerConfig.defaultConfig()
-        .addCustomSection(name: '我的段', identifier: 'custom_1', content: 'x')
-        .reorder(11, 1);
+    final withCustom = PromptManagerConfig.defaultConfig().addCustomSection(
+      name: '我的段',
+      identifier: 'custom_1',
+      content: 'x',
+    );
+    final customIndex = withCustom.sortedSections.indexWhere(
+      (s) => s.identifier == 'custom_1',
+    );
+    expect(customIndex, greaterThanOrEqualTo(0));
+    final config = withCustom.reorder(customIndex, 1);
 
     expect(config.sortedSections[1].name, '我的段');
 

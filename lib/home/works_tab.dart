@@ -1210,95 +1210,105 @@ class WorksTabState extends State<WorksTab> implements HomeTabBack {
     final projects = _visibleProjects;
     final pathKey = _browsePath.join('/');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppSearchField(
-          hint: strings.searchStoriesHint,
-          controller: _searchController,
-          onChanged: (value) {
-            _searchDebounce?.cancel();
-            _searchDebounce = Timer(const Duration(milliseconds: 200), () {
-              if (mounted) setState(() => _query = value);
-            });
-          },
-          onClear: () {
-            _searchController.clear();
-            setState(() => _query = '');
-          },
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            0,
-            AppTheme.pagePadding,
-            AppTheme.spaceXs,
-          ),
-          child: SizedBox(
-            height: _WorksBreadcrumb.rowHeight,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (selectionMode) ...[
-                  AppIconButton(
-                    icon: Icons.close,
-                    tooltip: strings.exitSelection,
-                    onPressed: () => widget.selection.exit(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showChrome = constraints.maxHeight >= 120;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showChrome) ...[
+              AppSearchField(
+                hint: strings.searchStoriesHint,
+                controller: _searchController,
+                onChanged: (value) {
+                  _searchDebounce?.cancel();
+                  _searchDebounce = Timer(const Duration(milliseconds: 200), () {
+                    if (mounted) setState(() => _query = value);
+                  });
+                },
+                onClear: () {
+                  _searchController.clear();
+                  setState(() => _query = '');
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.pagePadding,
+                  0,
+                  AppTheme.pagePadding,
+                  AppTheme.spaceXs,
+                ),
+                child: SizedBox(
+                  height: _WorksBreadcrumb.rowHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (selectionMode) ...[
+                        AppIconButton(
+                          icon: Icons.close,
+                          tooltip: strings.exitSelection,
+                          onPressed: () => widget.selection.exit(),
+                        ),
+                        const Spacer(),
+                        ...AppPage.spacedActions([
+                          AppIconButton(
+                            icon: widget.selection.hasSelection
+                                ? Icons.deselect
+                                : Icons.select_all,
+                            tooltip: strings.selectAll(
+                              widget.selection.hasSelection,
+                            ),
+                            onPressed: toggleSelectAllVisible,
+                          ),
+                          if (widget.selection.hasSelection)
+                            AppIconButton(
+                              icon: Icons.drive_file_move_outline,
+                              tooltip: strings.moveToFolder,
+                              onPressed: moveSelected,
+                            ),
+                          if (widget.selection.hasSelection)
+                            AppIconButton(
+                              icon: Icons.delete_outline,
+                              tooltip: strings.delete,
+                              danger: true,
+                              onPressed: deleteSelected,
+                            ),
+                        ]),
+                      ] else ...[
+                        Expanded(
+                          child: _WorksBreadcrumb(
+                            crumbs: _breadcrumbs,
+                            onRoot: () => jumpBreadcrumb(-1),
+                            onCrumb: jumpBreadcrumb,
+                          ),
+                        ),
+                        AppIconButton(
+                          icon: Icons.more_vert,
+                          tooltip: strings.storyOptions,
+                          onPressed: showMoreMenu,
+                        ),
+                      ],
+                    ],
                   ),
-                  const Spacer(),
-                  ...AppPage.spacedActions([
-                    AppIconButton(
-                      icon: widget.selection.hasSelection
-                          ? Icons.deselect
-                          : Icons.select_all,
-                      tooltip: strings.selectAll(
-                        widget.selection.hasSelection,
-                      ),
-                      onPressed: toggleSelectAllVisible,
-                    ),
-                    if (widget.selection.hasSelection)
-                      AppIconButton(
-                        icon: Icons.drive_file_move_outline,
-                        tooltip: strings.moveToFolder,
-                        onPressed: moveSelected,
-                      ),
-                    if (widget.selection.hasSelection)
-                      AppIconButton(
-                        icon: Icons.delete_outline,
-                        tooltip: strings.delete,
-                        danger: true,
-                        onPressed: deleteSelected,
-                      ),
-                  ]),
-                ] else ...[
-                  Expanded(
-                    child: _WorksBreadcrumb(
-                      crumbs: _breadcrumbs,
-                      onRoot: () => jumpBreadcrumb(-1),
-                      onCrumb: jumpBreadcrumb,
-                    ),
+                ),
+              ),
+              if (_status != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.pagePadding,
                   ),
-                  AppIconButton(
-                    icon: Icons.more_vert,
-                    tooltip: strings.storyOptions,
-                    onPressed: showMoreMenu,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        if (_status != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.pagePadding),
-            child: AppText(_status!, role: AppTextRole.caption),
-          ),
-        Expanded(
-          child: _loading
-              ? Center(
-                  child: AppText(strings.loading, role: AppTextRole.caption),
-                )
-              : AnimatedSwitcher(
+                  child: AppText(_status!, role: AppTextRole.caption),
+                ),
+            ],
+            Expanded(
+              child: _loading
+                  ? Center(
+                      child: AppText(
+                        strings.loading,
+                        role: AppTextRole.caption,
+                      ),
+                    )
+                  : AnimatedSwitcher(
                   duration: const Duration(milliseconds: 280),
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
@@ -1354,8 +1364,10 @@ class WorksTabState extends State<WorksTab> implements HomeTabBack {
                     ),
                   ),
                 ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

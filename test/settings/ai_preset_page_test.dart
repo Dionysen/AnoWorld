@@ -187,12 +187,13 @@ void main() {
     expect(delete, findsOneWidget);
   });
 
-  testWidgets('advances without custom prompts show no multi-select entry', (
+  testWidgets('default seed customs expose multi-select in the prompt header', (
     tester,
   ) async {
     await pumpPresetPage(tester);
 
-    expect(find.byTooltip('多选'), findsNothing);
+    // Factory prompt_default includes custom craft sections (认知边界等).
+    expect(find.byTooltip('多选'), findsOneWidget);
     expect(find.byTooltip('加一条'), findsOneWidget);
   });
 

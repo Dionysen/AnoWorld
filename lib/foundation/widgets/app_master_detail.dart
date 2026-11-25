@@ -71,12 +71,19 @@ class AppMasterDetail extends StatelessWidget {
           );
           final dividerColor = theme.dividerColor.withValues(alpha: 0.5);
 
+          final paneHeight = constraints.hasBoundedHeight
+              ? constraints.maxHeight
+              : null;
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ColoredBox(
                 color: scheme.surfaceContainerLow,
-                child: SizedBox(width: width, child: primary),
+                child: SizedBox(
+                  width: width,
+                  height: paneHeight,
+                  child: primary,
+                ),
               ),
               _PaneResizeHandle(
                 width: width,
@@ -88,13 +95,16 @@ class AppMasterDetail extends StatelessWidget {
               Expanded(
                 child: ColoredBox(
                   color: scheme.surface,
-                  child: detail == null
-                      ? _EmptyDetailPane(message: emptyLabel)
-                      : AppDetailPane(
-                          key: detail!.key,
-                          root: detail!,
-                          controller: detailController,
-                        ),
+                  child: SizedBox(
+                    height: paneHeight,
+                    child: detail == null
+                        ? _EmptyDetailPane(message: emptyLabel)
+                        : AppDetailPane(
+                            key: detail!.key,
+                            root: detail!,
+                            controller: detailController,
+                          ),
+                  ),
                 ),
               ),
             ],

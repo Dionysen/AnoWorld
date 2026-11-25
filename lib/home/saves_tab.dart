@@ -366,209 +366,239 @@ class SavesTabState extends State<SavesTab> implements HomeTabBack {
     final visible = _visible;
     final mediaBottom = MediaQuery.paddingOf(context).bottom;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppSearchField(
-          hint: strings.searchSavesHint,
-          controller: _searchController,
-          onChanged: (value) => setState(() => _query = value),
-          onClear: () {
-            _searchController.clear();
-            setState(() => _query = '');
-          },
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePadding,
-            0,
-            AppTheme.pagePadding,
-            AppTheme.spaceXs,
-          ),
-          child: SizedBox(
-            height: 36,
-            child: Row(
-              children: [
-                const Spacer(),
-                if (selectionMode) ...[
-                  AppIconButton(
-                    icon: Icons.close,
-                    tooltip: strings.exitSelection,
-                    onPressed: () => widget.selection.exit(),
-                  ),
-                  const SizedBox(width: AppTheme.spaceSm),
-                  AppIconButton(
-                    icon: widget.selection.hasSelection
-                        ? Icons.deselect
-                        : Icons.select_all,
-                    tooltip: strings.selectAll(widget.selection.hasSelection),
-                    onPressed: _toggleSelectAllVisible,
-                  ),
-                  if (widget.selection.hasSelection) ...[
-                    const SizedBox(width: AppTheme.spaceSm),
-                    AppIconButton(
-                      icon: Icons.delete_outline,
-                      tooltip: strings.delete,
-                      danger: true,
-                      onPressed: deleteSelected,
-                    ),
-                  ],
-                ] else
-                  AppIconButton(
-                    icon: Icons.checklist,
-                    tooltip: strings.multiSelect,
-                    onPressed: () => widget.selection.enter(null),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        Expanded(
-          child: _loading
-              ? Center(
-                  child: AppText(strings.loading, role: AppTextRole.caption),
-                )
-              : _error != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppTheme.pagePadding),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AppText(
-                              strings.loadFailed(_error!),
-                              role: AppTextRole.caption,
-                            ),
-                            const SizedBox(height: AppTheme.spaceMd),
-                            AppButton(label: strings.retry, onPressed: reload),
-                          ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Search + tool row need ~90px; when the shell briefly (or durably)
+        // leaves a 1px body, drop chrome so the flex never overflows.
+        final showChrome = constraints.maxHeight >= 120;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showChrome) ...[
+              AppSearchField(
+                hint: strings.searchSavesHint,
+                controller: _searchController,
+                onChanged: (value) => setState(() => _query = value),
+                onClear: () {
+                  _searchController.clear();
+                  setState(() => _query = '');
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.pagePadding,
+                  0,
+                  AppTheme.pagePadding,
+                  AppTheme.spaceXs,
+                ),
+                child: SizedBox(
+                  height: 36,
+                  child: Row(
+                    children: [
+                      const Spacer(),
+                      if (selectionMode) ...[
+                        AppIconButton(
+                          icon: Icons.close,
+                          tooltip: strings.exitSelection,
+                          onPressed: () => widget.selection.exit(),
                         ),
+                        const SizedBox(width: AppTheme.spaceSm),
+                        AppIconButton(
+                          icon: widget.selection.hasSelection
+                              ? Icons.deselect
+                              : Icons.select_all,
+                          tooltip: strings.selectAll(
+                            widget.selection.hasSelection,
+                          ),
+                          onPressed: _toggleSelectAllVisible,
+                        ),
+                        if (widget.selection.hasSelection) ...[
+                          const SizedBox(width: AppTheme.spaceSm),
+                          AppIconButton(
+                            icon: Icons.delete_outline,
+                            tooltip: strings.delete,
+                            danger: true,
+                            onPressed: deleteSelected,
+                          ),
+                        ],
+                      ] else
+                        AppIconButton(
+                          icon: Icons.checklist,
+                          tooltip: strings.multiSelect,
+                          onPressed: () => widget.selection.enter(null),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            Expanded(
+              child: _loading
+                  ? Center(
+                      child: AppText(
+                        strings.loading,
+                        role: AppTextRole.caption,
                       ),
                     )
-                  : visible.isEmpty
+                  : _error != null
                       ? Center(
                           child: Padding(
                             padding: const EdgeInsets.all(AppTheme.pagePadding),
-                            child: AppEmptyState(
-                              message: _query.trim().isEmpty
-                                  ? strings.noSavesMessage
-                                  : strings.noMatchMessage,
-                              detail: _query.trim().isEmpty
-                                  ? strings.noSavesDetail
-                                  : strings.noMatchDetail,
-                              action: _query.trim().isEmpty
-                                  ? AppButton(
-                                      label: strings.goStories,
-                                      onPressed: widget.onBrowseWorks,
-                                      variant: AppButtonVariant.secondary,
-                                    )
-                                  : null,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AppText(
+                                  strings.loadFailed(_error!),
+                                  role: AppTextRole.caption,
+                                ),
+                                const SizedBox(height: AppTheme.spaceMd),
+                                AppButton(
+                                  label: strings.retry,
+                                  onPressed: reload,
+                                ),
+                              ],
                             ),
                           ),
                         )
-                      : RefreshIndicator(
-                          onRefresh: reload,
-                          child: ListView.separated(
-                            padding: EdgeInsets.fromLTRB(
-                              0,
-                              AppTheme.spaceXs,
-                              0,
-                              AppTheme.pagePadding + mediaBottom + 72,
-                            ),
-                            itemCount: visible.length,
-                            separatorBuilder: (_, _) => const SizedBox.shrink(),
-                            itemBuilder: (context, index) {
-                              final row = visible[index];
-                              final selected =
-                                  widget.selection.isSelected(row.slot.id);
-                              final active =
-                                  !selectionMode &&
-                                  split &&
-                                  row.slot.id == _selectedSlotId;
-                              return AppListTile(
-                                title: row.project.title,
-                                subtitle: _subtitle(context, row),
-                                selected: selectionMode ? selected : active,
-                                leading: _coverAvatar(row),
-                                trailing: selectionMode
-                                    ? _selectionCheck(selected: selected)
-                                    : AppIconButton(
-                                        icon: Icons.more_vert,
-                                        tooltip: strings.more,
-                                        onPressed: () async {
-                                          final action =
-                                              await showAppSheet<String>(
-                                            context: context,
-                                            builder: (ctx) => Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                const SizedBox(
-                                                  height: AppTheme.spaceSm,
+                      : visible.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(
+                                  AppTheme.pagePadding,
+                                ),
+                                child: AppEmptyState(
+                                  message: _query.trim().isEmpty
+                                      ? strings.noSavesMessage
+                                      : strings.noMatchMessage,
+                                  detail: _query.trim().isEmpty
+                                      ? strings.noSavesDetail
+                                      : strings.noMatchDetail,
+                                  action: _query.trim().isEmpty
+                                      ? AppButton(
+                                          label: strings.goStories,
+                                          onPressed: widget.onBrowseWorks,
+                                          variant: AppButtonVariant.secondary,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            )
+                          : RefreshIndicator(
+                              onRefresh: reload,
+                              child: ListView.separated(
+                                padding: EdgeInsets.fromLTRB(
+                                  0,
+                                  AppTheme.spaceXs,
+                                  0,
+                                  AppTheme.pagePadding + mediaBottom + 72,
+                                ),
+                                itemCount: visible.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox.shrink(),
+                                itemBuilder: (context, index) {
+                                  final row = visible[index];
+                                  final selected = widget.selection.isSelected(
+                                    row.slot.id,
+                                  );
+                                  final active =
+                                      !selectionMode &&
+                                      split &&
+                                      row.slot.id == _selectedSlotId;
+                                  return AppListTile(
+                                    title: row.project.title,
+                                    subtitle: _subtitle(context, row),
+                                    selected: selectionMode
+                                        ? selected
+                                        : active,
+                                    leading: _coverAvatar(row),
+                                    trailing: selectionMode
+                                        ? _selectionCheck(selected: selected)
+                                        : AppIconButton(
+                                            icon: Icons.more_vert,
+                                            tooltip: strings.more,
+                                            onPressed: () async {
+                                              final action =
+                                                  await showAppSheet<String>(
+                                                context: context,
+                                                builder: (ctx) => Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment
+                                                          .stretch,
+                                                  children: [
+                                                    const SizedBox(
+                                                      height:
+                                                          AppTheme.spaceSm,
+                                                    ),
+                                                    AppListTile(
+                                                      title:
+                                                          strings.resumePlay,
+                                                      icon: Icons
+                                                          .play_arrow_rounded,
+                                                      onTap: () =>
+                                                          Navigator.of(ctx)
+                                                              .pop('resume'),
+                                                    ),
+                                                    AppListTile(
+                                                      title:
+                                                          strings.openStory,
+                                                      icon: Icons
+                                                          .menu_book_outlined,
+                                                      onTap: () =>
+                                                          Navigator.of(ctx)
+                                                              .pop('story'),
+                                                    ),
+                                                    AppListTile(
+                                                      title:
+                                                          strings.deleteSave,
+                                                      icon: Icons
+                                                          .delete_outline,
+                                                      danger: true,
+                                                      showDivider: false,
+                                                      onTap: () =>
+                                                          Navigator.of(ctx)
+                                                              .pop('delete'),
+                                                    ),
+                                                    const SizedBox(
+                                                      height: AppTheme
+                                                          .pagePadding,
+                                                    ),
+                                                  ],
                                                 ),
-                                                AppListTile(
-                                                  title: strings.resumePlay,
-                                                  icon: Icons
-                                                      .play_arrow_rounded,
-                                                  onTap: () =>
-                                                      Navigator.of(ctx)
-                                                          .pop('resume'),
-                                                ),
-                                                AppListTile(
-                                                  title: strings.openStory,
-                                                  icon: Icons
-                                                      .menu_book_outlined,
-                                                  onTap: () =>
-                                                      Navigator.of(ctx)
-                                                          .pop('story'),
-                                                ),
-                                                AppListTile(
-                                                  title: strings.deleteSave,
-                                                  icon:
-                                                      Icons.delete_outline,
-                                                  danger: true,
-                                                  showDivider: false,
-                                                  onTap: () =>
-                                                      Navigator.of(ctx)
-                                                          .pop('delete'),
-                                                ),
-                                                const SizedBox(
-                                                  height: AppTheme.pagePadding,
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                          if (!mounted) return;
-                                          if (action == 'resume') {
-                                            await _resumePlay(row);
-                                          } else if (action == 'story') {
-                                            _openStory(row);
-                                          } else if (action == 'delete') {
-                                            await _deleteOne(row.slot.id);
-                                          }
-                                        },
-                                      ),
-                                onTap: () {
-                                  if (selectionMode) {
-                                    widget.selection.toggle(row.slot.id);
-                                  } else if (split) {
-                                    setState(() {
-                                      _selectedSlotId = row.slot.id;
-                                    });
-                                    widget.onChromeChanged?.call();
-                                  } else {
-                                    _resumePlay(row);
-                                  }
+                                              );
+                                              if (!mounted) return;
+                                              if (action == 'resume') {
+                                                await _resumePlay(row);
+                                              } else if (action == 'story') {
+                                                _openStory(row);
+                                              } else if (action == 'delete') {
+                                                await _deleteOne(row.slot.id);
+                                              }
+                                            },
+                                          ),
+                                    onTap: () {
+                                      if (selectionMode) {
+                                        widget.selection.toggle(row.slot.id);
+                                      } else if (split) {
+                                        setState(() {
+                                          _selectedSlotId = row.slot.id;
+                                        });
+                                        widget.onChromeChanged?.call();
+                                      } else {
+                                        _resumePlay(row);
+                                      }
+                                    },
+                                    onLongPress: () =>
+                                        widget.selection.toggle(row.slot.id),
+                                  );
                                 },
-                                onLongPress: () =>
-                                    widget.selection.toggle(row.slot.id),
-                              );
-                            },
-                          ),
-                        ),
-        ),
-      ],
+                              ),
+                            ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

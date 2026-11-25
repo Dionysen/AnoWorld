@@ -35,6 +35,7 @@ App 全局（设置，与酒馆同类）
 - **应用行为**（对齐 NT）：「应用」覆盖文本通道采样参数，并写入实时提示词配置；可从当前连接 + 提示词「另存为」自定义预设。
 - **新增与管理**：新建预设从出厂采样 + 默认提示词段开始；保存当前设置把实时采样与提示词存成自定义预设；内置预设只能应用，不能改名或删除。提示词段的「恢复默认顺序」只把内置段排回出厂次序，自定义段留在原位置。
 - **出厂数据来源**：内置预设列表在 [`assets/seed/ai_presets.json`](../assets/seed/ai_presets.json)，默认提示词分段在 [`assets/seed/prompt_default.json`](../assets/seed/prompt_default.json)；启动时 [`SeedCatalog.load`](../lib/domain/settings/seed_catalog.dart) 读入，[`BuiltInAIPresets`](../lib/domain/settings/built_in_ai_presets.dart) / `PromptManagerConfig.defaultConfig()` 只做门面。改内容改 JSON，不改 Dart 列表。
+- **默认预设（id `default`）**：采样略收 `top_p`、加 `frequency_penalty` / `presence_penalty` 压重复。提示词见 [`prompt_default.json`](../assets/seed/prompt_default.json)：默认开中文主指令 + 认知边界 / 世界公理 / 写作规范 / 防塌方 / 文字炼金 / 叙事动力学 / 内在罗盘·常规 / 关系引力·自然 / 研究母题·温柔 / 加强对白；默认关六套文风（生活喜剧 / 幻想文学 / 悬疑推理 / 中式恐怖 / 扭曲情感 / 极繁主义，宜择一开启）及选修（烟火摄影 / 复调群像 / 共时生态 / 慢板 / 段落密度、关系拉扯·修罗、内在淡人·高干、母题磨合·灰色）。不含长 CoT、状态栏或酒馆变量总线。
 - **对 AnoWorld 的附加约束**：创作/游玩请求在 ST 拼装之后仍追加**任务说明与 JSON schema**；合法下一站、结局出口等收敛规则不被预设绕过。
 - **拼装映射（渐进）**：
 
