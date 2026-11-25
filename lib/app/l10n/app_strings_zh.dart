@@ -1609,7 +1609,7 @@ class AppStringsZh extends AppStrings {
   String get cardInfoTitle => '卡片信息';
 
   @override
-  String get cardInfoCreator => '作者';
+  String get cardInfoCreator => '创作者';
 
   @override
   String get cardInfoVersion => '版本';
@@ -1618,16 +1618,28 @@ class AppStringsZh extends AppStrings {
   String get cardInfoTags => '标签';
 
   @override
+  String get cardInfoCreatedAt => '创建日期';
+
+  @override
+  String get cardInfoModifiedAt => '修改日期';
+
+  @override
   String get cardInfoCreatorNotes => '作者注';
 
   @override
-  String get cardInfoEmpty => '作者、版本、标签都空着，点这里补上';
+  String get cardInfoEmpty => '创作者、版本、标签都还空着';
 
   @override
   String get cardInfoEditTitle => '编辑卡片信息';
 
   @override
   String get cardInfoTagsHint => '多个标签用逗号分开';
+
+  @override
+  String get cardInfoCreatedAtHint => '如 2024-01-01 12:00';
+
+  @override
+  String get cardInfoModifiedAtHint => '如 2024-01-01 12:00';
 
   @override
   String get cardInfoCreatorNotesHint => '原作者留下的说明';

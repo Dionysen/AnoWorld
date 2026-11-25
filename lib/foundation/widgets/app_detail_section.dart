@@ -263,27 +263,52 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
     return maxWidth >= horizontal ? horizontal : _entryActionSize;
   }
 
+  Widget _entryTitleAndTags({
+    required String title,
+    required List<String> tags,
+  }) {
+    final chips = <Widget>[
+      for (final tag in tags)
+        if (tag.trim().isNotEmpty) _EntryTagChip(label: tag.trim()),
+    ];
+    if (title.isEmpty && chips.isEmpty) return const SizedBox.shrink();
+    if (chips.isEmpty) {
+      return AppText(title, role: AppTextRole.compactLabel, maxLines: 1);
+    }
+    // Title then chips on the same run; overflow wraps under the title.
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppTheme.spaceXs,
+      runSpacing: AppTheme.spaceXs,
+      children: [
+        if (title.isNotEmpty)
+          AppText(title, role: AppTextRole.compactLabel, maxLines: 1),
+        ...chips,
+      ],
+    );
+  }
+
   Widget _entryHeaderRow({
     required String title,
+    required List<String> tags,
     required List<Widget> actions,
     required double maxWidth,
   }) {
-    if (actions.isEmpty) {
-      return AppText(title, role: AppTextRole.compactLabel, maxLines: 1);
-    }
+    final heading = _entryTitleAndTags(title: title, tags: tags);
+    if (actions.isEmpty) return heading;
 
     final cluster = _actionCluster(actions, maxWidth);
     final clusterWidth = _actionClusterWidth(actions, maxWidth);
+    final hasHeading = title.isNotEmpty || tags.isNotEmpty;
     final fitsBesideTitle =
-        title.isEmpty || maxWidth >= clusterWidth + AppTheme.spaceSm + 24;
+        !hasHeading || maxWidth >= clusterWidth + AppTheme.spaceSm + 24;
 
     if (!fitsBesideTitle) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (title.isNotEmpty)
-            AppText(title, role: AppTextRole.compactLabel, maxLines: 2),
-          if (title.isNotEmpty) const SizedBox(height: AppTheme.spaceXs),
+          if (hasHeading) heading,
+          if (hasHeading) const SizedBox(height: AppTheme.spaceXs),
           Align(
             alignment: AlignmentDirectional.centerEnd,
             child: cluster,
@@ -295,14 +320,8 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (title.isNotEmpty)
-          Expanded(
-            child: AppText(
-              title,
-              role: AppTextRole.compactLabel,
-              maxLines: 1,
-            ),
-          )
+        if (hasHeading)
+          Expanded(child: heading)
         else
           const Spacer(),
         cluster,
@@ -314,6 +333,7 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
   Widget build(BuildContext context) {
     final title = widget.entry.title.trim();
     final body = widget.entry.body.trim();
+    final tags = widget.entry.tags;
     final hasCopy = widget.entry.hasClipboardText;
     final canExpand = _bodyLikelyOverflows(body);
     final showFull = _expanded || !canExpand;
@@ -323,6 +343,7 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
       hasCopy: hasCopy,
       canExpand: canExpand,
     );
+    final hasHeading = title.isNotEmpty || tags.isNotEmpty || actions.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -333,26 +354,19 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (title.isNotEmpty || actions.isNotEmpty)
+                if (hasHeading)
                   LayoutBuilder(
                     builder: (context, constraints) {
                       return _entryHeaderRow(
                         title: title,
+                        tags: tags,
                         actions: actions,
                         maxWidth: constraints.maxWidth,
                       );
                     },
                   ),
-                if (widget.entry.tags.isNotEmpty) ...[
-                  if (title.isNotEmpty || actions.isNotEmpty)
-                    const SizedBox(height: AppTheme.spaceXs),
-                  _EntryTagWrap(tags: widget.entry.tags),
-                ],
                 if (body.isNotEmpty) ...[
-                  if (title.isNotEmpty ||
-                      widget.entry.tags.isNotEmpty ||
-                      actions.isNotEmpty)
-                    const SizedBox(height: AppTheme.spaceXs),
+                  if (hasHeading) const SizedBox(height: AppTheme.spaceXs),
                   AppExpandableText(
                     text: displayBody,
                     expanded: showFull,
@@ -370,10 +384,10 @@ class _DetailEntryRowState extends State<_DetailEntryRow> {
   }
 }
 
-class _EntryTagWrap extends StatelessWidget {
-  const _EntryTagWrap({required this.tags});
+class _EntryTagChip extends StatelessWidget {
+  const _EntryTagChip({required this.label});
 
-  final List<String> tags;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -389,26 +403,18 @@ class _EntryTagWrap extends StatelessWidget {
       side: BorderSide(color: scheme.primary.withValues(alpha: 0.16)),
     );
 
-    return Wrap(
-      spacing: AppTheme.spaceXs,
-      runSpacing: AppTheme.spaceXs,
-      children: [
-        for (final tag in tags)
-          if (tag.trim().isNotEmpty)
-            DecoratedBox(
-              decoration: ShapeDecoration(
-                color: tagFill,
-                shape: tagShape,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spaceSm,
-                  vertical: AppTheme.spaceXs,
-                ),
-                child: AppText(tag.trim(), role: AppTextRole.compactTag),
-              ),
-            ),
-      ],
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: tagFill,
+        shape: tagShape,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spaceSm,
+          vertical: AppTheme.spaceXs,
+        ),
+        child: AppText(label, role: AppTextRole.compactTag),
+      ),
     );
   }
 }

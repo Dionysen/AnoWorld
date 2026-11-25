@@ -117,6 +117,8 @@ void main() {
         characterVersion: '1.2',
         creatorNotes: '原作者注',
         tags: ['古风', '客栈'],
+        creationDate: '2024-01-01 00:00',
+        modificationDate: '2024-01-02 12:00',
       ),
     ]);
 
@@ -126,5 +128,7 @@ void main() {
     expect(project.meta.card.version, '1.2');
     expect(project.meta.card.creatorNotes, '原作者注');
     expect(project.meta.card.tags, ['古风', '客栈']);
+    expect(project.meta.card.createdAt, '2024-01-01 00:00');
+    expect(project.meta.card.modifiedAt, '2024-01-02 12:00');
   });
 }

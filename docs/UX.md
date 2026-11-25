@@ -81,7 +81,7 @@
 
 **用户想要的感觉**：选一个卡 → 看软件读懂了什么 → 勾选留下 → 写入故事再改。
 
-**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」；确认后「写入故事」进入故事详情（先看素材，分区编辑直达，不强制立刻开玩 / 生成脉络）。**封面**：PNG 卡直接把卡面图写入故事封面（`assets/cover.png`）；JSON 卡若同目录有同名 `.png`（[`readCardCoverSidecar`](../lib/data/card_import/card_cover_sidecar.dart)）也一并带上；导入页会预览这张封面，没有图则提示可在故事页更换。**卡片信息**：卡上的作者 / 版本 / 标签随卡带进故事（存 `ProjectMeta.card`），导入页在封面预览下用一行小字列出，导入后可在故事详情查看与编辑。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
+**当前实现**：故事页末尾「添加」→「导入角色卡」→ [`CharacterCardImportPage`](../lib/create/character_card_import_page.dart)；支持 `.json`（V2/V3/旧平铺）与带 `chara`/`ccv3` 的 `.png`；读入后**自动去掉网页标记**（正文以 Markdown 存）；可再点「清理格式」；确认后「写入故事」进入故事详情（先看素材，分区编辑直达，不强制立刻开玩 / 生成脉络）。**封面**：PNG 卡直接把卡面图写入故事封面（`assets/cover.png`）；JSON 卡若同目录有同名 `.png`（[`readCardCoverSidecar`](../lib/data/card_import/card_cover_sidecar.dart)）也一并带上；导入页会预览这张封面，没有图则提示可在故事页更换。**卡片信息**：卡上的创作者 / 版本 / 标签 / 创建与修改日期随卡带进故事（存 `ProjectMeta.card`），导入页在封面预览下用小字列出已有项，导入后可在故事详情查看与编辑。macOS 沙盒需 `files.user-selected.read-write`（Debug/Release entitlements）才能读所选卡文件。
 
 ### 用户做的事
 
@@ -96,7 +96,7 @@
 | 卡里常见内容 | 填到 |
 | --- | --- |
 | PNG 卡面图（或与 JSON 同名的 PNG） | 故事封面（首张带图的卡；导入页可预览） |
-| 作者（`creator`）/ 版本（`character_version`）/ 标签（`tags`）/ 作者注（`creator_notes`） | 故事卡片信息（`ProjectMeta.card`；故事详情可改） |
+| 创作者（`creator`）/ 版本（`character_version`）/ 标签（`tags`）/ 创建日期（`creation_date` / `create_date`）/ 修改日期（`modification_date`）/ 作者注（`creator_notes`） | 故事卡片信息（`ProjectMeta.card`；故事详情始终列出，空着显示「未填写」，可改） |
 | `scenario` | 世界书 · 常驻「情景」 |
 | `character_book` 全部条目 | 世界书条目（`constant`→常驻，否则带关键词）；卡里本来就关闭的也列出来，只是导入时默认不勾 |
 | `first_mes` | 世界书 · 常驻「开场素材」 |
@@ -184,7 +184,7 @@
 
 ## 故事详情（点进一个故事）
 
-从故事库点一个故事进入 [`ProjectHubPage`](../lib/project/project_hub_page.dart)：上方**封面**为半屏高沉浸英雄区（[`StoryCoverBanner`](../lib/project/story_cover_banner.dart) + [`AppPage.overlayTitle`](../lib/foundation/widgets/app_page.dart)：封面铺到窗顶 / 状态栏后，软件标题透明叠在其上；顶对齐裁切 + 顶/底渐隐；故事名先落在封面底部，上滑后缩小淡出并收到顶栏；有 `assets/cover.*` 时显示真实封面，否则大书本图标占位；换封面与**改故事名**在软件标题右侧）。下方可折叠分区 **世界书**、**角色**、**情节走向**、**剧情元素**、**画面**、**卡片信息**（[`AppDetailSection`](../lib/foundation/widgets/app_detail_section.dart) 标题行即 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart)，与创作列表同款；默认收起）：点行展开详情，最右**编辑**（`onEdit`）直达对应编辑页（不再经创作中间页）。每区标题下用一行小字给体量与估算 token（世界书「n 条设定，m 条常驻，x token」、角色「n 个角色，x token」、情节走向「n 个节点，x token」、剧情元素「已选 n 项，x token」、画面「n 张立绘，m 张场景图」；空区不显示条数行，展开后见空态说明）。剧情元素区展示本故事已勾选的关键词与描述；空态「还没选剧情元素」。展开后条目以发丝线分隔（标题、标签、正文）；默认每区只先显示前 **8** 条，多出来的用「还有 n 条」；单条正文默认三行预览，右侧**展开**与**复制**。卡片信息空着时展开后给「作者、版本、标签都空着，点这里补上」。故事「更多」里的**查看故事**与**编辑故事**都进同一详情页。右下角 **开始游玩** 用 [`AppCircleButton.fab`](../lib/foundation/widgets/app_circle_button.dart)（先选玩法；视觉小说再选**你扮演谁**，本局锁定）。
+从故事库点一个故事进入 [`ProjectHubPage`](../lib/project/project_hub_page.dart)：上方**封面**为半屏高沉浸英雄区（[`StoryCoverBanner`](../lib/project/story_cover_banner.dart) + [`AppPage.overlayTitle`](../lib/foundation/widgets/app_page.dart)：封面铺到窗顶 / 状态栏后，软件标题透明叠在其上；顶对齐裁切 + 顶/底渐隐；故事名先落在封面底部，上滑后缩小淡出并收到顶栏；有 `assets/cover.*` 时显示真实封面，否则大书本图标占位；换封面与**改故事名**在软件标题右侧）。下方可折叠分区 **世界书**、**角色**、**情节走向**、**剧情元素**、**画面**、**卡片信息**（[`AppDetailSection`](../lib/foundation/widgets/app_detail_section.dart) 标题行即 [`AppListTile`](../lib/foundation/widgets/app_list_tile.dart)，与创作列表同款；默认收起）：点行展开详情，最右**编辑**（`onEdit`）直达对应编辑页（不再经创作中间页）。每区标题下用一行小字给体量与估算 token（世界书「n 条设定，m 条常驻，x token」、角色「n 个角色，x token」、情节走向「n 个节点，x token」、剧情元素「已选 n 项，x token」、画面「n 张立绘，m 张场景图」；空区不显示条数行，展开后见空态说明）。剧情元素区展示本故事已勾选的关键词与描述；空态「还没选剧情元素」。展开后条目以发丝线分隔（标题后紧跟标签 chip，再是正文）；默认每区只先显示前 **8** 条，多出来的用「还有 n 条」；单条正文默认三行预览，右侧**展开**与**复制**。卡片信息展开后始终列出创作者 / 版本 / 标签 / 创建日期 / 修改日期 / 作者注，空着显示「未填写」。故事「更多」里的**查看故事**与**编辑故事**都进同一详情页。右下角 **开始游玩** 用 [`AppCircleButton.fab`](../lib/foundation/widgets/app_circle_button.dart)（先选玩法；视觉小说再选**你扮演谁**，本局锁定）。
 
 ## 分区编辑（故事内）
 
@@ -196,7 +196,7 @@
 | 角色 | 姓名、别名、简介、性格等；**至多勾一名主角**；可从世界书**一键提取**角色 | [`CastEditorPage`](../lib/create/cast_editor_page.dart) |
 | 情节走向 | 大站与分支（原节点画布） | [`MainGraphPage`](../lib/create/main_graph/main_graph_page.dart) |
 | 画面 | 立绘与场景图、提示词 | [`VisualStagePage`](../lib/create/visual_stage_page.dart) |
-| 卡片信息 | 作者 / 版本 / 标签 / 作者注 | [`StoryCardMetaPage`](../lib/project/story_card_meta_page.dart) |
+| 卡片信息 | 创作者 / 版本 / 标签 / 创建日期 / 修改日期 / 作者注（均可空） | [`StoryCardMetaPage`](../lib/project/story_card_meta_page.dart) |
 
 **角色页的「从世界书提取」**：顶栏「找人」图标钮（person_search_outlined），角色为空时也是主按钮。打开即扫全库并分批抽取（进度显示已读几批），结果按来源条目分组：每行一个角色，标「新角色」或「已有，只补空字段」，勾选决定写不写。字段与原文对不上的会被丢掉并在顶部说明；已有角色只补空字段、别名取并集，不动已生成的立绘与主角标记。点「写入角色」只改角色，完成后可直接「去生成立绘」进画面页。
 

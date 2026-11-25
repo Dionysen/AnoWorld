@@ -340,6 +340,10 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
         '${strings.cardInfoVersion} · ${card.version.trim()}',
       if (card.tags.isNotEmpty)
         '${strings.cardInfoTags} · ${card.tags.join(strings.listSeparator)}',
+      if (card.createdAt.trim().isNotEmpty)
+        '${strings.cardInfoCreatedAt} · ${card.createdAt.trim()}',
+      if (card.modifiedAt.trim().isNotEmpty)
+        '${strings.cardInfoModifiedAt} · ${card.modifiedAt.trim()}',
     ];
     return AppText(lines.join('\n'), role: AppTextRole.caption);
   }

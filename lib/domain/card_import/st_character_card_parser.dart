@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:anoworld/domain/card_import/st_card_placeholders.dart';
 import 'package:anoworld/domain/card_import/st_character_card.dart';
+import 'package:anoworld/domain/models/story_card_meta.dart';
 import 'package:anoworld/foundation/io/png_text_chunks.dart';
 
 class StCharacterCardParseException implements Exception {
@@ -40,10 +41,13 @@ class StCharacterCardParser {
     Map<String, dynamic> json, {
     String sourceLabel = '',
   }) {
+    // ST may keep humanized create_date on the root while CCv3 dates sit in data.
+    final rootCreateDate = _textOf(json['create_date']);
     if (json.containsKey('spec') && json['data'] is Map) {
       return _fromData(
         Map<String, dynamic>.from(json['data'] as Map),
         sourceLabel: sourceLabel,
+        rootCreateDate: rootCreateDate,
       );
     }
     if (json['data'] is Map) {
@@ -51,7 +55,11 @@ class StCharacterCardParser {
       if (_stringOf(data['name']) == null && _stringOf(json['name']) != null) {
         data['name'] = json['name'];
       }
-      return _fromData(data, sourceLabel: sourceLabel);
+      return _fromData(
+        data,
+        sourceLabel: sourceLabel,
+        rootCreateDate: rootCreateDate,
+      );
     }
     return _fromLegacy(json, sourceLabel: sourceLabel);
   }
@@ -106,6 +114,7 @@ class StCharacterCardParser {
   StCharacterCard _fromData(
     Map<String, dynamic> data, {
     required String sourceLabel,
+    String? rootCreateDate,
   }) {
     final name = _stringOf(data['name'])?.trim() ?? '';
     if (name.isEmpty) {
@@ -125,6 +134,8 @@ class StCharacterCardParser {
       creator: _textOf(data['creator']) ?? '',
       characterVersion: _textOf(data['character_version']) ?? '',
       tags: _textList(data['tags']),
+      creationDate: _creationDateOf(data, rootCreateDate: rootCreateDate),
+      modificationDate: StoryCardMeta.formatCardDate(data['modification_date']),
       alternateGreetings: _textList(data['alternate_greetings']),
       bookEntries: _bookEntries(data['character_book']),
       sourceLabel: sourceLabel,
@@ -162,8 +173,22 @@ class StCharacterCardParser {
       creator: _textOf(json['creator']) ?? '',
       characterVersion: _textOf(json['character_version']) ?? '',
       tags: _textList(json['tags']),
+      creationDate: _creationDateOf(json),
+      modificationDate: StoryCardMeta.formatCardDate(json['modification_date']),
       sourceLabel: sourceLabel,
     );
+  }
+
+  /// Prefer CCv3 `creation_date`, then in-data / root ST `create_date`.
+  String _creationDateOf(
+    Map<String, dynamic> data, {
+    String? rootCreateDate,
+  }) {
+    final fromV3 = StoryCardMeta.formatCardDate(data['creation_date']);
+    if (fromV3.isNotEmpty) return fromV3;
+    final fromData = StoryCardMeta.formatCardDate(data['create_date']);
+    if (fromData.isNotEmpty) return fromData;
+    return StoryCardMeta.formatCardDate(rootCreateDate);
   }
 
   List<StCharacterBookEntry> _bookEntries(Object? raw) {

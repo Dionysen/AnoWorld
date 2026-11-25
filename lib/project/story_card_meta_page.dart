@@ -157,6 +157,22 @@ class _StoryCardMetaPageState extends State<StoryCardMetaPage>
                       _save(card.copyWith(tags: _parseTags(value))),
                 ),
                 AppTextEditTile(
+                  title: strings.cardInfoCreatedAt,
+                  icon: Icons.event_outlined,
+                  value: card.createdAt,
+                  hint: strings.cardInfoCreatedAtHint,
+                  onSubmitted: (value) =>
+                      _save(card.copyWith(createdAt: value.trim())),
+                ),
+                AppTextEditTile(
+                  title: strings.cardInfoModifiedAt,
+                  icon: Icons.update_outlined,
+                  value: card.modifiedAt,
+                  hint: strings.cardInfoModifiedAtHint,
+                  onSubmitted: (value) =>
+                      _save(card.copyWith(modifiedAt: value.trim())),
+                ),
+                AppTextEditTile(
                   title: strings.cardInfoCreatorNotes,
                   icon: Icons.sticky_note_2_outlined,
                   value: card.creatorNotes,

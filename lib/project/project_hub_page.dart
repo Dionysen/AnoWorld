@@ -442,28 +442,41 @@ class _ProjectHubPageState extends State<ProjectHubPage>
     if (selected == 0) return null;
     return context.strings.plotElementsSize(selected, size.plotElements);
   }
-  /// Card author / version / tags / notes carried over from a card import.
+  /// Card provenance rows (ST-aligned); empty values show「未填写」.
   List<AppDetailEntry> _cardInfoEntries(Project project) {
     final strings = context.strings;
     final card = project.meta.card;
+    String body(String value) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? strings.notFilled : trimmed;
+    }
+
     return <AppDetailEntry>[
-      if (card.creator.trim().isNotEmpty)
-        AppDetailEntry(
-          title: strings.cardInfoCreator,
-          body: card.creator.trim(),
-        ),
-      if (card.version.trim().isNotEmpty)
-        AppDetailEntry(
-          title: strings.cardInfoVersion,
-          body: card.version.trim(),
-        ),
-      if (card.tags.isNotEmpty)
-        AppDetailEntry(title: strings.cardInfoTags, tags: card.tags, body: ''),
-      if (card.creatorNotes.trim().isNotEmpty)
-        AppDetailEntry(
-          title: strings.cardInfoCreatorNotes,
-          body: card.creatorNotes.trim(),
-        ),
+      AppDetailEntry(
+        title: strings.cardInfoCreator,
+        body: body(card.creator),
+      ),
+      AppDetailEntry(
+        title: strings.cardInfoVersion,
+        body: body(card.version),
+      ),
+      AppDetailEntry(
+        title: strings.cardInfoTags,
+        tags: card.tags,
+        body: card.tags.isEmpty ? strings.notFilled : '',
+      ),
+      AppDetailEntry(
+        title: strings.cardInfoCreatedAt,
+        body: body(card.createdAt),
+      ),
+      AppDetailEntry(
+        title: strings.cardInfoModifiedAt,
+        body: body(card.modifiedAt),
+      ),
+      AppDetailEntry(
+        title: strings.cardInfoCreatorNotes,
+        body: body(card.creatorNotes),
+      ),
     ];
   }
 

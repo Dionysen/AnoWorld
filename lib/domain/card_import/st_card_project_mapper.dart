@@ -273,6 +273,8 @@ class StCardProjectMapper {
       version: card.characterVersion.trim(),
       creatorNotes: card.creatorNotes.trim(),
       tags: card.tags,
+      createdAt: card.creationDate.trim(),
+      modifiedAt: card.modificationDate.trim(),
     );
   }
 

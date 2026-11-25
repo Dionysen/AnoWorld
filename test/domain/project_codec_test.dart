@@ -58,6 +58,8 @@ void main() {
             version: '1.2',
             creatorNotes: '原作者注',
             tags: <String>['古风', '客栈'],
+            createdAt: '2024-01-01 00:00',
+            modifiedAt: '2024-01-02 12:00',
           ),
         ),
       );
@@ -69,6 +71,8 @@ void main() {
       expect(decoded.meta.card.version, '1.2');
       expect(decoded.meta.card.creatorNotes, '原作者注');
       expect(decoded.meta.card.tags, <String>['古风', '客栈']);
+      expect(decoded.meta.card.createdAt, '2024-01-01 00:00');
+      expect(decoded.meta.card.modifiedAt, '2024-01-02 12:00');
     });
 
     test('factory sample matches MainBeat linear example', () {

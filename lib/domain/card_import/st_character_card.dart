@@ -15,6 +15,8 @@ class StCharacterCard {
     this.creator = '',
     this.characterVersion = '',
     this.tags = const <String>[],
+    this.creationDate = '',
+    this.modificationDate = '',
     this.alternateGreetings = const <String>[],
     this.bookEntries = const <StCharacterBookEntry>[],
     this.sourceLabel = '',
@@ -39,6 +41,13 @@ class StCharacterCard {
 
   /// Card tags, kept as story metadata.
   final List<String> tags;
+
+  /// Display string from CCv3 `creation_date` or ST `create_date`.
+  final String creationDate;
+
+  /// Display string from CCv3 `modification_date`.
+  final String modificationDate;
+
   final List<String> alternateGreetings;
   final List<StCharacterBookEntry> bookEntries;
 
@@ -48,7 +57,11 @@ class StCharacterCard {
   /// PNG card image bytes used as the story cover (null for JSON-only cards).
   final Uint8List? coverImageBytes;
 
-  StCharacterCard copyWith({Uint8List? coverImageBytes}) {
+  StCharacterCard copyWith({
+    Uint8List? coverImageBytes,
+    String? creationDate,
+    String? modificationDate,
+  }) {
     return StCharacterCard(
       name: name,
       description: description,
@@ -62,6 +75,8 @@ class StCharacterCard {
       creator: creator,
       characterVersion: characterVersion,
       tags: tags,
+      creationDate: creationDate ?? this.creationDate,
+      modificationDate: modificationDate ?? this.modificationDate,
       alternateGreetings: alternateGreetings,
       bookEntries: bookEntries,
       sourceLabel: sourceLabel,

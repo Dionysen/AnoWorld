@@ -42,10 +42,14 @@ void main() {
 
     await tester.tap(find.text('卡片信息'));
     await tester.pumpAndSettle();
+    expect(find.text('创作者'), findsOneWidget);
+    expect(find.text('创建日期'), findsOneWidget);
+    expect(find.text('修改日期'), findsOneWidget);
     expect(find.text('阿福'), findsOneWidget);
     expect(find.text('1.2'), findsOneWidget);
     expect(find.text('古风'), findsOneWidget);
     expect(find.text('请勿转载'), findsOneWidget);
+    expect(find.text('未填写'), findsNWidgets(2));
   });
 
   testWidgets('card info section opens the editor', (tester) async {
@@ -59,7 +63,9 @@ void main() {
     await tester.scrollUntilVisible(find.text('卡片信息'), 200);
     await tester.pumpAndSettle();
 
-    expect(find.text('作者、版本、标签都空着，点这里补上'), findsNothing);
+    await tester.tap(find.text('卡片信息'));
+    await tester.pumpAndSettle();
+    expect(find.text('未填写'), findsWidgets);
 
     final cardSection = find.byType(AppDetailSection).last;
     await tester.tap(
@@ -68,6 +74,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(StoryCardMetaPage), findsOneWidget);
+    expect(find.text('创作者'), findsWidgets);
+    expect(find.text('创建日期'), findsOneWidget);
+    expect(find.text('修改日期'), findsOneWidget);
   });
 
   testWidgets('visual section opens the stage editor', (tester) async {

@@ -559,10 +559,14 @@ abstract class AppStrings extends AppLocalizations {
   String get cardInfoCreator;
   String get cardInfoVersion;
   String get cardInfoTags;
+  String get cardInfoCreatedAt;
+  String get cardInfoModifiedAt;
   String get cardInfoCreatorNotes;
   String get cardInfoEmpty;
   String get cardInfoEditTitle;
   String get cardInfoTagsHint;
+  String get cardInfoCreatedAtHint;
+  String get cardInfoModifiedAtHint;
   String get cardInfoCreatorNotesHint;
   String cardInfoTagCount(int count);
   String cardReadCount(int count);

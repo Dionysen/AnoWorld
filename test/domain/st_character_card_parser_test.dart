@@ -114,6 +114,8 @@ void main() {
         'character_version': '1.2',
         'creator_notes': '<b>请勿转载</b>',
         'tags': ['古风', '客栈'],
+        'creation_date': 1704067200,
+        'modification_date': 1704153600,
       },
     });
 
@@ -121,6 +123,20 @@ void main() {
     expect(card.characterVersion, '1.2');
     expect(card.creatorNotes, '<b>请勿转载</b>');
     expect(card.tags, ['古风', '客栈']);
+    expect(card.creationDate, isNotEmpty);
+    expect(card.modificationDate, isNotEmpty);
+  });
+
+  test('keeps humanized create_date when not ISO', () {
+    final card = parser.parseJsonMap({
+      'spec': 'chara_card_v2',
+      'create_date': '2023-8-31 @14h 30m 0s 123ms',
+      'data': {
+        'name': '掌柜',
+      },
+    });
+
+    expect(card.creationDate, '2023-8-31 @14h 30m 0s 123ms');
   });
 
   test('reads legacy creatorcomment and tags', () {

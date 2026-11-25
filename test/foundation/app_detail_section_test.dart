@@ -75,6 +75,34 @@ void main() {
     expect(find.text('2 个角色，33 token'), findsOneWidget);
   });
 
+  testWidgets('entry tags sit on the same line as the title', (tester) async {
+    await tester.pumpWidget(
+      testScoped(
+        home: Scaffold(
+          body: AppDetailSection(
+            title: '世界书',
+            icon: Icons.public_outlined,
+            initiallyExpanded: true,
+            entries: const [
+              AppDetailEntry(
+                title: '客栈规矩',
+                tags: <String>['常驻'],
+                body: '只收现银。',
+              ),
+            ],
+            onEdit: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final title = tester.getRect(find.text('客栈规矩'));
+    final tag = tester.getRect(find.text('常驻'));
+    expect(tag.left, greaterThan(title.right));
+    expect(tag.center.dy, moreOrLessEquals(title.center.dy, epsilon: 6));
+  });
+
   testWidgets('header uses AppListTile chrome with edit', (tester) async {
     var edited = false;
 

@@ -34,6 +34,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('编辑卡片信息'), findsOneWidget);
+    expect(find.text('创作者'), findsOneWidget);
+    expect(find.text('创建日期'), findsOneWidget);
+    expect(find.text('修改日期'), findsOneWidget);
     expect(find.text('阿福'), findsOneWidget);
     expect(find.text('1.2'), findsOneWidget);
     expect(find.text('古风，客栈'), findsOneWidget);
