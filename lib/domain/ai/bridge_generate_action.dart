@@ -50,7 +50,7 @@ class _BridgeRequest {
     required this.forceConverge,
     required this.openMode,
     required this.role,
-    required this.allowInStationChoices,
+    required this.maxChoices,
     required this.generation,
   });
 
@@ -64,7 +64,7 @@ class _BridgeRequest {
   final bool forceConverge;
   final bool openMode;
   final PlayRole role;
-  final bool allowInStationChoices;
+  final int maxChoices;
   final GenerationPreset? generation;
 }
 
@@ -87,8 +87,7 @@ class BridgeGenerateAction {
     int maxBeats = BridgeSession.defaultMaxBeats,
     PlayRole role = PlayRole.none,
     int minLines = 1,
-    InStationChoiceFrequency inStationChoiceFrequency =
-        InStationChoiceFrequency.rare,
+    int maxChoices = AiSettings.defaultMaxInStationChoices,
   }) async {
     final request = _prepare(
       ctx: ctx,
@@ -99,7 +98,7 @@ class BridgeGenerateAction {
       maxBeats: maxBeats,
       role: role,
       minLines: minLines,
-      inStationChoiceFrequency: inStationChoiceFrequency,
+      maxChoices: maxChoices,
     );
     final user = request.user;
     String? lastError;
@@ -122,7 +121,7 @@ class BridgeGenerateAction {
           forceConverge: request.forceConverge,
           openMode: request.openMode,
           role: role,
-          allowInStationChoices: request.allowInStationChoices,
+          maxChoices: request.maxChoices,
         );
         if (beat.lines.length >= minLines) return beat;
         lastError = '这次只写了 ${beat.lines.length} 句，至少要 $minLines 句';
@@ -162,8 +161,7 @@ class BridgeGenerateAction {
     int maxBeats = BridgeSession.defaultMaxBeats,
     PlayRole role = PlayRole.none,
     int minLines = 1,
-    InStationChoiceFrequency inStationChoiceFrequency =
-        InStationChoiceFrequency.rare,
+    int maxChoices = AiSettings.defaultMaxInStationChoices,
   }) async* {
     final request = _prepare(
       ctx: ctx,
@@ -174,7 +172,7 @@ class BridgeGenerateAction {
       maxBeats: maxBeats,
       role: role,
       minLines: minLines,
-      inStationChoiceFrequency: inStationChoiceFrequency,
+      maxChoices: maxChoices,
     );
     final streaming =
         _text is AiTextStreamClient ? _text as AiTextStreamClient : null;
@@ -188,7 +186,7 @@ class BridgeGenerateAction {
         maxBeats: maxBeats,
         role: role,
         minLines: minLines,
-        inStationChoiceFrequency: inStationChoiceFrequency,
+        maxChoices: maxChoices,
       );
       yield BridgeBeatDoneEvent(beat);
       return;
@@ -224,7 +222,7 @@ class BridgeGenerateAction {
         forceConverge: request.forceConverge,
         openMode: request.openMode,
         role: role,
-        allowInStationChoices: request.allowInStationChoices,
+        maxChoices: request.maxChoices,
       );
       if (beat.lines.length < minLines) {
         AppLog.instance.warning(
@@ -287,7 +285,7 @@ class BridgeGenerateAction {
     required int maxBeats,
     required PlayRole role,
     required int minLines,
-    required InStationChoiceFrequency inStationChoiceFrequency,
+    required int maxChoices,
   }) {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
@@ -299,6 +297,7 @@ class BridgeGenerateAction {
       throw AiTextException('当前情节站不存在');
     }
 
+    final choiceCap = AiSettings.clampMaxInStationChoices(maxChoices);
     final exits = project.main.edges
         .where((e) => e.from == nodeId)
         .toList(growable: false);
@@ -321,13 +320,11 @@ class BridgeGenerateAction {
     final nearConverge = !openMode &&
         !forceConverge &&
         nextTurn >= ((maxBeats * 7) / 10).ceil();
-    final allowInStationChoices = !forceConverge &&
-        inStationChoiceFrequency.allowsChoicesAtTurn(session.turnCount);
     final task = _taskBlock(
       forceConverge: forceConverge,
       openMode: openMode,
       minLines: minLines,
-      allowInStationChoices: allowInStationChoices,
+      maxChoices: choiceCap,
       nearConverge: nearConverge,
     );
     final nextStationBlock = openMode
@@ -390,7 +387,7 @@ class BridgeGenerateAction {
       forceConverge: forceConverge,
       openMode: openMode,
       role: role,
-      allowInStationChoices: allowInStationChoices,
+      maxChoices: choiceCap,
       generation: ctx.generation,
     );
   }
@@ -436,9 +433,12 @@ class BridgeGenerateAction {
     ]);
   }
 
-  /// Keep at most [BridgeSession.maxChoicesPerBeat], preferring stay then exits.
-  static List<Choice> capChoices(List<Choice> choices) {
-    const max = BridgeSession.maxChoicesPerBeat;
+  /// Keep at most [maxChoices], preferring stay then exits.
+  static List<Choice> capChoices(
+    List<Choice> choices, {
+    int maxChoices = AiSettings.defaultMaxInStationChoices,
+  }) {
+    final max = AiSettings.clampMaxInStationChoices(maxChoices);
     if (choices.length <= max) {
       return List<Choice>.unmodifiable(choices);
     }
@@ -494,14 +494,14 @@ $paceHint请生成本站下一小段对白。''';
     required bool forceConverge,
     required bool openMode,
     required int minLines,
-    required bool allowInStationChoices,
+    required int maxChoices,
     required bool nearConverge,
   }) {
     final minLineRule = minLines > 1
         ? '- lines 至少 $minLines 句（对白与叙述合计），每句单独一条。'
         : '';
-    const choiceCap =
-        'choices 最多 ${BridgeSession.maxChoicesPerBeat} 个。';
+    final choiceCap =
+        '需要分叉时：尽量给出刚好 $maxChoices 个互不重复的选项；剧情撑不住时可以更少，绝不可超过 $maxChoices。不需要分叉时 choices 用空数组。';
     final sharedHead = '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
 输出格式：{"location":"地点","lines":[{"speaker":"角色名","text":"纯正文"}],"choices":[...]}
 规则：
@@ -514,26 +514,20 @@ $paceHint请生成本站下一小段对白。''';
 $minLineRule
 - $choiceCap''';
     if (openMode) {
-      final choiceRule = allowInStationChoices
-          ? '本站开放续写：本拍可给至多 ${BridgeSession.maxChoicesPerBeat} 个选项（继续用 {"type":"beat","beatId":"$kBridgeStayBeatId"}，或 {"type":"end"}）；也可 choices 为空数组，由玩家点屏续写。'
-          : '本站开放续写：本拍 choices 必须是空数组 []，不要给选项；玩家点屏幕续写下一段。禁止发明情节站 nodeId。';
       return '''$sharedHead
-$choiceRule
+本站开放续写：不需要分叉时 choices 用空数组（玩家点屏续写）；需要分叉时尽量给满 $maxChoices 个选项（继续用 {"type":"beat","beatId":"$kBridgeStayBeatId"}，或 {"type":"end"}），可少不可多。
 禁止发明情节站 nodeId。''';
     }
     if (forceConverge) {
       return '''$sharedHead
-本拍必须收束离站：给 1～${BridgeSession.maxChoicesPerBeat} 个 choices，每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}（不同选项须导向不同世界线）。禁止 stay。对白要自然收束。
+本拍必须收束离站：尽量给满 $maxChoices 个 choices（至少 1 个），每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}（不同选项须导向不同世界线）。禁止 stay。对白要自然收束。
 禁止发明不在合法下一站列表里的 nodeId。''';
     }
     final nearHint = nearConverge
         ? '已接近本站尾声：对白可自然埋下前往下一站的动机。'
         : '';
-    final choiceRule = allowInStationChoices
-        ? '本拍是站内过程：可给空 choices，或至多 ${BridgeSession.maxChoicesPerBeat} 个选项（继续用 stay；提前离站须用合法 nodeId，且不同离站选项须导向不同世界线）。$nearHint'
-        : '本拍是站内过程：choices 必须是空数组 []，不要给选项；玩家点屏幕续写。$nearHint';
     return '''$sharedHead
-$choiceRule
+本拍是站内过程：不需要分叉时 choices 用空数组；需要分叉时尽量给满 $maxChoices 个选项（继续用 stay；提前离站须用合法 nodeId，且不同离站选项须导向不同世界线），可少不可多。$nearHint
 禁止发明不在合法下一站列表里的 nodeId。''';
   }
 
@@ -547,7 +541,7 @@ $choiceRule
     required bool forceConverge,
     required bool openMode,
     PlayRole role = PlayRole.none,
-    bool allowInStationChoices = true,
+    int maxChoices = AiSettings.defaultMaxInStationChoices,
   }) {
     final decoded = decodeJsonCandidate(raw);
     if (decoded is! Map) {
@@ -620,12 +614,8 @@ $choiceRule
     if (choices.isEmpty && forceConverge) {
       throw const BridgeMapException('收敛拍没有选项');
     }
-    // In-station / open process beats may be choice-free (tap to continue).
-    if (!forceConverge && !allowInStationChoices) {
-      choices.clear();
-    }
 
-    final capped = capChoices(choices);
+    final capped = capChoices(choices, maxChoices: maxChoices);
 
     return Beat(
       id: beatId,

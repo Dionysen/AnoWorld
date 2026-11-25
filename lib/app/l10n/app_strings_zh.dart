@@ -1164,19 +1164,10 @@ class AppStringsZh extends AppStrings {
   String get vnInStationChoicesLabel => '站内选项';
 
   @override
-  String get vnInStationChoicesHint => '站内续写要不要弹出选项';
+  String get vnInStationChoicesHint => '分叉时最多几个选项';
 
   @override
-  String vnInStationChoiceFrequencyName(Object frequency) {
-    final name = frequency is Enum ? frequency.name : '$frequency';
-    return switch (name) {
-      'off' => '关闭',
-      'rare' => '很少',
-      'sometimes' => '有时',
-      'often' => '较多',
-      _ => '很少',
-    };
-  }
+  String vnInStationChoicesValue(int count) => '$count 个';
 
   @override
   String get scenePlaceholder => '场景';

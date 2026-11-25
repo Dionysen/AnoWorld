@@ -530,44 +530,6 @@ Map<String, dynamic>? _activeFromProviders(Map<String, dynamic> json) {
   return chosen;
 }
 
-/// How often in-station (non-exit) beats may include player choices.
-enum InStationChoiceFrequency {
-  /// Process beats never offer choices; tap screen to continue.
-  off,
-
-  /// Occasional in-station choices (default).
-  rare,
-
-  sometimes,
-  often,
-}
-
-extension InStationChoiceFrequencyCodec on InStationChoiceFrequency {
-  String get wireName => name;
-
-  static InStationChoiceFrequency parse(String? raw) {
-    return switch (raw) {
-      'off' => InStationChoiceFrequency.off,
-      'sometimes' => InStationChoiceFrequency.sometimes,
-      'often' => InStationChoiceFrequency.often,
-      _ => InStationChoiceFrequency.rare,
-    };
-  }
-
-  /// Whether the upcoming beat after [turnCount] generated beats may carry
-  /// in-station choices (exit / converge beats ignore this).
-  bool allowsChoicesAtTurn(int turnCount) {
-    final next = turnCount + 1;
-    return switch (this) {
-      InStationChoiceFrequency.off => false,
-      InStationChoiceFrequency.rare => next % 5 == 0,
-      InStationChoiceFrequency.sometimes => next % 3 == 0,
-      // Includes the first beat; roughly every other process beat.
-      InStationChoiceFrequency.often => next % 2 == 1,
-    };
-  }
-}
-
 class AiSettings {
   const AiSettings({
     this.text = const AiTextEndpoint(),
@@ -577,7 +539,7 @@ class AiSettings {
     this.generation = const GenerationPreset(),
     this.minBridgeLines = defaultMinBridgeLines,
     this.minGraphStations = defaultMinGraphStations,
-    this.inStationChoiceFrequency = InStationChoiceFrequency.rare,
+    this.maxInStationChoices = defaultMaxInStationChoices,
   });
 
   /// VN interval generation: minimum lines (dialogue + narration) per beat.
@@ -590,11 +552,19 @@ class AiSettings {
   static const int minGraphStationsLowerBound = 4;
   static const int minGraphStationsUpperBound = 60;
 
+  /// Max player choices when a beat branches (can be fewer; never more).
+  static const int defaultMaxInStationChoices = 3;
+  static const int maxInStationChoicesLowerBound = 1;
+  static const int maxInStationChoicesUpperBound = 4;
+
   static int clampMinBridgeLines(int value) =>
       value.clamp(minBridgeLinesLowerBound, minBridgeLinesUpperBound);
 
   static int clampMinGraphStations(int value) =>
       value.clamp(minGraphStationsLowerBound, minGraphStationsUpperBound);
+
+  static int clampMaxInStationChoices(int value) =>
+      value.clamp(maxInStationChoicesLowerBound, maxInStationChoicesUpperBound);
 
   final AiTextEndpoint text;
   final AiImageEndpoint image;
@@ -610,8 +580,8 @@ class AiSettings {
   /// Asked of create / replace-graph: minimum stations in a full skeleton.
   final int minGraphStations;
 
-  /// In-station process beats: how often to include choices (exit beats always).
-  final InStationChoiceFrequency inStationChoiceFrequency;
+  /// Cap on choices per AI beat when branching (1–4; empty choices still OK).
+  final int maxInStationChoices;
 
   AiSettings copyWith({
     AiTextEndpoint? text,
@@ -621,7 +591,7 @@ class AiSettings {
     GenerationPreset? generation,
     int? minBridgeLines,
     int? minGraphStations,
-    InStationChoiceFrequency? inStationChoiceFrequency,
+    int? maxInStationChoices,
   }) {
     return AiSettings(
       text: text ?? this.text,
@@ -635,8 +605,9 @@ class AiSettings {
       minGraphStations: clampMinGraphStations(
         minGraphStations ?? this.minGraphStations,
       ),
-      inStationChoiceFrequency:
-          inStationChoiceFrequency ?? this.inStationChoiceFrequency,
+      maxInStationChoices: clampMaxInStationChoices(
+        maxInStationChoices ?? this.maxInStationChoices,
+      ),
     );
   }
 
@@ -680,7 +651,7 @@ class AiSettings {
         'generation': generation.toJson(),
         'minBridgeLines': minBridgeLines,
         'minGraphStations': minGraphStations,
-        'inStationChoiceFrequency': inStationChoiceFrequency.wireName,
+        'maxInStationChoices': maxInStationChoices,
       };
 
   factory AiSettings.fromJson(Map<String, dynamic> json) {
@@ -700,8 +671,9 @@ class AiSettings {
         (json.optionalNum('minGraphStations') ?? defaultMinGraphStations)
             .toInt(),
       ),
-      inStationChoiceFrequency: InStationChoiceFrequencyCodec.parse(
-        json.optionalString('inStationChoiceFrequency'),
+      maxInStationChoices: clampMaxInStationChoices(
+        (json.optionalNum('maxInStationChoices') ?? defaultMaxInStationChoices)
+            .toInt(),
       ),
     );
   }

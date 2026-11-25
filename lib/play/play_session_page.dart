@@ -1049,15 +1049,17 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
     _maintainPrefetchBuffer();
   }
 
-  /// Grow up to 3 post-choice beats for [source] in one model call.
+  /// Grow post-choice beats for [source] in one model call (cap from settings).
   Future<void> _ensureBranchPrefetch(Beat source) async {
     if (_isChat || !mounted || _generating) return;
     if (source.choices.isEmpty) return;
 
+    final settings = AppScope.settingsOf(context);
+    final choiceCap = settings.ai.maxInStationChoices;
     final base = _bridge ?? BridgeSession(nodeId: source.nodeId);
     final requests = <BridgeBranchPrefetchRequest>[];
     for (final choice in source.choices) {
-      if (requests.length >= BridgeSession.maxChoicesPerBeat) break;
+      if (requests.length >= choiceCap) break;
       if (choice.target.type == TransitionType.end) continue;
       if (base.toBeatId(source.id, choice.id) != null) continue;
       final String targetNodeId;
@@ -1087,8 +1089,6 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
 
     final epoch = _generateEpoch;
     setState(() => _generating = true);
-
-    final settings = AppScope.settingsOf(context);
     try {
       final action = BridgeBranchPrefetchAction(
         textClient: AppScope.textClientOf(context),
@@ -1102,7 +1102,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         plotCatalog: settings.plotElements,
         role: _playRole,
         minLines: settings.ai.minBridgeLines,
-        inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
+        maxChoices: settings.ai.maxInStationChoices,
       );
       if (!mounted || epoch != _generateEpoch) return;
 
@@ -1260,7 +1260,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         plotCatalog: settings.plotElements,
         role: _playRole,
         minLines: settings.ai.minBridgeLines,
-        inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
+        maxChoices: settings.ai.maxInStationChoices,
       );
       if (!mounted || epoch != _generateEpoch) return;
       if (adopt) {
@@ -1407,7 +1407,7 @@ class _PlaySessionPageState extends State<PlaySessionPage> {
         plotCatalog: settings.plotElements,
         role: _playRole,
         minLines: settings.ai.minBridgeLines,
-        inStationChoiceFrequency: settings.ai.inStationChoiceFrequency,
+        maxChoices: settings.ai.maxInStationChoices,
       )) {
         if (!mounted || epoch != _generateEpoch) return;
         switch (event) {

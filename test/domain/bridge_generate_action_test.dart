@@ -139,27 +139,32 @@ void main() {
       project: blank,
       nodeId: blank.main.startNodeId,
       session: BridgeSession(nodeId: blank.main.startNodeId),
-      inStationChoiceFrequency: InStationChoiceFrequency.off,
     );
     expect(beat.lines.first.text, '风停了。');
     expect(beat.lines.first.kind, DialogueKind.narration);
     expect(beat.choices, isEmpty);
   });
 
-  test('strips in-station choices when frequency disallows them', () {
+  test('parseBeatJson respects a lower maxChoices cap', () {
     final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
     final beat = BridgeGenerateAction.parseBeatJson(
       '{"lines":[{"speaker":"旁白","text":"一段"}],"choices":['
-      '{"text":"继续","target":{"type":"beat","beatId":"$kBridgeStayBeatId"}}]}',
+      '{"text":"一","target":{"type":"end"}},'
+      '{"text":"二","target":{"type":"end"}},'
+      '{"text":"三","target":{"type":"beat","beatId":"$kBridgeStayBeatId"}}]}',
       project: blank,
       nodeId: blank.main.startNodeId,
       beatId: 'b1',
       legalNodeIds: const {},
       forceConverge: false,
       openMode: true,
-      allowInStationChoices: false,
+      maxChoices: 2,
     );
-    expect(beat.choices, isEmpty);
+    expect(beat.choices, hasLength(2));
+    expect(
+      beat.choices.any((c) => c.target.beatId == kBridgeStayBeatId),
+      isTrue,
+    );
   });
 
   test('minLines retries a short reply once', () async {
@@ -350,7 +355,6 @@ void main() {
       project: project,
       nodeId: 'n1',
       session: const BridgeSession(nodeId: 'n1'),
-      inStationChoiceFrequency: InStationChoiceFrequency.often,
     );
     expect(beat.lines.first.text, '雨还在下。');
     expect(beat.choices, hasLength(1));
@@ -402,7 +406,7 @@ void main() {
     expect(beat.choices.single.target.nodeId, 'n2');
   });
 
-  test('parseBeatJson caps choices at maxChoicesPerBeat', () {
+  test('parseBeatJson caps choices at maxChoices', () {
     final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
     final beat = BridgeGenerateAction.parseBeatJson(
       '''{"lines":[{"speaker":"旁白","text":"多选项"}],"choices":[
@@ -418,8 +422,9 @@ void main() {
       legalNodeIds: const {},
       forceConverge: false,
       openMode: true,
+      maxChoices: 3,
     );
-    expect(beat.choices, hasLength(BridgeSession.maxChoicesPerBeat));
+    expect(beat.choices, hasLength(3));
     expect(
       beat.choices.any((c) => c.target.beatId == kBridgeStayBeatId),
       isTrue,
@@ -427,33 +432,36 @@ void main() {
   });
 
   test('capChoices prefers stay then node over end', () {
-    final capped = BridgeGenerateAction.capChoices([
-      const Choice(
-        id: 'e1',
-        text: '结束1',
-        target: Transition(type: TransitionType.end),
-      ),
-      const Choice(
-        id: 'e2',
-        text: '结束2',
-        target: Transition(type: TransitionType.end),
-      ),
-      Choice(
-        id: 's',
-        text: '继续',
-        target: Transition.toBeat(kBridgeStayBeatId),
-      ),
-      Choice(
-        id: 'n',
-        text: '去站',
-        target: Transition.toNode('n2'),
-      ),
-      const Choice(
-        id: 'e3',
-        text: '结束3',
-        target: Transition(type: TransitionType.end),
-      ),
-    ]);
+    final capped = BridgeGenerateAction.capChoices(
+      [
+        const Choice(
+          id: 'e1',
+          text: '结束1',
+          target: Transition(type: TransitionType.end),
+        ),
+        const Choice(
+          id: 'e2',
+          text: '结束2',
+          target: Transition(type: TransitionType.end),
+        ),
+        Choice(
+          id: 's',
+          text: '继续',
+          target: Transition.toBeat(kBridgeStayBeatId),
+        ),
+        Choice(
+          id: 'n',
+          text: '去站',
+          target: Transition.toNode('n2'),
+        ),
+        const Choice(
+          id: 'e3',
+          text: '结束3',
+          target: Transition(type: TransitionType.end),
+        ),
+      ],
+      maxChoices: 3,
+    );
     expect(capped, hasLength(3));
     expect(capped[0].id, 's');
     expect(capped[1].id, 'n');

@@ -132,7 +132,6 @@ void main() {
           project: project,
           nodeId: nodeId,
           session: BridgeSession(nodeId: nodeId),
-          inStationChoiceFrequency: InStationChoiceFrequency.off,
         )
         .toList();
 
@@ -156,7 +155,6 @@ void main() {
       project: project,
       nodeId: nodeId,
       session: BridgeSession(nodeId: nodeId),
-      inStationChoiceFrequency: InStationChoiceFrequency.off,
     ).toList();
 
     expect(events.whereType<BridgeBeatLineEvent>(), isEmpty);
@@ -178,7 +176,6 @@ void main() {
           project: project,
           nodeId: nodeId,
           session: BridgeSession(nodeId: nodeId),
-          inStationChoiceFrequency: InStationChoiceFrequency.off,
         )
         .toList();
 

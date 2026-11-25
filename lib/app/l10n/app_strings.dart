@@ -397,7 +397,7 @@ abstract class AppStrings extends AppLocalizations {
   String minGraphStationsValue(int stations);
   String get vnInStationChoicesLabel;
   String get vnInStationChoicesHint;
-  String vnInStationChoiceFrequencyName(Object frequency);
+  String vnInStationChoicesValue(int count);
   String get scenePlaceholder;
   String get noBackgroundImage;
   String backgroundLabel(String id);

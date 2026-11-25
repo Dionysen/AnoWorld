@@ -74,8 +74,8 @@ class BridgeSession {
 
   static const int defaultMaxBeats = 10;
 
-  /// Hard cap on choices per AI-generated beat / branch fan-out.
-  static const int maxChoicesPerBeat = 3;
+  /// Absolute hard ceiling on choices per AI beat (settings may be lower).
+  static const int maxChoicesPerBeat = 4;
 
   /// Beats already generated for [nodeId] (used when entering a station).
   int turnsForNode(String id) =>

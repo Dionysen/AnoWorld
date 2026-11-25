@@ -99,6 +99,37 @@ void main() {
     expect(restored.toJson()['minBridgeLines'], 5);
   });
 
+  test('maxInStationChoices defaults, clamps and round-trips', () {
+    expect(
+      const AiSettings().maxInStationChoices,
+      AiSettings.defaultMaxInStationChoices,
+    );
+    expect(
+      AiSettings.fromJson(<String, dynamic>{}).maxInStationChoices,
+      AiSettings.defaultMaxInStationChoices,
+    );
+
+    final clampedHigh = const AiSettings().copyWith(maxInStationChoices: 9);
+    expect(
+      clampedHigh.maxInStationChoices,
+      AiSettings.maxInStationChoicesUpperBound,
+    );
+
+    final clampedLow = AiSettings.fromJson(<String, dynamic>{
+      'maxInStationChoices': 0,
+    });
+    expect(
+      clampedLow.maxInStationChoices,
+      AiSettings.maxInStationChoicesLowerBound,
+    );
+
+    final restored = AiSettings.fromJson(<String, dynamic>{
+      'maxInStationChoices': 4,
+    });
+    expect(restored.maxInStationChoices, 4);
+    expect(restored.toJson()['maxInStationChoices'], 4);
+  });
+
   test('image steps/upscale/size defaults and round-trip', () {
     expect(const AiImageEndpoint().steps, AiImageEndpoint.defaultSteps);
     expect(const AiImageEndpoint().upscale, isFalse);

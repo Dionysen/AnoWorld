@@ -165,11 +165,11 @@ Transition {
 适用于 **视觉小说** 游玩：进入节点后 `beatIds` 为空，或预写拍播完仍需发挥。落点：[`BridgeSession`](../lib/domain/runtime/bridge_session.dart)、[`BridgeGenerateAction`](../lib/domain/ai/bridge_generate_action.dart)、[`MainRuntime`](../lib/domain/runtime/main_runtime.dart)（`PlayPhase.needsBridge`）、[`PlaySessionPage`](../lib/play/play_session_page.dart)（仅 VN 模式）。
 
 1. **开区间**：绑定 `nodeId`；上下文 = Preset + Background/Cast 摘要 + 本节点 `title`/`synopsis` + 出边列表（可空）+ 区间摘要。进站若已是 `needsBridge`，游玩页自动生成。游玩入口 [`ensurePlayableMain`](../lib/domain/project/project_factory.dart) 会去掉无出边站上「仅结束」的旧占位拍（不写回包），避免空白故事只能点结束。
-2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。每拍 `choices` **最多 3**（prompt + 解析截断）。每拍 `lines` 的**最少句数**由设置 → AI → **视觉小说演出 → 每段最少句数**（[`AiSettings.minBridgeLines`](../lib/domain/settings/ai_settings.dart)，默认 **10**，范围 1–10）决定。`type: beat` + `beatId: __stay__` 表示继续本区间（再选 → `needsBridge`）。叙述以**主角（玩家）视角**为准：旁白只写其可感知的环境/动作，禁止上帝全知；若需得知本不该知道的事，须安排亲历获知（跟踪/到场等）并体现占用时间代价。
+2. **生成一拍**：模型输出 Beat JSON；非法 `nodeId` 的 choice 丢弃；格式失败最多重试 1 次。每拍 `choices` 由设置 → 生成设置 → **站内选项**（[`AiSettings.maxInStationChoices`](../lib/domain/settings/ai_settings.dart)，默认 **3**，范围 1–4；prompt 要求需要分叉时尽量给满，解析截断保底；可少不可多）决定。每拍 `lines` 的**最少句数**由设置 → 生成设置 → **视觉小说演出 → 每段最少句数**（[`AiSettings.minBridgeLines`](../lib/domain/settings/ai_settings.dart)，默认 **10**，范围 1–10）决定。`type: beat` + `beatId: __stay__` 表示继续本区间（再选 → `needsBridge`）。叙述以**主角（玩家）视角**为准：旁白只写其可感知的环境/动作，禁止上帝全知；若需得知本不该知道的事，须安排亲历获知（跟踪/到场等）并体现占用时间代价。
 3. **说话人与本局身份**：prompt 的角色列表带别名，并写明「玩家扮演：X」。模型给的 `speaker` 经 [`resolveDialogueSpeaker`](../lib/domain/runtime/play_speakers.dart) 严格解析：只有 Cast 名字/别名、玩家角色称呼、或「旁白」被接受；其余一律落成 `kind: narration` / `speakerId: null` 并记 `AppLog`（`play.vn`）。玩家角色来自 `SaveSlot.playerCastId`（开新局选定、本局锁定），其台词同样带 `speakerId`，立绘与配角一致显示。
 4. **何时带选项**：  
    - **出站 / 触顶收敛拍**：必须有 choices（合法 `node` / `end`），不同选项应导向不同世界线。  
-   - **站内过程拍**（含开放站续写）：默认可空 choices，玩家**点屏幕**播完后接下一段；出现站内选项的频率由设置 **站内选项**（[`InStationChoiceFrequency`](../lib/domain/settings/ai_settings.dart)，默认「很少」）调节。空 choices **不再**自动补「继续」。
+   - **站内过程拍**（含开放站续写）：默认可空 choices，玩家**点屏幕**播完后接下一段；需要分叉时尽量给满设置 **站内选项**（[`AiSettings.maxInStationChoices`](../lib/domain/settings/ai_settings.dart)，默认 **3**），可少不可多。空 choices **不再**自动补「继续」。
 5. **剧情树预写**（[`PlaySessionPage`](../lib/play/play_session_page.dart)）：情节图是骨架；游玩时 AI 生长的拍 + [`branchEdges`](../lib/domain/runtime/bridge_session.dart) 构成**本局剧情树**，完整进存档。  
    - **最新拍无 choices**：线性队列目标 **2**。  
    - **最新拍有 choices**：[`BridgeBranchPrefetchAction`](../lib/domain/ai/bridge_branch_prefetch_action.dart) 一次批写至多 3 路各 1 拍（每路亦至少 `minBridgeLines` 句）；`end` 不预写。  

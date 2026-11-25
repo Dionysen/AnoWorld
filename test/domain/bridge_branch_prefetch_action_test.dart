@@ -111,7 +111,7 @@ void main() {
       session: BridgeSession(nodeId: nodeId),
       branches: branches,
     );
-    expect(results, hasLength(BridgeSession.maxChoicesPerBeat));
+    expect(results, hasLength(AiSettings.defaultMaxInStationChoices));
     expect(client.lastUser, isNot(contains('选项3')));
     expect(client.lastUser, isNot(contains('选项4')));
   });

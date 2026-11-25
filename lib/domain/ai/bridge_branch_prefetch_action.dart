@@ -37,7 +37,7 @@ class BridgeBranchPrefetchResult {
   final Beat? beat;
 }
 
-/// One model call that writes up to [BridgeSession.maxChoicesPerBeat] branch beats.
+/// One model call that writes up to [maxChoices] branch beats.
 class BridgeBranchPrefetchAction {
   BridgeBranchPrefetchAction({
     required AiTextClient textClient,
@@ -56,15 +56,15 @@ class BridgeBranchPrefetchAction {
     PlotElementCatalog? plotCatalog,
     PlayRole role = PlayRole.none,
     int minLines = 1,
-    InStationChoiceFrequency inStationChoiceFrequency =
-        InStationChoiceFrequency.rare,
+    int maxChoices = AiSettings.defaultMaxInStationChoices,
   }) async {
     final endpoint = ctx.endpoint;
     if (!endpoint.isConfigured ||
         (endpoint.needsApiKey && endpoint.apiKey.trim().isEmpty)) {
       throw AiTextException('请先在设置里配好写故事的服务');
     }
-    final limited = branches.take(BridgeSession.maxChoicesPerBeat).toList();
+    final choiceCap = AiSettings.clampMaxInStationChoices(maxChoices);
+    final limited = branches.take(choiceCap).toList();
     if (limited.isEmpty) return const [];
 
     final source = project.main.nodeById(sourceNodeId);
@@ -106,7 +106,7 @@ class BridgeBranchPrefetchAction {
 - 叙述用「旁白」。
 $minLineRule
 - 这些「选中后」的拍默认是站内过程：choices 用空数组 []，不要给选项（玩家点屏续写）。
-- 每拍 choices 若非空则最多 ${BridgeSession.maxChoicesPerBeat} 个。
+- 每拍 choices 若非空则尽量给满 $choiceCap 个，可少不可多。
 - 禁止发明情节站 id。''';
 
     final budget = ContextBudget.of(ctx.generation);
@@ -222,9 +222,6 @@ $branchBlock''';
           .map((e) => e.to)
           .toSet();
       final openMode = exits.isEmpty;
-      final destTurns = session.turnsForNode(destNode);
-      final allowChoices =
-          inStationChoiceFrequency.allowsChoicesAtTurn(destTurns);
       try {
         final beat = BridgeGenerateAction.parseBeatJson(
           jsonEncode(beatMap),
@@ -236,7 +233,7 @@ $branchBlock''';
           forceConverge: false,
           openMode: openMode,
           role: role,
-          allowInStationChoices: allowChoices,
+          maxChoices: choiceCap,
         );
         if (minLines > 1 && beat.lines.length < minLines) {
           AppLog.instance.warning(

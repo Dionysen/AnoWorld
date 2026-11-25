@@ -47,18 +47,20 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
               ),
               child: AppSectionHeader(strings.vnInStationChoicesLabel),
             ),
-            for (final freq in InStationChoiceFrequency.values)
+            for (var n = AiSettings.maxInStationChoicesLowerBound;
+                n <= AiSettings.maxInStationChoicesUpperBound;
+                n++)
               AppListTile(
-                title: strings.vnInStationChoiceFrequencyName(freq),
-                selected: freq == ai.inStationChoiceFrequency,
-                trailing: freq == ai.inStationChoiceFrequency
+                title: strings.vnInStationChoicesValue(n),
+                selected: n == ai.maxInStationChoices,
+                trailing: n == ai.maxInStationChoices
                     ? AppText(
                         strings.currentTag,
                         role: AppTextRole.caption,
                       )
                     : null,
                 onTap: () async {
-                  await _persist(ai.copyWith(inStationChoiceFrequency: freq));
+                  await _persist(ai.copyWith(maxInStationChoices: n));
                   if (sheetContext.mounted) {
                     Navigator.pop(sheetContext);
                   }
@@ -303,9 +305,7 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
               trailing: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 140),
                 child: AppText(
-                  strings.vnInStationChoiceFrequencyName(
-                    ai.inStationChoiceFrequency,
-                  ),
+                  strings.vnInStationChoicesValue(ai.maxInStationChoices),
                   role: AppTextRole.caption,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
