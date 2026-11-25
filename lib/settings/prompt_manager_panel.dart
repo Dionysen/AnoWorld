@@ -809,6 +809,11 @@ class _CategoryBlock extends StatelessWidget {
     }
     final selectionActive = selection.active;
 
+    final folderIcon = Icon(
+      expanded ? Icons.folder_open_outlined : Icons.folder_outlined,
+      size: AppListTile.iconSize,
+      color: scheme.onSurfaceVariant,
+    );
     final Widget leading;
     if (selectionActive) {
       leading = Icon(
@@ -819,11 +824,7 @@ class _CategoryBlock extends StatelessWidget {
     } else {
       leading = ReorderableDragStartListener(
         index: reorderIndex,
-        child: Icon(
-          Icons.drag_handle,
-          size: AppListTile.iconSize,
-          color: scheme.onSurfaceVariant,
-        ),
+        child: folderIcon,
       );
     }
 
