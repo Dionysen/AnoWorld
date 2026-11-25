@@ -7,9 +7,9 @@ import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/app/project_change_watcher.dart';
 import 'package:anoworld/create/world_book_editor_page.dart';
 import 'package:anoworld/create/cast_editor_page.dart';
-import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/create/main_graph/main_graph_page.dart';
 import 'package:anoworld/create/plot_elements_pick_page.dart';
+import 'package:anoworld/create/visual_stage_page.dart';
 import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/domain/models/world_book.dart';
 import 'package:anoworld/domain/models/cast.dart';
@@ -18,6 +18,7 @@ import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/domain/models/story_node_kind.dart';
 import 'package:anoworld/domain/project/project_token_estimate.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
@@ -26,6 +27,7 @@ import 'package:anoworld/foundation/widgets/app_detail_section.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
+import 'package:anoworld/foundation/widgets/app_prompt_dialog.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
@@ -39,7 +41,7 @@ import 'package:anoworld/project/story_cover_banner.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-/// Story overview: cover, structured sections, play actions, per-section edit.
+/// Story overview: cover, collapsible sections with direct edit, play actions.
 class ProjectHubPage extends StatefulWidget {
   const ProjectHubPage({super.key, required this.projectId});
 
@@ -256,12 +258,51 @@ class _ProjectHubPageState extends State<ProjectHubPage>
     if (mounted) await _load();
   }
 
-  Future<void> _openCreateHub() async {
-    await pushStoryRoute<void>(
+  Future<void> _renameStory() async {
+    final project = _project;
+    if (project == null) return;
+    final strings = context.strings;
+    final name = await showAppPromptDialog(
       context,
-      CreateHubPage(projectId: widget.projectId),
+      title: strings.renameStory,
+      label: strings.nameLabel,
+      initial: project.meta.title,
+      hint: strings.storyNameHint,
     );
-    if (mounted) await _load();
+    if (name == null || !mounted) return;
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed == project.meta.title) return;
+    final projects = AppScope.projectsOf(context);
+    final changes = AppScope.projectChangesOf(context);
+    try {
+      final next = project.copyWith(
+        meta: project.meta.copyWith(title: trimmed),
+      );
+      await projects.save(next);
+      if (!mounted) return;
+      changes.markChanged(widget.projectId);
+      AppLog.instance.info('改故事名：$trimmed', tag: 'project.hub');
+      setState(() => _project = next);
+    } catch (error, stack) {
+      AppLog.instance.error(
+        '改故事名失败',
+        tag: 'project.hub',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      showAppToast(context, strings.renameStoryFailed(error));
+    }
+  }
+
+  String _visualSize(Project project) {
+    final portraits = project.cast
+        .where((c) => (c.avatarAssetId ?? '').trim().isNotEmpty)
+        .length;
+    final scenes = project.main.nodes
+        .where((n) => (n.backgroundAssetId ?? '').trim().isNotEmpty)
+        .length;
+    return context.strings.visualSize(portraits, scenes);
   }
 
   List<AppDetailEntry> _worldBookEntries(Project project) {
@@ -493,9 +534,9 @@ class _ProjectHubPageState extends State<ProjectHubPage>
                 onPressed: _changeCover,
               ),
               AppCircleButton(
-                icon: Icons.edit_note_outlined,
-                tooltip: context.strings.continueCreating,
-                onPressed: _openCreateHub,
+                icon: Icons.drive_file_rename_outline,
+                tooltip: context.strings.renameStory,
+                onPressed: _renameStory,
               ),
             ]
           : const [],
@@ -569,7 +610,6 @@ class _ProjectHubPageState extends State<ProjectHubPage>
                             WorldBookEditorPage(projectId: widget.projectId),
                           ),
                         ),
-                        const SizedBox(height: AppTheme.spaceLg),
                         AppDetailSection(
                           title: context.strings.castTitle,
                           icon: Icons.groups_outlined,
@@ -580,7 +620,6 @@ class _ProjectHubPageState extends State<ProjectHubPage>
                             CastEditorPage(projectId: widget.projectId),
                           ),
                         ),
-                        const SizedBox(height: AppTheme.spaceLg),
                         AppDetailSection(
                           title: context.strings.mainTitle,
                           icon: Icons.account_tree_outlined,
@@ -591,7 +630,6 @@ class _ProjectHubPageState extends State<ProjectHubPage>
                             MainGraphPage(projectId: widget.projectId),
                           ),
                         ),
-                        const SizedBox(height: AppTheme.spaceLg),
                         AppDetailSection(
                           title: context.strings.plotElementsTitle,
                           icon: Icons.theater_comedy_outlined,
@@ -602,7 +640,16 @@ class _ProjectHubPageState extends State<ProjectHubPage>
                             PlotElementsPickPage(projectId: widget.projectId),
                           ),
                         ),
-                        const SizedBox(height: AppTheme.spaceLg),
+                        AppDetailSection(
+                          title: context.strings.visualStageTitle,
+                          icon: Icons.image_outlined,
+                          subtitle: _visualSize(project),
+                          entries: const [],
+                          emptyHint: _visualSize(project),
+                          onEdit: () => _openEditor(
+                            VisualStagePage(projectId: widget.projectId),
+                          ),
+                        ),
                         AppDetailSection(
                           title: context.strings.cardInfoTitle,
                           icon: Icons.badge_outlined,

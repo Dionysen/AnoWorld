@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_ui_tokens.dart';
 import 'app_detail_entry.dart';
+import 'app_disclosure_icon.dart';
 import 'app_expandable_text.dart';
 import 'app_icon_button.dart';
 import 'app_list_hairline.dart';
@@ -13,11 +14,11 @@ import 'app_page_gutter.dart';
 import 'app_text.dart';
 import 'app_toast.dart';
 
-/// Flat story-detail block: section header + hairline-separated entries.
+/// Collapsible story-detail block: [AppListTile] header + optional entries.
 ///
-/// Long sections only mount the first [initialVisibleCount] rows until the
-/// user taps「还有 n 条」. Each row body stays collapsed to [previewLines]
-/// until expanded.
+/// Tap the header to expand; [onEdit] opens the section editor without
+/// expanding. Long sections only mount the first [initialVisibleCount] rows
+/// until「还有 n 条」; each row body stays collapsed to [previewLines].
 class AppDetailSection extends StatefulWidget {
   const AppDetailSection({
     super.key,
@@ -29,6 +30,7 @@ class AppDetailSection extends StatefulWidget {
     this.emptyHint,
     this.previewLines = 3,
     this.initialVisibleCount = 8,
+    this.initiallyExpanded = false,
   });
 
   final String title;
@@ -44,12 +46,16 @@ class AppDetailSection extends StatefulWidget {
   /// How many entry rows to build before「还有 n 条」.
   final int initialVisibleCount;
 
+  /// Whether the section body starts open. Defaults to collapsed.
+  final bool initiallyExpanded;
+
   @override
   State<AppDetailSection> createState() => _AppDetailSectionState();
 }
 
 class _AppDetailSectionState extends State<AppDetailSection> {
   bool _showAll = false;
+  late bool _expanded = widget.initiallyExpanded;
 
   @override
   void didUpdateWidget(covariant AppDetailSection oldWidget) {
@@ -71,9 +77,10 @@ class _AppDetailSectionState extends State<AppDetailSection> {
         .toList(growable: false);
   }
 
+  void _toggleExpanded() => setState(() => _expanded = !_expanded);
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final visible = _visibleEntries;
     final isEmpty = visible.isEmpty;
     final emptyHint = widget.emptyHint ?? context.ui.emptyContent;
@@ -86,93 +93,42 @@ class _AppDetailSectionState extends State<AppDetailSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppPageGutter(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 112;
-              final edit = AppIconButton(
-                icon: Icons.edit_outlined,
-                tooltip: context.ui.edit,
-                size: compact ? 28 : 36,
-                iconSize: compact ? 16 : 20,
-                onPressed: widget.onEdit,
-              );
-              // Icon centers on the title + subtitle block; the edit button
-              // stays top-aligned with the title.
-              final heading = Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(widget.icon, size: 20, color: scheme.primary),
-                        const SizedBox(width: AppTheme.spaceSm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              AppText(
-                                widget.title,
-                                role: AppTextRole.subtitle,
-                                maxLines: 1,
-                              ),
-                              if (subtitle.isNotEmpty) ...[
-                                const SizedBox(height: AppTheme.spaceXs),
-                                AppText(
-                                  subtitle,
-                                  role: AppTextRole.caption,
-                                  maxLines: 2,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!compact) edit,
-                ],
-              );
-              if (compact) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    heading,
-                    const SizedBox(height: AppTheme.spaceXs),
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: edit,
-                    ),
-                  ],
-                );
-              }
-              return heading;
-            },
-          ),
+        AppListTile(
+          title: widget.title,
+          subtitle: subtitle.isEmpty ? null : subtitle,
+          icon: widget.icon,
+          selected: _expanded,
+          trailing: AppDisclosureIcon(expanded: _expanded),
+          onEdit: widget.onEdit,
+          onTap: _toggleExpanded,
+          showDivider: !_expanded,
         ),
-        if (isEmpty)
-          AppPageGutter(
-            child: Padding(
-              padding: const EdgeInsets.only(
-                top: AppTheme.spaceSm,
-                bottom: AppTheme.spaceInline,
+        if (_expanded) ...[
+          if (isEmpty)
+            AppPageGutter(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  top: AppTheme.spaceSm,
+                  bottom: AppTheme.spaceInline,
+                ),
+                child: AppText(emptyHint, role: AppTextRole.caption),
               ),
-              child: AppText(emptyHint, role: AppTextRole.caption),
-            ),
-          )
-        else ...[
-          for (var i = 0; i < shown.length; i++)
-            _DetailEntryRow(
-              key: ValueKey<String>('$i\u0000${shown[i].title}'),
-              entry: shown[i],
-              previewLines: widget.previewLines,
-            ),
-          if (hiddenCount > 0)
-            AppListTile(
-              title: context.ui.moreEntries(hiddenCount),
-              onTap: () => setState(() => _showAll = true),
-            ),
+            )
+          else ...[
+            for (var i = 0; i < shown.length; i++)
+              _DetailEntryRow(
+                key: ValueKey<String>('$i\u0000${shown[i].title}'),
+                entry: shown[i],
+                previewLines: widget.previewLines,
+              ),
+            if (hiddenCount > 0)
+              AppListTile(
+                title: context.ui.moreEntries(hiddenCount),
+                onTap: () => setState(() => _showAll = true),
+                showDivider: false,
+              ),
+          ],
+          const AppListHairline(),
         ],
       ],
     );

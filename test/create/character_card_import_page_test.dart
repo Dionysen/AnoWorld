@@ -3,8 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:anoworld/create/character_card_import_page.dart';
-import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
+import 'package:anoworld/project/project_hub_page.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/data/project/project_paths.dart';
@@ -70,7 +70,7 @@ void main() {
     await tester.tap(write);
     await tester.pumpAndSettle();
 
-    expect(find.byType(CreateHubPage), findsOneWidget);
+    expect(find.byType(ProjectHubPage), findsOneWidget);
     final project = await repo.open('p_from_card');
     expect(project.cast.single.name, '掌柜');
     expect(project.worldBook.entries, isNotEmpty);

@@ -1,3 +1,4 @@
+import 'package:anoworld/create/visual_stage_page.dart';
 import 'package:anoworld/data/project/memory_project_repository.dart';
 import 'package:anoworld/domain/models/story_card_meta.dart';
 import 'package:anoworld/domain/project/project_factory.dart';
@@ -37,6 +38,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('卡片信息'), findsOneWidget);
+    expect(find.text('阿福'), findsNothing);
+
+    await tester.tap(find.text('卡片信息'));
+    await tester.pumpAndSettle();
     expect(find.text('阿福'), findsOneWidget);
     expect(find.text('1.2'), findsOneWidget);
     expect(find.text('古风'), findsOneWidget);
@@ -54,7 +59,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('卡片信息'), 200);
     await tester.pumpAndSettle();
 
-    expect(find.text('作者、版本、标签都空着，点这里补上'), findsOneWidget);
+    expect(find.text('作者、版本、标签都空着，点这里补上'), findsNothing);
 
     final cardSection = find.byType(AppDetailSection).last;
     await tester.tap(
@@ -63,5 +68,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(StoryCardMetaPage), findsOneWidget);
+  });
+
+  testWidgets('visual section opens the stage editor', (tester) async {
+    await tester.pumpWidget(
+      testScoped(
+        projects: MemoryProjectRepository(seed: {base.meta.id: base}),
+        home: ProjectHubPage(projectId: base.meta.id),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('画面'), 200);
+    await tester.pumpAndSettle();
+
+    final sections = find.byType(AppDetailSection);
+    // 世界书 / 角色 / 情节走向 / 剧情元素 / 画面 / 卡片信息
+    expect(sections, findsNWidgets(6));
+    await tester.tap(
+      find.descendant(of: sections.at(4), matching: find.byTooltip('编辑')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VisualStagePage), findsOneWidget);
   });
 }

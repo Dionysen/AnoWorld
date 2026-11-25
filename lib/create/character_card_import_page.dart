@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
-import 'package:anoworld/create/create_hub_page.dart';
+import 'package:anoworld/project/project_hub_page.dart';
 import 'package:anoworld/data/card_import/card_cover_sidecar.dart';
 import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
@@ -289,7 +289,7 @@ class _CharacterCardImportPageState extends State<CharacterCardImportPage> {
       );
       await pushStoryRouteReplacement<void>(
         context,
-        CreateHubPage(projectId: filled.meta.id),
+        ProjectHubPage(projectId: filled.meta.id),
       );
     } catch (error, stack) {
       AppLog.instance.error(

@@ -65,10 +65,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('开始游玩'), findsOneWidget);
-    expect(find.byTooltip('继续创作'), findsOneWidget);
-    expect(find.text('少年离家，雨夜投宿。'), findsWidgets);
+    expect(find.byTooltip('改故事名'), findsOneWidget);
     expect(find.text('世界书'), findsOneWidget);
     expect(find.text('情节走向'), findsOneWidget);
+    expect(find.text('画面'), findsOneWidget);
+    expect(find.text('少年离家，雨夜投宿。'), findsNothing);
     expect(
       find.textContaining(RegExp(r'^\d+ 条设定，\d+ 条常驻，\d+ token$')),
       findsOneWidget,
@@ -81,6 +82,11 @@ void main() {
       find.textContaining(RegExp(r'^\d+ 个节点，\d+ token$')),
       findsOneWidget,
     );
+
+    await tester.ensureVisible(find.text('情节走向'));
+    await tester.tap(find.text('情节走向'));
+    await tester.pumpAndSettle();
+    expect(find.text('少年离家，雨夜投宿。'), findsWidgets);
   });
 
   testWidgets('works more can switch display mode', (tester) async {

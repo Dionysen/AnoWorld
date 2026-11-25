@@ -63,6 +63,34 @@ void main() {
     expect(find.text('剧情元素'), findsOneWidget);
   });
 
+  testWidgets('onEdit shows edit control without firing onTap', (tester) async {
+    var tapped = false;
+    var edited = false;
+
+    await tester.pumpWidget(
+      testScoped(
+        home: Scaffold(
+          body: AppListTile(
+            title: '世界书',
+            subtitle: '9 条设定，8 条常驻，9371 token',
+            icon: Icons.public_outlined,
+            trailing: const Icon(Icons.keyboard_arrow_down),
+            onTap: () => tapped = true,
+            onEdit: () => edited = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('编辑'), findsOneWidget);
+    await tester.tap(find.byTooltip('编辑'));
+    await tester.pumpAndSettle();
+
+    expect(edited, isTrue);
+    expect(tapped, isFalse);
+  });
+
   testWidgets('tappable AppListTile presses with AppPressScale', (tester) async {
     await tester.pumpWidget(
       testScoped(

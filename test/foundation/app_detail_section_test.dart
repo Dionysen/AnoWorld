@@ -1,6 +1,7 @@
 import 'package:anoworld/foundation/widgets/app_detail_entry.dart';
 import 'package:anoworld/foundation/widgets/app_detail_section.dart';
 import 'package:anoworld/foundation/widgets/app_list_hairline.dart';
+import 'package:anoworld/foundation/widgets/app_list_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,7 @@ void main() {
           body: AppDetailSection(
             title: '世界书',
             icon: Icons.public_outlined,
+            initiallyExpanded: true,
             entries: [
               AppDetailEntry(
                 title: '世界观',
@@ -38,7 +40,8 @@ void main() {
     expect(find.byTooltip('展开'), findsOneWidget);
     expect(find.text('世界观'), findsOneWidget);
     expect(find.text('常驻'), findsOneWidget);
-    expect(find.byType(AppListHairline), findsOneWidget);
+    // Entry hairline + section footer hairline.
+    expect(find.byType(AppListHairline), findsNWidgets(2));
 
     await tester.tap(find.byTooltip('展开'));
     await tester.pumpAndSettle();
@@ -58,6 +61,7 @@ void main() {
             title: '角色',
             icon: Icons.groups_outlined,
             subtitle: '2 个角色，33 token',
+            initiallyExpanded: true,
             entries: const [
               AppDetailEntry(title: '少年', body: '离家远行的旅人'),
             ],
@@ -71,7 +75,9 @@ void main() {
     expect(find.text('2 个角色，33 token'), findsOneWidget);
   });
 
-  testWidgets('icon centers on the title and subtitle block', (tester) async {
+  testWidgets('header uses AppListTile chrome with edit', (tester) async {
+    var edited = false;
+
     await tester.pumpWidget(
       testScoped(
         home: Scaffold(
@@ -79,27 +85,29 @@ void main() {
             title: '世界书',
             icon: Icons.public_outlined,
             subtitle: '83 条设定，51 条常驻，42638 token',
+            initiallyExpanded: true,
             entries: const [
               AppDetailEntry(title: '开场素材', body: '小城雨夜。'),
             ],
-            onEdit: () {},
+            onEdit: () => edited = true,
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
+    expect(find.byType(AppListTile), findsWidgets);
     final icon = tester.getRect(find.byIcon(Icons.public_outlined));
     final title = tester.getRect(find.text('世界书'));
     final subtitle = tester.getRect(
       find.text('83 条设定，51 条常驻，42638 token'),
     );
     final blockMiddle = (title.top + subtitle.bottom) / 2;
-
     expect(icon.center.dy, moreOrLessEquals(blockMiddle, epsilon: 1.5));
-    // The edit button keeps hugging the title, so it stays above the icon.
-    final edit = tester.getRect(find.byTooltip('编辑'));
-    expect(edit.center.dy, lessThan(icon.center.dy));
+
+    await tester.tap(find.byTooltip('编辑'));
+    await tester.pumpAndSettle();
+    expect(edited, isTrue);
   });
 
   testWidgets('narrow width does not overflow entry actions', (tester) async {
@@ -115,6 +123,7 @@ void main() {
                 title: '世界书',
                 icon: Icons.public_outlined,
                 subtitle: '12 条设定，3 条常驻，4210 token',
+                initiallyExpanded: true,
                 entries: const [
                   AppDetailEntry(
                     title: '世界观',
@@ -155,6 +164,7 @@ void main() {
           body: AppDetailSection(
             title: '世界书',
             icon: Icons.public_outlined,
+            initiallyExpanded: true,
             entries: const [
               AppDetailEntry(
                 title: '客栈',
@@ -194,6 +204,7 @@ void main() {
             child: AppDetailSection(
               title: '世界书',
               icon: Icons.public_outlined,
+              initiallyExpanded: true,
               entries: entries,
               onEdit: () {},
             ),
@@ -241,6 +252,7 @@ void main() {
           body: AppDetailSection(
             title: '世界书',
             icon: Icons.public_outlined,
+            initiallyExpanded: true,
             entries: [
               AppDetailEntry(
                 title: '长设定',
@@ -261,5 +273,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(copied, contains('长设定'));
     expect(copied, contains('第20行很长的设定内容。'));
+  });
+
+  testWidgets('section starts collapsed and expands on header tap', (
+    tester,
+  ) async {
+    var edited = false;
+
+    await tester.pumpWidget(
+      testScoped(
+        home: Scaffold(
+          body: AppDetailSection(
+            title: '世界书',
+            icon: Icons.public_outlined,
+            subtitle: '1 条设定，0 条常驻，12 token',
+            entries: const [
+              AppDetailEntry(title: '客栈', body: '雨夜投宿。'),
+            ],
+            onEdit: () => edited = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('世界书'), findsOneWidget);
+    expect(find.text('1 条设定，0 条常驻，12 token'), findsOneWidget);
+    expect(find.text('客栈'), findsNothing);
+    expect(find.byIcon(Icons.keyboard_arrow_down), findsOneWidget);
+
+    await tester.tap(find.text('世界书'));
+    await tester.pumpAndSettle();
+    expect(find.text('客栈'), findsOneWidget);
+    expect(find.text('雨夜投宿。'), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
+
+    await tester.tap(find.byTooltip('编辑'));
+    await tester.pumpAndSettle();
+    expect(edited, isTrue);
+    expect(find.text('客栈'), findsOneWidget);
   });
 }

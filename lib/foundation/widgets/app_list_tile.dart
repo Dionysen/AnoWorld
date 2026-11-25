@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import 'app_icon_button.dart';
 import 'app_list_hairline.dart';
 import 'app_press_scale.dart';
 import 'app_text.dart';
 
 /// Full-width tappable row (X-style): flat, no island card, hairline under the row.
+///
+/// Optional [onEdit] appends a trailing edit control after [trailing] (e.g.
+/// disclosure / forward chevron + edit), matching story-detail section headers.
 class AppListTile extends StatelessWidget {
   const AppListTile({
     super.key,
@@ -15,6 +20,7 @@ class AppListTile extends StatelessWidget {
     this.leading,
     this.onTap,
     this.onLongPress,
+    this.onEdit,
     this.trailing,
     this.selected = false,
     this.nested = false,
@@ -30,6 +36,9 @@ class AppListTile extends StatelessWidget {
   final Widget? leading;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+
+  /// When set, shows an edit icon after [trailing]; taps do not fire [onTap].
+  final VoidCallback? onEdit;
   final Widget? trailing;
   final bool selected;
 
@@ -51,6 +60,9 @@ class AppListTile extends StatelessWidget {
   /// Soft estimate for [trailing] (more / chevron / checkbox).
   static const double _trailingEstimate = 40;
 
+  /// Soft estimate for the optional edit control.
+  static const double _editEstimate = 36;
+
   /// Keep at least this much for the title column before hiding chrome.
   static const double _minTitleWidth = 48;
 
@@ -61,6 +73,7 @@ class AppListTile extends StatelessWidget {
     Widget? leading,
     VoidCallback? onTap,
     VoidCallback? onLongPress,
+    VoidCallback? onEdit,
     Widget? trailing,
     bool? selected,
     bool? nested,
@@ -75,11 +88,46 @@ class AppListTile extends StatelessWidget {
       leading: leading ?? this.leading,
       onTap: onTap ?? this.onTap,
       onLongPress: onLongPress ?? this.onLongPress,
+      onEdit: onEdit ?? this.onEdit,
       trailing: trailing ?? this.trailing,
       selected: selected ?? this.selected,
       nested: nested ?? this.nested,
       danger: danger ?? this.danger,
       showDivider: showDivider ?? this.showDivider,
+    );
+  }
+
+  double _trailingReserve() {
+    var width = 0.0;
+    if (trailing != null) width += _trailingEstimate;
+    if (onEdit != null) {
+      if (trailing != null) width += AppTheme.spaceXs;
+      width += _editEstimate;
+    }
+    if (width <= 0) return 0;
+    return AppTheme.spaceSm + width;
+  }
+
+  Widget? _trailingCluster(BuildContext context) {
+    if (trailing == null && onEdit == null) return null;
+    final edit = onEdit == null
+        ? null
+        : AppIconButton(
+            icon: Icons.edit_outlined,
+            tooltip: context.ui.edit,
+            size: _editEstimate,
+            iconSize: iconSize,
+            onPressed: onEdit,
+          );
+    if (trailing == null) return edit;
+    if (edit == null) return trailing;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        trailing!,
+        const SizedBox(width: AppTheme.spaceXs),
+        edit,
+      ],
     );
   }
 
@@ -93,6 +141,8 @@ class AppListTile extends StatelessWidget {
     );
     final left = AppTheme.spaceMd + (nested ? AppTheme.spaceMd : 0);
     final emphasis = danger ? scheme.error : null;
+    final trailingCluster = _trailingCluster(context);
+    final trailingReserve = _trailingReserve();
 
     final row = Material(
       color: selected ? selectedFill : Colors.transparent,
@@ -117,11 +167,8 @@ class AppListTile extends StatelessWidget {
                     : icon != null
                         ? iconSize + AppTheme.spaceInline
                         : 0.0;
-                final trailingReserve = trailing != null
-                    ? AppTheme.spaceSm + _trailingEstimate
-                    : 0.0;
                 // Prefer title; drop trailing first, then leading.
-                final showTrailing = trailing != null &&
+                final showTrailing = trailingCluster != null &&
                     maxW >=
                         leadingReserve + _minTitleWidth + trailingReserve;
                 final showLeading = (leading != null || icon != null) &&
@@ -163,7 +210,7 @@ class AppListTile extends StatelessWidget {
                     ),
                     if (showTrailing) ...[
                       const SizedBox(width: AppTheme.spaceSm),
-                      trailing!,
+                      trailingCluster,
                     ],
                   ],
                 );

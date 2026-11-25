@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/create/create_entry_page.dart';
-import 'package:anoworld/create/create_hub_page.dart';
 import 'package:anoworld/data/project/folder_project_repository.dart';
 import 'package:anoworld/data/project/project_cover_files.dart';
 import 'package:anoworld/data/project/project_package_archive.dart';
@@ -919,7 +918,7 @@ class WorksTabState extends State<WorksTab> implements HomeTabBack {
       case 'edit':
         widget.selection.exit();
         AppLog.instance.info('编辑故事：${project.title}', tag: 'works.story');
-        await _openRoute(CreateHubPage(projectId: project.id));
+        await _openRoute(ProjectHubPage(projectId: project.id));
       case 'export':
         await exportPack(project);
       case 'delete':
