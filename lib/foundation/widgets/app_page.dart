@@ -19,6 +19,9 @@ import 'app_text.dart';
 /// 3. [body]
 ///
 /// Home hubs pass [showTitle] false and put search / toolbars in [body].
+/// With [overlayTitle], the software title is transparent and stacked on [body]
+/// (and [body] paints up under the window chrome) so a hero can run edge-to-edge
+/// while back / title / actions stay in the software title layer.
 ///
 /// Embedded in a master-detail detail pane ([PaneDetailScope]): chrome band and
 /// back button are dropped — the host shell already owns the window chrome and
@@ -32,6 +35,8 @@ class AppPage extends StatelessWidget {
     this.actions = const [],
     this.onBack,
     this.showTitle = true,
+    this.overlayTitle = false,
+    this.overlayTitleFill,
     this.background,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
@@ -50,6 +55,18 @@ class AppPage extends StatelessWidget {
   /// When false, keeps window/status chrome but hides the software title bar
   /// (e.g. home tabs put search + toolbar in [body]).
   final bool showTitle;
+
+  /// When true (and [showTitle]), draw the software title as a transparent
+  /// overlay on [body] instead of a solid band that pushes [body] down.
+  ///
+  /// [body] is also extended upward under the window/status chrome so a hero
+  /// cover can paint to the window top. Controls stay in the software title
+  /// row — never in the window chrome.
+  final bool overlayTitle;
+
+  /// Optional fill behind the overlay software title (e.g. surface fading in
+  /// as a hero collapses). Ignored unless [overlayTitle] is true.
+  final Color? overlayTitleFill;
 
   /// Full-bleed backdrop painted behind the window/status chrome and [body].
   ///
@@ -122,6 +139,7 @@ class AppPage extends StatelessWidget {
                   showTitle &&
                   titleBarHeight >= 28 &&
                   constraints.maxWidth >= 72;
+              final useOverlayTitle = overlayTitle && showSoftwareTitle;
               final showBack =
                   showSoftwareTitle &&
                   onBack != null &&
@@ -142,75 +160,99 @@ class AppPage extends StatelessWidget {
                   ? AppTheme.titleChromePadding
                   : AppTheme.pagePadding;
 
+              Widget titleBar = SizedBox(
+                height: titleBarHeight,
+                width: double.infinity,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: titleLeftPad,
+                    right: titleRightPad,
+                  ),
+                  child: Row(
+                    children: [
+                      if (showBack)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            right: AppTheme.spaceSm,
+                          ),
+                          child: AppCircleButton(
+                            icon: Icons.arrow_back,
+                            tooltip: context.ui.back,
+                            onPressed: onBack,
+                            size: 32,
+                            iconSize: 18,
+                          ),
+                        ),
+                      if (showTitleText)
+                        Expanded(
+                          child:
+                              titleWidget ??
+                              AppText(
+                                title,
+                                role: AppTextRole.subtitle,
+                                maxLines: 1,
+                              ),
+                        )
+                      else
+                        const Spacer(),
+                      if (showActions) ...spacedActions(actions),
+                    ],
+                  ),
+                ),
+              );
+              if (useOverlayTitle && overlayTitleFill != null) {
+                titleBar = ColoredBox(color: overlayTitleFill!, child: titleBar);
+              }
+
+              final bodyPad = inDetailPane
+                  ? EdgeInsets.zero
+                  : EdgeInsets.only(
+                      left: media.padding.left,
+                      right: media.padding.right,
+                    );
+              // Bottom inset stays in MediaQuery so floating chrome
+              // (capsule nav) can overlay while scroll bodies pad themselves.
+              final paddedBody = Padding(padding: bodyPad, child: body);
+
               return Column(
                 children: [
                   if (chromeHeight > 0)
-                    // Transparent when a backdrop is given: the image runs up
-                    // into the title band / status bar, layout is untouched.
+                    // Transparent when a backdrop is given, or when the body
+                    // paints under chrome via [overlayTitle].
                     ColoredBox(
-                      color: backdrop == null ? barColor : Colors.transparent,
+                      color: backdrop == null && !useOverlayTitle
+                          ? barColor
+                          : Colors.transparent,
                       child: SizedBox(
                         height: chromeHeight,
                         width: double.infinity,
                       ),
                     ),
-                  if (showSoftwareTitle)
-                    ColoredBox(
-                      color: barColor,
-                      child: SizedBox(
-                        height: titleBarHeight,
-                        width: double.infinity,
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            left: titleLeftPad,
-                            right: titleRightPad,
-                          ),
-                          child: Row(
-                            children: [
-                              if (showBack)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    right: AppTheme.spaceSm,
-                                  ),
-                                  child: AppCircleButton(
-                                    icon: Icons.arrow_back,
-                                    tooltip: context.ui.back,
-                                    onPressed: onBack,
-                                    size: 32,
-                                    iconSize: 18,
-                                  ),
-                                ),
-                              if (showTitleText)
-                                Expanded(
-                                  child:
-                                      titleWidget ??
-                                      AppText(
-                                        title,
-                                        role: AppTextRole.subtitle,
-                                        maxLines: 1,
-                                      ),
-                                )
-                              else
-                                const Spacer(),
-                              if (showActions) ...spacedActions(actions),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  if (showSoftwareTitle && !useOverlayTitle)
+                    ColoredBox(color: barColor, child: titleBar),
                   Expanded(
-                    child: Padding(
-                      // Bottom inset stays in MediaQuery so floating chrome
-                      // (capsule nav) can overlay while scroll bodies pad
-                      // themselves.
-                      padding: inDetailPane
-                          ? EdgeInsets.zero
-                          : EdgeInsets.only(
-                              left: media.padding.left,
-                              right: media.padding.right,
-                            ),
-                      child: body,
-                    ),
+                    child: useOverlayTitle
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // Extend under the window chrome so a hero cover
+                              // can reach the window top / status bar.
+                              Positioned(
+                                top: -chromeHeight,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: paddedBody,
+                              ),
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: titleBar,
+                              ),
+                            ],
+                          )
+                        : paddedBody,
                   ),
                 ],
               );

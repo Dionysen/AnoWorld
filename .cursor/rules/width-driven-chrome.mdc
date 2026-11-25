@@ -22,12 +22,13 @@ alwaysApply: true
 
 - 实现落在 [`AppPage`](mdc:lib/foundation/widgets/app_page.dart)：上层空 `ColoredBox`（`ImmersiveMetrics.barHeight`），下层软件标题行（`showTitle`）。
 - 全屏舞台（如视觉小说）可给 `AppPage.background` 一张整页背景：chrome 带改透明，背景图 / 底色一直铺到窗口顶边与手机状态栏后面；**带高与控件位置不变**，chrome 里仍不放控件与文字。
+- 英雄封面页（如故事详情）可用 `overlayTitle: true`：软件标题**透明叠在 body 上**，body 上延到 chrome 底下让封面铺到窗顶；返回 / 标题 / `actions` 仍只在软件标题层。
 - 主页等枢纽：`showTitle: false`，不要软件标题栏；搜索 / 工具在正文顶。
 - 桌面 chrome 高度 [`AppTheme.titleBandHeight`](mdc:lib/foundation/theme/app_theme.dart)（macOS 可抬高）；移动端 chrome 只有 `statusInset`（`titleBarHeight: 0`）。
 
 ```dart
 // ❌ 把返回/标题画进桌面自定义标题栏（与红绿灯同一行）
-// ✅ 自定义标题栏只铺背景；返回/标题在下方软件标题栏
+// ✅ 自定义标题栏只铺背景；返回/标题在下方软件标题栏（可透明叠在封面上）
 ```
 
 ## 允许的平台差（仅能力层）

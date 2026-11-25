@@ -100,6 +100,46 @@ void main() {
     expect(find.byIcon(Icons.arrow_back), findsNothing);
   });
 
+  testWidgets('overlayTitle keeps back/title on top of the body hero', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      testLocalized(
+        home: AppPage(
+          title: '未命名故事',
+          overlayTitle: true,
+          onBack: () {},
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 400,
+                child: ColoredBox(
+                  color: Colors.blue.shade700,
+                  child: const Text('hero'),
+                ),
+              ),
+              const Text('below'),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('未命名故事'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    expect(find.text('hero'), findsOneWidget);
+    // Overlay title sits over the hero instead of pushing it below a solid bar.
+    expect(
+      tester.getTopLeft(find.text('hero')).dy,
+      lessThan(tester.getTopLeft(find.text('未命名故事')).dy + 8),
+    );
+  });
+
   testWidgets('the same page keeps its back button outside a pane', (
     tester,
   ) async {

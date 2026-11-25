@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:anoworld/app/app_scope.dart';
 import 'package:anoworld/domain/repositories/project_merge.dart';
@@ -23,7 +24,6 @@ import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_detail_entry.dart';
 import 'package:anoworld/foundation/widgets/app_detail_section.dart';
 import 'package:anoworld/foundation/widgets/app_empty_state.dart';
-import 'package:anoworld/foundation/widgets/app_image.dart';
 import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
@@ -35,6 +35,7 @@ import 'package:anoworld/home/create_assistant_story_scope.dart';
 import 'package:anoworld/home/story_assistant_navigation.dart';
 import 'package:anoworld/play/start_play.dart';
 import 'package:anoworld/project/story_card_meta_page.dart';
+import 'package:anoworld/project/story_cover_banner.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -61,6 +62,37 @@ class _ProjectHubPageState extends State<ProjectHubPage>
   bool _loadScheduled = false;
   String? _projectDir;
   String? _coverAbsolutePath;
+
+  /// 0 = hero expanded, 1 = title pinned in the overlay bar (NT-style).
+  double _heroCollapse = 0;
+
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final coverHeight =
+        MediaQuery.sizeOf(context).height * StoryCoverBanner.restingHeightFraction;
+    final range = math.max(
+      1.0,
+      coverHeight - AppTheme.pageTitleBarHeight,
+    );
+    final next = (_scroll.offset / range).clamp(0.0, 1.0);
+    if ((next - _heroCollapse).abs() < 0.001) return;
+    setState(() => _heroCollapse = next);
+  }
 
   @override
   void didChangeDependencies() {
@@ -412,43 +444,6 @@ class _ProjectHubPageState extends State<ProjectHubPage>
         .toList(growable: false);
   }
 
-  Widget _storyCover(BuildContext context, String title) {
-    final scheme = Theme.of(context).colorScheme;
-    final coverPath = _coverAbsolutePath;
-    final letter = title.isEmpty ? '?' : title.characters.first;
-    final placeholder = ColoredBox(
-      color: scheme.primary.withValues(alpha: 0.16),
-      child: Center(
-        child: Text(
-          letter,
-          style: TextStyle(
-            color: scheme.primary,
-            fontWeight: FontWeight.w700,
-            fontSize: 56,
-          ),
-        ),
-      ),
-    );
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (coverPath != null)
-          AppImage(path: coverPath, fallback: placeholder)
-        else
-          placeholder,
-        Positioned(
-          top: AppTheme.spaceSm,
-          right: AppTheme.spaceSm,
-          child: AppCircleButton(
-            icon: Icons.photo_outlined,
-            tooltip: context.strings.changeCover,
-            onPressed: _changeCover,
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final project = _project;
@@ -462,12 +457,41 @@ class _ProjectHubPageState extends State<ProjectHubPage>
         : project.meta.title;
 
     final ready = project != null && !_loading && _error == null;
+    // Match NT: cross-fade once the bar is mostly pinned.
+    final pinnedFade = const Interval(
+      0.55,
+      1,
+      curve: Curves.easeInOut,
+    ).transform(_heroCollapse);
+    final expandedTitleOpacity = 1.0 - pinnedFade;
+    final collapsedTitleOpacity = pinnedFade;
+    final expandedTitleScale = 1.0 - (0.12 * _heroCollapse);
+    final scheme = Theme.of(context).colorScheme;
 
     return AppPage(
       title: title,
+      overlayTitle: ready,
+      overlayTitleFill: ready
+          ? scheme.surface.withValues(alpha: 0.92 * pinnedFade)
+          : null,
+      titleWidget: ready
+          ? Opacity(
+              opacity: collapsedTitleOpacity,
+              child: AppText(
+                title,
+                role: AppTextRole.subtitle,
+                maxLines: 1,
+              ),
+            )
+          : null,
       onBack: () => Navigator.of(context).maybePop(),
       actions: ready
           ? [
+              AppCircleButton(
+                icon: Icons.photo_outlined,
+                tooltip: context.strings.changeCover,
+                onPressed: _changeCover,
+              ),
               AppCircleButton(
                 icon: Icons.edit_note_outlined,
                 tooltip: context.strings.continueCreating,
@@ -485,92 +509,115 @@ class _ProjectHubPageState extends State<ProjectHubPage>
               ),
             )
           : null,
-      body: AppPageBody.list(
-        children: [
-          if (_loading)
-            AppPageGutter(
-              child: AppText(
-                context.strings.loading,
-                role: AppTextRole.caption,
+      body: !ready
+          ? AppPageBody(
+              padding: const EdgeInsets.only(
+                top: AppTheme.pagePadding,
+                bottom: AppTheme.pagePadding,
               ),
+              children: [
+                if (_loading)
+                  AppPageGutter(
+                    child: AppText(
+                      context.strings.loading,
+                      role: AppTextRole.caption,
+                    ),
+                  )
+                else if (_error != null)
+                  AppPageGutter(
+                    child: AppEmptyState(
+                      message: context.strings.openStoryFailed,
+                      detail: _error.toString(),
+                      action: AppButton(
+                        label: context.strings.retry,
+                        onPressed: _load,
+                        variant: AppButtonVariant.secondary,
+                      ),
+                    ),
+                  ),
+              ],
             )
-          else if (_error != null)
-            AppPageGutter(
-              child: AppEmptyState(
-                message: context.strings.openStoryFailed,
-                detail: _error.toString(),
-                action: AppButton(
-                  label: context.strings.retry,
-                  onPressed: _load,
-                  variant: AppButtonVariant.secondary,
+          : CustomScrollView(
+              controller: _scroll,
+              slivers: [
+                SliverToBoxAdapter(
+                  child: StoryCoverBanner(
+                    coverPath: _coverAbsolutePath,
+                    title: title,
+                    titleOpacity: expandedTitleOpacity,
+                    titleScale: expandedTitleScale,
+                  ),
                 ),
-              ),
-            )
-          else if (project != null) ...[
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: _storyCover(context, project.meta.title),
+                SliverPadding(
+                  padding: EdgeInsets.only(
+                    top: AppTheme.spaceLg,
+                    bottom: AppTheme.pagePadding +
+                        MediaQuery.paddingOf(context).bottom +
+                        AppCircleButton.fabDiameter +
+                        AppTheme.spaceLg,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate(
+                      [
+                        AppDetailSection(
+                          title: context.strings.worldBookTitle,
+                          icon: Icons.public_outlined,
+                          subtitle: _worldBookSize(project!, size),
+                          entries: _worldBookEntries(project),
+                          emptyHint: context.strings.worldBookEmpty,
+                          onEdit: () => _openEditor(
+                            WorldBookEditorPage(projectId: widget.projectId),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spaceLg),
+                        AppDetailSection(
+                          title: context.strings.castTitle,
+                          icon: Icons.groups_outlined,
+                          subtitle: _castSize(project, size),
+                          entries: _castEntries(project),
+                          emptyHint: context.strings.castEmpty,
+                          onEdit: () => _openEditor(
+                            CastEditorPage(projectId: widget.projectId),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spaceLg),
+                        AppDetailSection(
+                          title: context.strings.mainTitle,
+                          icon: Icons.account_tree_outlined,
+                          subtitle: _mainSize(project, size),
+                          entries: _mainEntries(project),
+                          emptyHint: _mainEmptyHint(context, project),
+                          onEdit: () => _openEditor(
+                            MainGraphPage(projectId: widget.projectId),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spaceLg),
+                        AppDetailSection(
+                          title: context.strings.plotElementsTitle,
+                          icon: Icons.theater_comedy_outlined,
+                          subtitle: _plotElementsSize(project, size, catalog),
+                          entries: _plotElementEntries(project),
+                          emptyHint: context.strings.plotElementsEmpty,
+                          onEdit: () => _openEditor(
+                            PlotElementsPickPage(projectId: widget.projectId),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spaceLg),
+                        AppDetailSection(
+                          title: context.strings.cardInfoTitle,
+                          icon: Icons.badge_outlined,
+                          entries: _cardInfoEntries(project),
+                          emptyHint: context.strings.cardInfoEmpty,
+                          onEdit: () => _openEditor(
+                            StoryCardMetaPage(projectId: widget.projectId),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: AppTheme.spaceLg),
-            AppDetailSection(
-              title: context.strings.worldBookTitle,
-              icon: Icons.public_outlined,
-              subtitle: _worldBookSize(project, size),
-              entries: _worldBookEntries(project),
-              emptyHint: context.strings.worldBookEmpty,
-              onEdit: () => _openEditor(
-                WorldBookEditorPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceLg),
-            AppDetailSection(
-              title: context.strings.castTitle,
-              icon: Icons.groups_outlined,
-              subtitle: _castSize(project, size),
-              entries: _castEntries(project),
-              emptyHint: context.strings.castEmpty,
-              onEdit: () => _openEditor(
-                CastEditorPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceLg),
-            AppDetailSection(
-              title: context.strings.mainTitle,
-              icon: Icons.account_tree_outlined,
-              subtitle: _mainSize(project, size),
-              entries: _mainEntries(project),
-              emptyHint: _mainEmptyHint(context, project),
-              onEdit: () => _openEditor(
-                MainGraphPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceLg),
-            AppDetailSection(
-              title: context.strings.plotElementsTitle,
-              icon: Icons.theater_comedy_outlined,
-              subtitle: _plotElementsSize(project, size, catalog),
-              entries: _plotElementEntries(project),
-              emptyHint: context.strings.plotElementsEmpty,
-              onEdit: () => _openEditor(
-                PlotElementsPickPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceLg),
-            AppDetailSection(
-              title: context.strings.cardInfoTitle,
-              icon: Icons.badge_outlined,
-              entries: _cardInfoEntries(project),
-              emptyHint: context.strings.cardInfoEmpty,
-              onEdit: () => _openEditor(
-                StoryCardMetaPage(projectId: widget.projectId),
-              ),
-            ),
-            const SizedBox(
-              height: AppCircleButton.fabDiameter + AppTheme.spaceLg,
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
