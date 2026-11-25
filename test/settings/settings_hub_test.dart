@@ -15,7 +15,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('剧情元素'), findsOneWidget);
-    expect(find.text('全局库，给故事勾着用'), findsOneWidget);
+    expect(find.text('故事选用的情节素材'), findsOneWidget);
 
     await tester.tap(find.text('剧情元素'));
     await tester.pumpAndSettle();

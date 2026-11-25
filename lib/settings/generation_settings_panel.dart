@@ -4,7 +4,6 @@ import 'package:anoworld/domain/settings/ai_settings.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
 import 'package:anoworld/foundation/widgets/app_disclosure_icon.dart';
 import 'package:anoworld/foundation/widgets/app_list_tile.dart';
-import 'package:anoworld/foundation/widgets/app_page_gutter.dart';
 import 'package:anoworld/foundation/widgets/app_section_header.dart';
 import 'package:anoworld/foundation/widgets/app_sheet.dart';
 import 'package:anoworld/foundation/widgets/app_slider.dart';
@@ -132,7 +131,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
   List<Widget> _sizeSection({
     required AppStrings strings,
     required String title,
-    required String hint,
     required int width,
     required int height,
     required List<ImageGenSizePreset> presets,
@@ -142,10 +140,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
   }) {
     return [
       AppSectionHeader(title, gutter: true),
-      AppPageGutter(
-        child: AppText(hint, role: AppTextRole.caption),
-      ),
-      const SizedBox(height: AppTheme.spaceSm),
       AppListTile(
         title: strings.imageGenSizePresetLabel,
         subtitle: strings.imageGenSizeValue(width, height),
@@ -163,7 +157,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
       ),
       AppSlider(
         label: strings.imageGenWidthLabel,
-        subtitle: strings.imageGenWidthHint,
         icon: Icons.swap_horiz_outlined,
         value: width.toDouble(),
         min: AiImageEndpoint.sizeLowerBound.toDouble(),
@@ -174,7 +167,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
       ),
       AppSlider(
         label: strings.imageGenHeightLabel,
-        subtitle: strings.imageGenHeightHint,
         icon: Icons.swap_vert_outlined,
         value: height.toDouble(),
         min: AiImageEndpoint.sizeLowerBound.toDouble(),
@@ -202,13 +194,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
               strings.imageGenQualitySection,
               gutter: true,
             ),
-            AppPageGutter(
-              child: AppText(
-                strings.imageGenQualityHint,
-                role: AppTextRole.caption,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
             AppSlider(
               label: strings.imageGenStepsLabel,
               subtitle: strings.imageGenStepsHint,
@@ -240,7 +225,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
             ..._sizeSection(
               strings: strings,
               title: strings.imageGenPortraitSizeLabel,
-              hint: strings.imageGenPortraitSizeHint,
               width: ai.image.portraitWidth,
               height: ai.image.portraitHeight,
               presets: ImageGenSizePresets.portrait,
@@ -263,7 +247,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
             ..._sizeSection(
               strings: strings,
               title: strings.imageGenSceneSizeLabel,
-              hint: strings.imageGenSceneSizeHint,
               width: ai.image.sceneWidth,
               height: ai.image.sceneHeight,
               presets: ImageGenSizePresets.scene,
@@ -287,13 +270,6 @@ class _GenerationSettingsPanelState extends State<GenerationSettingsPanel> {
               strings.vnDirectionSection,
               gutter: true,
             ),
-            AppPageGutter(
-              child: AppText(
-                strings.vnDirectionHint,
-                role: AppTextRole.caption,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spaceSm),
             AppSlider(
               label: strings.vnMinLinesLabel,
               subtitle: strings.vnMinLinesHint,

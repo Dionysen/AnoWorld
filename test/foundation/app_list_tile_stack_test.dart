@@ -42,7 +42,7 @@ void main() {
             width: 160,
             child: AppListTile(
               title: '剧情元素',
-              subtitle: '全局库，给故事勾着用',
+              subtitle: '故事选用的情节素材',
               leading: const SizedBox(
                 key: Key('leading'),
                 width: 56,

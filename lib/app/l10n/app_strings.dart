@@ -375,18 +375,13 @@ abstract class AppStrings extends AppLocalizations {
   String dialogueOpacityValue(int percent);
 
   String get imageGenQualitySection;
-  String get imageGenQualityHint;
   String get imageGenStepsLabel;
   String get imageGenStepsHint;
   String imageGenStepsValue(int steps);
   String get imageGenPortraitSizeLabel;
-  String get imageGenPortraitSizeHint;
   String get imageGenSceneSizeLabel;
-  String get imageGenSceneSizeHint;
   String get imageGenWidthLabel;
-  String get imageGenWidthHint;
   String get imageGenHeightLabel;
-  String get imageGenHeightHint;
   String get imageGenSizePresetLabel;
   String imageGenSizePresetValue(ImageGenSizePreset preset);
   String imageGenSizeValue(int width, int height);
@@ -394,7 +389,6 @@ abstract class AppStrings extends AppLocalizations {
   String get imageGenUpscaleHint;
 
   String get vnDirectionSection;
-  String get vnDirectionHint;
   String get vnMinLinesLabel;
   String get vnMinLinesHint;
   String vnMinLinesValue(int lines);

@@ -1103,9 +1103,6 @@ class AppStringsZh extends AppStrings {
   String get imageGenQualitySection => '出图';
 
   @override
-  String get imageGenQualityHint => '步数影响细腻度；超分更清晰，也更慢';
-
-  @override
   String get imageGenStepsLabel => '采样步数';
 
   @override
@@ -1118,25 +1115,13 @@ class AppStringsZh extends AppStrings {
   String get imageGenPortraitSizeLabel => '立绘尺寸';
 
   @override
-  String get imageGenPortraitSizeHint => '角色立绘的预设或手动宽高';
-
-  @override
   String get imageGenSceneSizeLabel => '场景尺寸';
-
-  @override
-  String get imageGenSceneSizeHint => '场景图的预设或手动宽高，含 16:9';
 
   @override
   String get imageGenWidthLabel => '宽度';
 
   @override
-  String get imageGenWidthHint => '图片有多宽';
-
-  @override
   String get imageGenHeightLabel => '高度';
-
-  @override
-  String get imageGenHeightHint => '图片有多高';
 
   @override
   String get imageGenSizePresetLabel => '尺寸预设';
@@ -1158,13 +1143,10 @@ class AppStringsZh extends AppStrings {
   String get vnDirectionSection => '视觉小说演出';
 
   @override
-  String get vnDirectionHint => '每段对白多长、站内要不要出选项、情节图至少几站，都在这里调';
-
-  @override
   String get vnMinLinesLabel => '每段最少句数';
 
   @override
-  String get vnMinLinesHint => '每一拍对白至少写几句';
+  String get vnMinLinesHint => '每段对白至少几句';
 
   @override
   String vnMinLinesValue(int lines) => '$lines 句';
@@ -1182,7 +1164,7 @@ class AppStringsZh extends AppStrings {
   String get vnInStationChoicesLabel => '站内选项';
 
   @override
-  String get vnInStationChoicesHint => '出站分叉始终有选项；这里只影响站内续写要不要弹选项';
+  String get vnInStationChoicesHint => '站内续写要不要弹出选项';
 
   @override
   String vnInStationChoiceFrequencyName(Object frequency) {
@@ -2055,7 +2037,7 @@ class AppStringsZh extends AppStrings {
   String get settingsSectionAppearanceHint => '主题、字体与圆角';
 
   @override
-  String get settingsSectionPlotElementsHint => '全局库，给故事勾着用';
+  String get settingsSectionPlotElementsHint => '故事选用的情节素材';
 
   @override
   String get settingsSectionAiHint => '服务地址、密钥与模型';
