@@ -7,7 +7,7 @@ void main() {
   setUpAll(ensureTestSeedsLoaded);
 
   group('PromptCategory CRUD', () {
-    test('seed default mounts six craft families', () {
+    test('seed default mounts eight craft families', () {
       final config = PromptManagerConfig.defaultConfig();
       expect(
         config.sortedCategories.map((c) => c.id).toList(),
@@ -17,12 +17,23 @@ void main() {
           'aw_cat_inner',
           'aw_cat_relation',
           'aw_cat_motif',
+          'aw_cat_nsfw',
+          'aw_cat_lens',
           'aw_cat_style',
         ],
       );
       expect(
         config.sortedCategories.map((c) => c.name).toList(),
-        ['常规规范', '炼金与选修', '内在罗盘', '关系引力', '研究母题', '文风'],
+        [
+          '常规规范',
+          '炼金与选修',
+          '内在罗盘',
+          '关系引力',
+          '研究母题',
+          'NSFW',
+          '人称与代行',
+          '文风',
+        ],
       );
 
       expect(

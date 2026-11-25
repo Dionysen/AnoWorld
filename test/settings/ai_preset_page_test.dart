@@ -57,6 +57,8 @@ void main() {
       '内在罗盘',
       '关系引力',
       '研究母题',
+      'NSFW',
+      '人称与代行',
       '文风',
     ]) {
       final header = find.text(name);

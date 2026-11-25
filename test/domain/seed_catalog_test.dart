@@ -28,10 +28,27 @@ void main() {
 
     final prompt = PromptManagerConfig.defaultConfig();
     expect(prompt.sections, isNotEmpty);
-    expect(prompt.categories.length, 6);
+    expect(prompt.categories.length, 8);
     expect(
       prompt.sortedCategories.map((c) => c.name).toList(),
-      ['常规规范', '炼金与选修', '内在罗盘', '关系引力', '研究母题', '文风'],
+      [
+        '常规规范',
+        '炼金与选修',
+        '内在罗盘',
+        '关系引力',
+        '研究母题',
+        'NSFW',
+        '人称与代行',
+        '文风',
+      ],
+    );
+    expect(
+      prompt.sections.any((s) => s.identifier == 'aw_nsfw_hm_framework' && !s.enabled),
+      isTrue,
+    );
+    expect(
+      prompt.sections.any((s) => s.identifier == 'aw_lens_no_proxy' && !s.enabled),
+      isTrue,
     );
     expect(
       prompt.sections.any((s) => s.type == PromptSectionType.systemPrompt),
