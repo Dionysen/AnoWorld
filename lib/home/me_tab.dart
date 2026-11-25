@@ -111,7 +111,7 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
       _select(_SettingsPane(section));
       return;
     }
-    await pushAppSlide(context, SettingsSectionView(section: section));
+    await pushAppSlide(context, settingsSectionPage(section));
   }
 
   @override
@@ -149,9 +149,9 @@ class MeTabState extends State<MeTab> implements HomeTabBack {
     _PersonaPane(:final id) => PersonaSettingsPage(
       key: ValueKey<String>('persona-pane-$id'),
     ),
-    _SettingsPane(:final section) => SettingsSectionView(
+    _SettingsPane(:final section) => settingsSectionPage(
+      section,
       key: ValueKey<String>('settings-pane-${section.id}'),
-      section: section,
     ),
   };
 

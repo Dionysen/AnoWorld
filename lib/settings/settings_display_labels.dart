@@ -6,7 +6,9 @@ String settingsSectionLabel(AppStrings strings, SettingsSection section) {
   return switch (section) {
     SettingsSection.general => strings.settingsSectionGeneral,
     SettingsSection.appearance => strings.settingsSectionAppearance,
+    SettingsSection.plotElements => strings.settingsSectionPlotElements,
     SettingsSection.ai => strings.settingsSectionAi,
+    SettingsSection.preset => strings.settingsSectionPreset,
     SettingsSection.generation => strings.settingsSectionGeneration,
     SettingsSection.about => strings.settingsSectionAbout,
   };
@@ -17,7 +19,9 @@ String settingsSectionHint(AppStrings strings, SettingsSection section) {
   return switch (section) {
     SettingsSection.general => strings.settingsSectionGeneralHint,
     SettingsSection.appearance => strings.settingsSectionAppearanceHint,
+    SettingsSection.plotElements => strings.settingsSectionPlotElementsHint,
     SettingsSection.ai => strings.settingsSectionAiHint,
+    SettingsSection.preset => strings.settingsSectionPresetHint,
     SettingsSection.generation => strings.settingsSectionGenerationHint,
     SettingsSection.about => strings.settingsSectionAboutHint,
   };

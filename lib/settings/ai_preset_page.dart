@@ -3,7 +3,7 @@ import 'package:anoworld/foundation/widgets/app_page.dart';
 import 'package:anoworld/settings/ai_preset_panel.dart';
 import 'package:flutter/widgets.dart';
 
-/// Preset picker, sampling and prompt sections, entered from the play tab.
+/// Preset picker, sampling and prompt sections, entered from 设置 → 预设.
 class AiPresetPage extends StatelessWidget {
   const AiPresetPage({super.key});
 

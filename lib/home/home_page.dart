@@ -8,7 +8,6 @@ import 'package:anoworld/home/home_nav.dart';
 import 'package:anoworld/home/home_tab_back.dart';
 import 'package:anoworld/home/library_selection.dart';
 import 'package:anoworld/home/me_tab.dart';
-import 'package:anoworld/home/play_modes_tab.dart';
 import 'package:anoworld/home/saves_tab.dart';
 import 'package:anoworld/home/works_tab.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +35,6 @@ class _HomePageState extends State<HomePage> {
   final _worksSelection = LibrarySelectionController();
   final _savesKey = GlobalKey<SavesTabState>();
   final _worksKey = GlobalKey<WorksTabState>();
-  final _playKey = GlobalKey<PlayModesTabState>();
   final _meKey = GlobalKey<MeTabState>();
   bool _assistantSynced = false;
 
@@ -58,7 +56,7 @@ class _HomePageState extends State<HomePage> {
   LibrarySelectionController? get _activeSelection => switch (_tab) {
         HomeTab.sessions => _savesSelection,
         HomeTab.stories => _worksSelection,
-        HomeTab.playModes || HomeTab.me => null,
+        HomeTab.me => null,
       };
 
   void _syncAssistantVisibility() {
@@ -99,7 +97,6 @@ class _HomePageState extends State<HomePage> {
   HomeTabBack? get _activeTabBack => switch (_tab) {
     HomeTab.sessions => _savesKey.currentState,
     HomeTab.stories => _worksKey.currentState,
-    HomeTab.playModes => _playKey.currentState,
     HomeTab.me => _meKey.currentState,
   };
 
@@ -144,7 +141,6 @@ class _HomePageState extends State<HomePage> {
                     onChromeChanged: _onChromeChanged,
                     onBrowsePathChanged: (_) => setState(() {}),
                   ),
-                  PlayModesTab(key: _playKey, onChromeChanged: _onChromeChanged),
                   MeTab(key: _meKey, onChromeChanged: _onChromeChanged),
                 ],
               ),

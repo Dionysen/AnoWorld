@@ -41,7 +41,7 @@ abstract class AppStrings extends AppLocalizations {
   /// Whole-library or per-category counts.
   String get uncategorized;
 
-  // Plot-element library (玩法 → 剧情元素库).
+  // Plot-element library (设置 → 剧情元素).
 
   String get plotElementsLibraryTitle;
   String get tabAll;
@@ -134,7 +134,6 @@ abstract class AppStrings extends AppLocalizations {
 
   String get tabSessions;
   String get tabStories;
-  String get tabPlayModes;
   String get tabMe;
   String get settingsTitle;
   String folderCount(int count);
@@ -142,10 +141,7 @@ abstract class AppStrings extends AppLocalizations {
   String get emptyFolder;
   String get addAction;
   String get importAction;
-  String get plotElementsHubHint;
   String get aiPresetTitle;
-  String get aiPresetHubHint;
-  String get selectPlayModeHint;
   String get noPersonaYet;
   String get selectMeHint;
 
@@ -703,12 +699,16 @@ abstract class AppStrings extends AppLocalizations {
 
   String get settingsSectionGeneral;
   String get settingsSectionAppearance;
+  String get settingsSectionPlotElements;
   String get settingsSectionAi;
+  String get settingsSectionPreset;
   String get settingsSectionGeneration;
   String get settingsSectionAbout;
   String get settingsSectionGeneralHint;
   String get settingsSectionAppearanceHint;
+  String get settingsSectionPlotElementsHint;
   String get settingsSectionAiHint;
+  String get settingsSectionPresetHint;
   String get settingsSectionGenerationHint;
   String get settingsSectionAboutHint;
   String get settingsNothingToChange;

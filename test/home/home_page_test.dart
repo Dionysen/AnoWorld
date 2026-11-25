@@ -30,14 +30,14 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('home shows four bottom nav destinations', (tester) async {
+  testWidgets('home shows three bottom nav destinations', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
     expect(find.text('会话'), findsWidgets);
     expect(find.text('故事'), findsWidgets);
-    expect(find.text('玩法'), findsWidgets);
     expect(find.text('设置'), findsWidgets);
+    expect(find.text('玩法'), findsNothing);
     expect(find.text('还没有进行中的会话'), findsOneWidget);
   });
 
@@ -593,7 +593,7 @@ void main() {
     expect(find.text('选一个故事看详情'), findsNothing);
   });
 
-  testWidgets('wide play tab opens the chosen entry inside the pane', (
+  testWidgets('wide settings tab opens the chosen entry inside the pane', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 800));
@@ -601,16 +601,16 @@ void main() {
 
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('玩法').last);
+    await tester.tap(find.text('设置').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('选一个入口看内容'), findsOneWidget);
+    expect(find.text('选一个身份或设置看详情'), findsOneWidget);
 
     await tester.tap(find.text('剧情元素'));
     await tester.pumpAndSettle();
 
     expect(find.byType(PlotElementsLibraryPage), findsOneWidget);
-    expect(find.text('选一个入口看内容'), findsNothing);
+    expect(find.text('选一个身份或设置看详情'), findsNothing);
     // The pane owns navigation, so the embedded page drops its back arrow.
     expect(find.byIcon(Icons.arrow_back), findsNothing);
   });
@@ -737,7 +737,7 @@ void main() {
 
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('玩法').last);
+    await tester.tap(find.text('设置').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('剧情元素'));
     await tester.pumpAndSettle();

@@ -254,7 +254,7 @@ class AppStringsZh extends AppStrings {
   String get categoryEmptyDetail => '加一条，或在编辑条目时改分类';
 
   @override
-  String get categoryEmptyPickDetail => '去玩法里把元素挪进来';
+  String get categoryEmptyPickDetail => '去设置里把元素挪进来';
 
   @override
   String get categoryNameHint => '日常、情感、危机…';
@@ -338,7 +338,7 @@ class AppStringsZh extends AppStrings {
   String get openStoryFailed => '无法打开故事';
 
   @override
-  String get libraryEmptyPickDetail => '去玩法里管理库';
+  String get libraryEmptyPickDetail => '去设置里管理库';
 
   @override
   String get goManageLibrary => '去管理库';
@@ -405,9 +405,6 @@ class AppStringsZh extends AppStrings {
   String get tabStories => '故事';
 
   @override
-  String get tabPlayModes => '玩法';
-
-  @override
   String get tabMe => '设置';
 
   @override
@@ -429,16 +426,7 @@ class AppStringsZh extends AppStrings {
   String get importAction => '导入';
 
   @override
-  String get plotElementsHubHint => '全局库，给故事勾着用';
-
-  @override
   String get aiPresetTitle => '预设';
-
-  @override
-  String get aiPresetHubHint => '输出风格、采样与提示词';
-
-  @override
-  String get selectPlayModeHint => '选一个入口看内容';
 
   @override
   String get noPersonaYet => '还没有身份';
@@ -2046,7 +2034,13 @@ class AppStringsZh extends AppStrings {
   String get settingsSectionAppearance => '外观';
 
   @override
+  String get settingsSectionPlotElements => '剧情元素';
+
+  @override
   String get settingsSectionAi => 'AI 配置';
+
+  @override
+  String get settingsSectionPreset => '预设';
 
   @override
   String get settingsSectionGeneration => '生成设置';
@@ -2061,7 +2055,13 @@ class AppStringsZh extends AppStrings {
   String get settingsSectionAppearanceHint => '主题、字体与圆角';
 
   @override
+  String get settingsSectionPlotElementsHint => '全局库，给故事勾着用';
+
+  @override
   String get settingsSectionAiHint => '服务地址、密钥与模型';
+
+  @override
+  String get settingsSectionPresetHint => '输出风格、采样与提示词';
 
   @override
   String get settingsSectionGenerationHint => '出图质量与演出';

@@ -1,44 +1,13 @@
 import 'package:anoworld/domain/models/plot_element_pack.dart';
-import 'package:anoworld/home/play_modes_tab.dart';
 import 'package:anoworld/play/plot_element_category_page.dart';
 import 'package:anoworld/play/plot_element_pack_page.dart';
 import 'package:anoworld/play/plot_elements_library_page.dart';
-import 'package:anoworld/settings/ai_preset_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/test_app.dart';
 
 void main() {
-  testWidgets('play modes tab opens plot elements library', (tester) async {
-    await tester.pumpWidget(testScoped(home: const PlayModesTab()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('玩法还在整理'), findsNothing);
-    expect(find.text('剧情元素'), findsOneWidget);
-    expect(find.text('全局库，给故事勾着用'), findsOneWidget);
-
-    await tester.tap(find.text('剧情元素'));
-    await tester.pumpAndSettle();
-    expect(find.byType(PlotElementsLibraryPage), findsOneWidget);
-    expect(find.text('剧情元素库'), findsOneWidget);
-    expect(find.text('全局库'), findsNothing);
-    expect(find.text('救助流浪猫'), findsOneWidget);
-  });
-
-  testWidgets('play modes tab opens preset page', (tester) async {
-    await tester.pumpWidget(testScoped(home: const PlayModesTab()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('预设'), findsOneWidget);
-    expect(find.text('输出风格、采样与提示词'), findsOneWidget);
-
-    await tester.tap(find.text('预设'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AiPresetPage), findsOneWidget);
-    expect(find.text('采样'), findsOneWidget);
-  });
-
   testWidgets('category tab lists categories that open their own page', (
     tester,
   ) async {

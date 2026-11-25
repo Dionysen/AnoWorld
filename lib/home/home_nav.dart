@@ -2,7 +2,7 @@ import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/foundation/widgets/app_nav_shell.dart';
 import 'package:flutter/material.dart';
 
-enum HomeTab { sessions, stories, playModes, me }
+enum HomeTab { sessions, stories, me }
 
 /// Home destinations with labels in the current language.
 List<AppNavItem> homeNavItems(AppStrings strings) => [
@@ -17,12 +17,6 @@ List<AppNavItem> homeNavItems(AppStrings strings) => [
     label: strings.tabStories,
     icon: Icons.menu_book_outlined,
     selectedIcon: Icons.menu_book,
-  ),
-  AppNavItem(
-    id: 'play_modes',
-    label: strings.tabPlayModes,
-    icon: Icons.extension_outlined,
-    selectedIcon: Icons.extension,
   ),
   AppNavItem(
     id: 'me',

@@ -24,7 +24,7 @@ import 'package:anoworld/play/plot_element_pack_page.dart';
 import 'package:anoworld/play/plot_element_pack_ui.dart';
 import 'package:flutter/material.dart';
 
-/// Global plot-element library (CRUD). Managed under 玩法; stories only pick.
+/// Global plot-element library (CRUD). Lives under 设置; stories only pick.
 class PlotElementsLibraryPage extends StatefulWidget {
   const PlotElementsLibraryPage({super.key});
 
