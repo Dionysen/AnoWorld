@@ -100,13 +100,34 @@ void main() {
     expect(user, isNot(contains('第0段')));
   });
 
+  test('task rules require second-person you and player-agency choices', () async {
+    final project = const ProjectFactory().createRainNightSample();
+    final prompts = <String>[];
+    final client = _RecordingTextClient(
+      '{"lines":[{"speaker":"旁白","text":"你推开门。"}],"choices":[]}',
+      prompts,
+    );
+    final start = project.main.startNodeId;
+    await BridgeGenerateAction(textClient: client).generate(
+      ctx: ctx(),
+      project: project,
+      nodeId: start,
+      session: BridgeSession(nodeId: start, summary: '雨夜'),
+    );
+
+    final system = prompts.single;
+    expect(system, contains('一律用「你」'));
+    expect(system, contains('禁止客观事件'));
+    expect(client.users.single, contains('旁白一律用「你」'));
+  });
+
   test('fallbackChoices point at legal outbound nodes', () {
     final main = const ProjectFactory().createRainNightSample().main;
     final choices = BridgeGenerateAction.fallbackChoices(main, 'n1');
     expect(choices, isNotEmpty);
     expect(choices.first.target.type, TransitionType.node);
     expect(choices.first.target.nodeId, 'n2');
-    expect(choices.first.text, contains('前往：'));
+    expect(choices.first.text, contains('动身去'));
   });
 
   test('fallbackChoices without outs return continue and soft end', () {

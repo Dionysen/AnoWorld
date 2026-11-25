@@ -474,6 +474,9 @@ abstract class AppStrings extends AppLocalizations {
 
   String get playRoleTitle;
   String get playRoleHint;
+
+  /// Visual novel start blocked because the story has no cast members.
+  String get playNeedsCast;
   String get castExtractEntry;
   String get castExtractTitle;
   String get castExtractIntro;

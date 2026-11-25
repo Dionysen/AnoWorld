@@ -1,7 +1,9 @@
 import 'package:anoworld/app/app_scope.dart';
+import 'package:anoworld/app/l10n/app_strings.dart';
 import 'package:anoworld/domain/models/project.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/widgets/app_page_route.dart';
+import 'package:anoworld/foundation/widgets/app_toast.dart';
 import 'package:anoworld/play/play_mode_sheet.dart';
 import 'package:anoworld/play/play_role_sheet.dart';
 import 'package:anoworld/play/play_session_page.dart';
@@ -10,7 +12,8 @@ import 'package:flutter/material.dart';
 /// Starts a brand-new play slot: pick a mode, then (for visual novels) the
 /// character the player role-plays.
 ///
-/// Returns after the session closes so callers can refresh.
+/// Visual novel requires at least one cast member; otherwise the flow stops
+/// with a toast. Returns after the session closes so callers can refresh.
 Future<void> startNewPlay(
   BuildContext context,
   Project project, {
@@ -20,7 +23,12 @@ Future<void> startNewPlay(
   if (!context.mounted || mode == null) return;
 
   String? playerCastId;
-  if (mode == PlayViewMode.visualNovel && project.cast.isNotEmpty) {
+  if (mode == PlayViewMode.visualNovel) {
+    if (project.cast.isEmpty) {
+      AppLog.instance.warning('视觉小说缺少可扮演角色', tag: 'play.start');
+      showAppToast(context, context.strings.playNeedsCast);
+      return;
+    }
     if (project.cast.length == 1) {
       playerCastId = project.cast.first.id;
     } else {

@@ -469,8 +469,8 @@ void main() {
     await tester.tap(find.textContaining('请先').first);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('前往：客栈'), findsWidgets);
-    await tester.tap(find.text('前往：客栈').first);
+    expect(find.textContaining('动身去客栈'), findsWidgets);
+    await tester.tap(find.text('动身去客栈').first);
     await tester.pumpAndSettle();
     expect(find.text('本段结束'), findsOneWidget);
   });

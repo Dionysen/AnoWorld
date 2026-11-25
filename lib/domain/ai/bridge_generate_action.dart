@@ -459,7 +459,7 @@ class BridgeGenerateAction {
     final label = edge.label?.trim();
     if (label != null && label.isNotEmpty) return label;
     final dest = main.nodeById(edge.to)?.title ?? edge.to;
-    return '前往：$dest';
+    return '动身去$dest';
   }
 
   static String _userBlock({
@@ -483,11 +483,11 @@ class BridgeGenerateAction {
 当前站：${node.title}
 本站目标：${node.synopsis ?? ''}
 角色：${castLine.isEmpty ? '（无）' : castLine}
-玩家扮演：${player?.name ?? '（未指定）'}${focus == null ? '' : '\n焦点角色：${focus.name}'}
+玩家扮演：${player?.name ?? '（未指定）'}（旁白一律用「你」指代此人）${focus == null ? '' : '\n焦点角色：${focus.name}'}
 $nextStationBlock
 区间摘要：$summary
 已生成拍数：$turnCount/${openMode ? '∞' : maxBeats}
-$paceHint请生成本站下一小段对白。''';
+$paceHint请以「你」为视角生成本站下一小段；选项须是你当下可做的言行。''';
   }
 
   static String _taskBlock({
@@ -503,28 +503,30 @@ $paceHint请生成本站下一小段对白。''';
     final choiceCap =
         '需要分叉时：尽量给出刚好 $maxChoices 个互不重复的选项；剧情撑不住时可以更少，绝不可超过 $maxChoices。不需要分叉时 choices 用空数组。';
     final sharedHead = '''你是视觉小说演出助手。只输出 JSON，不要 markdown。
-输出格式：{"location":"地点","lines":[{"speaker":"角色名","text":"纯正文"}],"choices":[...]}
+输出格式：{"location":"地点","lines":[{"speaker":"角色名","text":"纯正文"}],"choices":[{"text":"选项文案","target":{...}}]}
 规则：
 - speaker 只能是「角色」列表里的名字或别名、玩家扮演角色的名字，或「旁白」；不要发明列表外的名字。
-- 玩家开口：speaker 用玩家扮演角色的名字（或「我」）。
-- 环境/动作叙述：speaker 用「旁白」（仍须主角可感知）。
+- 玩家开口：speaker 用玩家扮演角色的名字；text 只写他说出口的话。
+- 环境/动作/心理叙述：speaker 用「旁白」。
 - text 只写对白/叙述正文，禁止「瑞希：」「User：」这类前缀。
-- 全程以主角（玩家）视角：写其所见所闻所感；旁白只能写主角能感知的环境与动作，禁止上帝全知（不在场的密谋、他人内心、远处同时发生的事）。
-- 若主角需要得知本不该知道的事，必须安排亲历获知（跟踪、潜入、到场目击等），并写出占用时间/耽误正事等代价；禁止无代价突然知道。
+- 第二人称：凡旁白叙述里指代玩家扮演的角色，一律用「你」，禁止用其姓名或「他/她」指代玩家。示例：「你来到这家餐馆，看到墙上竟也有一模一样的画。」
+- 全程玩家视角：写「你」所见所闻所感；旁白只能写你能感知的环境与动作，禁止上帝全知（不在场的密谋、他人内心、远处同时发生的事）。
+- 若你需要得知本不该知道的事，必须安排亲历获知（跟踪、潜入、到场目击等），并写出占用时间/耽误正事等代价；禁止无代价突然知道。
+- 选项 text：必须是「你」当下可做的行动或可说的话（可带引号对白），禁止客观事件、场景跳切或结果说明。好例：「推门进去看看」「『这是怎么回事？』」；坏例：「天黑了」「来到大厅」「时间快进到第二天」。
 $minLineRule
 - $choiceCap''';
     if (openMode) {
       return '''$sharedHead
-本站开放续写：不需要分叉时 choices 用空数组（玩家点屏续写）；需要分叉时尽量给满 $maxChoices 个选项（继续用 {"type":"beat","beatId":"$kBridgeStayBeatId"}，或 {"type":"end"}），可少不可多。
+本站开放续写：不需要分叉时 choices 用空数组（玩家点屏续写）；需要分叉时尽量给满 $maxChoices 个选项（继续用 {"type":"beat","beatId":"$kBridgeStayBeatId"}，或 {"type":"end"}），可少不可多；选项文案仍须是你的言行。
 禁止发明情节站 nodeId。''';
     }
     if (forceConverge) {
       return '''$sharedHead
-本拍必须收束离站：尽量给满 $maxChoices 个 choices（至少 1 个），每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}（不同选项须导向不同世界线）。禁止 stay。对白要自然收束。
+本拍必须收束离站：尽量给满 $maxChoices 个 choices（至少 1 个），每个 target 只能是 {"type":"node","nodeId":"合法id"} 或 {"type":"end"}（不同选项须导向不同世界线）。禁止 stay。对白要自然收束；选项文案写成你决定离开/前往的言行，不要写成「场景已切换」。
 禁止发明不在合法下一站列表里的 nodeId。''';
     }
     final nearHint = nearConverge
-        ? '已接近本站尾声：对白可自然埋下前往下一站的动机。'
+        ? '已接近本站尾声：对白可自然埋下你想离开或前往下一处的动机。'
         : '';
     return '''$sharedHead
 本拍是站内过程：不需要分叉时 choices 用空数组；需要分叉时尽量给满 $maxChoices 个选项（继续用 stay；提前离站须用合法 nodeId，且不同离站选项须导向不同世界线），可少不可多。$nearHint

@@ -1369,6 +1369,9 @@ class AppStringsZh extends AppStrings {
   String get playRoleHint => '本局固定，开始后不能更改';
 
   @override
+  String get playNeedsCast => '视觉小说至少要有一个角色，先去加上再开玩';
+
+  @override
   String get castExtractEntry => '从世界书提取';
 
   @override

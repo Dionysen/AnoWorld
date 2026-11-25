@@ -103,10 +103,12 @@ class BridgeBranchPrefetchAction {
 - 每个 choiceId 恰好一条；不要发明未列出的 choiceId。
 - text 只写正文，禁止「名字：」前缀。
 - speaker 只能是「角色」列表里的名字或别名、玩家扮演角色的名字，或「旁白」；不要发明列表外的名字。
-- 叙述用「旁白」。
+- 玩家开口：speaker 用玩家扮演角色的名字；叙述用「旁白」。
+- 旁白里指代玩家扮演的角色一律用「你」，禁止用其姓名或「他/她」。
+- 接着写「你」做出该选项后立刻发生的所见所感，不要跳场景总结。
 $minLineRule
 - 这些「选中后」的拍默认是站内过程：choices 用空数组 []，不要给选项（玩家点屏续写）。
-- 每拍 choices 若非空则尽量给满 $choiceCap 个，可少不可多。
+- 每拍 choices 若非空则尽量给满 $choiceCap 个，可少不可多；若有选项，文案仍须是「你」的言行，禁止客观跳场。
 - 禁止发明情节站 id。''';
 
     final budget = ContextBudget.of(ctx.generation);
@@ -121,9 +123,9 @@ $minLineRule
 当前站：${source.title}
 本站目标：${source.synopsis ?? ''}
 角色：${castLine.isEmpty ? '（无）' : castLine}
-玩家扮演：${player?.name ?? '（未指定）'}${focus == null ? '' : '\n焦点角色：${focus.name}'}
+玩家扮演：${player?.name ?? '（未指定）'}（旁白一律用「你」指代此人）${focus == null ? '' : '\n焦点角色：${focus.name}'}
 区间摘要：$summaryText
-请为下列选项各写选中后的下一拍：
+请以「你」为视角，为下列选项各写选中后立刻发生的下一拍：
 $branchBlock''';
 
     final system = ctx.assemblePlaySystem(

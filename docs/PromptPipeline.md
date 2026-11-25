@@ -162,7 +162,7 @@ flowchart LR
 | --- | --- |
 | 酒馆式游玩聊天 | 文风、禁止替玩家说话、多角色在一轮内等（见 `TavernChatGenerateAction`） |
 | 回复选项 | 选项数量与解析格式 |
-| Main 区间 / Bridge | 当前站 synopsis、合法出边、`choices` JSON schema；已选剧情元素短块经 `worldInfoAfter`（「按需织入支线，勿生硬堆砌」） |
+| Main 区间 / Bridge | 当前站 synopsis、合法出边、`choices` JSON schema；旁白第二人称「你」指代玩家扮演角色；选项须为「你」的言行（禁止客观跳场）；已选剧情元素短块经 `worldInfoAfter`（「按需织入支线，勿生硬堆砌」） |
 | 剧情元素描述展开 | [`ExpandPlotElementDescriptionAction`](../lib/domain/ai/expand_plot_element_description_action.dart) | 关键词 → ≤300 字说明+示例 |
 | 创作分步 | 仅输出 JSON / 字段说明 |
 
