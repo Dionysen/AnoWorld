@@ -53,5 +53,66 @@ void main() {
       );
       expect(jailbreak, isNotEmpty);
     });
+
+    test('ST import stays flat with empty categories', () {
+      final raw = File('test/fixtures/st_preset_default.json').readAsStringSync();
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      final preset = AIPreset.fromSillyTavernJson(json, 'flat');
+      final config = preset.promptManagerConfig!;
+      expect(config.categories, isEmpty);
+      expect(config.sections.every((s) => s.categoryId == null), isTrue);
+    });
+
+    test('_anoworld categories survive export then re-import', () {
+      final seeded = PromptManagerConfig.defaultConfig();
+      expect(seeded.categories, isNotEmpty);
+
+      final preset = AIPreset(
+        id: 'aw_roundtrip',
+        name: 'Roundtrip',
+        createdAt: DateTime(2024, 1, 1),
+        updatedAt: DateTime(2024, 1, 1),
+        generationSettings: const GenerationPreset(),
+        promptManagerConfig: seeded,
+      );
+      final exported = preset.toExportJson();
+      expect(exported['_anoworld'], isA<Map<String, dynamic>>());
+      final anoworld = exported['_anoworld'] as Map<String, dynamic>;
+      expect(anoworld['promptCategories'], isA<List<dynamic>>());
+      expect(anoworld['promptCategoryById'], isA<Map>());
+
+      final again = AIPreset.fromSillyTavernJson(exported, 'aw_roundtrip_2');
+      final restored = again.promptManagerConfig!;
+      expect(
+        restored.sortedCategories.map((c) => c.id).toList(),
+        seeded.sortedCategories.map((c) => c.id).toList(),
+      );
+      expect(
+        restored.sections
+            .where((s) => s.identifier == 'aw_style_slice_of_life')
+            .single
+            .categoryId,
+        'aw_cat_style',
+      );
+    });
+
+    test('export without _anoworld imports as uncategorized', () {
+      final seeded = PromptManagerConfig.defaultConfig();
+      final preset = AIPreset(
+        id: 'no_meta',
+        name: 'No Meta',
+        createdAt: DateTime(2024, 1, 1),
+        updatedAt: DateTime(2024, 1, 1),
+        generationSettings: const GenerationPreset(),
+        promptManagerConfig: seeded,
+      );
+      final exported = preset.toExportJson();
+      exported.remove('_anoworld');
+
+      final again = AIPreset.fromSillyTavernJson(exported, 'no_meta_2');
+      final config = again.promptManagerConfig!;
+      expect(config.categories, isEmpty);
+      expect(config.sections.every((s) => s.categoryId == null), isTrue);
+    });
   });
 }

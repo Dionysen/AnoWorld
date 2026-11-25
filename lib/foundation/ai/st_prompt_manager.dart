@@ -18,6 +18,63 @@ enum PromptSectionType {
   custom, // For custom user-defined prompts
 }
 
+/// One row in the settings prompt list: an uncategorized section or a category.
+@immutable
+class PromptTopLevelItem {
+  const PromptTopLevelItem.section(this.section) : category = null;
+  const PromptTopLevelItem.category(this.category) : section = null;
+
+  final PromptSection? section;
+  final PromptCategory? category;
+
+  bool get isCategory => category != null;
+
+  String get layoutKey {
+    if (category != null) {
+      return PromptManagerConfig.topLevelCategoryKey(category!.id);
+    }
+    return PromptManagerConfig.topLevelSectionKey(section!);
+  }
+}
+
+/// UI grouping for prompt sections (does not change injection order semantics).
+@immutable
+class PromptCategory {
+  const PromptCategory({
+    required this.id,
+    required this.name,
+    required this.order,
+  });
+
+  final String id;
+  final String name;
+  final int order;
+
+  PromptCategory copyWith({
+    String? id,
+    String? name,
+    int? order,
+  }) {
+    return PromptCategory(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      order: order ?? this.order,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'order': order,
+      };
+
+  factory PromptCategory.fromJson(Map<String, dynamic> json) => PromptCategory(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        order: json['order'] as int? ?? 0,
+      );
+}
+
 /// A single prompt section configuration
 class PromptSection {
   final PromptSectionType type;
@@ -34,6 +91,8 @@ class PromptSection {
   final int? injectionPosition;
   /// Injection depth (for depth-based injection)
   final int? injectionDepth;
+  /// Optional UI category ([PromptCategory.id]); null = uncategorized.
+  final String? categoryId;
 
   const PromptSection({
     required this.type,
@@ -45,6 +104,7 @@ class PromptSection {
     this.role,
     this.injectionPosition,
     this.injectionDepth,
+    this.categoryId,
   });
 
   PromptSection copyWith({
@@ -57,6 +117,8 @@ class PromptSection {
     String? role,
     int? injectionPosition,
     int? injectionDepth,
+    String? categoryId,
+    bool clearCategoryId = false,
   }) {
     return PromptSection(
       type: type ?? this.type,
@@ -68,6 +130,7 @@ class PromptSection {
       role: role ?? this.role,
       injectionPosition: injectionPosition ?? this.injectionPosition,
       injectionDepth: injectionDepth ?? this.injectionDepth,
+      categoryId: clearCategoryId ? null : (categoryId ?? this.categoryId),
     );
   }
 
@@ -128,6 +191,7 @@ class PromptSection {
         if (role != null) 'role': role,
         if (injectionPosition != null) 'injectionPosition': injectionPosition,
         if (injectionDepth != null) 'injectionDepth': injectionDepth,
+        if (categoryId != null) 'categoryId': categoryId,
       };
 
   factory PromptSection.fromJson(Map<String, dynamic> json) => PromptSection(
@@ -143,6 +207,7 @@ class PromptSection {
         role: json['role'] as String?,
         injectionPosition: json['injectionPosition'] as int?,
         injectionDepth: json['injectionDepth'] as int?,
+        categoryId: json['categoryId'] as String?,
       );
 
   /// Get display name for a section type
@@ -217,10 +282,31 @@ class PromptSection {
 /// Prompt manager configuration
 class PromptManagerConfig {
   final List<PromptSection> sections;
+  final List<PromptCategory> categories;
+
+  /// Mixed UI order of uncategorized sections and category blocks.
+  ///
+  /// Keys are [topLevelSectionKey] / [topLevelCategoryKey]. Empty means the
+  /// default: all uncategorized sections (by [PromptSection.order]), then
+  /// categories (by [PromptCategory.order]).
+  final List<String> topLevelOrder;
 
   const PromptManagerConfig({
     required this.sections,
+    this.categories = const <PromptCategory>[],
+    this.topLevelOrder = const <String>[],
   });
+
+  static String stableSectionKey(PromptSection section) {
+    final id = section.identifier?.trim();
+    if (id != null && id.isNotEmpty) return id;
+    return '${section.type.name}:${section.name}';
+  }
+
+  static String topLevelSectionKey(PromptSection section) =>
+      's:${stableSectionKey(section)}';
+
+  static String topLevelCategoryKey(String id) => 'c:$id';
 
   /// Bound by seed loader to `assets/seed/prompt_default.json` content.
   static PromptManagerConfig? _seedDefault;
@@ -328,9 +414,29 @@ class PromptManagerConfig {
     return sorted;
   }
 
+  /// Categories sorted by [PromptCategory.order].
+  List<PromptCategory> get sortedCategories {
+    final sorted = List<PromptCategory>.from(categories);
+    sorted.sort((a, b) => a.order.compareTo(b.order));
+    return sorted;
+  }
+
   /// Get enabled sections sorted by order
   List<PromptSection> get enabledSections {
     return sortedSections.where((s) => s.enabled).toList();
+  }
+
+  /// Sections in [categoryId]; pass null for uncategorized.
+  List<PromptSection> sectionsInCategory(String? categoryId) {
+    return sortedSections
+        .where((s) {
+          final id = s.categoryId;
+          if (categoryId == null || categoryId.isEmpty) {
+            return id == null || id.isEmpty;
+          }
+          return id == categoryId;
+        })
+        .toList(growable: false);
   }
 
   /// Check if a section type is enabled
@@ -347,12 +453,67 @@ class PromptManagerConfig {
     }
   }
 
+  PromptCategory? categoryById(String id) {
+    for (final c in categories) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
   PromptManagerConfig copyWith({
     List<PromptSection>? sections,
+    List<PromptCategory>? categories,
+    List<String>? topLevelOrder,
   }) {
     return PromptManagerConfig(
       sections: sections ?? this.sections,
+      categories: categories ?? this.categories,
+      topLevelOrder: topLevelOrder ?? this.topLevelOrder,
     );
+  }
+
+  /// Default mixed layout when [topLevelOrder] is empty.
+  List<String> get defaultTopLevelOrder => [
+        for (final s in sectionsInCategory(null)) topLevelSectionKey(s),
+        for (final c in sortedCategories) topLevelCategoryKey(c.id),
+      ];
+
+  /// Uncategorized sections and category blocks in UI list order.
+  List<PromptTopLevelItem> get topLevelItems {
+    final uncatByKey = <String, PromptSection>{
+      for (final s in sectionsInCategory(null)) stableSectionKey(s): s,
+    };
+    final catById = <String, PromptCategory>{
+      for (final c in categories) c.id: c,
+    };
+    final preferred =
+        topLevelOrder.isEmpty ? defaultTopLevelOrder : topLevelOrder;
+    final seen = <String>{};
+    final result = <PromptTopLevelItem>[];
+    for (final key in preferred) {
+      if (key.startsWith('c:')) {
+        final id = key.substring(2);
+        final cat = catById[id];
+        if (cat != null && seen.add(key)) {
+          result.add(PromptTopLevelItem.category(cat));
+        }
+      } else if (key.startsWith('s:')) {
+        final id = key.substring(2);
+        final section = uncatByKey[id];
+        if (section != null && seen.add(key)) {
+          result.add(PromptTopLevelItem.section(section));
+        }
+      }
+    }
+    for (final s in sectionsInCategory(null)) {
+      final key = topLevelSectionKey(s);
+      if (seen.add(key)) result.add(PromptTopLevelItem.section(s));
+    }
+    for (final c in sortedCategories) {
+      final key = topLevelCategoryKey(c.id);
+      if (seen.add(key)) result.add(PromptTopLevelItem.category(c));
+    }
+    return result;
   }
 
   /// Update a section
@@ -425,6 +586,9 @@ class PromptManagerConfig {
 
   Map<String, dynamic> toJson() => {
         'sections': sections.map((s) => s.toJson()).toList(),
+        if (categories.isNotEmpty)
+          'categories': categories.map((c) => c.toJson()).toList(),
+        if (topLevelOrder.isNotEmpty) 'topLevelOrder': topLevelOrder,
       };
 
   factory PromptManagerConfig.fromJson(Map<String, dynamic> json) {
@@ -432,10 +596,65 @@ class PromptManagerConfig {
     if (sectionsJson == null || sectionsJson.isEmpty) {
       return PromptManagerConfig.defaultConfig();
     }
+    final categoriesJson = json['categories'] as List<dynamic>?;
+    final topRaw = json['topLevelOrder'] as List<dynamic>?;
     return PromptManagerConfig(
       sections: sectionsJson
           .map((s) => PromptSection.fromJson(s as Map<String, dynamic>))
           .toList(),
+      categories: categoriesJson == null
+          ? const <PromptCategory>[]
+          : categoriesJson
+              .map((c) => PromptCategory.fromJson(c as Map<String, dynamic>))
+              .where((c) => c.id.isNotEmpty)
+              .toList(growable: false),
+      topLevelOrder: topRaw == null
+          ? const <String>[]
+          : [
+              for (final e in topRaw)
+                if (e is String && e.isNotEmpty) e,
+            ],
+    );
+  }
+
+  /// Merge AnoWorld export extras (`_anoworld`) onto a flat ST-imported config.
+  PromptManagerConfig withAnoWorldMeta(Map<String, dynamic>? anoworld) {
+    if (anoworld == null || anoworld.isEmpty) return this;
+    final catsRaw = anoworld['promptCategories'] as List<dynamic>?;
+    final byIdent = anoworld['promptCategoryById'];
+    final topRaw = anoworld['topLevelOrder'] as List<dynamic>?;
+    final cats = catsRaw == null
+        ? categories
+        : catsRaw
+            .map((c) => PromptCategory.fromJson(c as Map<String, dynamic>))
+            .where((c) => c.id.isNotEmpty)
+            .toList(growable: false);
+    final top = topRaw == null
+        ? topLevelOrder
+        : [
+            for (final e in topRaw)
+              if (e is String && e.isNotEmpty) e,
+          ];
+    if (byIdent is! Map) {
+      return copyWith(categories: cats, topLevelOrder: top);
+    }
+    final map = <String, String>{
+      for (final e in byIdent.entries)
+        if (e.key is String && e.value is String && (e.value as String).isNotEmpty)
+          e.key as String: e.value as String,
+    };
+    if (map.isEmpty) return copyWith(categories: cats, topLevelOrder: top);
+    return copyWith(
+      categories: cats,
+      topLevelOrder: top,
+      sections: [
+        for (final s in sections)
+          () {
+            final key = s.identifier;
+            if (key == null || key.isEmpty || !map.containsKey(key)) return s;
+            return s.copyWith(categoryId: map[key]);
+          }(),
+      ],
     );
   }
 
@@ -648,6 +867,231 @@ class PromptManagerConfig {
         a.order == b.order;
   }
 
+  /// Create or replace a category by id.
+  PromptManagerConfig upsertCategory({
+    required String id,
+    required String name,
+    int? order,
+  }) {
+    final trimmedId = id.trim();
+    final trimmedName = name.trim();
+    if (trimmedId.isEmpty || trimmedName.isEmpty) return this;
+    final existing = categories.where((c) => c.id == trimmedId).toList();
+    if (existing.isEmpty) {
+      final nextOrder = order ??
+          (categories.isEmpty
+              ? 0
+              : categories.map((c) => c.order).reduce((a, b) => a > b ? a : b) +
+                  1);
+      return copyWith(
+        categories: [
+          ...categories,
+          PromptCategory(id: trimmedId, name: trimmedName, order: nextOrder),
+        ],
+      )._ensureTopLevelKey(topLevelCategoryKey(trimmedId));
+    }
+    return copyWith(
+      categories: [
+        for (final c in categories)
+          if (c.id == trimmedId)
+            c.copyWith(name: trimmedName, order: order ?? c.order)
+          else
+            c,
+      ],
+    );
+  }
+
+  PromptManagerConfig renameCategory(String id, String name) {
+    return upsertCategory(id: id, name: name);
+  }
+
+  /// Remove a category and clear [PromptSection.categoryId] on its members.
+  PromptManagerConfig deleteCategory(String id) {
+    if (!categories.any((c) => c.id == id)) return this;
+    return copyWith(
+      categories: [for (final c in categories) if (c.id != id) c],
+      sections: [
+        for (final s in sections)
+          if (s.categoryId == id) s.copyWith(clearCategoryId: true) else s,
+      ],
+    )._removeTopLevelKey(topLevelCategoryKey(id));
+  }
+
+  /// Assign [categoryId] to the section at sorted [index] (null clears).
+  PromptManagerConfig setSectionCategory(int index, String? categoryId) {
+    final sorted = sortedSections;
+    if (index < 0 || index >= sorted.length) return this;
+    final target = sorted[index];
+    final nextId = categoryId?.trim();
+    final cleared = nextId == null || nextId.isEmpty;
+    if (!cleared && !categories.any((c) => c.id == nextId)) return this;
+    final layoutKey = topLevelSectionKey(target);
+    var next = copyWith(
+      sections: [
+        for (final s in sections)
+          if (_sameSection(s, target))
+            cleared
+                ? s.copyWith(clearCategoryId: true)
+                : s.copyWith(categoryId: nextId)
+          else
+            s,
+      ],
+    );
+    if (cleared) {
+      next = next._ensureTopLevelKey(layoutKey);
+    } else {
+      next = next._removeTopLevelKey(layoutKey);
+    }
+    return next;
+  }
+
+  /// Reorder categories by [sortedCategories] indices; rewrites [PromptCategory.order].
+  PromptManagerConfig reorderCategories(int oldIndex, int newIndex) {
+    final sorted = sortedCategories;
+    if (oldIndex < 0 ||
+        oldIndex >= sorted.length ||
+        newIndex < 0 ||
+        newIndex >= sorted.length ||
+        oldIndex == newIndex) {
+      return this;
+    }
+    final next = List<PromptCategory>.from(sorted);
+    final item = next.removeAt(oldIndex);
+    next.insert(newIndex, item);
+    return copyWith(
+      categories: [
+        for (var i = 0; i < next.length; i++) next[i].copyWith(order: i),
+      ],
+    );
+  }
+
+  /// Reorder mixed top-level rows (uncategorized sections + category blocks).
+  PromptManagerConfig reorderTopLevel(int oldIndex, int newIndex) {
+    final items = List<PromptTopLevelItem>.from(topLevelItems);
+    if (oldIndex < 0 ||
+        oldIndex >= items.length ||
+        newIndex < 0 ||
+        newIndex >= items.length ||
+        oldIndex == newIndex) {
+      return this;
+    }
+    final item = items.removeAt(oldIndex);
+    items.insert(newIndex, item);
+    final keys = [for (final e in items) e.layoutKey];
+    return copyWith(topLevelOrder: keys)._syncUncategorizedOrderFromTopLevel();
+  }
+
+  /// Keep uncategorized [PromptSection.order] aligned with [topLevelItems].
+  PromptManagerConfig _syncUncategorizedOrderFromTopLevel() {
+    final desired = <PromptSection>[
+      for (final item in topLevelItems)
+        if (item.section != null) item.section!,
+    ];
+    final sorted = List<PromptSection>.from(sortedSections);
+    final slots = <int>[];
+    for (var i = 0; i < sorted.length; i++) {
+      final id = sorted[i].categoryId;
+      if (id == null || id.isEmpty) slots.add(i);
+    }
+    if (slots.length != desired.length) return this;
+    final rebuilt = List<PromptSection>.from(sorted);
+    for (var i = 0; i < slots.length; i++) {
+      rebuilt[slots[i]] = desired[i];
+    }
+    return _reindexed(rebuilt);
+  }
+
+  PromptManagerConfig _ensureTopLevelKey(String key, {int? insertAt}) {
+    final keys = List<String>.from(
+      topLevelOrder.isEmpty ? defaultTopLevelOrder : topLevelOrder,
+    );
+    if (keys.contains(key)) return copyWith(topLevelOrder: keys);
+    if (insertAt == null || insertAt < 0 || insertAt > keys.length) {
+      keys.add(key);
+    } else {
+      keys.insert(insertAt, key);
+    }
+    return copyWith(topLevelOrder: keys);
+  }
+
+  PromptManagerConfig _removeTopLevelKey(String key) {
+    if (topLevelOrder.isEmpty) return this;
+    final keys = [for (final k in topLevelOrder) if (k != key) k];
+    if (keys.length == topLevelOrder.length) return this;
+    return copyWith(topLevelOrder: keys);
+  }
+
+  /// Move a section into [categoryId] (null = uncategorized) and place it after
+  /// the last member of that group in global order.
+  PromptManagerConfig moveSectionToCategory(
+    int sortedIndex,
+    String? categoryId,
+  ) {
+    final sorted = List<PromptSection>.from(sortedSections);
+    if (sortedIndex < 0 || sortedIndex >= sorted.length) return this;
+    final nextId = categoryId?.trim();
+    final cleared = nextId == null || nextId.isEmpty;
+    if (!cleared && !categories.any((c) => c.id == nextId)) return this;
+
+    var target = sorted.removeAt(sortedIndex);
+    final layoutKey = topLevelSectionKey(target);
+    target = cleared
+        ? target.copyWith(clearCategoryId: true)
+        : target.copyWith(categoryId: nextId);
+
+    var insertAt = sorted.length;
+    for (var i = sorted.length - 1; i >= 0; i--) {
+      final id = sorted[i].categoryId;
+      final uncategorized = id == null || id.isEmpty;
+      final match = cleared ? uncategorized : id == nextId;
+      if (match) {
+        insertAt = i + 1;
+        break;
+      }
+    }
+    sorted.insert(insertAt, target);
+    var next = _reindexed(sorted);
+    if (cleared) {
+      next = next._ensureTopLevelKey(layoutKey);
+    } else {
+      next = next._removeTopLevelKey(layoutKey);
+    }
+    return next;
+  }
+
+  /// Reorder members of one category (or uncategorized when [categoryId] is null).
+  PromptManagerConfig reorderInCategory(
+    String? categoryId,
+    int oldIndex,
+    int newIndex,
+  ) {
+    final sorted = sortedSections;
+    final slots = <int>[];
+    for (var i = 0; i < sorted.length; i++) {
+      final id = sorted[i].categoryId;
+      final uncategorized = id == null || id.isEmpty;
+      final match = categoryId == null || categoryId.isEmpty
+          ? uncategorized
+          : id == categoryId;
+      if (match) slots.add(i);
+    }
+    if (oldIndex < 0 ||
+        oldIndex >= slots.length ||
+        newIndex < 0 ||
+        newIndex >= slots.length ||
+        oldIndex == newIndex) {
+      return this;
+    }
+    final members = [for (final i in slots) sorted[i]];
+    final item = members.removeAt(oldIndex);
+    members.insert(newIndex, item);
+    final rebuilt = List<PromptSection>.from(sorted);
+    for (var i = 0; i < slots.length; i++) {
+      rebuilt[slots[i]] = members[i];
+    }
+    return _reindexed(rebuilt);
+  }
+
   /// Append a custom prompt section (caller supplies a unique identifier).
   PromptManagerConfig addCustomSection({
     required String name,
@@ -655,24 +1099,27 @@ class PromptManagerConfig {
     String content = '',
     String role = 'system',
     bool enabled = true,
+    String? categoryId,
   }) {
     final nextOrder = sections.isEmpty
         ? 0
         : sections.map((s) => s.order).reduce((a, b) => a > b ? a : b) + 1;
-    return copyWith(
-      sections: [
-        ...sections,
-        PromptSection(
-          type: PromptSectionType.custom,
-          name: name,
-          enabled: enabled,
-          order: nextOrder,
-          content: content,
-          identifier: identifier,
-          role: role,
-        ),
-      ],
+    final cat = categoryId?.trim();
+    final section = PromptSection(
+      type: PromptSectionType.custom,
+      name: name,
+      enabled: enabled,
+      order: nextOrder,
+      content: content,
+      identifier: identifier,
+      role: role,
+      categoryId: (cat == null || cat.isEmpty) ? null : cat,
     );
+    var next = copyWith(sections: [...sections, section]);
+    if (cat == null || cat.isEmpty) {
+      next = next._ensureTopLevelKey(topLevelSectionKey(section));
+    }
+    return next;
   }
 
   /// Remove a section by sorted index. Only custom sections can be removed.
@@ -687,7 +1134,8 @@ class PromptManagerConfig {
       if (_sameSection(s, target)) continue;
       remaining.add(s);
     }
-    return _reindexed(remaining);
+    return _reindexed(remaining)
+        ._removeTopLevelKey(topLevelSectionKey(target));
   }
 
   /// Remove custom sections by identifier. Built-in sections are never touched.
@@ -695,11 +1143,19 @@ class PromptManagerConfig {
     final ids = identifiers.toSet();
     if (ids.isEmpty) return this;
     final sorted = sortedSections;
+    final removedKeys = <String>[
+      for (final s in sorted)
+        if (s.isCustom && ids.contains(s.identifier)) topLevelSectionKey(s),
+    ];
     final remaining = sorted
         .where((s) => !(s.isCustom && ids.contains(s.identifier)))
         .toList(growable: false);
     if (remaining.length == sorted.length) return this;
-    return _reindexed(remaining);
+    var next = _reindexed(remaining);
+    for (final key in removedKeys) {
+      next = next._removeTopLevelKey(key);
+    }
+    return next;
   }
 
   PromptManagerConfig _reindexed(List<PromptSection> remaining) {
@@ -731,6 +1187,7 @@ class PromptManagerConfig {
       role: source.role ?? 'system',
       injectionPosition: source.injectionPosition,
       injectionDepth: source.injectionDepth,
+      categoryId: source.categoryId,
     );
 
     final rebuilt = <PromptSection>[];

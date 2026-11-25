@@ -391,6 +391,8 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
   Widget build(BuildContext context) {
     final strings = context.strings;
     final controller = AppScope.settingsOf(context);
+    final mediaBottom = MediaQuery.paddingOf(context).bottom;
+    final keyboardBottom = MediaQuery.viewInsetsOf(context).bottom;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
@@ -398,23 +400,42 @@ class _AiPresetPanelState extends State<AiPresetPanel> {
         final presetName = active == null
             ? strings.presetNotChosen
             : AiPresetPanel.displayName(strings, active);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: AppTheme.spaceMd),
-            _buildActions(),
-            const SizedBox(height: AppTheme.spaceMd),
-            AppListTile(
-              title: presetName,
-              subtitle: strings.presetRowHint,
-              icon: Icons.style_outlined,
-              onTap: _openPresetPicker,
+        // Pinned prompt header must be a direct viewport sliver (not nested
+        // inside another [SliverMainAxisGroup] with the sampling block).
+        return CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.only(top: AppTheme.pagePadding),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppTheme.spaceMd),
+                    _buildActions(),
+                    const SizedBox(height: AppTheme.spaceMd),
+                    AppListTile(
+                      title: presetName,
+                      subtitle: strings.presetRowHint,
+                      icon: Icons.style_outlined,
+                      onTap: _openPresetPicker,
+                    ),
+                    const SizedBox(height: AppTheme.spaceLg),
+                    AppSectionHeader(
+                      strings.samplingSection,
+                      gutter: true,
+                    ),
+                    const AiGenerationSettingsPanel(),
+                    const SizedBox(height: AppTheme.spaceLg),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: AppTheme.spaceLg),
-            AppSectionHeader(strings.samplingSection, gutter: true),
-            const AiGenerationSettingsPanel(),
-            const SizedBox(height: AppTheme.spaceLg),
-            const PromptManagerPanel(),
+            const PromptManagerPanel(sliver: true),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: AppTheme.pagePadding + mediaBottom + keyboardBottom,
+              ),
+            ),
           ],
         );
       },

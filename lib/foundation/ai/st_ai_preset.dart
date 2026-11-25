@@ -93,6 +93,25 @@ class AIPreset {
         'provider': provider,
         'providerSettings': providerSettings,
       },
+
+      // AnoWorld extras (ignored by SillyTavern; restored on re-import)
+      if (promptManagerConfig != null &&
+          (promptManagerConfig!.categories.isNotEmpty ||
+              promptManagerConfig!.topLevelOrder.isNotEmpty))
+        '_anoworld': {
+          'version': 1,
+          'promptCategories': promptManagerConfig!.categories
+              .map((c) => c.toJson())
+              .toList(),
+          'promptCategoryById': {
+            for (final section in promptManagerConfig!.sortedSections)
+              if (section.categoryId != null &&
+                  section.categoryId!.isNotEmpty)
+                _sillyTavernIdentifier(section): section.categoryId,
+          },
+          if (promptManagerConfig!.topLevelOrder.isNotEmpty)
+            'topLevelOrder': promptManagerConfig!.topLevelOrder,
+        },
     };
     return json;
   }
@@ -295,10 +314,14 @@ class AIPreset {
     // Parse generation settings from root level
     final generationSettings = GenerationPreset.fromJson(json);
 
-    // Parse prompt order / prompts if present
+    // Parse prompt order / prompts if present (ST is flat; categories optional)
     PromptManagerConfig? promptConfig;
     if (json['prompt_order'] != null || json['prompts'] != null) {
       promptConfig = PromptManagerConfig.fromSillyTavernJson(json);
+      final anoworld = json['_anoworld'];
+      if (anoworld is Map<String, dynamic>) {
+        promptConfig = promptConfig.withAnoWorldMeta(anoworld);
+      }
     }
 
     return AIPreset(

@@ -1,3 +1,5 @@
+import 'package:anoworld/foundation/widgets/app_list_tile.dart';
+import 'package:anoworld/foundation/widgets/app_switch.dart';
 import 'package:anoworld/settings/ai_preset_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,11 +40,154 @@ void main() {
       '删除当前预设',
       '导入预设',
       '导出预设',
+      '新建分类',
       '加一条',
       '恢复默认顺序',
     ]) {
       expect(find.byTooltip(tooltip), findsOneWidget);
     }
+  });
+
+  testWidgets('prompt categories fold and rename', (tester) async {
+    await pumpPresetPage(tester);
+
+    for (final name in const ['文风', '关系引力', '内在罗盘', '研究母题', '选修']) {
+      final header = find.text(name);
+      await tester.ensureVisible(header);
+      await tester.pumpAndSettle();
+      expect(header, findsOneWidget);
+    }
+
+    // Style family starts collapsed (all members off); expand it.
+    final style = find.text('文风');
+    await tester.ensureVisible(style);
+    await tester.pumpAndSettle();
+    await tester.tap(style);
+    await tester.pumpAndSettle();
+    expect(find.text('生活喜剧'), findsOneWidget);
+    expect(find.text('幻想文学'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('改分类名').first);
+    await tester.pumpAndSettle();
+    expect(find.text('改分类名'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '文风族');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('已改名：文风族'), findsOneWidget);
+    expect(find.text('文风族'), findsOneWidget);
+  });
+
+  testWidgets('category member switches are independent', (tester) async {
+    await pumpPresetPage(tester);
+
+    final style = find.text('文风');
+    await tester.ensureVisible(style);
+    await tester.pumpAndSettle();
+    await tester.tap(style);
+    await tester.pumpAndSettle();
+
+    Future<void> toggleNamed(String name) async {
+      final title = find.text(name);
+      await tester.ensureVisible(title);
+      await tester.pumpAndSettle();
+      final tile = find.ancestor(
+        of: title,
+        matching: find.byType(AppListTile),
+      );
+      await tester.tap(
+        find.descendant(of: tile, matching: find.byType(AppSwitch)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await toggleNamed('生活喜剧');
+    await toggleNamed('幻想文学');
+
+    Switch switchOf(String name) {
+      final tile = find.ancestor(
+        of: find.text(name),
+        matching: find.byType(AppListTile),
+      );
+      return tester.widget<Switch>(
+        find.descendant(of: tile, matching: find.byType(Switch)),
+      );
+    }
+
+    expect(switchOf('生活喜剧').value, isTrue);
+    expect(switchOf('幻想文学').value, isTrue);
+  });
+
+  testWidgets('adds a prompt category from the header', (tester) async {
+    await pumpPresetPage(tester);
+
+    await tester.tap(find.byTooltip('新建分类'));
+    await tester.pumpAndSettle();
+    expect(find.text('新建分类'), findsWidgets);
+    await tester.enterText(find.byType(TextField), '临时分类');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('已添加分类：临时分类'), findsOneWidget);
+    expect(find.text('临时分类'), findsOneWidget);
+  });
+
+  testWidgets('multi-select can delete a category folder', (tester) async {
+    await pumpPresetPage(tester);
+
+    await tester.tap(find.byTooltip('新建分类'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '待删分类');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('多选'));
+    await tester.pumpAndSettle();
+    final folder = find.text('待删分类');
+    await tester.ensureVisible(folder);
+    await tester.pumpAndSettle();
+    await tester.tap(folder);
+    await tester.pumpAndSettle();
+    expect(find.text('已选 1'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('删除'));
+    await tester.pumpAndSettle();
+    expect(find.text('删除这 1 项？'), findsOneWidget);
+    await tester.tap(find.text('删除'));
+    await tester.pumpAndSettle();
+    expect(find.text('已删除'), findsOneWidget);
+    expect(find.text('待删分类'), findsNothing);
+  });
+
+  testWidgets('prompt section header stays pinned while scrolling', (
+    tester,
+  ) async {
+    await pumpPresetPage(tester, size: const Size(390, 640));
+
+    // Page scroll view (nested reorderable lists also use CustomScrollView).
+    final pageScroll = find.byWidgetPredicate(
+      (w) =>
+          w is CustomScrollView && w.physics is! NeverScrollableScrollPhysics,
+    );
+    final scrollable = find.descendant(
+      of: pageScroll,
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.text('预设提示词'),
+      300,
+      scrollable: scrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('预设提示词'), findsOneWidget);
+
+    final headerY = tester.getTopLeft(find.text('预设提示词')).dy;
+    await tester.drag(pageScroll, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(find.text('预设提示词'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('预设提示词')).dy,
+      moreOrLessEquals(headerY, epsilon: 1),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('adds a custom prompt and deletes it from its editor', (
@@ -157,6 +302,21 @@ void main() {
 
   testWidgets('selection header fits a narrow window', (tester) async {
     await pumpPresetPage(tester, size: const Size(260, 640));
+
+    final pageScroll = find.byWidgetPredicate(
+      (w) =>
+          w is CustomScrollView && w.physics is! NeverScrollableScrollPhysics,
+    );
+    final scrollable = find.descendant(
+      of: pageScroll,
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.text('预设提示词'),
+      300,
+      scrollable: scrollable,
+    );
+    await tester.pumpAndSettle();
 
     final add = find.byTooltip('加一条');
     await tester.ensureVisible(add);

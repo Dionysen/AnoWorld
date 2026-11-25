@@ -2687,6 +2687,43 @@ class AppStringsZh extends AppStrings {
   String get promptDeleted => '已删除';
 
   @override
+  String get promptAddCategoryAction => '新建分类';
+
+  @override
+  String get promptAddCategoryTitle => '新建分类';
+
+  @override
+  String get promptAddCategoryHint => '比如「文风」';
+
+  @override
+  String promptCategoryAdded(String name) => '已添加分类：$name';
+
+  @override
+  String get promptRenameCategoryTitle => '改分类名';
+
+  @override
+  String promptCategoryRenamed(String name) => '已改名：$name';
+
+  @override
+  String get promptCategoryLabel => '分类';
+
+  @override
+  String get promptCategoryNone => '未分类';
+
+  @override
+  String promptCategoryEnabledCount(int enabled, int total) =>
+      '已开 $enabled / $total';
+
+  @override
+  String promptDeleteCategoryTitle(String name) => '删除分类「$name」？';
+
+  @override
+  String get promptDeleteCategoryDetail => '里面的提示词会回到未分类';
+
+  @override
+  String get promptCategoryDeleted => '已删除分类';
+
+  @override
   String promptSectionName(PromptSectionType type) => switch (type) {
         PromptSectionType.systemPrompt => '系统提示',
         PromptSectionType.persona => '玩家身份',

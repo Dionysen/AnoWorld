@@ -12,7 +12,7 @@ class PromptManagerPage extends StatelessWidget {
     return AppPage(
       title: context.strings.promptSectionsTitle,
       onBack: () => Navigator.of(context).maybePop(),
-      body: const AppPageBody.list(children: [PromptManagerPanel()]),
+      body: const PromptManagerPanel(),
     );
   }
 }

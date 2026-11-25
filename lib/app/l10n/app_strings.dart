@@ -927,6 +927,20 @@ abstract class AppStrings extends AppLocalizations {
   String get promptDeleteBuiltInHint;
   String get promptDeleted;
 
+  /// Prompt categories (fold groups).
+  String get promptAddCategoryAction;
+  String get promptAddCategoryTitle;
+  String get promptAddCategoryHint;
+  String promptCategoryAdded(String name);
+  String get promptRenameCategoryTitle;
+  String promptCategoryRenamed(String name);
+  String get promptCategoryLabel;
+  String get promptCategoryNone;
+  String promptCategoryEnabledCount(int enabled, int total);
+  String promptDeleteCategoryTitle(String name);
+  String get promptDeleteCategoryDetail;
+  String get promptCategoryDeleted;
+
   /// Display name of a prompt section type.
   String promptSectionName(PromptSectionType type);
 

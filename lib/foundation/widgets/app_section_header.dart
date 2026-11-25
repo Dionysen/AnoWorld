@@ -42,7 +42,17 @@ class AppSectionHeader extends StatelessWidget {
             Row(
               children: [
                 Expanded(child: labelText),
-                trailing!,
+                // Keep actions reachable on narrow widths without overflowing.
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: true,
+                      child: trailing!,
+                    ),
+                  ),
+                ),
               ],
             ),
           if (subtitle != null) ...[

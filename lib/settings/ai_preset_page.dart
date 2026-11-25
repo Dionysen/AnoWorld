@@ -12,7 +12,8 @@ class AiPresetPage extends StatelessWidget {
     return AppPage(
       title: context.strings.aiPresetTitle,
       onBack: () => Navigator.of(context).maybePop(),
-      body: const AppPageBody.list(children: [AiPresetPanel()]),
+      // [AiPresetPanel] owns a [CustomScrollView] so the prompt header can pin.
+      body: const AiPresetPanel(),
     );
   }
 }
