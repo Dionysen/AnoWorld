@@ -28,10 +28,10 @@ void main() {
 
     final prompt = PromptManagerConfig.defaultConfig();
     expect(prompt.sections, isNotEmpty);
-    expect(prompt.categories.length, 5);
+    expect(prompt.categories.length, 6);
     expect(
       prompt.sortedCategories.map((c) => c.name).toList(),
-      ['文风', '关系引力', '内在罗盘', '研究母题', '选修'],
+      ['常规规范', '炼金与选修', '内在罗盘', '关系引力', '研究母题', '文风'],
     );
     expect(
       prompt.sections.any((s) => s.type == PromptSectionType.systemPrompt),

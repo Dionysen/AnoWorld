@@ -7,21 +7,22 @@ void main() {
   setUpAll(ensureTestSeedsLoaded);
 
   group('PromptCategory CRUD', () {
-    test('seed default mounts five parallel families', () {
+    test('seed default mounts six craft families', () {
       final config = PromptManagerConfig.defaultConfig();
       expect(
         config.sortedCategories.map((c) => c.id).toList(),
         [
-          'aw_cat_style',
-          'aw_cat_relation',
+          'aw_cat_rules',
+          'aw_cat_alchemy',
           'aw_cat_inner',
+          'aw_cat_relation',
           'aw_cat_motif',
-          'aw_cat_elective',
+          'aw_cat_style',
         ],
       );
       expect(
         config.sortedCategories.map((c) => c.name).toList(),
-        ['文风', '关系引力', '内在罗盘', '研究母题', '选修'],
+        ['常规规范', '炼金与选修', '内在罗盘', '关系引力', '研究母题', '文风'],
       );
 
       expect(
@@ -36,8 +37,14 @@ void main() {
         ]),
       );
       expect(
-        config.sectionsInCategory('aw_cat_elective').any(
+        config.sectionsInCategory('aw_cat_alchemy').any(
           (s) => s.identifier == 'aw_paragraph_density',
+        ),
+        isTrue,
+      );
+      expect(
+        config.sectionsInCategory('aw_cat_rules').any(
+          (s) => s.identifier == 'aw_anti_collapse',
         ),
         isTrue,
       );
@@ -90,15 +97,15 @@ void main() {
     test('setSectionCategory assigns and clears', () {
       final base = PromptManagerConfig.defaultConfig();
       final index = base.sortedSections.indexWhere(
-        (s) => s.identifier == 'aw_anti_collapse',
+        (s) => s.type == PromptSectionType.persona,
       );
       expect(index, greaterThanOrEqualTo(0));
       expect(base.sortedSections[index].categoryId, isNull);
 
-      final assigned = base.setSectionCategory(index, 'aw_cat_elective');
+      final assigned = base.setSectionCategory(index, 'aw_cat_alchemy');
       expect(
         assigned.sortedSections[index].categoryId,
-        'aw_cat_elective',
+        'aw_cat_alchemy',
       );
 
       final cleared = assigned.setSectionCategory(index, null);
@@ -190,7 +197,7 @@ void main() {
     test('reorderCategories swaps UI order only', () {
       final base = PromptManagerConfig.defaultConfig();
       final before = base.sortedCategories.map((c) => c.id).toList();
-      expect(before.first, 'aw_cat_style');
+      expect(before.first, 'aw_cat_rules');
 
       final moved = base.reorderCategories(0, 2);
       expect(
@@ -212,7 +219,10 @@ void main() {
       final base = PromptManagerConfig.defaultConfig();
       final items = base.topLevelItems;
       expect(items.first.isCategory, isFalse);
-      expect(items.last.isCategory, isTrue);
+      expect(
+        items.any((e) => e.category?.id == 'aw_cat_style'),
+        isTrue,
+      );
 
       final styleIndex = items.indexWhere(
         (e) => e.category?.id == 'aw_cat_style',
@@ -231,7 +241,7 @@ void main() {
     test('moveSectionToCategory assigns and appends after last member', () {
       final base = PromptManagerConfig.defaultConfig();
       final index = base.sortedSections.indexWhere(
-        (s) => s.identifier == 'aw_anti_collapse',
+        (s) => s.type == PromptSectionType.persona,
       );
       expect(index, greaterThanOrEqualTo(0));
       expect(base.sortedSections[index].categoryId, isNull);
@@ -242,19 +252,19 @@ void main() {
           .identifier;
       final moved = base.moveSectionToCategory(index, 'aw_cat_style');
       final members = moved.sectionsInCategory('aw_cat_style');
-      expect(members.last.identifier, 'aw_anti_collapse');
+      expect(members.last.type, PromptSectionType.persona);
       expect(
         members[members.length - 2].identifier,
         styleLast,
       );
 
       final clearedIndex = moved.sortedSections.indexWhere(
-        (s) => s.identifier == 'aw_anti_collapse',
+        (s) => s.type == PromptSectionType.persona,
       );
       final cleared = moved.moveSectionToCategory(clearedIndex, null);
       expect(
         cleared.sections
-            .where((s) => s.identifier == 'aw_anti_collapse')
+            .where((s) => s.type == PromptSectionType.persona)
             .single
             .categoryId,
         isNull,

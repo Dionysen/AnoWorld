@@ -51,7 +51,14 @@ void main() {
   testWidgets('prompt categories fold and rename', (tester) async {
     await pumpPresetPage(tester);
 
-    for (final name in const ['文风', '关系引力', '内在罗盘', '研究母题', '选修']) {
+    for (final name in const [
+      '常规规范',
+      '炼金与选修',
+      '内在罗盘',
+      '关系引力',
+      '研究母题',
+      '文风',
+    ]) {
       final header = find.text(name);
       await tester.ensureVisible(header);
       await tester.pumpAndSettle();
@@ -67,7 +74,17 @@ void main() {
     expect(find.text('生活喜剧'), findsOneWidget);
     expect(find.text('幻想文学'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('改分类名').first);
+    final styleHeader = find.ancestor(
+      of: style,
+      matching: find.byType(AppListTile),
+    );
+    final rename = find.descendant(
+      of: styleHeader,
+      matching: find.byTooltip('改分类名'),
+    );
+    await tester.ensureVisible(rename);
+    await tester.pumpAndSettle();
+    await tester.tap(rename);
     await tester.pumpAndSettle();
     expect(find.text('改分类名'), findsOneWidget);
     await tester.enterText(find.byType(TextField), '文风族');
@@ -291,7 +308,8 @@ void main() {
     await tester.tap(find.text('尚未选用'));
     await tester.pumpAndSettle();
     expect(find.text('选择预设'), findsOneWidget);
-    expect(find.text('内置'), findsOneWidget);
+    // Drawer group title; prompt rows also show an 「内置」 tag.
+    expect(find.text('内置'), findsWidgets);
     expect(find.text('导入'), findsNothing);
     expect(find.text('存为预设'), findsNothing);
 
