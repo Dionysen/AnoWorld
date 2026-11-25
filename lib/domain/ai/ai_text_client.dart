@@ -3,6 +3,7 @@ import 'package:anoworld/foundation/ai/openai_chat_client.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
 import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:anoworld/foundation/ai/think_tag_stream_filter.dart';
+import 'package:anoworld/foundation/logging/app_log.dart';
 
 /// Text completion with optional chain-of-thought.
 class AiTextCompletion {
@@ -133,30 +134,49 @@ class EndpointAiTextClient implements AiTextClient, AiTextStreamClient,
     final openRouter = endpoint.kind == AiTextProviderKind.openRouter;
     final effort = endpoint.reasoningEffort;
     final filter = ThinkTagStreamFilter();
-    try {
-      await for (final delta in _chat.stream(
-        baseUrl: endpoint.baseUrl,
-        fallbackBaseUrl: endpoint.kind.defaultBaseUrl,
-        apiKey: endpoint.apiKey,
-        needsApiKey: endpoint.needsApiKey,
-        model: endpoint.model,
-        generation: generation,
-        reasoningEffort: openRouter ? null : effort.openAiReasoningEffort,
-        reasoning: openRouter && effort.openRouterEffort != null
-            ? <String, dynamic>{'effort': effort.openRouterEffort}
-            : null,
-        messages: <OpenAiChatMessage>[
-          OpenAiChatMessage(role: 'system', content: system),
-          OpenAiChatMessage(role: 'user', content: user),
-        ],
-      )) {
-        final split = filter.add(delta.content);
-        final reasoning = '${delta.reasoning}${split.$2}';
-        if (split.$1.isEmpty && reasoning.isEmpty) continue;
-        yield AiTextChunk(content: split.$1, reasoning: reasoning);
+    var activeGeneration = generation;
+    var retriedWithoutJson = false;
+    while (true) {
+      var yielded = false;
+      try {
+        await for (final delta in _chat.stream(
+          baseUrl: endpoint.baseUrl,
+          fallbackBaseUrl: endpoint.kind.defaultBaseUrl,
+          apiKey: endpoint.apiKey,
+          needsApiKey: endpoint.needsApiKey,
+          model: endpoint.model,
+          generation: activeGeneration,
+          reasoningEffort: openRouter ? null : effort.openAiReasoningEffort,
+          reasoning: openRouter && effort.openRouterEffort != null
+              ? <String, dynamic>{'effort': effort.openRouterEffort}
+              : null,
+          messages: <OpenAiChatMessage>[
+            OpenAiChatMessage(role: 'system', content: system),
+            OpenAiChatMessage(role: 'user', content: user),
+          ],
+        )) {
+          final split = filter.add(delta.content);
+          final reasoning = '${delta.reasoning}${split.$2}';
+          if (split.$1.isEmpty && reasoning.isEmpty) continue;
+          yielded = true;
+          yield AiTextChunk(content: split.$1, reasoning: reasoning);
+        }
+        break;
+      } on OpenAiChatException catch (error) {
+        if (!yielded &&
+            !retriedWithoutJson &&
+            activeGeneration?.jsonObject == true &&
+            _looksLikeJsonFormatReject(error.message)) {
+          AppLog.instance.warning(
+            '服务不支持 JSON 模式，改用不强制格式再试',
+            tag: 'ai.text',
+          );
+          activeGeneration = activeGeneration!.copyWith(jsonObject: false);
+          retriedWithoutJson = true;
+          continue;
+        }
+        throw AiTextException(error.message, code: error.code);
       }
-    } on OpenAiChatException catch (error) {
-      throw AiTextException(error.message, code: error.code);
     }
     final tail = filter.flush();
     if (tail.$1.isEmpty && tail.$2.isEmpty) return;
@@ -171,24 +191,49 @@ class EndpointAiTextClient implements AiTextClient, AiTextStreamClient,
   }) async {
     final openRouter = endpoint.kind == AiTextProviderKind.openRouter;
     final effort = endpoint.reasoningEffort;
-    try {
-      return await _chat.complete(
-        baseUrl: endpoint.baseUrl,
-        fallbackBaseUrl: endpoint.kind.defaultBaseUrl,
-        apiKey: endpoint.apiKey,
-        needsApiKey: endpoint.needsApiKey,
-        model: endpoint.model,
-        generation: generation,
-        reasoningEffort:
-            openRouter ? null : effort.openAiReasoningEffort,
-        reasoning: openRouter && effort.openRouterEffort != null
-            ? <String, dynamic>{'effort': effort.openRouterEffort}
-            : null,
-        messages: messages,
-        tools: tools,
-      );
-    } on OpenAiChatException catch (error) {
-      throw AiTextException(error.message, code: error.code);
+    var activeGeneration = generation;
+    var retriedWithoutJson = false;
+    while (true) {
+      try {
+        return await _chat.complete(
+          baseUrl: endpoint.baseUrl,
+          fallbackBaseUrl: endpoint.kind.defaultBaseUrl,
+          apiKey: endpoint.apiKey,
+          needsApiKey: endpoint.needsApiKey,
+          model: endpoint.model,
+          generation: activeGeneration,
+          reasoningEffort:
+              openRouter ? null : effort.openAiReasoningEffort,
+          reasoning: openRouter && effort.openRouterEffort != null
+              ? <String, dynamic>{'effort': effort.openRouterEffort}
+              : null,
+          messages: messages,
+          tools: tools,
+        );
+      } on OpenAiChatException catch (error) {
+        if (!retriedWithoutJson &&
+            activeGeneration?.jsonObject == true &&
+            _looksLikeJsonFormatReject(error.message)) {
+          AppLog.instance.warning(
+            '服务不支持 JSON 模式，改用不强制格式再试',
+            tag: 'ai.text',
+          );
+          activeGeneration = activeGeneration!.copyWith(jsonObject: false);
+          retriedWithoutJson = true;
+          continue;
+        }
+        throw AiTextException(error.message, code: error.code);
+      }
     }
+  }
+
+  /// Heuristic: provider complained about response_format / json_object.
+  static bool _looksLikeJsonFormatReject(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('response_format') ||
+        lower.contains('json_object') ||
+        lower.contains('json mode') ||
+        message.contains('响应格式') ||
+        (lower.contains('json') && message.contains('不支持'));
   }
 }

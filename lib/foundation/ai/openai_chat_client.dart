@@ -292,6 +292,11 @@ class OpenAiChatClient {
       if (generation.seed >= 0) {
         body['seed'] = generation.seed;
       }
+      if (generation.jsonObject) {
+        body['response_format'] = const <String, dynamic>{
+          'type': 'json_object',
+        };
+      }
     }
     if (reasoning != null) {
       body['reasoning'] = reasoning;

@@ -374,6 +374,11 @@ class GenerationPreset {
   final int seed;
   final bool streamEnabled;
 
+  /// When true, OpenAI-compatible requests send
+  /// `response_format: { "type": "json_object" }`. Not persisted in ST presets;
+  /// set per call (e.g. visual-novel beat generation).
+  final bool jsonObject;
+
   const GenerationPreset({
     this.temperature = 1.0,
     this.topP = 0.95,
@@ -394,6 +399,7 @@ class GenerationPreset {
     this.stopSequences = const [],
     this.seed = -1,
     this.streamEnabled = true,
+    this.jsonObject = false,
   });
 
   GenerationPreset copyWith({
@@ -416,6 +422,7 @@ class GenerationPreset {
     List<String>? stopSequences,
     int? seed,
     bool? streamEnabled,
+    bool? jsonObject,
   }) {
     return GenerationPreset(
       temperature: temperature ?? this.temperature,
@@ -437,6 +444,7 @@ class GenerationPreset {
       stopSequences: stopSequences ?? this.stopSequences,
       seed: seed ?? this.seed,
       streamEnabled: streamEnabled ?? this.streamEnabled,
+      jsonObject: jsonObject ?? this.jsonObject,
     );
   }
 

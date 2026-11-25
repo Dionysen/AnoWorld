@@ -164,7 +164,7 @@ $branchBlock''';
         endpoint: endpoint,
         system: system,
         user: attemptUser,
-        generation: ctx.generation,
+        generation: ctx.generation.copyWith(jsonObject: true),
       ))
           .content;
       try {

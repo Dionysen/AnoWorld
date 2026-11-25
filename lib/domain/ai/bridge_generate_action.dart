@@ -1,5 +1,6 @@
 import 'package:anoworld/domain/ai/ai_prompt_context.dart';
 import 'package:anoworld/domain/ai/ai_text_client.dart';
+import 'package:anoworld/domain/ai/bridge_beat_repair.dart';
 import 'package:anoworld/domain/ai/bridge_stream_parser.dart';
 import 'package:anoworld/domain/ai/context_budget.dart';
 import 'package:anoworld/domain/models/main_story.dart';
@@ -254,21 +255,26 @@ class BridgeGenerateAction {
     required Project project,
     required BridgeBeatStreamParser parser,
   }) {
-    final lines = parser.lines;
+    final rawLines = parser.lines;
+    final lines = rawLines.isEmpty
+        ? <DialogueLine>[
+            DialogueLine(
+              id: '${request.beatId}_l0',
+              text: '……',
+              kind: DialogueKind.narration,
+            ),
+          ]
+        : BridgeBeatRepair.repairLines(
+            lines: rawLines,
+            project: project,
+            role: request.role,
+          );
     return Beat(
       id: request.beatId,
       nodeId: request.nodeId,
       scene: Scene(locationText: parser.location),
       appearances: const [],
-      lines: lines.isEmpty
-          ? <DialogueLine>[
-              DialogueLine(
-                id: '${request.beatId}_l0',
-                text: '……',
-                kind: DialogueKind.narration,
-              ),
-            ]
-          : lines,
+      lines: lines,
       choices: request.forceConverge
           ? fallbackChoices(project.main, request.nodeId)
           : const <Choice>[],
@@ -388,7 +394,8 @@ class BridgeGenerateAction {
       openMode: openMode,
       role: role,
       maxChoices: choiceCap,
-      generation: ctx.generation,
+      // Ask the API for a JSON object when the provider supports it.
+      generation: ctx.generation.copyWith(jsonObject: true),
     );
   }
 
@@ -576,8 +583,13 @@ $minLineRule
         ),
       );
     }
+    final repairedLines = BridgeBeatRepair.repairLines(
+      lines: lines,
+      project: project,
+      role: role,
+    );
 
-    final choices = <Choice>[];
+    var choices = <Choice>[];
     final choicesRaw = map['choices'];
     if (choicesRaw is List) {
       for (var i = 0; i < choicesRaw.length; i++) {
@@ -609,12 +621,21 @@ $minLineRule
       }
     }
 
-    if (forceConverge &&
-        choices.every((c) => c.target.type == TransitionType.beat)) {
-      throw const BridgeMapException('收敛拍缺少通往下一站的选项');
+    final beforeAgency = choices.length;
+    choices = BridgeBeatRepair.filterAgencyChoices(choices);
+    if (choices.length < beforeAgency) {
+      AppLog.instance.info(
+        '丢弃客观跳场选项 ${beforeAgency - choices.length} 个',
+        tag: 'play.vn',
+      );
     }
-    if (choices.isEmpty && forceConverge) {
-      throw const BridgeMapException('收敛拍没有选项');
+
+    // Converge beats must leave the station: fill local exits instead of failing.
+    final onlyStay = choices.isNotEmpty &&
+        choices.every((c) => c.target.type == TransitionType.beat);
+    if (forceConverge && (choices.isEmpty || onlyStay)) {
+      AppLog.instance.info('收敛拍缺合法出口，使用保底选项', tag: 'play.vn');
+      choices = fallbackChoices(project.main, nodeId);
     }
 
     final capped = capChoices(choices, maxChoices: maxChoices);
@@ -628,7 +649,7 @@ $minLineRule
             : '${map['location']}'.trim(),
       ),
       appearances: const [],
-      lines: lines,
+      lines: repairedLines,
       choices: capped,
     );
   }

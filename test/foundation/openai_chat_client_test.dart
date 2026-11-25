@@ -1,5 +1,6 @@
 import 'package:anoworld/foundation/ai/openai_chat_client.dart';
 import 'package:anoworld/foundation/ai/openai_chat_message.dart';
+import 'package:anoworld/foundation/ai/st_ai_preset.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -31,6 +32,29 @@ void main() {
     );
     expect(result.content, 'hello');
     expect(result.reasoning, isNull);
+  });
+
+  test('includes response_format json_object when generation asks', () async {
+    final client = MockClient((request) async {
+      expect(request.body, contains('"response_format":{"type":"json_object"}'));
+      return http.Response(
+        '{"choices":[{"message":{"content":"{}"}}]}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final chat = OpenAiChatClient(client: client);
+    final result = await chat.complete(
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'demo',
+      generation: const GenerationPreset(jsonObject: true),
+      messages: const [
+        OpenAiChatMessage(role: 'user', content: 'hi'),
+      ],
+    );
+    expect(result.content, '{}');
   });
 
   test('includes reasoning_effort when provided', () async {

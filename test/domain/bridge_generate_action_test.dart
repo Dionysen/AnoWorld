@@ -382,7 +382,7 @@ void main() {
     expect(beat.choices.first.target.nodeId, 'n2');
   });
 
-  test('forceConverge retries when stay-only choices', () async {
+  test('forceConverge fills local exits when stay-only choices', () async {
     final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
     final project = blank.copyWith(
       main: const MainStory(
@@ -410,7 +410,6 @@ void main() {
     );
     final client = _ScriptedTextClient([
       '{"lines":[{"text":"还在晃"}],"choices":[{"text":"再等等","target":{"type":"beat","beatId":"__stay__"}}]}',
-      '{"lines":[{"text":"该走了"}],"choices":[{"text":"去结局","target":{"type":"node","nodeId":"n2"}}]}',
     ]);
     final action = BridgeGenerateAction(textClient: client);
     final beat = await action.generate(
@@ -422,9 +421,39 @@ void main() {
         turnCount: BridgeSession.defaultMaxBeats - 1,
       ),
     );
-    expect(client.calls, 2);
+    expect(client.calls, 1);
     expect(beat.choices.single.target.type, TransitionType.node);
     expect(beat.choices.single.target.nodeId, 'n2');
+    expect(beat.choices.single.text, contains('动身去'));
+  });
+
+  test('parseBeatJson rewrites player name to 你 and drops jump choices', () {
+    final blank = const ProjectFactory().createBlank(id: 'p', title: 't');
+    final project = blank.copyWith(
+      cast: const [
+        CastMember(id: 'c_me', name: '旅人', aliases: ['User']),
+      ],
+    );
+    final beat = BridgeGenerateAction.parseBeatJson(
+      '''{"lines":[{"speaker":"旁白","text":"旅人推开门，User愣住了。"}],
+      "choices":[
+        {"text":"来到大厅","target":{"type":"end"}},
+        {"text":"推门进去看看","target":{"type":"end"}},
+        {"text":"『谁在那儿？』","target":{"type":"end"}}
+      ]}''',
+      project: project,
+      nodeId: project.main.startNodeId,
+      beatId: 'bridge_x_1',
+      legalNodeIds: const {},
+      forceConverge: false,
+      openMode: true,
+      role: const PlayRole(playerCastId: 'c_me'),
+    );
+    expect(beat.lines.single.text, '你推开门，你愣住了。');
+    expect(beat.choices.map((c) => c.text), [
+      '推门进去看看',
+      '『谁在那儿？』',
+    ]);
   });
 
   test('parseBeatJson caps choices at maxChoices', () {
