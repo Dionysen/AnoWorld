@@ -242,6 +242,9 @@ class AppPage extends StatelessWidget {
                     child: useOverlayTitle
                         ? Stack(
                             fit: StackFit.expand,
+                            // Body extends above this box into the transparent
+                            // chrome band; clipping would leave a solid strip.
+                            clipBehavior: Clip.none,
                             children: [
                               // Extend under the window chrome so a hero cover
                               // can reach the window top / status bar.

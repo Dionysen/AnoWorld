@@ -154,4 +154,17 @@ abstract final class AppBottomChromeMetrics {
         AppBottomNavIconCapsule.side / 2 +
         AppTheme.spaceSm;
   }
+
+  /// Bottom inset so a story-hub list can scroll past the play FAB and the
+  /// create-assistant capsule stacked above it.
+  static double storyHubScrollClearance(BuildContext context) {
+    const playClearance =
+        kFloatingActionButtonMargin + AppCircleButton.fabDiameter;
+    final assistantClearance =
+        assistantButtonBottom(context) + AppBottomNavIconCapsule.side;
+    final taller = playClearance > assistantClearance
+        ? playClearance
+        : assistantClearance;
+    return taller + AppTheme.spaceLg;
+  }
 }

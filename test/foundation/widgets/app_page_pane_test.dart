@@ -138,6 +138,8 @@ void main() {
       tester.getTopLeft(find.text('hero')).dy,
       lessThan(tester.getTopLeft(find.text('未命名故事')).dy + 8),
     );
+    // Hero paints into the transparent window chrome (not clipped away).
+    expect(tester.getTopLeft(find.text('hero')).dy, lessThan(8));
   });
 
   testWidgets('the same page keeps its back button outside a pane', (

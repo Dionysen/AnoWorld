@@ -20,6 +20,7 @@ import 'package:anoworld/domain/project/project_token_estimate.dart';
 import 'package:anoworld/domain/settings/plot_element_catalog.dart';
 import 'package:anoworld/foundation/logging/app_log.dart';
 import 'package:anoworld/foundation/theme/app_theme.dart';
+import 'package:anoworld/foundation/widgets/app_bottom_nav_icon_capsule.dart';
 import 'package:anoworld/foundation/widgets/app_button.dart';
 import 'package:anoworld/foundation/widgets/app_circle_button.dart';
 import 'package:anoworld/foundation/widgets/app_detail_entry.dart';
@@ -607,8 +608,9 @@ class _ProjectHubPageState extends State<ProjectHubPage>
                     top: AppTheme.spaceLg,
                     bottom: AppTheme.pagePadding +
                         MediaQuery.paddingOf(context).bottom +
-                        AppCircleButton.fabDiameter +
-                        AppTheme.spaceLg,
+                        AppBottomChromeMetrics.storyHubScrollClearance(
+                          context,
+                        ),
                   ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate(
