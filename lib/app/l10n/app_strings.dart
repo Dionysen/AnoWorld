@@ -937,6 +937,16 @@ abstract class AppStrings extends AppLocalizations {
   String get promptCategoryLabel;
   String get promptCategoryNone;
   String promptCategoryEnabledCount(int enabled, int total);
+
+  /// Rough token estimate for one prompt row (e.g. 「约 320 token」).
+  String promptSectionTokens(int tokens);
+
+  /// Category caption: enabled count + tokens of enabled members.
+  String promptCategoryEnabledTokens(int enabled, int total, int tokens);
+
+  /// Pinned header caption: sum of tokens for all enabled prompts.
+  String promptEnabledTokensTotal(int tokens);
+
   String promptDeleteCategoryTitle(String name);
   String get promptDeleteCategoryDetail;
   String get promptCategoryDeleted;

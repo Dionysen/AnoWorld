@@ -138,6 +138,27 @@ void main() {
       );
     });
 
+    test('estimatedTokens uses effective content; enabled sum tracks toggles', () {
+      final config = PromptManagerConfig.defaultConfig();
+      final craft = config.sections
+          .where((s) => s.identifier == 'aw_anti_collapse')
+          .single;
+      expect(craft.estimatedTokens, greaterThan(0));
+      expect(
+        config.enabledEstimatedTokens,
+        greaterThanOrEqualTo(craft.estimatedTokens),
+      );
+
+      final index = config.sortedSections.indexWhere(
+        (s) => s.identifier == 'aw_anti_collapse',
+      );
+      final off = config.toggleSectionByIndex(index);
+      expect(
+        off.enabledEstimatedTokens,
+        lessThan(config.enabledEstimatedTokens),
+      );
+    });
+
     test('seed crafts are custom; only ST slots are built-in types', () {
       final config = PromptManagerConfig.defaultConfig();
       final craft = config.sections

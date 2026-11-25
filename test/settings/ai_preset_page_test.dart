@@ -29,7 +29,7 @@ void main() {
     expect(find.text('预设'), findsWidgets);
     expect(find.text('尚未选用'), findsOneWidget);
     expect(find.text('采样'), findsOneWidget);
-    expect(find.text('预设提示词'), findsOneWidget);
+    expect(find.textContaining('预设提示词'), findsOneWidget);
     expect(find.text('温度'), findsOneWidget);
     expect(find.text('高级采样'), findsOneWidget);
 
@@ -191,19 +191,19 @@ void main() {
       matching: find.byType(Scrollable),
     );
     await tester.scrollUntilVisible(
-      find.text('预设提示词'),
+      find.textContaining('预设提示词'),
       300,
       scrollable: scrollable,
     );
     await tester.pumpAndSettle();
-    expect(find.text('预设提示词'), findsOneWidget);
+    expect(find.textContaining('预设提示词'), findsOneWidget);
 
-    final headerY = tester.getTopLeft(find.text('预设提示词')).dy;
+    final headerY = tester.getTopLeft(find.textContaining('预设提示词')).dy;
     await tester.drag(pageScroll, const Offset(0, -500));
     await tester.pumpAndSettle();
-    expect(find.text('预设提示词'), findsOneWidget);
+    expect(find.textContaining('预设提示词'), findsOneWidget);
     expect(
-      tester.getTopLeft(find.text('预设提示词')).dy,
+      tester.getTopLeft(find.textContaining('预设提示词')).dy,
       moreOrLessEquals(headerY, epsilon: 1),
     );
     expect(tester.takeException(), isNull);
@@ -274,7 +274,7 @@ void main() {
     await tester.tap(find.text('删除'));
     await tester.pumpAndSettle();
     expect(find.text('已删除'), findsOneWidget);
-    expect(find.text('预设提示词'), findsOneWidget);
+    expect(find.textContaining('预设提示词'), findsOneWidget);
     expect(find.text('甲'), findsNothing);
     expect(find.text('乙'), findsNothing);
   });
@@ -332,7 +332,7 @@ void main() {
       matching: find.byType(Scrollable),
     );
     await tester.scrollUntilVisible(
-      find.text('预设提示词'),
+      find.textContaining('预设提示词'),
       300,
       scrollable: scrollable,
     );

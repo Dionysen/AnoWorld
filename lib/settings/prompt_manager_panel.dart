@@ -277,10 +277,13 @@ class _PromptManagerPanelState extends State<PromptManagerPanel> {
   final Set<String> _expandedCategoryIds = <String>{};
   bool _expandedSeeded = false;
 
-  /// Height of the pinned 「预设提示词」 row (icon buttons + section bottom gap).
-  /// Slightly taller than the bare button row so gutter/text do not clip.
+  /// Pinned header: title row + token subtitle + section bottom padding.
+  /// [AppSectionHeader] with subtitle uses caption + [AppTheme.spaceMd] bottom.
   static const double _headerExtent =
-      AppIconButton.hitTarget + AppTheme.spaceSm + AppTheme.spaceXs;
+      AppIconButton.hitTarget +
+      AppTheme.spaceXs +
+      20 +
+      AppTheme.spaceMd;
 
   @override
   void initState() {
@@ -569,24 +572,14 @@ class _PromptManagerPanelState extends State<PromptManagerPanel> {
               ? strings.selectedCount(selectedCount)
               : strings.multiSelect)
         : strings.presetPromptsSection;
-    return AppSectionHeader(label, gutter: true, trailing: trailing);
-  }
-
-  Widget _uncategorizedDropHeader(AppStrings strings, {required bool active}) {
-    return DragTarget<_SectionDragPayload>(
-      onWillAcceptWithDetails: (_) => !_selection.active,
-      onAcceptWithDetails: (details) {
-        _moveToCategory(details.data.globalIndex, null);
-      },
-      builder: (context, candidate, rejected) {
-        final hovering = candidate.isNotEmpty;
-        return AppListTile(
-          title: strings.promptCategoryNone,
-          icon: Icons.inbox_outlined,
-          selected: hovering || active,
-          showDivider: true,
-        );
-      },
+    final subtitle = _selection.active
+        ? null
+        : strings.promptEnabledTokensTotal(config.enabledEstimatedTokens);
+    return AppSectionHeader(
+      label,
+      subtitle: subtitle,
+      gutter: true,
+      trailing: trailing,
     );
   }
 
@@ -597,16 +590,10 @@ class _PromptManagerPanelState extends State<PromptManagerPanel> {
   ) {
     final controller = AppScope.settingsOf(context);
     final items = config.topLevelItems;
-    final showUncategorizedHeader = config.categories.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showUncategorizedHeader)
-          _uncategorizedDropHeader(
-            strings,
-            active: false,
-          ),
         if (items.isNotEmpty)
           ReorderableListView.builder(
             shrinkWrap: true,
@@ -814,7 +801,12 @@ class _CategoryBlock extends StatelessWidget {
     final controller = AppScope.settingsOf(context);
     final scheme = Theme.of(context).colorScheme;
     final members = config.sectionsInCategory(category.id);
-    final enabledCount = members.where((s) => s.enabled).length;
+    final enabledMembers = members.where((s) => s.enabled).toList();
+    final enabledCount = enabledMembers.length;
+    var enabledTokens = 0;
+    for (final section in enabledMembers) {
+      enabledTokens += section.estimatedTokens;
+    }
     final selectionActive = selection.active;
 
     final Widget leading;
@@ -842,9 +834,10 @@ class _CategoryBlock extends StatelessWidget {
         final hovering = candidate.isNotEmpty;
         return AppListTile(
           title: category.name,
-          subtitle: strings.promptCategoryEnabledCount(
+          subtitle: strings.promptCategoryEnabledTokens(
             enabledCount,
             members.length,
+            enabledTokens,
           ),
           leading: leading,
           selected: hovering ||
@@ -978,11 +971,13 @@ class _SectionRow extends StatelessWidget {
       );
     }
 
+    final tokenLine = strings.promptSectionTokens(section.estimatedTokens);
+    final detail = section.isCharacterOwned
+        ? strings.filledByCast
+        : (editable ? strings.tapToEdit : strings.tapToView);
     final tile = AppListTile(
       title: label,
-      subtitle: section.isCharacterOwned
-          ? strings.filledByCast
-          : (editable ? strings.tapToEdit : strings.tapToView),
+      subtitle: '$tokenLine · $detail',
       // Only ST built-in slots (main / persona / worldInfo…); seed craft
       // customs like 象牙塔摘录 are still custom prompts.
       tags: section.isCustom

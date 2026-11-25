@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../text/token_estimator.dart';
+
 /// Prompt section types that can be ordered and toggled
 enum PromptSectionType {
   systemPrompt,
@@ -173,6 +175,9 @@ class PromptSection {
     }
     return getDefaultContent(type);
   }
+
+  /// Rough token count of [effectiveContent] (display / budget estimate).
+  int get estimatedTokens => TokenEstimator.estimate(effectiveContent);
 
   /// Get default content for editable section types
   static String getDefaultContent(PromptSectionType type) {
@@ -431,6 +436,15 @@ class PromptManagerConfig {
   /// Get enabled sections sorted by order
   List<PromptSection> get enabledSections {
     return sortedSections.where((s) => s.enabled).toList();
+  }
+
+  /// Sum of [PromptSection.estimatedTokens] for currently enabled sections.
+  int get enabledEstimatedTokens {
+    var total = 0;
+    for (final section in enabledSections) {
+      total += section.estimatedTokens;
+    }
+    return total;
   }
 
   /// Sections in [categoryId]; pass null for uncategorized.

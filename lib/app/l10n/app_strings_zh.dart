@@ -2715,6 +2715,16 @@ class AppStringsZh extends AppStrings {
       '已开 $enabled / $total';
 
   @override
+  String promptSectionTokens(int tokens) => '约 $tokens token';
+
+  @override
+  String promptCategoryEnabledTokens(int enabled, int total, int tokens) =>
+      '已开 $enabled / $total · 约 $tokens token';
+
+  @override
+  String promptEnabledTokensTotal(int tokens) => '已开约 $tokens token';
+
+  @override
   String promptDeleteCategoryTitle(String name) => '删除分类「$name」？';
 
   @override
