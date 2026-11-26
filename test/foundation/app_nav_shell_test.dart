@@ -94,6 +94,30 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('compact capsule nav does not overflow in a short viewport', (
+    tester,
+  ) async {
+    // Leaves the floating bar with far less than bottomNavHeight after insets.
+    await tester.binding.setSurfaceSize(const Size(390, 72));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.data,
+        home: const Scaffold(
+          body: AppNavShell(
+            destinations: _items,
+            selectedIndex: 0,
+            onDestinationSelected: _noop,
+            body: SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('forceCompact keeps bottom capsule on a wide viewport', (
     tester,
   ) async {

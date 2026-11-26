@@ -621,28 +621,44 @@ class _BottomNavButton extends StatelessWidget {
           child: InkWell(
             onTap: active ? onTap : null,
             customBorder: pill,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  active && selected
-                      ? (item.selectedIcon ?? item.icon)
-                      : item.icon,
-                  size: 22,
-                  color: color,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Short windows / large safe-area insets can leave the capsule
+                // far below [AppLayout.bottomNavHeight]; drop the label and
+                // scale the icon instead of overflowing the Column.
+                final maxH = constraints.maxHeight;
+                final showLabel = !maxH.isFinite || maxH >= 40;
+                return FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        active && selected
+                            ? (item.selectedIcon ?? item.icon)
+                            : item.icon,
+                        size: 22,
+                        color: color,
+                      ),
+                      if (showLabel) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: color,
+                            fontSize: 11,
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),

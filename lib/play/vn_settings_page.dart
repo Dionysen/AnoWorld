@@ -150,9 +150,22 @@ class VnSettingsPage extends StatelessWidget {
                 step: AppDialogueChrome.opacityStep,
                 valueText: (v) =>
                     strings.dialogueOpacityValue((v * 100).round()),
-                showDivider: false,
                 onChanged: (value) =>
                     controller.updateVnUi(vnUi.copyWith(opacity: value)),
+              ),
+              AppSlider(
+                label: strings.dialogueCornerRadius,
+                subtitle: strings.dialogueCornerRadiusHint,
+                icon: Icons.rounded_corner,
+                value: vnUi.cornerRadius,
+                min: AppDialogueChrome.minCornerRadius,
+                max: AppDialogueChrome.maxCornerRadius,
+                step: AppDialogueChrome.cornerRadiusStep,
+                valueText: (v) => strings.dialogueCornerRadiusValue(v.round()),
+                showDivider: false,
+                onChanged: (value) => controller.updateVnUi(
+                  vnUi.copyWith(cornerRadius: value),
+                ),
               ),
               const SizedBox(height: AppTheme.spaceMd),
               AppSectionHeader(strings.dialogueColorsSection, gutter: true),

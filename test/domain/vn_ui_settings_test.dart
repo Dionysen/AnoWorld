@@ -25,6 +25,7 @@ void main() {
       settings.controlBottomGapRatio,
       AppDialogueChrome.defaultControlBottomGapRatio,
     );
+    expect(settings.cornerRadius, AppDialogueChrome.defaultCornerRadius);
   });
 
   test('fromJson clamps out-of-range values', () {
@@ -33,11 +34,13 @@ void main() {
       'fontSize': 1,
       'opacity': 3,
       'textSpeed': 999,
+      'cornerRadius': 99,
     });
     expect(settings.lines, AppDialogueChrome.maxLines);
     expect(settings.fontSize, AppDialogueChrome.minFontSize);
     expect(settings.opacity, AppDialogueChrome.maxOpacity);
     expect(settings.textSpeed, AppDialogueChrome.maxTextSpeed);
+    expect(settings.cornerRadius, AppDialogueChrome.maxCornerRadius);
   });
 
   test('zero text speed means instant reveal', () {
@@ -54,6 +57,7 @@ void main() {
       backgroundHex: '#10131B',
       textHex: '#F2F4F8',
       opacity: 0.5,
+      cornerRadius: 20,
       innerInsetRatio: 0.6,
       outerInsetRatio: 0.4,
       controlSizeRatio: 1.2,

@@ -12,6 +12,7 @@ class VnUiSettings {
     this.backgroundHex = '',
     this.textHex = '',
     this.opacity = AppDialogueChrome.defaultOpacity,
+    this.cornerRadius = AppDialogueChrome.defaultCornerRadius,
     this.innerInsetRatio = AppDialogueChrome.defaultInnerInsetRatio,
     this.outerInsetRatio = AppDialogueChrome.defaultOuterInsetRatio,
     this.controlSizeRatio = AppDialogueChrome.defaultControlSizeRatio,
@@ -35,6 +36,9 @@ class VnUiSettings {
 
   /// Glass fill alpha, [AppDialogueChrome.minOpacity]–[maxOpacity].
   final double opacity;
+
+  /// Circular corner radius for the dialogue panel (logical px).
+  final double cornerRadius;
 
   /// Text-to-panel rim inset as a multiple of [fontSize].
   final double innerInsetRatio;
@@ -101,6 +105,14 @@ class VnUiSettings {
       AppDialogueChrome.minControlVerticalGapRatio,
       AppDialogueChrome.maxControlVerticalGapRatio,
     );
+    final corner = _clampDouble(
+      readRatio(
+        (s) => s.cornerRadius,
+        AppDialogueChrome.defaultCornerRadius,
+      ),
+      AppDialogueChrome.minCornerRadius,
+      AppDialogueChrome.maxCornerRadius,
+    );
 
     return VnUiSettings(
       lines: raw.lines,
@@ -109,6 +121,7 @@ class VnUiSettings {
       backgroundHex: raw.backgroundHex,
       textHex: raw.textHex,
       opacity: raw.opacity,
+      cornerRadius: corner,
       innerInsetRatio: inner,
       outerInsetRatio: outer,
       controlSizeRatio: control,
@@ -124,6 +137,7 @@ class VnUiSettings {
     String? backgroundHex,
     String? textHex,
     double? opacity,
+    double? cornerRadius,
     double? innerInsetRatio,
     double? outerInsetRatio,
     double? controlSizeRatio,
@@ -137,6 +151,7 @@ class VnUiSettings {
       backgroundHex: backgroundHex ?? this.backgroundHex,
       textHex: textHex ?? this.textHex,
       opacity: opacity ?? this.opacity,
+      cornerRadius: cornerRadius ?? this.cornerRadius,
       innerInsetRatio: innerInsetRatio ?? this.innerInsetRatio,
       outerInsetRatio: outerInsetRatio ?? this.outerInsetRatio,
       controlSizeRatio: controlSizeRatio ?? this.controlSizeRatio,
@@ -153,6 +168,7 @@ class VnUiSettings {
         'backgroundHex': backgroundHex,
         'textHex': textHex,
         'opacity': opacity,
+        'cornerRadius': cornerRadius,
         'innerInsetRatio': innerInsetRatio,
         'outerInsetRatio': outerInsetRatio,
         'controlSizeRatio': controlSizeRatio,
@@ -198,6 +214,13 @@ class VnUiSettings {
             .toDouble(),
         AppDialogueChrome.minOpacity,
         AppDialogueChrome.maxOpacity,
+      ),
+      cornerRadius: _clampDouble(
+        (json.optionalNum('cornerRadius') ??
+                AppDialogueChrome.defaultCornerRadius)
+            .toDouble(),
+        AppDialogueChrome.minCornerRadius,
+        AppDialogueChrome.maxCornerRadius,
       ),
       innerInsetRatio: _clampDouble(
         (json.optionalNum('innerInsetRatio') ??
@@ -249,6 +272,7 @@ class VnUiSettings {
         other.backgroundHex == backgroundHex &&
         other.textHex == textHex &&
         other.opacity == opacity &&
+        other.cornerRadius == cornerRadius &&
         other.innerInsetRatio == innerInsetRatio &&
         other.outerInsetRatio == outerInsetRatio &&
         other.controlSizeRatio == controlSizeRatio &&
@@ -264,6 +288,7 @@ class VnUiSettings {
         backgroundHex,
         textHex,
         opacity,
+        cornerRadius,
         innerInsetRatio,
         outerInsetRatio,
         controlSizeRatio,

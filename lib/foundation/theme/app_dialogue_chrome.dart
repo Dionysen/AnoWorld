@@ -85,6 +85,12 @@ abstract final class AppDialogueChrome {
   static const double maxTextSpeed = 60;
   static const double textSpeedStep = 1;
 
+  /// Circular panel corner radius (px); overridden in [VnUiSettings].
+  static const double defaultCornerRadius = 16;
+  static const double minCornerRadius = 0;
+  static const double maxCornerRadius = 32;
+  static const double cornerRadiusStep = 1;
+
   /// Gaussian blur applied to the stage behind the panel.
   static const double blurSigma = 14;
 

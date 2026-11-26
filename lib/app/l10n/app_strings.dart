@@ -373,6 +373,9 @@ abstract class AppStrings extends AppLocalizations {
   String get dialogueTextThemeHint;
   String get dialogueOpacity;
   String dialogueOpacityValue(int percent);
+  String get dialogueCornerRadius;
+  String get dialogueCornerRadiusHint;
+  String dialogueCornerRadiusValue(int px);
 
   String get imageGenQualitySection;
   String get imageGenStepsLabel;

@@ -2032,6 +2032,7 @@ class _VnStageState extends State<_VnStage> {
                           lines: lines,
                           fontSize: fontSize,
                           innerInsetRatio: innerRatio,
+                          cornerRadius: widget.settings.cornerRadius,
                           backgroundHex: widget.settings.backgroundHex,
                           opacity: widget.settings.opacity,
                           header: speaker == null

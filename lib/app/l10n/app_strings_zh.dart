@@ -1100,6 +1100,15 @@ class AppStringsZh extends AppStrings {
   String dialogueOpacityValue(int percent) => '$percent%';
 
   @override
+  String get dialogueCornerRadius => '圆角大小';
+
+  @override
+  String get dialogueCornerRadiusHint => '对话框四角';
+
+  @override
+  String dialogueCornerRadiusValue(int px) => '$px';
+
+  @override
   String get imageGenQualitySection => '出图';
 
   @override

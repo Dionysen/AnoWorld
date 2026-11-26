@@ -3,13 +3,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../theme/app_dialogue_chrome.dart';
-import '../theme/app_ui_tokens.dart';
 
 /// Frosted, fixed-height reading panel for stage dialogue.
 ///
 /// Height comes from [lines] and [fontSize] alone, so advancing to the next
 /// text page never resizes the box. [header] and [trailing] share one reserved
 /// row above the body, which keeps narration (no speaker) the same height.
+///
+/// Corners use a circular [BorderRadius]; radius comes from [cornerRadius],
+/// not global appearance tokens.
 class AppDialoguePanel extends StatelessWidget {
   const AppDialoguePanel({
     super.key,
@@ -17,6 +19,7 @@ class AppDialoguePanel extends StatelessWidget {
     required this.lines,
     required this.fontSize,
     this.innerInsetRatio = AppDialogueChrome.defaultInnerInsetRatio,
+    this.cornerRadius = AppDialogueChrome.defaultCornerRadius,
     this.header,
     this.trailing,
     this.backgroundHex = '',
@@ -31,6 +34,9 @@ class AppDialoguePanel extends StatelessWidget {
   /// Multiplier of [fontSize] for padding between text and the panel rim.
   final double innerInsetRatio;
 
+  /// Circular corner radius in logical pixels.
+  final double cornerRadius;
+
   /// Speaker name; the row stays reserved when null.
   final Widget? header;
 
@@ -43,7 +49,10 @@ class AppDialoguePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = AppUiTokens.of(context).radius;
+    final radius = cornerRadius.clamp(
+      AppDialogueChrome.minCornerRadius,
+      AppDialogueChrome.maxCornerRadius,
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
