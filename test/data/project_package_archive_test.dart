@@ -6,6 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
+  test('isPackageFileName accepts .anoworld and .zip', () {
+    expect(ProjectPackageArchive.isPackageFileName('a.anoworld'), isTrue);
+    expect(ProjectPackageArchive.isPackageFileName('B.AnoWorld'), isTrue);
+    expect(ProjectPackageArchive.isPackageFileName('pack.zip'), isTrue);
+    expect(ProjectPackageArchive.isPackageFileName('note.txt'), isFalse);
+    expect(ProjectPackageArchive.isPackageFileName('anoworld'), isFalse);
+  });
+
   test('zip and unzip round-trip preserves files', () async {
     final src = await Directory.systemTemp.createTemp('aw_pkg_src_');
     final dest = await Directory.systemTemp.createTemp('aw_pkg_dest_');

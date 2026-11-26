@@ -169,6 +169,7 @@ abstract class AppStrings extends AppLocalizations {
   String importFailed(Object error);
   String get pickStoryFolderTitle;
   String get pickStoryPackTitle;
+  String get pickStoryPackWrongType;
   String get exportStoryPack;
   String get exportStoryPackDialog;
   String exportedStory(String title);

@@ -12,6 +12,12 @@ class ProjectPackageArchive {
 
   static const String fileExtension = 'anoworld';
 
+  /// True when [fileName] looks like a story package (`.anoworld` or `.zip`).
+  static bool isPackageFileName(String fileName) {
+    final lower = fileName.trim().toLowerCase();
+    return lower.endsWith('.$fileExtension') || lower.endsWith('.zip');
+  }
+
   /// Zip [directory] contents (not the directory name itself).
   static Future<Uint8List> zipDirectory(String directory) async {
     final root = Directory(directory);

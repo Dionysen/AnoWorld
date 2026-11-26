@@ -35,6 +35,7 @@ import 'package:anoworld/home/library_selection.dart';
 import 'package:anoworld/play/start_play.dart';
 import 'package:anoworld/project/project_hub_page.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 
 class WorksTab extends StatefulWidget {
@@ -446,16 +447,32 @@ class WorksTabState extends State<WorksTab> implements HomeTabBack {
   }
 
   Future<Uint8List?> _defaultPickPackage() async {
+    // Android maps [FileType.custom] via MIME. `.anoworld` has no system MIME,
+    // so the plugin keeps only `application/zip` and hides `.anoworld` files.
+    // Open any file there, then check the name; desktop keeps the extension filter.
+    final android = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     final picked = await FilePicker.pickFiles(
       dialogTitle: context.strings.pickStoryPackTitle,
-      type: FileType.custom,
-      allowedExtensions: const [
-        ProjectPackageArchive.fileExtension,
-        'zip',
-      ],
+      type: android ? FileType.any : FileType.custom,
+      allowedExtensions: android
+          ? null
+          : const [
+              ProjectPackageArchive.fileExtension,
+              'zip',
+            ],
     );
     if (picked.isEmpty) return null;
-    return picked.single.readAsBytes();
+    final file = picked.single;
+    if (!ProjectPackageArchive.isPackageFileName(file.name)) {
+      if (!mounted) return null;
+      setState(() => _status = context.strings.pickStoryPackWrongType);
+      AppLog.instance.warning(
+        '导入故事包：后缀不是 .anoworld / .zip（${file.name}）',
+        tag: 'works.pack',
+      );
+      return null;
+    }
+    return file.readAsBytes();
   }
 
   Future<void> exportPack(ProjectSummary summary) async {

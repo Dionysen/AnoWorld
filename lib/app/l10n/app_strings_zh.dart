@@ -503,6 +503,9 @@ class AppStringsZh extends AppStrings {
   String get pickStoryPackTitle => '选择故事包';
 
   @override
+  String get pickStoryPackWrongType => '请选择 .anoworld 或 .zip 故事包';
+
+  @override
   String get exportStoryPack => '导出故事包';
 
   @override
