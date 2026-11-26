@@ -209,7 +209,8 @@ void main() {
     await tester.tap(find.text('粘贴故事'));
     await tester.pumpAndSettle();
 
-    expect(find.text('这条创作路径马上就好'), findsOneWidget);
+    expect(find.text('粘贴或导入'), findsOneWidget);
+    expect(find.text('拆成故事'), findsOneWidget);
   });
 
   testWidgets('saves tab lists progress and resumes play', (tester) async {

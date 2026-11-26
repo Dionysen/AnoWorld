@@ -430,6 +430,38 @@ abstract class AppStrings extends AppLocalizations {
   String get createEntryComingSoon;
   String get createEntryComingSoonDetail;
 
+  // Novel / paste-story import (path 2).
+
+  String get novelImportSection;
+  String get novelImportSectionHint;
+  String get novelImportBodyLabel;
+  String get novelImportBodyHint;
+  String get novelImportNoteLabel;
+  String get novelImportNoteHint;
+  String get novelImportPickFile;
+  String get novelImportGenerate;
+  String get novelImportNeedBody;
+  String get novelImportNeedService;
+  String get novelImportWrongFileType;
+  String novelImportRange(int used, int total);
+  String get novelImportStepOutline;
+  String get novelImportStepWorld;
+  String get novelImportStepCast;
+  String get novelImportStepMain;
+  String get novelImportFailed;
+  String get novelImportReviewSection;
+  String get novelImportReviewHint;
+  String get novelImportTitleLabel;
+  String get novelImportWorldSection;
+  String get novelImportCastSection;
+  String get novelImportStationsSection;
+  String get novelImportStationsHint;
+  String get novelImportRemoveStation;
+  String get novelImportWrite;
+  String get novelImportWriteHint;
+  String novelImportWriteFailed(Object error);
+  String get novelImportRetry;
+
   String get worldBookNoKeywords;
   String worldBookKeywords(String keywords);
   String get worldBookEntriesSection;

@@ -1253,6 +1253,94 @@ class AppStringsZh extends AppStrings {
   String get createEntryComingSoonDetail => '可先导入角色卡或用分阶段提示词';
 
   @override
+  String get novelImportSection => '粘贴或导入';
+
+  @override
+  String get novelImportSectionHint => '支持粘贴正文，或选 txt、md 文件';
+
+  @override
+  String get novelImportBodyLabel => '故事正文';
+
+  @override
+  String get novelImportBodyHint => '粘贴小说或一段剧情';
+
+  @override
+  String get novelImportNoteLabel => '补充说明';
+
+  @override
+  String get novelImportNoteHint => '例如只做到某一段、主角视角';
+
+  @override
+  String get novelImportPickFile => '导入文本';
+
+  @override
+  String get novelImportGenerate => '拆成故事';
+
+  @override
+  String get novelImportNeedBody => '先粘贴或导入一段正文';
+
+  @override
+  String get novelImportNeedService => '请先在设置里配好写故事的服务';
+
+  @override
+  String get novelImportWrongFileType => '请选择 .txt 或 .md 文本';
+
+  @override
+  String novelImportRange(int used, int total) =>
+      total <= 0 ? '' : '本次用前 $used / 共 $total 字';
+
+  @override
+  String get novelImportStepOutline => '正在提炼大纲…';
+
+  @override
+  String get novelImportStepWorld => '正在写设定…';
+
+  @override
+  String get novelImportStepCast => '正在找角色…';
+
+  @override
+  String get novelImportStepMain => '正在排情节…';
+
+  @override
+  String get novelImportFailed => '这次没拆开，可以再试一次';
+
+  @override
+  String get novelImportReviewSection => '拆好的内容';
+
+  @override
+  String get novelImportReviewHint => '可改标题、删站，确认后再写入';
+
+  @override
+  String get novelImportTitleLabel => '故事名称';
+
+  @override
+  String get novelImportWorldSection => '设定';
+
+  @override
+  String get novelImportCastSection => '角色';
+
+  @override
+  String get novelImportStationsSection => '情节';
+
+  @override
+  String get novelImportStationsHint => '每场一行，可删掉不要的站';
+
+  @override
+  String get novelImportRemoveStation => '删掉这一站';
+
+  @override
+  String get novelImportWrite => '写入并打开';
+
+  @override
+  String get novelImportWriteHint => '写入后可在故事里继续改';
+
+  @override
+  String novelImportWriteFailed(Object error) => '写入失败：$error';
+
+  @override
+  String get novelImportRetry => '重新拆一遍';
+
+  @override
   String get worldBookNoKeywords => '按需 · 还没写关键词';
 
   @override
