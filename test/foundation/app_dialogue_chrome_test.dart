@@ -43,4 +43,19 @@ void main() {
       closeTo(18, 0.01),
     );
   });
+
+  test('sprite height is an absolute multiple of font size', () {
+    expect(
+      AppDialogueChrome.spriteHeightFor(fontSize: 14, maxHeight: 2000),
+      14 * AppDialogueChrome.spriteHeightPerFontSize,
+    );
+    expect(
+      AppDialogueChrome.spriteHeightFor(fontSize: 20, maxHeight: 2000),
+      20 * AppDialogueChrome.spriteHeightPerFontSize,
+    );
+    expect(
+      AppDialogueChrome.spriteHeightFor(fontSize: 20, maxHeight: 100),
+      100,
+    );
+  });
 }

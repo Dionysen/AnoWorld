@@ -91,6 +91,19 @@ abstract final class AppDialogueChrome {
   static const double maxCornerRadius = 32;
   static const double cornerRadiusStep = 1;
 
+  /// Speaker sprite height = [fontSize] × this (absolute; capped by stage slot).
+  static const double spriteHeightPerFontSize = 23;
+
+  /// Absolute sprite height for [fontSize], never taller than [maxHeight].
+  static double spriteHeightFor({
+    required double fontSize,
+    required double maxHeight,
+  }) {
+    final target = fontSize * spriteHeightPerFontSize;
+    if (!(maxHeight > 0) || !maxHeight.isFinite) return target;
+    return target.clamp(0.0, maxHeight);
+  }
+
   /// Gaussian blur applied to the stage behind the panel.
   static const double blurSigma = 14;
 

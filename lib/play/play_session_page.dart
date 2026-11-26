@@ -2000,6 +2000,7 @@ class _VnStageState extends State<_VnStage> {
                     projectDir: widget.projectDir,
                     line: line,
                     appearances: runtime.appearances,
+                    fontSize: fontSize,
                   ),
                 ),
               Column(
@@ -2264,12 +2265,16 @@ class _VnSpeakerSprite extends StatelessWidget {
     required this.projectDir,
     required this.line,
     required this.appearances,
+    required this.fontSize,
   });
 
   final Project project;
   final String? projectDir;
   final DialogueLine? line;
   final List<Appearance> appearances;
+
+  /// Dialogue font size; sprite height tracks it (see [AppDialogueChrome.spriteHeightFor]).
+  final double fontSize;
 
   String? get _speakerId {
     final speakerId = line?.speakerId?.trim();
@@ -2327,21 +2332,27 @@ class _VnSpeakerSprite extends StatelessWidget {
           left: slot == AppearanceSlot.right ? 0 : sidePad,
           right: slot == AppearanceSlot.left ? 0 : sidePad,
         ),
-        child: Align(
-          alignment: align,
-          child: FractionallySizedBox(
-            heightFactor: 1,
-            widthFactor: slot == AppearanceSlot.center ? 0.72 : 0.52,
-            alignment: align,
-            child: Image.file(
-              file,
-              fit: BoxFit.contain,
-              alignment: Alignment.bottomCenter,
-              filterQuality: FilterQuality.medium,
-              errorBuilder: (context, error, stackTrace) =>
-                  const SizedBox.shrink(),
-            ),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final height = AppDialogueChrome.spriteHeightFor(
+              fontSize: fontSize,
+              maxHeight: constraints.maxHeight,
+            );
+            return Align(
+              alignment: align,
+              child: SizedBox(
+                height: height,
+                child: Image.file(
+                  file,
+                  fit: BoxFit.fitHeight,
+                  alignment: Alignment.bottomCenter,
+                  filterQuality: FilterQuality.medium,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const SizedBox.shrink(),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
